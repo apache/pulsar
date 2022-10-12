@@ -22,7 +22,7 @@ package org.apache.pulsar.common.policies.data;
  * Definition of the retention policy.
  *
  * <p>When you set a retention policy you must set **both** a *size limit* and a *time limit*.
- * In the case where you don't want to limit by either time or set, the value must be set to `-1`.
+ * In the case where you don't want to limit by either time or size, the value must be set to `-1`.
  * Retention policy will be effectively disabled and it won't prevent the deletion of acknowledged
  * messages when either size or time limit is set to `0`.
  * Infinite retention can be achieved by setting both time and size limits to `-1`.

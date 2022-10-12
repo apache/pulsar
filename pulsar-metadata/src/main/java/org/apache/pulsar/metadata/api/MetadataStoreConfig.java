@@ -20,13 +20,18 @@ package org.apache.pulsar.metadata.api;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
  */
 @Builder
 @Getter
+@ToString
 public class MetadataStoreConfig {
+    public static final String METADATA_STORE = "metadata-store";
+    public static final String STATE_METADATA_STORE = "state-metadata-store";
+    public static final String CONFIGURATION_METADATA_STORE = "configuration-metadata-store";
 
     /**
      * The (implementation specific) session timeout, in milliseconds.
@@ -69,4 +74,16 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final int batchingMaxSizeKb = 128;
+
+    /**
+     * The name of a metadata store.
+     */
+    @Builder.Default
+    private final String metadataStoreName = "";
+
+    /**
+     * Pluggable MetadataEventSynchronizer to sync metadata events across the
+     * separate clusters.
+     */
+    private MetadataEventSynchronizer synchronizer;
 }

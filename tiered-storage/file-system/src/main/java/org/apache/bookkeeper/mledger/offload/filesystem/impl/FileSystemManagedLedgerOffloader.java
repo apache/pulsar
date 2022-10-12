@@ -149,7 +149,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).submit(
+        scheduler.chooseThread(readHandle.getId()).execute(
                 new LedgerReader(readHandle, uuid, extraMetadata, promise, storageBasePath, configuration,
                         assignmentScheduler, offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
                         this.offloaderStats));
@@ -228,7 +228,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     semaphore.acquire();
                     countDownLatch = new CountDownLatch(1);
                     assignmentScheduler.chooseThread(ledgerId)
-                            .submit(FileSystemWriter.create(ledgerEntriesOnce,
+                            .execute(FileSystemWriter.create(ledgerEntriesOnce,
                                     dataWriter, semaphore, countDownLatch, haveOffloadEntryNumber, this));
                     needToOffloadFirstEntryNumber = end + 1;
                 } while (needToOffloadFirstEntryNumber - 1 != readHandle.getLastAddConfirmed()
@@ -339,7 +339,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String storagePath = getStoragePath(storageBasePath, ledgerName);
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
-        scheduler.chooseThread(ledgerId).submit(() -> {
+        scheduler.chooseThread(ledgerId).execute(() -> {
             try {
                 MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),
                         configuration);

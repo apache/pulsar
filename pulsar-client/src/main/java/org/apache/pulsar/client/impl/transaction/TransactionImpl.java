@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +36,6 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -62,7 +60,6 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
-    private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
@@ -73,17 +70,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
-    }
-
-    public enum State {
-        OPEN,
-        COMMITTING,
-        ABORTING,
-        COMMITTED,
-        ABORTED,
-        ERROR,
-        TIMEOUT
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIME_OUT);
     }
 
     TransactionImpl(PulsarClientImpl client,
@@ -122,9 +109,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
                 });
             }
-        } else {
-            return completableFuture;
         }
+        return completableFuture;
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
@@ -147,20 +133,12 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
                 });
             }
-        } else {
-            return completableFuture;
         }
+        return completableFuture;
     }
 
     public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
         ackFutureList.add(ackFuture);
-    }
-
-    public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
-        if (this.cumulativeAckConsumers == null) {
-            this.cumulativeAckConsumers = new HashMap<>();
-        }
-        cumulativeAckConsumers.put(consumer, 0);
     }
 
     @Override
@@ -202,16 +180,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                 if (e != null) {
                     log.error(e.getMessage());
                 }
-                if (cumulativeAckConsumers != null) {
-                    cumulativeAckConsumers.forEach((consumer, integer) ->
-                            cumulativeAckConsumers
-                                    .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
-                }
                 tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
-                    if (cumulativeAckConsumers != null) {
-                        cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
-                        cumulativeAckConsumers.clear();
-                    }
 
                     if (ex != null) {
                         if (ex instanceof TransactionNotFoundException
@@ -234,6 +203,11 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public TxnID getTxnID() {
         return new TxnID(txnIdMostBits, txnIdLeastBits);
+    }
+
+    @Override
+    public State getState() {
+        return state;
     }
 
     public <T> boolean checkIfOpen(CompletableFuture<T> completableFuture) {

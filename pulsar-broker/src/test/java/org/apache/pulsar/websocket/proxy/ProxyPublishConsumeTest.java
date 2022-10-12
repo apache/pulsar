@@ -101,7 +101,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -109,7 +109,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
         if (service != null) {
             service.close();
@@ -969,7 +968,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
 
-            for (JsonObject msg : consumeSocket.messages) {
+            for (JsonObject msg : consumeSocket.getMessages()) {
                 assertTrue(msg.has("encryptionContext"));
                 JsonObject encryptionCtx = msg.getAsJsonObject("encryptionContext");
                 JsonObject keys = encryptionCtx.getAsJsonObject("keys");

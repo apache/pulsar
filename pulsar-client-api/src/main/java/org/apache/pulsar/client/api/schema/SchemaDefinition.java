@@ -76,6 +76,13 @@ public interface SchemaDefinition<T> {
     Class<T> getPojo();
 
     /**
+     * Get pojo classLoader.
+     *
+     * @return pojo schema
+     */
+    ClassLoader getClassLoader();
+
+    /**
      * Get supportSchemaVersioning schema definition.
      *
      * @return the flag of supportSchemaVersioning

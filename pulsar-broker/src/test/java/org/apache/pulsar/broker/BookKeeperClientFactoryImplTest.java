@@ -31,9 +31,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.channel.EventLoopGroup;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -274,6 +278,25 @@ public class BookKeeperClientFactoryImplTest {
         assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                 .getOpportunisticStriping());
 
+    }
+
+    @Test
+    public void testBookKeeperIoThreadsConfiguration() throws Exception {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getNumIOThreads(), Runtime.getRuntime().availableProcessors() * 2);
+        conf.setBookkeeperClientNumIoThreads(1);
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getNumIOThreads(), 1);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
+                mock(StatsLogger.class), mock(ClientConfiguration.class));
+        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
+                mock(StatsLogger.class), mock(ClientConfiguration.class));
+        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
     }
 
 }

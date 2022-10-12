@@ -90,9 +90,10 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
                 try {
                     reader.close();
+                    promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
                 }
@@ -106,7 +107,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
             if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {

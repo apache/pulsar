@@ -33,7 +33,8 @@ public class KafkaStringSource extends KafkaAbstractSource<String> {
     public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
         KafkaRecord record = new KafkaRecord(consumerRecord,
                 new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                Schema.STRING);
+                Schema.STRING,
+                copyKafkaHeaders(consumerRecord));
         return record;
     }
 

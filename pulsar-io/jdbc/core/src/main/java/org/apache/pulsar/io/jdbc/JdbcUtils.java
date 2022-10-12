@@ -198,6 +198,13 @@ public class JdbcUtils {
         builder.append("UPDATE ");
         builder.append(table.tableId.getTableName());
         builder.append(" SET ");
+        StringJoiner setJoiner = buildUpdateSqlSetPart(table);
+        builder.append(setJoiner);
+        builder.append(combationWhere(table.keyColumns));
+        return builder.toString();
+    }
+
+    public static StringJoiner buildUpdateSqlSetPart(TableDefinition table) {
         StringJoiner setJoiner = new StringJoiner(",");
 
         table.nonKeyColumns.forEach((columnId) ->{
@@ -205,9 +212,7 @@ public class JdbcUtils {
             equals.add(columnId.getName()).add("? ");
             setJoiner.add(equals.toString());
         });
-        builder.append(setJoiner.toString());
-        builder.append(combationWhere(table.keyColumns));
-        return builder.toString();
+        return setJoiner;
     }
 
     public static PreparedStatement buildUpdateStatement(Connection connection, String updateSQL) throws SQLException {

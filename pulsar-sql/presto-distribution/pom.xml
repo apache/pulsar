@@ -36,10 +36,6 @@
     <jersey.version>2.34</jersey.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
-    <jackson.version>2.13.2</jackson.version>
-    <!--fix Security Vulnerabilities-->
-    <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
-    <jackson.databind.version>2.13.2.1</jackson.databind.version>
     <maven.version>3.0.5</maven.version>
     <guava.version>31.0.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
@@ -80,9 +76,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prestosql</groupId>
-      <artifactId>presto-main</artifactId>
-      <version>${presto.version}</version>
+      <groupId>io.trino</groupId>
+      <artifactId>trino-server-main</artifactId>
+      <version>${trino.version}</version>
       <exclusions>
         <!-- exclude openjdk because of GPL license -->
         <exclusion>
@@ -105,9 +101,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prestosql</groupId>
-      <artifactId>presto-cli</artifactId>
-      <version>${presto.version}</version>
+      <groupId>io.trino</groupId>
+      <artifactId>trino-cli</artifactId>
+      <version>${trino.version}</version>
     </dependency>
 
     <dependency>
@@ -136,6 +132,12 @@
       <groupId>com.twitter.common</groupId>
       <artifactId>objectsize</artifactId>
       <version>${objectsize.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jsr305</artifactId>
+          <groupId>com.google.code.findbugs</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- jackson dependencies -->
@@ -143,62 +145,46 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>${jackson.databind.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-joda</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-guava</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-jdk8</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-jsr310</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-smile</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>java-version-trim-agent</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
     </dependency>
 
   </dependencies>

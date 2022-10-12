@@ -77,7 +77,7 @@ the `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
 You can configure Prometheus to collect and store the metrics data by following the Prometheus [Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
 
 When running on bare metal, you can provide the list of nodes that needs to be probed. When deploying
-in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes)
+in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md)
 instructions.
 
 ## Dashboards
@@ -89,7 +89,7 @@ For that reason we only collect time series of metrics aggregated at the namespa
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Dashboard](administration-dashboard).
+The per-topic dashboard instructions are available at [Dashboard](administration-dashboard.md).
 
 ### Grafana
 

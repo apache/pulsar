@@ -22,7 +22,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarWorkerRebalanceDrainThreadTest extends PulsarWorkerRebalanceDrainTest {
 
-	public PulsarWorkerRebalanceDrainThreadTest() {
-		super(FunctionRuntimeType.THREAD);
-	}
+    public PulsarWorkerRebalanceDrainThreadTest() {
+        super(FunctionRuntimeType.THREAD);
+    }
 }

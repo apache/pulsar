@@ -62,6 +62,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return getProperty("bookkeeperClientAuthenticationParameters");
     }
 
+    @Override
+    public Properties getProperties() {
+        return configuration.getProperties();
+    }
 
     @Override
     public String getProperty(String key) {

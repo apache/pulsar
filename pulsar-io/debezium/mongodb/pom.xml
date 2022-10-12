@@ -39,13 +39,6 @@
         </dependency>
 
         <dependency>
-            <!-- CVE-2021-20328, check if can be safely removed with the next debezium upgrade -->
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver-sync</artifactId>
-            <version>4.2.2</version>
-        </dependency>
-
-        <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-connector-mongodb</artifactId>
             <version>${debezium.version}</version>

@@ -1165,8 +1165,8 @@ Options
 |`--jar`|Path to the Java jar file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|"The sink’s parallelism factor (i.e. the number of sink instances to run)."||
+|`--processingGuarantees`|"The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--sinkConfig`|Sink config key/values||
 |`--sinkConfigFile`|The path to a YAML config file specifying the sink’s configuration||
@@ -1217,8 +1217,8 @@ Options
 |`--jar`|Path to the Java jar file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|"The sink’s parallelism factor (i.e. the number of sink instances to run)."||
+|`--processingGuarantees`|"The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--sinkConfig`|Sink config key/values||
 |`--sinkConfigFile`|The path to a YAML config file specifying the sink’s configuration||
@@ -1267,7 +1267,7 @@ Options
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processingGuarantees`|"The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--sourceConfig`|Source config key/values||
 |`--sourceConfigFile`|The path to a YAML config file specifying the source’s configuration||
@@ -1318,7 +1318,7 @@ Options
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processingGuarantees`|"The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--sourceConfig`|Source config key/values||
 |`--sourceConfigFile`|The path to a YAML config file specifying the source’s configuration||

@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -361,8 +362,10 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         for (int i = 0; i < 5; i++) {
             // Currently sending a duplicated message won't throw an exception. Instead, an invalid result is returned.
             final MessageId messageId = producer.newMessage().value("msg").sequenceId(i).send();
-            assertTrue(messageId instanceof BatchMessageIdImpl);
-            final BatchMessageIdImpl messageIdImpl = (BatchMessageIdImpl) messageId;
+            // a duplicated message will send in a single batch, that will perform as a non-batched sending
+            assertTrue(messageId instanceof MessageIdImpl);
+            assertFalse(messageId instanceof BatchMessageIdImpl);
+            final MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
             assertEquals(messageIdImpl.getLedgerId(), -1L);
             assertEquals(messageIdImpl.getEntryId(), -1L);
         }

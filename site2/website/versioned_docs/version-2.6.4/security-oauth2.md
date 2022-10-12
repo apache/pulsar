@@ -18,7 +18,7 @@ This library allows you to authenticate the Pulsar client by using an access tok
 The authentication type determines how to obtain an access token through an OAuth 2.0 authorization flow.
 
 #### Note
-> Currently, the Pulsar Java client only supports the `client_credentials` authentication type .
+> Currently, the Pulsar Java client only supports the `client_credentials` authentication type.
 
 #### Client credentials
 
@@ -79,6 +79,8 @@ You can use the Oauth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
+
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2; 
 
 String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com/oauth/token";
 String credentialsUrl = "file:///path/to/KeyFile.json";

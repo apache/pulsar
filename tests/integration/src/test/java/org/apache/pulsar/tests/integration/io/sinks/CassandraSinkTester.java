@@ -133,4 +133,16 @@ public class CassandraSinkTester extends SinkTester<CassandraContainer> {
             assertEquals(expectedValue, value);
         }
     }
+
+    @Override
+    public void close() throws Exception {
+        if (session != null) {
+            session.close();
+            session = null;
+        }
+        if (cluster != null) {
+            cluster.close();
+            cluster = null;
+        }
+    }
 }

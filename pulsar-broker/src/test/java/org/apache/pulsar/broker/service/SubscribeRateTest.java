@@ -38,8 +38,6 @@ public class SubscribeRateTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setSystemTopicEnabled(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
     }
 

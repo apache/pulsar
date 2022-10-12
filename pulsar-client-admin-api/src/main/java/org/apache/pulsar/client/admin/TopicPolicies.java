@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1763,4 +1764,54 @@ public interface TopicPolicies {
      * @param topic The topic in whose policy should be removed
      */
     CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic);
+
+    /**
+     * Get applied entry filters for a topic.
+     * @param topic
+     * @param applied
+     * @return entry filters classes info.
+     * @throws PulsarAdminException
+     */
+    EntryFilters getEntryFiltersPerTopic(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied entry filters for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<EntryFilters> getEntryFiltersPerTopicAsync(String topic, boolean applied);
+
+    /**
+     * Set entry filters on a topic.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters) throws PulsarAdminException;
+
+    /**
+     * Set entry filters on a topic asynchronously.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    CompletableFuture<Void> setEntryFiltersPerTopicAsync(String topic, EntryFilters entryFilters);
+
+    /**
+     * remove entry filters of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeEntryFiltersPerTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * remove entry filters of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic);
+
+
 }

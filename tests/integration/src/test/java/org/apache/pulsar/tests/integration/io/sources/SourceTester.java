@@ -39,7 +39,7 @@ import org.testng.collections.Maps;
  */
 @Getter
 @Slf4j
-public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
+public abstract class SourceTester<ServiceContainerT extends GenericContainer> implements AutoCloseable {
 
     public static final String INSERT = "INSERT";
 
@@ -87,6 +87,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void validateSourceResult(Consumer consumer, int number,
                                      String eventType, String converterClassName) throws Exception {
         doPreValidationCheck(eventType);

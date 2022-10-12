@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +82,7 @@ public class BrokerOperabilityMetrics {
     }
 
     Map<String, String> getDimensionMap(String metricsName) {
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("broker", brokerName);
         dimensionMap.put("cluster", localCluster);
         dimensionMap.put("metric", metricsName);

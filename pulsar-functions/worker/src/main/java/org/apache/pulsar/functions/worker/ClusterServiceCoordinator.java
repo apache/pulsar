@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,11 +54,21 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final Supplier<Boolean> isLeader;
 
     public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
+        this(workerId, leaderService, isLeader, Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build()));
+    }
+
+    @VisibleForTesting
+    ClusterServiceCoordinator(
+            String workerId,
+            LeaderService leaderService,
+            Supplier<Boolean> isLeader,
+            ScheduledExecutorService executor
+    ) {
         this.workerId = workerId;
         this.leaderService = leaderService;
         this.isLeader = isLeader;
-        this.executor = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
+        this.executor = executor;
     }
 
     public void addTask(String taskName, long interval, Runnable task) {

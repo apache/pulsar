@@ -23,8 +23,6 @@ import static org.testng.Assert.assertEquals;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
-import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.testng.annotations.Test;
 
 public class JCloudBlobStoreProviderTests {
@@ -104,5 +102,34 @@ public class JCloudBlobStoreProviderTests {
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "transient");
         config = new TieredStorageConfiguration(map);
         JCloudBlobStoreProvider.TRANSIENT.validate(config);
+    }
+
+    @Test()
+    public void s3ValidationTest() {
+        Map<String, String> map = new HashMap<>();
+        map.put("managedLedgerOffloadDriver", "S3");
+        map.put("managedLedgerOffloadServiceEndpoint", "http://s3.service");
+        map.put("managedLedgerOffloadBucket", "test-s3-bucket");
+        TieredStorageConfiguration configuration = new TieredStorageConfiguration(map);
+        configuration.getProvider().validate(configuration);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "ServiceEndpoint must specified for S3 offload")
+    public void s3ValidationServiceEndpointMissed() {
+        Map<String, String> map = new HashMap<>();
+        map.put("managedLedgerOffloadDriver", "S3");
+        TieredStorageConfiguration configuration = new TieredStorageConfiguration(map);
+        configuration.getProvider().validate(configuration);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "Bucket cannot be empty for S3 offload")
+    public void s3ValidationBucketMissed() {
+        Map<String, String> map = new HashMap<>();
+        map.put("managedLedgerOffloadDriver", "S3");
+        map.put("managedLedgerOffloadServiceEndpoint", "http://s3.service");
+        TieredStorageConfiguration configuration = new TieredStorageConfiguration(map);
+        configuration.getProvider().validate(configuration);
     }
 }

@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -175,10 +176,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setWebServicePortTls(Optional.of(0));
             conf.setTransactionCoordinatorEnabled(true);
             conf.setBrokerDeduplicationEnabled(true);
-            conf.setSystemTopicEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
-            conf.setTopicLevelPoliciesEnabled(true);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, conf);
@@ -194,8 +193,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
 
         MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper);
-        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore(null);
+        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore(null);
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
@@ -281,7 +280,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 admin = null;
             }
             if (pulsarClient != null) {
-                pulsarClient.close();
+                pulsarClient.shutdown();
                 pulsarClient = null;
             }
             if (pulsarServiceList.size() > 0) {
@@ -327,5 +326,13 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
         }
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarService, PulsarAdmin)}
+     */
+    protected void deleteNamespaceGraceFully(String ns, boolean force)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, pulsarServiceList.get(0), admin);
     }
 }

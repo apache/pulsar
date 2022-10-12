@@ -67,6 +67,7 @@ public interface AuthorizationProvider extends Closeable {
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
      * and false if it is not
      */
+    @Deprecated
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
         return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));

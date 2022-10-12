@@ -108,6 +108,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
             name,
             baseSchema.toString().getBytes(UTF_8),
             schemaType,
+            System.currentTimeMillis(),
             properties
         );
     }

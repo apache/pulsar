@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.collect.Maps;
 import java.util.Map;
+import java.util.TreeMap;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
 public class PartitionedManagedLedgerInfo extends ManagedLedgerInfo {
@@ -27,6 +27,6 @@ public class PartitionedManagedLedgerInfo extends ManagedLedgerInfo {
     public Map<String, ManagedLedgerInfo> partitions;
 
     public PartitionedManagedLedgerInfo() {
-        partitions = Maps.newTreeMap();
+        partitions = new TreeMap<>();
     }
 }

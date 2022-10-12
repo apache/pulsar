@@ -77,6 +77,43 @@
     </profile>
 
     <profile>
+      <id>pulsar-io-tests</id>
+      <modules>
+        <module>core</module>
+        <module>batch-discovery-triggerers</module>
+        <module>batch-data-generator</module>
+        <module>common</module>
+        <module>docs</module>
+        <module>aws</module>
+        <module>twitter</module>
+        <module>cassandra</module>
+        <module>aerospike</module>
+        <module>kafka</module>
+        <module>rabbitmq</module>
+        <module>kinesis</module>
+        <module>hdfs3</module>
+        <module>jdbc</module>
+        <module>data-generator</module>
+        <module>elastic-search</module>
+        <module>kafka-connect-adaptor</module>
+        <module>kafka-connect-adaptor-nar</module>
+        <module>debezium</module>
+        <module>hdfs2</module>
+        <module>canal</module>
+        <module>file</module>
+        <module>netty</module>
+        <module>hbase</module>
+        <module>mongo</module>
+        <module>flume</module>
+        <module>redis</module>
+        <module>solr</module>
+        <module>influxdb</module>
+        <module>dynamodb</module>
+        <module>nsq</module>
+      </modules>
+    </profile>
+
+    <profile>
       <id>core-modules</id>
       <modules>
         <module>core</module>

@@ -28,10 +28,11 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
-    protected final ClientConfigurationData conf;
+    protected ClientConfigurationData conf;
     private int connectTimeout = PulsarAdminImpl.DEFAULT_CONNECT_TIMEOUT_SECONDS;
     private int readTimeout = PulsarAdminImpl.DEFAULT_READ_TIMEOUT_SECONDS;
     private int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
@@ -63,6 +64,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder loadConf(Map<String, Object> config) {
+        conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder serviceHttpUrl(String serviceHttpUrl) {
         conf.setServiceUrl(serviceHttpUrl);
         return this;
@@ -85,6 +92,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyFilePath(String tlsKeyFilePath) {
+        conf.setTlsKeyFilePath(tlsKeyFilePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsCertificateFilePath(String tlsCertificateFilePath) {
+        conf.setTlsCertificateFilePath(tlsCertificateFilePath);
         return this;
     }
 
@@ -115,6 +134,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder sslProvider(String sslProvider) {
         conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStoreType(String tlsKeyStoreType) {
+        conf.setTlsKeyStoreType(tlsKeyStoreType);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStorePath(String tlsTrustStorePath) {
+        conf.setTlsKeyStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStorePassword(String tlsKeyStorePassword) {
+        conf.setTlsKeyStorePassword(tlsKeyStorePassword);
         return this;
     }
 

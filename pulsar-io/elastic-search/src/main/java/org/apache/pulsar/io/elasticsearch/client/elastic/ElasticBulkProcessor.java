@@ -297,7 +297,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
                     promise.completeExceptionally(ex);
                 }
             };
-            internalExecutorService.submit(responseCallable);
+            internalExecutorService.execute(responseCallable);
 
             CompletableFuture<Void> listenerCalledPromise = new CompletableFuture();
 

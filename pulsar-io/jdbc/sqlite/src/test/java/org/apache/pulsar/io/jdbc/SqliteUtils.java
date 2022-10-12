@@ -49,9 +49,9 @@ public final class SqliteUtils {
 
     private final Path dbPath;
 
-    private Connection connection;
-
-    public Connection getConnection() {
+    public Connection getConnection(boolean autocommit) throws SQLException {
+        Connection connection = DriverManager.getConnection(sqliteUri());
+        connection.setAutoCommit(autocommit);
         return connection;
     }
 
@@ -65,12 +65,9 @@ public final class SqliteUtils {
 
     public void setUp() throws SQLException, IOException {
         Files.deleteIfExists(dbPath);
-        connection = DriverManager.getConnection(sqliteUri());
-        connection.setAutoCommit(false);
     }
 
     public void tearDown() throws SQLException, IOException {
-        connection.close();
         Files.deleteIfExists(dbPath);
     }
 
@@ -91,7 +88,8 @@ public final class SqliteUtils {
 
     public int select(final String query, final ResultSetReadCallback callback) throws SQLException {
         int count = 0;
-        try (Statement stmt = connection.createStatement()) {
+        try (Connection connection = getConnection(true);
+             Statement stmt = connection.createStatement()) {
             try (ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     callback.read(rs);
@@ -103,9 +101,9 @@ public final class SqliteUtils {
     }
 
     public void execute(String sql) throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
+        try (Connection connection = getConnection(true);
+                Statement stmt = connection.createStatement()) {
             stmt.executeUpdate(sql);
-            connection.commit();
         }
     }
 

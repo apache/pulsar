@@ -27,10 +27,13 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
 @UtilityClass
 public class TopicList {
+
+    public static final String ALL_TOPICS_PATTERN = ".*";
 
     private static final String SCHEME_SEPARATOR = "://";
 
@@ -51,6 +54,12 @@ public class TopicList {
                 .map(TopicName::get)
                 .map(TopicName::toString)
                 .filter(topic -> shortenedTopicsPattern.matcher(SCHEME_SEPARATOR_PATTERN.split(topic)[1]).matches())
+                .collect(Collectors.toList());
+    }
+
+    public static List<String> filterTransactionInternalName(List<String> original) {
+        return original.stream()
+                .filter(topic -> !SystemTopicNames.isTransactionInternalName(TopicName.get(topic)))
                 .collect(Collectors.toList());
     }
 

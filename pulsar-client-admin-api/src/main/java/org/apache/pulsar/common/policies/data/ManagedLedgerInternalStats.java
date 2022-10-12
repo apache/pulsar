@@ -94,6 +94,7 @@ public class ManagedLedgerInternalStats {
         public String individuallyDeletedMessages;
         public String lastLedgerSwitchTimestamp;
         public String state;
+        public boolean active;
         public long numberOfEntriesSinceFirstNotAckedMessage;
         public int totalNonContiguousDeletedMessagesRange;
         public boolean subscriptionHavePendingRead;

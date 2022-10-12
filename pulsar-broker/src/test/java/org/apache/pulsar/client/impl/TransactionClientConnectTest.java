@@ -43,6 +43,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -157,6 +158,19 @@ public class TransactionClientConnectTest extends TransactionTestBase {
                         instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
             }
         }
+    }
+
+    @Test
+    public void testHandlerStateChangeToReady() throws Exception {
+        TransactionCoordinatorClientImpl transactionCoordinatorClient =
+                ((PulsarClientImpl) pulsarClient).getTcClient();
+        Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
+        field.setAccessible(true);
+        TransactionMetaStoreHandler[] handlers =
+                (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
+        TransactionMetaStoreHandler transactionMetaStoreHandler = handlers[0];
+        Assert.assertEquals(transactionMetaStoreHandler.getConnectHandleState(), HandlerState.State.Ready);
+        Assert.assertTrue(transactionMetaStoreHandler.changeToReadyState());
     }
 
     public void start() throws Exception {

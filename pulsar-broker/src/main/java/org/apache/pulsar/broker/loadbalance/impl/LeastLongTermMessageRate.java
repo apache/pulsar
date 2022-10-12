@@ -42,7 +42,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // Maintain this list to reduce object creation.
     private ArrayList<String> bestBrokers;
 
-    public LeastLongTermMessageRate(final ServiceConfiguration conf) {
+    public LeastLongTermMessageRate() {
         bestBrokers = new ArrayList<>();
     }
 

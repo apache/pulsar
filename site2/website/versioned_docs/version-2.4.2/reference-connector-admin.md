@@ -173,7 +173,7 @@ $ pulsar-admin sources status options
 
 |Flag|Description|
 |---|---|
-|`--instance-id`|The source ID.<br />If `instance-id` is not provided, Pulasr gets status of all instances.|
+|`--instance-id`|The source ID.<br />If `instance-id` is not provided, Pulsar gets status of all instances.|
 |`--name`|The source's name.|
 |`--namespace`|The source's namespace.|
 |`--tenant`|The source's tenant.|
@@ -496,7 +496,7 @@ $ pulsar-admin sinks status options
 
 |Flag|Description|
 |---|---|
-|`--instance-id`|The sink ID.<br />If `instance-id` is not provided, Pulasr gets status of all instances.|
+|`--instance-id`|The sink ID.<br />If `instance-id` is not provided, Pulsar gets status of all instances.|
 |`--name`|The sink's name.|
 |`--namespace`|The sink's namespace.|
 |`--tenant`|The sink's tenant.|

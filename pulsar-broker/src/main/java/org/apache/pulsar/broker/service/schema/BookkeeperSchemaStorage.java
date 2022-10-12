@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.protobuf.ByteString.copyFrom;
 import static java.util.Objects.isNull;
@@ -198,9 +197,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Fetching schema from store", schemaId);
             }
-            CompletableFuture<StoredSchema> future = new CompletableFuture<>();
-
-            getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
+            return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Got schema locator {}", schemaId, locator);
                 }
@@ -213,22 +210,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return readSchemaEntry(schemaLocator.getInfo().getPosition())
                         .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
-            }).handleAsync((res, ex) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
-                }
-
-                // Cleanup the pending ops from the map
-                readSchemaOperations.remove(schemaId, future);
-                if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(res);
-                }
-                return null;
             });
-
-            return future;
+        }).whenComplete((res, ex) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
+            }
+            readSchemaOperations.remove(schemaId);
         });
     }
 
@@ -449,11 +436,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         byte[] data
     ) {
         SchemaStorageFormat.SchemaEntry schemaEntry = newSchemaEntry(index, data);
-        return createLedger(schemaId).thenCompose(ledgerHandle ->
-            addEntry(ledgerHandle, schemaEntry).thenApply(entryId ->
-                Functions.newPositionInfo(ledgerHandle.getId(), entryId)
-            )
-        );
+        return createLedger(schemaId).thenCompose(ledgerHandle -> {
+            final long ledgerId = ledgerHandle.getId();
+            return addEntry(ledgerHandle, schemaEntry)
+                    .thenApply(entryId -> {
+                        ledgerHandle.closeAsync();
+                        return Functions.newPositionInfo(ledgerId, entryId);
+                    });
+        });
     }
 
     @NotNull
@@ -472,12 +462,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .setHash(copyFrom(hash))
                 .build();
 
+        final ArrayList<SchemaStorageFormat.IndexEntry> indexList = new ArrayList<>();
+        indexList.addAll(locator.getIndexList());
+        indexList.add(info);
         return updateSchemaLocator(getSchemaPath(schemaId),
-            SchemaStorageFormat.SchemaLocator.newBuilder()
-                .setInfo(info)
-                .addAllIndex(
-                        concat(locator.getIndexList(), newArrayList(info))
-                ).build(), locatorEntry.version
+                SchemaStorageFormat.SchemaLocator.newBuilder()
+                        .setInfo(info)
+                        .addAllIndex(indexList)
+                        .build()
+                , locatorEntry.version
         ).thenApply(ignore -> nextVersion);
     }
 

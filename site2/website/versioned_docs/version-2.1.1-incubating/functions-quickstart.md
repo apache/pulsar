@@ -312,5 +312,5 @@ This string was backwards but is now forwards
 
 Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode) and successfully triggered the function. If you're ready for more, check out one of these docs:
 
-* [The Pulsar Functions API](functions-api)
-* [Deploying Pulsar Functions](functions-deploying)
+* [The Pulsar Functions API](functions-api.md)
+* [Deploying Pulsar Functions](functions-deploying.md)

@@ -291,9 +291,8 @@ public class CmdConsume {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
-        try {
+        try (PulsarClient client = clientBuilder.build()){
             ConsumerBuilder<?> builder;
-            PulsarClient client = clientBuilder.build();
             Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
             if ("auto_consume".equals(schematype)) {
                 schema = Schema.AUTO_CONSUME();
@@ -326,33 +325,33 @@ public class CmdConsume {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
             }
 
-            Consumer<?> consumer = builder.subscribe();
-            RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-            while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
-                if (limiter != null) {
-                    limiter.acquire();
-                }
+            try (Consumer<?> consumer = builder.subscribe();) {
+                RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
+                while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
+                    if (limiter != null) {
+                        limiter.acquire();
+                    }
 
-                Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
-                if (msg == null) {
-                    LOG.debug("No message to consume after waiting for 5 seconds.");
-                } else {
-                    try {
-                        numMessagesConsumed += 1;
-                        if (!hideContent) {
-                            System.out.println(MESSAGE_BOUNDARY);
-                            String output = this.interpretMessage(msg, displayHex);
-                            System.out.println(output);
-                        } else if (numMessagesConsumed % 1000 == 0) {
-                            System.out.println("Received " + numMessagesConsumed + " messages");
+                    Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        LOG.debug("No message to consume after waiting for 5 seconds.");
+                    } else {
+                        try {
+                            numMessagesConsumed += 1;
+                            if (!hideContent) {
+                                System.out.println(MESSAGE_BOUNDARY);
+                                String output = this.interpretMessage(msg, displayHex);
+                                System.out.println(output);
+                            } else if (numMessagesConsumed % 1000 == 0) {
+                                System.out.println("Received " + numMessagesConsumed + " messages");
+                            }
+                            consumer.acknowledge(msg);
+                        } finally {
+                            msg.release();
                         }
-                        consumer.acknowledge(msg);
-                    } finally {
-                        msg.release();
                     }
                 }
             }
-            client.close();
         } catch (Exception e) {
             LOG.error("Error while consuming messages");
             LOG.error(e.getMessage(), e);

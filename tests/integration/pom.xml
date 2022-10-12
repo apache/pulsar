@@ -34,6 +34,7 @@
 
   <properties>
     <integrationTestSuiteFile>pulsar.xml</integrationTestSuiteFile>
+    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
   </properties>
 
   <dependencies>
@@ -178,9 +179,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prestosql</groupId>
-      <artifactId>presto-jdbc</artifactId>
-      <version>${presto.version}</version>
+      <groupId>io.trino</groupId>
+      <artifactId>trino-jdbc</artifactId>
+      <version>${trino.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -205,6 +206,19 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- mongodb -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mongodb</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mongodb</groupId>
+      <artifactId>mongodb-driver-reactivestreams</artifactId>
+      <version>${mongo-reactivestreams.version}</version>
       <scope>test</scope>
     </dependency>
 
