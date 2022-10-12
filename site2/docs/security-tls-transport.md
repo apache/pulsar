@@ -335,8 +335,6 @@ import json
 import ssl
 import pathlib
 
-import pathlib
-import pathlib
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client_pem = pathlib.Path(__file__).with_name("pulsar_client.pem")
 ssl_context.load_verify_locations(client_pem)
