@@ -77,11 +77,10 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "false",
-            help = "All the table fields are discovered automatically. This fields indicate if the fields "
-                    + "not explicitly listed in 'nonKey' and 'key' must be included in the query."
-                    + "By default all the fields of the table are included."
-                    + "In order to leverage of fields defaults during insertion, "
-                    + "it is suggested to set this value to false."
+            help = "All the table fields are discovered automatically. 'excludeNonDeclaredFields' indicates if the "
+                    + "table fields not explicitly listed in `nonKey` and `key` must be included in the query. "
+                    + "By default all the table fields are included. To leverage of table fields defaults "
+                    + "during insertion, it is suggested to set this value to `false`."
     )
     private boolean excludeNonDeclaredFields = false;
 
