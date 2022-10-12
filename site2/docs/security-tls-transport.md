@@ -246,7 +246,7 @@ To enable TLS encryption, you need to configure the clients to use `https://` wi
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path of the **trust cert** (recommended) or enable the clients to allow untrusted server certs.
 
-The following examples show how to configure TLS encryption for Java/Python/C++/Node.js/C# clients.
+The following examples show how to configure TLS encryption for Java/Python/C++/Node.js/C#/WebSocket clients.
 
 ````mdx-code-block
 <Tabs groupId="lang-choice"
