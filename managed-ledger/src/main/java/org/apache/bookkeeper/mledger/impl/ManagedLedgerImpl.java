@@ -3338,10 +3338,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         boolean lastLedger = false;
         long totalEntriesInCurrentLedger;
-        while (curLedger != null && currentLedgerId <= curLedger.getId()) {
+        while (entriesToSkip >= 0) {
             // for the current ledger, the number of entries written is deduced from the lastConfirmedEntry
             // for previous ledgers, LedgerInfo in ZK has the number of entries
-            if (currentLedgerId == curLedger.getId()) {
+            if (currentLedger != null && currentLedgerId == currentLedger.getId()) {
                 lastLedger = true;
                 if (currentLedgerEntries > 0) {
                     totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
