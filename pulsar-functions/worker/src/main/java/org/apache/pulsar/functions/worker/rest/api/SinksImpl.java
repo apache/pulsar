@@ -433,8 +433,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                                  Function.FunctionDetails functionDetails, String transformFunction) {
         File functionPackageFile = null;
         try {
-            String builtin = null;
-            if (!transformFunction.startsWith(Utils.BUILTIN)) {
+            String builtin = functionDetails.getBuiltin();
+            if (isBlank(builtin)) {
                 functionPackageFile = getPackageFile(transformFunction);
             }
             Function.PackageLocationMetaData.Builder functionPackageLocation =
