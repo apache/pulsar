@@ -253,10 +253,14 @@ public class Utils {
                 org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject> keyValue =
                         (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) val;
                 Map<String, Object> jsonKeyValue = new HashMap<>();
-                jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
-                        keyValue.getKey().getNativeObject()));
-                jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
-                        keyValue.getValue().getNativeObject()));
+                if (keyValue.getKey() != null) {
+                    jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
+                            keyValue.getKey().getNativeObject()));
+                }
+                if (keyValue.getValue() != null) {
+                    jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
+                            keyValue.getValue().getNativeObject()));
+                }
                 return jsonKeyValue;
             case AVRO:
                 return JsonConverter.toJson((org.apache.avro.generic.GenericRecord) val);

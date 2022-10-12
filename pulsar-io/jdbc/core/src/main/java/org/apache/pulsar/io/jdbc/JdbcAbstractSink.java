@@ -89,8 +89,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             properties.setProperty("password", password);
         }
 
-
-        Class.forName(JdbcUtils.getDriverClassName(jdbcSinkConfig.getJdbcUrl()));
         connection = DriverManager.getConnection(jdbcSinkConfig.getJdbcUrl(), properties);
         connection.setAutoCommit(!jdbcSinkConfig.isUseTransactions());
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
@@ -111,29 +109,35 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     }
 
     private void initStatement()  throws Exception {
-        List<String> keyList = Lists.newArrayList();
-        String key = jdbcSinkConfig.getKey();
-        if (key != null && !key.isEmpty()) {
-            keyList = Arrays.asList(key.split(","));
-        }
-        List<String> nonKeyList = Lists.newArrayList();
-        String nonKey = jdbcSinkConfig.getNonKey();
-        if (nonKey != null && !nonKey.isEmpty()) {
-            nonKeyList = Arrays.asList(nonKey.split(","));
-        }
+        List<String> keyList = getListFromConfig(jdbcSinkConfig.getKey());
+        List<String> nonKeyList = getListFromConfig(jdbcSinkConfig.getNonKey());
 
         tableDefinition = JdbcUtils.getTableDefinition(connection, tableId,
                 keyList, nonKeyList, jdbcSinkConfig.isExcludeNonDeclaredFields());
-        insertStatement = JdbcUtils.buildInsertStatement(connection, generateInsertQueryStatement());
+        insertStatement = connection.prepareStatement(generateInsertQueryStatement());
+
         if (jdbcSinkConfig.getInsertMode() == JdbcSinkConfig.InsertMode.UPSERT) {
-            upsertStatement = JdbcUtils.buildInsertStatement(connection, generateUpsertQueryStatement());
+            if (nonKeyList.isEmpty() || keyList.isEmpty()) {
+                throw new IllegalStateException("UPSERT mode is not configured if 'key' and 'nonKey' "
+                        + "config are not set.");
+            }
+            upsertStatement = connection.prepareStatement(generateUpsertQueryStatement());
         }
         if (!nonKeyList.isEmpty()) {
-            updateStatement = JdbcUtils.buildUpdateStatement(connection, generateUpdateQueryStatement());
+            updateStatement = connection.prepareStatement(generateUpdateQueryStatement());
         }
         if (!keyList.isEmpty()) {
-            deleteStatement = JdbcUtils.buildDeleteStatement(connection, generateDeleteQueryStatement());
+            deleteStatement = connection.prepareStatement(generateDeleteQueryStatement());
         }
+    }
+
+    private static List<String> getListFromConfig(String jdbcSinkConfig) {
+        List<String> nonKeyList = Lists.newArrayList();
+        String nonKey = jdbcSinkConfig;
+        if (nonKey != null && !nonKey.isEmpty()) {
+            nonKeyList = Arrays.asList(nonKey.split(","));
+        }
+        return nonKeyList;
     }
 
     @Override
@@ -187,6 +191,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     }
 
     public abstract String generateUpsertQueryStatement();
+
+    public abstract List<JdbcUtils.ColumnId> getColumnsForUpsert();
 
     public String generateDeleteQueryStatement() {
         return JdbcUtils.buildDeleteSql(tableDefinition);

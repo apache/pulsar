@@ -23,9 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
@@ -175,10 +173,6 @@ public class JdbcUtils {
         return builder.toString();
     }
 
-    public static PreparedStatement buildInsertStatement(Connection connection, String insertSQL) throws SQLException {
-        return connection.prepareStatement(insertSQL);
-    }
-
     public static String combationWhere(List<ColumnId> columnIds) {
         StringBuilder builder = new StringBuilder();
         if (!columnIds.isEmpty()) {
@@ -207,6 +201,9 @@ public class JdbcUtils {
     }
 
     public static StringJoiner buildUpdateSqlSetPart(TableDefinition table) {
+        if (table.nonKeyColumns.isEmpty()) {
+            throw new IllegalStateException("UPDATE operations are not supported if 'nonKey' config is not set.");
+        }
         StringJoiner setJoiner = new StringJoiner(",");
 
         table.nonKeyColumns.forEach((columnId) ->{
@@ -217,27 +214,9 @@ public class JdbcUtils {
         return setJoiner;
     }
 
-    public static PreparedStatement buildUpdateStatement(Connection connection, String updateSQL) throws SQLException {
-        return connection.prepareStatement(updateSQL);
-    }
-
     public static String buildDeleteSql(TableDefinition table) {
         return "DELETE FROM "
             + table.tableId.getTableName()
             + combationWhere(table.keyColumns);
     }
-
-    public static PreparedStatement buildDeleteStatement(Connection connection, String deleteSQL) throws SQLException {
-        return connection.prepareStatement(deleteSQL);
-    }
-
-    public static String getDriverClassName(String jdbcUrl) throws Exception {
-        for (JdbcDriverType type : JdbcDriverType.values()) {
-            if (type.matches(jdbcUrl)) {
-                return type.getDriverClass();
-            }
-        }
-        throw new Exception("Provided JDBC connection string contains unknown driver: " + jdbcUrl);
-    }
-
 }

@@ -37,7 +37,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.InputStream;
@@ -46,6 +45,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
@@ -367,7 +367,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             lastNonBatchedMessageId = producer.send(message.getBytes());
         }
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         Message<byte[]> msg = null;
         for (int i = 0; i < numMessagesPerBatch; i++) {
             msg = consumer1.receive(1, TimeUnit.SECONDS);
@@ -563,7 +563,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 ClientCnx cnx = producer.cnx();
                 assertTrue(cnx.channel().isActive());
 
-                final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
+                final List<CompletableFuture<Producer<byte[]>>> futures = new ArrayList<>();
                 final int totalProducers = 10;
                 CountDownLatch latch = new CountDownLatch(totalProducers);
                 for (int i = 0; i < totalProducers; i++) {

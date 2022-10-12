@@ -32,10 +32,10 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfoImpl()
-            .setName("ByteBuffer")
-            .setType(SchemaType.BYTES)
-            .setSchema(new byte[0]);
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("ByteBuffer")
+            .type(SchemaType.BYTES)
+            .schema(new byte[0]).build();
         INSTANCE = new ByteBufferSchema();
     }
 

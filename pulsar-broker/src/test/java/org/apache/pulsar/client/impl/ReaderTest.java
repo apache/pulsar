@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -300,7 +299,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
                 .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
-        List<MessageId> receivedMessageIds = Lists.newArrayList();
+        List<MessageId> receivedMessageIds = new ArrayList<>();
 
         while (reader.hasMessageAvailable()) {
             Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);

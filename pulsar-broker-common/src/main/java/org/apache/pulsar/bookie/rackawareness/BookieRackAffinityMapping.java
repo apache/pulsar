@@ -77,7 +77,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store = (MetadataStore) storeProperty;
         } else {
             String url;
-            String metadataServiceUri = (String) conf.getProperty("metadataServiceUri");
+            String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
                 try {
                     url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
@@ -86,7 +86,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
                 }
             } else {
-                String zkServers = (String) conf.getProperty("zkServers");
+                String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zkServers"));
                 if (StringUtils.isBlank(zkServers)) {
                     String errorMsg = String.format("Neither %s configuration set in the BK client configuration nor "
                             + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
