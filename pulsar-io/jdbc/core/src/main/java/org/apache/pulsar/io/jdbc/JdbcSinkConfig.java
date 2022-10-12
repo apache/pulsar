@@ -87,15 +87,26 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "500",
-        help = "The jdbc operation timeout in milliseconds"
+        help = "Enable batch mode by time. After timeoutMs milliseconds the operations queue will be flushed." +
+                "Batch mode is enabled if batchSize or timeoutMs are more than zero."
     )
     private int timeoutMs = 500;
     @FieldDoc(
         required = false,
         defaultValue = "200",
-        help = "The batch size of updates made to the database"
+        help = "Enable batch mode by number of operations. This value is the max number of operations "
+                + "batched in the same transaction/batch. "
+                + "Batch mode is enabled if batchSize or timeoutMs are more than zero."
     )
     private int batchSize = 200;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "Use JDBC batch API when batch is enabled. This option is suggested to improve writes performances."
+    )
+    private boolean useJdbcBatch = false;
+
     @FieldDoc(
             required = false,
             defaultValue = "true",
@@ -141,4 +152,11 @@ public class JdbcSinkConfig implements Serializable {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), JdbcSinkConfig.class);
     }
+
+    public void validate() {
+        if (timeoutMs <= 0 && batchSize <= 0) {
+            throw new IllegalArgumentException("timeoutMs or batchSize must be set to a positive value.");
+        }
+    }
+
 }
