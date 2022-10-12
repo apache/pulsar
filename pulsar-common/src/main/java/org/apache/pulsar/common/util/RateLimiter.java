@@ -82,7 +82,7 @@ public class RateLimiter implements AutoCloseable{
             this.externalExecutor = true;
         } else {
             final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-                    new DefaultThreadFactory("rate-limiter"));
+                    new DefaultThreadFactory("pulsar-rate-limiter"));
             executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
             executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             this.executorService = executor;
