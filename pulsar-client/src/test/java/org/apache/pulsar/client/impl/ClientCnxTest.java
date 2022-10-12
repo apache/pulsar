@@ -101,13 +101,14 @@ public class ClientCnxTest {
         CountDownLatch countDownLatch2 = new CountDownLatch(1);
         new Thread(() -> {
             try {
-                Thread.sleep(5_000);
+                Thread.sleep(1_000);
                 CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
                         cnx.newLookup(null, 123);
                 countDownLatch1.countDown();
                 future.get();
             } catch (Exception e) {
                 // ignore exception
+                assertTrue(e instanceof PulsarClientException.ConnectException);
             } finally {
                 countDownLatch2.countDown();
             }
