@@ -86,11 +86,11 @@ public class StringSchemaTest {
 
     @Test
     public void testSchemaInfoWithoutCharset() {
-        SchemaInfo si = new SchemaInfoImpl()
-            .setName("test-schema-info-without-charset")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0])
-            .setProperties(Collections.emptyMap());
+        SchemaInfo si = SchemaInfoImpl.builder()
+            .name("test-schema-info-without-charset")
+            .type(SchemaType.STRING)
+            .schema(new byte[0])
+            .properties(Collections.emptyMap()).build();
         StringSchema schema = StringSchema.fromSchemaInfo(si);
 
         String myString = "my string for test";
@@ -121,11 +121,11 @@ public class StringSchemaTest {
     public void testSchemaInfoWithCharset(Charset charset) {
         Map<String, String> properties = new HashMap<>();
         properties.put(StringSchema.CHARSET_KEY, charset.name());
-        SchemaInfo si = new SchemaInfoImpl()
-            .setName("test-schema-info-without-charset")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0])
-            .setProperties(properties);
+        SchemaInfo si = SchemaInfoImpl.builder()
+            .name("test-schema-info-without-charset")
+            .type(SchemaType.STRING)
+            .schema(new byte[0])
+            .properties(properties).build();
         StringSchema schema = StringSchema.fromSchemaInfo(si);
 
         String myString = "my string for test";
