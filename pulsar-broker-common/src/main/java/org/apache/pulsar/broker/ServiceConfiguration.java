@@ -1799,7 +1799,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Ack quorum (Qa) size, Number of guaranteed copies (acks to wait for before a write is considered completed)"
+        doc = "Ack quorum (Qa) size, Number of guaranteed copies "
+               + "(acks to wait for before a write is considered completed)"
     )
     private int managedLedgerDefaultAckQuorum = 2;
 
