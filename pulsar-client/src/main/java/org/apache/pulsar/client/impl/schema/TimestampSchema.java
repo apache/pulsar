@@ -32,10 +32,10 @@ public class TimestampSchema extends AbstractSchema<Timestamp> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("Timestamp")
-             .setType(SchemaType.TIMESTAMP)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("Timestamp")
+             .type(SchemaType.TIMESTAMP)
+             .schema(new byte[0]).build();
        INSTANCE = new TimestampSchema();
    }
 
