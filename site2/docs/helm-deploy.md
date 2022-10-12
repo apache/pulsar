@@ -1,7 +1,7 @@
 ---
 id: helm-deploy
 title: Deploy a Pulsar cluster on Kubernetes
-sidebar_label: "Deployment"
+sidebar_label: "Deploy"
 ---
 
 Before deploying a Pulsar cluster, you need to [prepare Kubernetes resources](helm-prepare.md) and then continue with the following steps.
