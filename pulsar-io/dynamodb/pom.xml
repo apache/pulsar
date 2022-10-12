@@ -88,7 +88,7 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>dynamodb-streams-kinesis-adapter</artifactId>
-      <version>1.5.1</version>
+      <version>${jettison.version}</version>
     </dependency>
     <!-- /dynamodb dependencies -->
 
