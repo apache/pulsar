@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -570,6 +571,55 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             } else {
                 assertEquals(messageId.getClass(), ChunkMessageIdImpl.class);
             }
+        }
+    }
+
+    @Test
+    public void testBlockIfQueueFullWhenChunking() throws Exception {
+        this.conf.setMaxMessageSize(50);
+
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("my-property/my-ns/test-chunk-size")
+                .enableChunking(true)
+                .enableBatching(false)
+                .blockIfQueueFull(true)
+                .maxPendingMessages(3)
+                .create();
+
+        // Test sending large message (totalChunks > maxPendingMessages) should not cause deadlock
+        // We need to use a separate thread to send the message instead of using the sendAsync, because the deadlock
+        // might happen before publishing messages to the broker.
+        CompletableFuture<Void> sendMsg = CompletableFuture.runAsync(() -> {
+            try {
+                producer.send(createMessagePayload(200));
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        try {
+            sendMsg.get(5, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            Assert.fail("Deadlock detected when sending large message.");
+        }
+
+        // Test sending multiple large messages (For every message, totalChunks < maxPendingMessages) concurrently
+        // should not cause the deadlock.
+        List<CompletableFuture<Void>> sendMsgFutures = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            sendMsgFutures.add(CompletableFuture.runAsync(() -> {
+                try {
+                    producer.send(createMessagePayload(100));
+                } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        }
+
+        try {
+            FutureUtil.waitForAll(sendMsgFutures).get(5, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            Assert.fail("Deadlock detected when sending multiple large messages concurrently.");
         }
     }
 
