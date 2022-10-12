@@ -28,9 +28,9 @@ import com.google.common.collect.TreeRangeMap;
 import com.google.protobuf.ByteString;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotF
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
+import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
 @ThreadSafe
@@ -215,7 +216,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
         List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
         List<SnapshotSegmentMetadata> segmentMetadataList = new ArrayList<>();
-        Map<Long, BitSet> bitMap = new HashMap<>();
+        Map<Long, RoaringBitmap> bitMap = new HashMap<>();
         SnapshotSegment.Builder snapshotSegmentBuilder = SnapshotSegment.newBuilder();
         SnapshotSegmentMetadata.Builder segmentMetadataBuilder = SnapshotSegmentMetadata.newBuilder();
 
@@ -244,7 +245,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                     .setLedgerId(ledgerId)
                     .setEntryId(entryId).build();
 
-            bitMap.computeIfAbsent(ledgerId, k -> new BitSet()).set((int) entryId);
+            bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
 
             snapshotSegmentBuilder.addIndexes(delayedIndex);
 
@@ -252,11 +253,12 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                 segmentMetadataBuilder.setMaxScheduleTimestamp(timestamp);
                 currentTimestampUpperLimit = 0;
 
-                Iterator<Map.Entry<Long, BitSet>> iterator = bitMap.entrySet().iterator();
+                Iterator<Map.Entry<Long, RoaringBitmap>> iterator = bitMap.entrySet().iterator();
                 while (iterator.hasNext()) {
-                    Map.Entry<Long, BitSet> entry = iterator.next();
-                    ByteString byteString = ByteString.copyFrom(entry.getValue().toByteArray());
-                    segmentMetadataBuilder.putDelayedIndexBitMap(entry.getKey(), byteString);
+                    Map.Entry<Long, RoaringBitmap> entry = iterator.next();
+                    byte[] array = new byte[entry.getValue().serializedSizeInBytes()];
+                    entry.getValue().serialize(ByteBuffer.wrap(array));
+                    segmentMetadataBuilder.putDelayedIndexBitMap(entry.getKey(), ByteString.copyFrom(array));
                     iterator.remove();
                 }
 
@@ -403,7 +405,6 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             lastMutableBucketState.setEndLedgerId(ledgerId);
         }
 
-        // TODO If the bitSet is sparse, this memory cost very high to deduplication and skip read message
         lastMutableBucketState.putIndexBit(ledgerId, entryId);
         numberDelayedMessages++;
 
@@ -552,21 +553,21 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     }
 
     private boolean removeIndexBit(long ledgerId, long entryId) {
-        if (lastMutableBucketState.removeIndexBit(ledgerId, (int) entryId)) {
+        if (lastMutableBucketState.removeIndexBit(ledgerId, entryId)) {
             return true;
         }
 
-        return findBucket(ledgerId).map(bucketState -> bucketState.removeIndexBit(ledgerId, (int) entryId))
+        return findBucket(ledgerId).map(bucketState -> bucketState.removeIndexBit(ledgerId, entryId))
                 .orElse(false);
     }
 
     @Override
     public boolean containsMessage(long ledgerId, long entryId) {
-        if (lastMutableBucketState.containsMessage(ledgerId, (int) entryId)) {
+        if (lastMutableBucketState.containsMessage(ledgerId, entryId)) {
             return true;
         }
 
-        return findBucket(ledgerId).map(bucketState -> bucketState.containsMessage(ledgerId, (int) entryId))
+        return findBucket(ledgerId).map(bucketState -> bucketState.containsMessage(ledgerId, entryId))
                 .orElse(false);
     }
 }

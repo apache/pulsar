@@ -20,12 +20,12 @@ package org.apache.pulsar.broker.delayed;
 
 import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
 import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELIMITER;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.roaringbitmap.RoaringBitmap;
 
 @Data
 @AllArgsConstructor
@@ -34,7 +34,7 @@ public class BucketState {
     long startLedgerId;
     long endLedgerId;
 
-    Map<Long, BitSet> delayedIndexBitMap;
+    Map<Long, RoaringBitmap> delayedIndexBitMap;
 
     long numberBucketDelayedMessages;
 
@@ -52,24 +52,24 @@ public class BucketState {
         this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, -1, null);
     }
 
-    boolean containsMessage(long ledgerId, int entryId) {
-        BitSet bitSet = delayedIndexBitMap.get(ledgerId);
+    boolean containsMessage(long ledgerId, long entryId) {
+        RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet == null) {
             return false;
         }
-        return bitSet.get(entryId);
+        return bitSet.contains(entryId, entryId + 1);
     }
 
     void putIndexBit(long ledgerId, long entryId) {
-        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> new BitSet()).set((int) entryId);
+        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
     }
 
-    boolean removeIndexBit(long ledgerId, int entryId) {
+    boolean removeIndexBit(long ledgerId, long entryId) {
         boolean contained = false;
-        BitSet bitSet = delayedIndexBitMap.get(ledgerId);
-        if (bitSet != null && bitSet.get(entryId)) {
+        RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
+        if (bitSet != null && bitSet.contains(entryId, entryId + 1)) {
             contained = true;
-            bitSet.clear(entryId);
+            bitSet.remove(entryId, entryId + 1);
 
             if (bitSet.isEmpty()) {
                 delayedIndexBitMap.remove(ledgerId);
