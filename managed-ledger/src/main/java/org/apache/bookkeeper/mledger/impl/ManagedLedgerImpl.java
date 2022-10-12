@@ -3324,7 +3324,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return the new position that is n entries ahead
      */
     public PositionImpl getPositionAfterN(final PositionImpl startPosition, long n, PositionBound startRange) {
-        final LedgerHandle curLedger = currentLedger;
         long entriesToSkip = n;
         long currentLedgerId;
         long currentEntryId;
@@ -3368,7 +3367,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     break;
                 }
                 Long lid = ledgers.ceilingKey(currentLedgerId + 1);
-                currentLedgerId = lid != null ? lid : curLedger.getId();
+                currentLedgerId = lid != null ? lid : currentLedger.getId();
                 currentEntryId = 0;
             }
         }
