@@ -24,7 +24,10 @@ on:
       - opened
       - reopened
       - edited
-      - synchronize
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.number }}
+  cancel-in-progress: true
 
 jobs:
   main:
