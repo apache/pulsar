@@ -86,13 +86,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.apache.zookeeper.MockZooKeeperSession;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -127,20 +122,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
-    }
-
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        // use MockZooKeeperSession to provide a unique session id for each instance
-        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeperGlobal), MetadataStoreConfig.builder()
-                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
-    }
-
-    @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        // use MockZooKeeperSession to provide a unique session id for each instance
-        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeper), MetadataStoreConfig.builder()
-                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
     /**

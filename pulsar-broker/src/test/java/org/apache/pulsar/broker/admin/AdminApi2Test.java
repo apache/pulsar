@@ -111,11 +111,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.zookeeper.MockZooKeeperSession;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -150,20 +145,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         conf.setEnableNamespaceIsolationUpdateOnTime(true);
         return conf;
-    }
-
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        // use MockZooKeeperSession to provide a unique session id for each instance
-        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeperGlobal), MetadataStoreConfig.builder()
-                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
-    }
-
-    @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        // use MockZooKeeperSession to provide a unique session id for each instance
-        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeper), MetadataStoreConfig.builder()
-                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
     @AfterClass(alwaysRun = true)
