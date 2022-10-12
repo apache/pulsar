@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -1852,7 +1853,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSplitBundleForMultiTimes() throws Exception{
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
-        BundlesData data = BundlesData.builder().numBundles(4).build();
+        int initBundleCount = 4;
+        BundlesData data = BundlesData.builder().numBundles(initBundleCount).build();
         admin.namespaces().createNamespace(namespace, data);
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         final NamespaceName testNs = NamespaceName.get(namespace);
@@ -1861,6 +1863,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             final BundlesData bundles = admin.namespaces().getBundles(namespace);
             final String bundle = bundles.getBoundaries().get(0) + "_" + bundles.getBoundaries().get(1);
             admin.namespaces().splitNamespaceBundle(namespace, bundle, true, null);
+            final int loop = i + 1;
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                BundlesData currentBundles = admin.namespaces().getBundles(namespace);
+                assertEquals(currentBundles.getNumBundles(), initBundleCount + loop);
+            });
         }
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         assertEquals(bundles.getNumBundles(), 14);
