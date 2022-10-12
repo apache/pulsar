@@ -24,6 +24,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
@@ -180,7 +181,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) throws Exception {
         int number;
-        synchronized (this) {
+        synchronized (incomingList) {
             incomingList.add(record);
             number = incomingList.size();
         }
@@ -341,7 +342,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         final boolean useTransactions = jdbcSinkConfig.isUseTransactions();
 
         for (int r: results) {
-            if (r < 0) {
+            if (isBatchItemFailed(r)) {
                 if (failuresMapping == null) {
                     failuresMapping = new HashMap<>();
                 }
@@ -367,7 +368,13 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             // throwing an exception here means the main loop cycle will nack the messages in the next batch
             throw new SQLException(msg);
         }
+    }
 
+    private static boolean isBatchItemFailed(int returnCode) {
+        if (returnCode == Statement.SUCCESS_NO_INFO || returnCode >= 0) {
+            return false;
+        }
+        return true;
     }
 
 }
