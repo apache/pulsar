@@ -87,8 +87,7 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "500",
-        help = "Enable batch mode by time. After timeoutMs milliseconds the operations queue will be flushed." +
-                "Batch mode is enabled if batchSize or timeoutMs are more than zero."
+        help = "Enable batch mode by time. After timeoutMs milliseconds the operations queue will be flushed."
     )
     private int timeoutMs = 500;
     @FieldDoc(
@@ -96,14 +95,13 @@ public class JdbcSinkConfig implements Serializable {
         defaultValue = "200",
         help = "Enable batch mode by number of operations. This value is the max number of operations "
                 + "batched in the same transaction/batch. "
-                + "Batch mode is enabled if batchSize or timeoutMs are more than zero."
     )
     private int batchSize = 200;
 
     @FieldDoc(
             required = false,
             defaultValue = "false",
-            help = "Use JDBC batch API when batch is enabled. This option is suggested to improve writes performances."
+            help = "Use the JDBC batch API. This option is suggested to improve writes performances."
     )
     private boolean useJdbcBatch = false;
 

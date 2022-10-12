@@ -27,6 +27,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
@@ -256,7 +256,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                         .map(this::createMutation)
                         .collect(Collectors.toList());
                 // bind each record value
-                PreparedStatement statement = null;
+                PreparedStatement statement;
                 for (Mutation mutation : mutations) {
                     switch (mutation.getType()) {
                         case DELETE:
@@ -286,12 +286,14 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                                 log.debug("Flushed {} messages in {} ms", count, (System.nanoTime() - start) / 1000 / 1000);
                             }
                             start = System.nanoTime();
-                        } else {
-                            statement.addBatch();
                         }
+                        statement.addBatch();
                         currentBatch = statement;
                     } else {
                         statement.execute();
+                        if (!jdbcSinkConfig.isUseTransactions()) {
+                            swapList.removeFirst().ack();
+                        }
                     }
                 }
 
@@ -301,12 +303,25 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                         log.debug("Flushed {} messages in {} ms", count, (System.nanoTime() - start) / 1000 / 1000);
                     }
                 } else {
-                    connection.commit();
-                    swapList.forEach(Record::ack);
+                    if (jdbcSinkConfig.isUseTransactions()) {
+                        connection.commit();
+                        swapList.forEach(Record::ack);
+                    }
                 }
             } catch (Exception e) {
-                log.error("Got exception {} after {} ms", e.getMessage(), (System.nanoTime() - start) / 1000 / 1000, e);
+                log.error("Got exception {} after {} ms, failing {} messages",
+                        e.getMessage(),
+                        (System.nanoTime() - start) / 1000 / 1000,
+                        swapList.size(),
+                        e);
                 swapList.forEach(Record::fail);
+                try {
+                    if (jdbcSinkConfig.isUseTransactions()) {
+                        connection.rollback();
+                    }
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
 
             isFlushing.set(false);
@@ -322,16 +337,37 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     private void executeBatch(Deque<Record<T>> swapList, PreparedStatement statement) throws SQLException {
         final int[] results = statement.executeBatch();
-        connection.commit();
+        Map<Integer, Integer> failuresMapping = null;
+        final boolean useTransactions = jdbcSinkConfig.isUseTransactions();
+
         for (int r: results) {
-            final Record<T> record = swapList.removeFirst();
-            if (r >= 0) {
-                record.ack();
-            } else {
-                log.info("got batch return value {}, failing message ", r);
-                record.fail();
+            if (r < 0) {
+                if (failuresMapping == null) {
+                    failuresMapping = new HashMap<>();
+                }
+                final Integer current = failuresMapping.computeIfAbsent(r, code -> 1);
+                failuresMapping.put(r, current + 1);
             }
         }
+        if (failuresMapping == null || failuresMapping.isEmpty()) {
+            if (useTransactions) {
+                connection.commit();
+            }
+            for (int r: results) {
+                swapList.removeFirst().ack();
+            }
+        } else {
+            if (useTransactions) {
+                connection.rollback();
+            }
+            for (int r: results) {
+                swapList.removeFirst().fail();
+            }
+            String msg = "Batch failed, got error results (error_code->count): " + failuresMapping;
+            // throwing an exception here means the main loop cycle will nack the messages in the next batch
+            throw new SQLException(msg);
+        }
+
     }
 
 }
