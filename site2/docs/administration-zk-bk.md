@@ -298,7 +298,7 @@ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 --bookkeeper-ack-quorum 3
 ```
 
-short example:
+Short example:
 
 ```shell
 pulsar-admin namespaces set-persistence my-tenant/my-ns -e 3 -w 3 -a 3
