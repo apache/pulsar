@@ -25,21 +25,15 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -55,14 +49,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     private final Map<RegistrationListener, Boolean> writableBookiesWatchers = new ConcurrentHashMap<>();
     private final Map<RegistrationListener, Boolean> readOnlyBookiesWatchers = new ConcurrentHashMap<>();
-    private final MetadataCache<BookieServiceInfo> bookieServiceInfoMetadataCache;
     private final ScheduledExecutorService executor;
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
         this.store = store;
         this.ledgersRootPath = ledgersRootPath;
-        this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
 
         // Following Bookie Network Address Changes is an expensive operation
         // as it requires additional ZooKeeper watches
@@ -160,33 +152,5 @@ public class PulsarRegistrationClient implements RegistrationClient {
             newBookieAddrs.add(bookieAddr);
         }
         return newBookieAddrs;
-    }
-
-    @Override
-    public CompletableFuture<Versioned<BookieServiceInfo>> getBookieServiceInfo(BookieId bookieId) {
-        String asWritable = bookieRegistrationPath + "/" + bookieId;
-
-        return bookieServiceInfoMetadataCache.get(asWritable)
-                .thenCompose((Optional<BookieServiceInfo> getResult) -> {
-                    if (getResult.isPresent()) {
-                        return CompletableFuture.completedFuture(new Versioned<>(getResult.get(),
-                                    new LongVersion(-1)));
-                    } else {
-                        return readBookieInfoAsReadonlyBookie(bookieId);
-                    }
-                }
-        );
-    }
-
-    final CompletableFuture<Versioned<BookieServiceInfo>> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
-        String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
-        return bookieServiceInfoMetadataCache.get(asReadonly)
-                .thenApply((Optional<BookieServiceInfo> getResultAsReadOnly) -> {
-                    if (getResultAsReadOnly.isPresent()) {
-                        return new Versioned<>(getResultAsReadOnly.get(), new LongVersion(-1));
-                    } else {
-                        throw new CompletionException(new BKException.BKBookieHandleNotAvailableException());
-                    }
-                });
     }
 }

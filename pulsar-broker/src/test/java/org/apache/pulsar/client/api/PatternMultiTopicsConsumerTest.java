@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Maps;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker")
 public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
@@ -71,7 +71,7 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
     }
 
     private void testWithConsumer(Consumer<byte[]> consumer) throws Exception {
-        Map<String, List<String>> sentMessages = Maps.newHashMap();
+        Map<String, List<String>> sentMessages = new HashMap<>();
         for (int p = 0; p < 10; ++p) {
             String name = "persistent://my-property/my-ns/topic-" + p;
             Producer<byte[]> producer = pulsarClient.newProducer().topic(name).create();
@@ -83,7 +83,7 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg;
-        Map<String, List<String>> receivedMessages = Maps.newHashMap();
+        Map<String, List<String>> receivedMessages = new HashMap<>();
         for (int i = 0; i < 100; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());

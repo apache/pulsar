@@ -436,9 +436,6 @@
         <configuration>
           <failOnViolations>true</failOnViolations>
           <javaVersion>17</javaVersion>
-          <ignorePackages>
-            <ignorePackage>org.apache.pulsar.client</ignorePackage>
-          </ignorePackages>
           <exclusionPatterns>
             <exclusionPattern>java/lang/StringBuffer."&lt;init&gt;":.*</exclusionPattern>
           </exclusionPatterns>

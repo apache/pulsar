@@ -356,6 +356,8 @@ public class PendingReadsManager {
                                         @Override
                                         public void readEntriesFailed(ManagedLedgerException exception,
                                                                       Object dummyCtx3) {
+                                            entries.forEach(Entry::release);
+                                            entriesFromLeft.forEach(Entry::release);
                                             callback.readEntriesFailed(exception, ctx);
                                         }
                                     };
@@ -366,6 +368,7 @@ public class PendingReadsManager {
 
                                 @Override
                                 public void readEntriesFailed(ManagedLedgerException exception, Object dummyCtx4) {
+                                    entries.forEach(Entry::release);
                                     callback.readEntriesFailed(exception, ctx);
                                 }
                             };
@@ -388,6 +391,7 @@ public class PendingReadsManager {
                                         @Override
                                         public void readEntriesFailed(ManagedLedgerException exception,
                                                                       Object dummyCtx6) {
+                                            entries.forEach(Entry::release);
                                             callback.readEntriesFailed(exception, ctx);
                                         }
                                     };
@@ -410,6 +414,7 @@ public class PendingReadsManager {
                                         @Override
                                         public void readEntriesFailed(ManagedLedgerException exception,
                                                                       Object dummyCtx8) {
+                                            entries.forEach(Entry::release);
                                             callback.readEntriesFailed(exception, ctx);
                                         }
                                     };

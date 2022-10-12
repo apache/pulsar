@@ -34,7 +34,6 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -51,7 +50,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
@@ -74,7 +72,6 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1945,6 +1942,22 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("remove-shadow-topics persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeShadowTopics("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("create-shadow-topic -s persistent://myprop/clust/ns1/source persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).createShadowTopic("persistent://myprop/clust/ns1/ds1", "persistent://myprop/clust/ns1/source", null);
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-shadow-topic -p a=aa,b=bb,c=cc -s persistent://myprop/clust/ns1/source persistent://myprop/clust/ns1/ds1"));
+        HashMap<String, String> p = new HashMap<>();
+        p.put("a","aa");
+        p.put("b","bb");
+        p.put("c","cc");
+        verify(mockTopics).createShadowTopic("persistent://myprop/clust/ns1/ds1", "persistent://myprop/clust/ns1/source", p);
+
+        cmdTopics.run(split("get-shadow-source persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getShadowSource("persistent://myprop/clust/ns1/ds1");
+
+
 
     }
 

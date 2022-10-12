@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -37,13 +40,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
-
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker-api")
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
@@ -105,7 +101,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
 
         int consumedCount = 0;
-        Set<MessageId> messageIds = Sets.newHashSet();
+        Set<MessageId> messageIds = new HashSet<>();
         for (int i = 0; i < totalMsgs; i++) {
             Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
             if (message != null && (consumedCount % 2) == 0) {

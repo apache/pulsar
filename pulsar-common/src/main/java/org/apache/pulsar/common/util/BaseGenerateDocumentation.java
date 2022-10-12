@@ -16,23 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.common.util;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.Serializable;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import lombok.Data;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.commons.lang3.reflect.MethodUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 @Data
 @Parameters(commandDescription = "Generate documentation automatically.")
@@ -72,7 +76,7 @@ public abstract class BaseGenerateDocumentation {
             jcommander.usage();
             return false;
         }
-        if (!CollectionUtils.isEmpty(classNames)) {
+        if (classNames != null) {
             for (String className : classNames) {
                 System.out.println(generateDocumentByClassName(className));
             }
@@ -81,21 +85,6 @@ public abstract class BaseGenerateDocumentation {
     }
 
     protected abstract String generateDocumentByClassName(String className) throws Exception;
-
-    protected Predicate<Field> isRequired = field -> {
-        FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-        return fieldContext.required();
-    };
-
-    protected Predicate<Field> isOptional = field -> {
-        FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-        return !fieldContext.deprecated() && !fieldContext.required();
-    };
-
-    protected Predicate<Field> isDeprecated = field -> {
-        FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-        return fieldContext.deprecated();
-    };
 
     protected Predicate<Field> isRequiredApiModel = field -> {
         ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
@@ -107,10 +96,61 @@ public abstract class BaseGenerateDocumentation {
         return !modelProperty.required();
     };
 
-    protected void writeDocListByFieldContext(List<Field> fieldList, StringBuilder sb, Object obj) throws Exception {
-        for (Field field : fieldList) {
-            FieldContext fieldContext = field.getAnnotation(FieldContext.class);
+    private Annotation getFieldContextAnnotation(Field field) {
+        for (Annotation annotation : field.getAnnotations()) {
+            if (annotation.annotationType().getCanonicalName()
+                    .equals("org.apache.pulsar.common.configuration.FieldContext")) {
+                return annotation;
+            }
+        }
+        return null;
+    }
+
+    private static class FieldContextWrapper {
+        private final Object fieldContext;
+
+        public FieldContextWrapper(Object fieldContext) {
+            this.fieldContext = fieldContext;
+        }
+
+        @SneakyThrows
+        String doc() {
+            return (String) MethodUtils.invokeMethod(fieldContext, "doc");
+        }
+
+        @SneakyThrows
+        Class type() {
+            return (Class) MethodUtils.invokeMethod(fieldContext, "type");
+        }
+
+        @SneakyThrows
+        boolean required() {
+            return (boolean) MethodUtils.invokeMethod(fieldContext, "required");
+        }
+
+        @SneakyThrows
+        boolean deprecated() {
+            return (boolean) MethodUtils.invokeMethod(fieldContext, "deprecated");
+        }
+
+        @SneakyThrows
+        boolean dynamic() {
+            return (boolean) MethodUtils.invokeMethod(fieldContext, "dynamic");
+        }
+
+        @SneakyThrows
+        String category() {
+            return (String) MethodUtils.invokeMethod(fieldContext, "category");
+        }
+    }
+
+    protected void writeDocListByFieldContext(List<Pair<Field, FieldContextWrapper>> fieldList,
+                                              StringBuilder sb, Object obj) throws Exception {
+        for (Pair<Field, FieldContextWrapper> fieldPair : fieldList) {
+            FieldContextWrapper fieldContext = fieldPair.getValue();
+            final Field field = fieldPair.getKey();
             field.setAccessible(true);
+
 
             sb.append("### ").append(field.getName()).append("\n");
             sb.append(fieldContext.doc().replace(">", "\\>")).append("\n\n");
@@ -134,37 +174,46 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
-    protected static class CategoryComparator implements Comparator<Field> {
+    protected static class CategoryComparator implements Comparator<Pair<Field, FieldContextWrapper>>, Serializable {
         @Override
-        public int compare(Field o1, Field o2) {
-            FieldContext o1Context = o1.getAnnotation(FieldContext.class);
-            FieldContext o2Context = o2.getAnnotation(FieldContext.class);
+        public int compare(Pair<Field, FieldContextWrapper> o1, Pair<Field, FieldContextWrapper> o2) {
+            FieldContextWrapper o1Context = o1.getValue();
+            FieldContextWrapper o2Context = o2.getValue();
 
             if (o1Context.category().equals(o2Context.category())) {
-                return o1.getName().compareTo(o2.getName());
+                return o1.getKey().getName().compareTo(o2.getKey().getName());
             }
             return o1Context.category().compareTo(o2Context.category());
         }
     }
 
-    protected String prefix = """
-            !> This page is automatically generated from code files.
-            If you find something inaccurate, feel free to update `""";
-    protected String suffix = """
-            `.
-            """;
+    protected String prefix = "\n"
+            + "!> This page is automatically generated from code files.\n"
+            + "If you find something inaccurate, feel free to update `";
+    protected String suffix = "\n`.\n";
+
 
     protected String generateDocByFieldContext(String className, String type, StringBuilder sb) throws Exception {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();
-        ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
+        List<Pair<Field, FieldContextWrapper>> fieldList = new ArrayList<>(fields.length);
+        for (Field field : fields) {
+            final Annotation fieldContextAnnotation = getFieldContextAnnotation(field);
 
-        fieldList.removeIf(f -> f.getAnnotation(FieldContext.class) == null);
+            if (fieldContextAnnotation != null) {
+                fieldList.add(Pair.of(field, new FieldContextWrapper(fieldContextAnnotation)));
+            }
+        }
         fieldList.sort(new CategoryComparator());
-        List<Field> requiredFields = fieldList.stream().filter(isRequired).toList();
-        List<Field> optionalFields = fieldList.stream().filter(isOptional).toList();
-        List<Field> deprecatedFields = fieldList.stream().filter(isDeprecated).toList();
+        List<Pair<Field, FieldContextWrapper>> requiredFields =
+                fieldList.stream().filter(p -> p.getValue().required()).collect(Collectors.toList());
+        List<Pair<Field, FieldContextWrapper>> optionalFields =
+                fieldList.stream().filter(p -> !p.getValue().required() && !p.getValue().deprecated())
+                        .collect(Collectors.toList());
+        List<Pair<Field, FieldContextWrapper>> deprecatedFields =
+                fieldList.stream().filter(p -> p.getValue().deprecated()).collect(Collectors.toList());
+
 
         sb.append("# ").append(type).append("\n");
 
@@ -187,8 +236,8 @@ public abstract class BaseGenerateDocumentation {
 
         fieldList.removeIf(f -> f.getAnnotation(ApiModelProperty.class) == null);
         fieldList.sort(Comparator.comparing(Field::getName));
-        List<Field> requiredFields = fieldList.stream().filter(isRequiredApiModel).toList();
-        List<Field> optionalFields = fieldList.stream().filter(isOptionalApiModel).toList();
+        List<Field> requiredFields = fieldList.stream().filter(isRequiredApiModel).collect(Collectors.toList());
+        List<Field> optionalFields = fieldList.stream().filter(isOptionalApiModel).collect(Collectors.toList());
 
         sb.append("# ").append(type).append("\n");
         sb.append(prefix).append(className).append(suffix);

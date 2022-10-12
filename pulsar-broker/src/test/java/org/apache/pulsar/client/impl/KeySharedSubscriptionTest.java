@@ -18,8 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -35,15 +44,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Test(groups = "broker-impl")
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
@@ -75,7 +75,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .build();
         final int totalMsg = 1000;
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
-        Map<Consumer<?>, List<MessageId>> nameToId = Maps.newConcurrentMap();
+        Map<Consumer<?>, List<MessageId>> nameToId = new ConcurrentHashMap<>();
         Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
         Set<MessageId> recMessages = Sets.newConcurrentHashSet();
         AtomicLong lastActiveTime = new AtomicLong();

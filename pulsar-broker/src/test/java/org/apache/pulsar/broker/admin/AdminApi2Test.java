@@ -113,8 +113,9 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -124,7 +125,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -134,11 +135,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();
 
-        // Setup namespaces
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        admin.tenants().createTenant("prop-xyz", tenantInfo);
-        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
+        setupClusters();
     }
 
     @Override
@@ -150,7 +147,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         return conf;
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -159,6 +156,32 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             mockPulsarSetup = null;
         }
         resetConfig();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void resetClusters() throws Exception {
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        for (String tenant : admin.tenants().getTenants()) {
+            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                deleteNamespaceGraceFully(namespace, true);
+            }
+            admin.tenants().deleteTenant(tenant, true);
+        }
+
+        for (String cluster : admin.clusters().getClusters()) {
+            admin.clusters().deleteCluster(cluster);
+        }
+
+        resetConfig();
+        setupClusters();
+    }
+
+    private void setupClusters() throws PulsarAdminException {
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
     }
 
     @DataProvider(name = "topicType")
@@ -505,7 +528,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // recreation of producer will load the topic again
-        pulsarClient.newProducer().topic(topicName).create();
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName).create();
         topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
         // unload the topic
@@ -619,6 +643,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
 
         consumer.close();
+
+        cleanup();
+        setup();
     }
 
     private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
@@ -774,6 +801,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         clusterIds = Set.of("us-west1", "us-west4");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+
+        cleanup();
+        setup();
     }
 
     @Test
@@ -1079,6 +1109,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         TopicStats stats = admin.topics().getStats(topic);
         assertEquals(stats.getPublishers().size(), 1);
         producer.close();
+
+        cleanup();
+        setup();
     }
 
     @Test
@@ -1173,6 +1206,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         BrokerNamespaceIsolationDataImpl isolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
         assertFalse(isolationData.isPrimary());
+
+        admin.clusters().deleteNamespaceIsolationPolicy(cluster, policyName1);
     }
 
     // create 1 namespace:
@@ -1233,6 +1268,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             // expected lookup fail, because no brokers matched the policy.
             log.info(" 22 expected fail lookup");
         }
+
+        admin.clusters().deleteNamespaceIsolationPolicy(cluster, policyName1);
     }
 
     @Test
@@ -1250,7 +1287,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
      * @throws PulsarAdminException
      */
     @Test
-    public void testClusterIsReadyBeforeCreateTopic() throws PulsarAdminException {
+    public void testClusterIsReadyBeforeCreateTopic() throws Exception {
         final String topicName = "partitionedTopic";
         final int partitions = 4;
         final String persistentPartitionedTopicName = "persistent://prop-xyz/ns2/" + topicName;
@@ -1272,6 +1309,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Assert.fail("should have failed due to Namespace does not have any clusters configured");
         } catch (PulsarAdminException.PreconditionFailedException ignored) {
         }
+
+        cleanup();
+        setup();
     }
 
     @Test
@@ -1392,7 +1432,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30000)
-    public void testPreciseBacklog() throws PulsarClientException, PulsarAdminException, InterruptedException {
+    public void testPreciseBacklog() throws Exception {
+        cleanup();
+        setup();
+
         final String topic = "persistent://prop-xyz/ns1/precise-back-log";
         final String subName = "sub-name";
 
@@ -1594,9 +1637,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteNamespaceWithTopicPolicies() throws Exception {
-        cleanup();
-        setup();
-
         String tenant = "test-tenant";
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
@@ -1825,6 +1865,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz2/test/ns2", 10);
         assertEquals(admin.namespaces().getBundles("prop-xyz2/ns1").getNumBundles(), 10);
         assertEquals(admin.namespaces().getBundles("prop-xyz2/test/ns2").getNumBundles(), 10);
+
+        admin.namespaces().deleteNamespace("prop-xyz2/test/ns2");
     }
 
     @Test
@@ -1840,9 +1882,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         deleteNamespaceGraceFully(namespaceName, true);
         try {
             admin.schemas().getSchemaInfo(topic);
+            Assert.fail("fail");
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
         }
+
+        cleanup();
+        setup();
     }
 
     @Test
@@ -2234,7 +2280,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         //Create a client that can fail quickly
         try (PulsarClient client = PulsarClient.builder().operationTimeout(2,TimeUnit.SECONDS)
                 .serviceUrl(brokerUrl.toString()).build()){
-            client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
+            @Cleanup
+            Consumer<byte[]> subscribe =
+                    client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
             fail("should fail");
         } catch (Exception ignore) {
         }
@@ -2273,7 +2321,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             consumerList.add(consumer);
         }
         try {
-            client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
+            @Cleanup
+            Consumer<byte[]> subscribe =
+                    client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
             fail("should fail");
         } catch (Exception ignore) {
 
@@ -2293,7 +2343,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(() -> persistentTopic.getHierarchyTopicPolicies()
                 .getMaxSubscriptionsPerTopic().get() == brokerLevelMaxSub);
         try {
-            client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
+            @Cleanup
+            Consumer<byte[]> subscribe =
+                    client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
             fail("should fail");
         } catch (Exception ignore) {
 
@@ -2328,7 +2380,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == null);
         try {
-            pulsarClient.newProducer().topic(topic).create();
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max producers limit"));
@@ -2341,7 +2394,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         producers.add(producer);
         try {
-            pulsarClient.newProducer().topic(topic).create();
+            @Cleanup
+            Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max producers limit"));
@@ -2380,7 +2434,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == null);
         try {
-            pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            @Cleanup
+            Consumer<byte[]> subscribe =
+                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max consumers limit"));
@@ -2394,7 +2450,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
         consumers.add(consumer);
         try {
-            pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            @Cleanup
+            Consumer<byte[]> subscribe =
+                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max consumers limit"));
@@ -2582,6 +2640,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Set.of(cluster));
         admin.topics().createNonPartitionedTopic(topic);
         assertTrue(admin.topics().getList(namespace).contains(topic));
+
+        cleanup();
+        setup();
     }
 
     /**
@@ -2631,6 +2692,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicType")
     public void testPartitionedStatsAggregationByProducerName(String topicType) throws Exception {
+        cleanup();
+        setup();
+
         conf.setAggregatePublisherStatsByProducerName(true);
         final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name";
         admin.topics().createPartitionedTopic(topic, 10);
