@@ -4,6 +4,12 @@ title: Get started in Kubernetes
 sidebar_label: "Run Pulsar in Kubernetes"
 ---
 
+:::tip
+
+This page has been deprecated and is no longer updated. For the latest and complete information about running Pulsar in Kubernetes, see the [quick start guide](getting-started-helm.md).
+
+:::
+
 This section guides you through every step of installing and running Apache Pulsar with Helm on Kubernetes quickly, including the following sections:
 
 - Install the Apache Pulsar on Kubernetes using Helm
