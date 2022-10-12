@@ -38,6 +38,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
@@ -62,10 +63,12 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml1.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
         when(ml1.getExecutor()).thenReturn(super.executor);
         when(ml1.getFactory()).thenReturn(factory);
+        when(ml1.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         ml2 = mock(ManagedLedgerImpl.class);
         when(ml2.getScheduledExecutor()).thenReturn(executor);
         when(ml2.getName()).thenReturn("cache2");
+        when(ml2.getConfig()).thenReturn(new ManagedLedgerConfig());
     }
 
     @Test

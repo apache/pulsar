@@ -34,6 +34,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -55,14 +56,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache<PositionImpl, EntryImpl> entries;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
-
-
     private static final double MB = 1024 * 1024;
 
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
-        this.pendingReadsManager = new PendingReadsManager(this);
         this.ml = ml;
+        this.pendingReadsManager = new PendingReadsManager(this);
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
         this.copyEntries = copyEntries;
@@ -77,9 +76,19 @@ public class RangeEntryCacheImpl implements EntryCache {
         return ml;
     }
 
+    @VisibleForTesting
+    ManagedLedgerConfig getManagedLedgerConfig() {
+        return ml.getConfig();
+    }
+
     @Override
     public String getName() {
         return ml.getName();
+    }
+
+    @VisibleForTesting
+    PendingReadsLimiter getPendingReadsLimiter() {
+        return manager.getPendingReadsLimiter();
     }
 
     public static final PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect

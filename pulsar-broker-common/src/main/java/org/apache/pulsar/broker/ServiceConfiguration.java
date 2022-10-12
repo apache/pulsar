@@ -1861,6 +1861,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for reads from storage."
+            + " Use O to disable")
+    private long managedLedgerMaxPendingReadsBufferSizeInMB = 0;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
