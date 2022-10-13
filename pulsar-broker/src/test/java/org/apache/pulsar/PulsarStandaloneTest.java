@@ -26,6 +26,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -61,12 +63,18 @@ public class PulsarStandaloneTest {
         when(resources.getTenantResources()).thenReturn(tr);
         when(resources.getNamespaceResources()).thenReturn(nsr);
 
+        Namespaces namespaces = mock(Namespaces.class);
+        doNothing().when(namespaces).createNamespace(any());
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.namespaces()).thenReturn(namespaces);
+
         PulsarService broker = mock(PulsarService.class);
         when(broker.getPulsarResources()).thenReturn(resources);
         when(broker.getWebServiceAddress()).thenReturn("pulsar://localhost:8080");
         when(broker.getWebServiceAddressTls()).thenReturn(null);
         when(broker.getBrokerServiceUrl()).thenReturn("pulsar://localhost:6650");
         when(broker.getBrokerServiceUrlTls()).thenReturn(null);
+        when(broker.getAdminClient()).thenReturn(admin);
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName(cluster);
@@ -79,7 +87,8 @@ public class PulsarStandaloneTest {
         standalone.createNameSpace(cluster, tenant, ns);
         verify(cr, times(1)).createCluster(eq(cluster), any());
         verify(tr, times(1)).createTenant(eq(tenant), any());
-        verify(nsr, times(1)).createPolicies(eq(ns), any());
+        verify(admin, times(1)).namespaces();
+        verify(admin.namespaces(), times(1)).createNamespace(eq(ns.toString()));
     }
 
 }

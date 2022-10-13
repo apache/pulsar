@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -220,7 +220,7 @@ public class BacklogQuotaManager {
                     }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
-                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
+                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime() * 1000) {
                         // skip whole ledger for the slowest cursor
                         PositionImpl nextPosition = mLedger.getNextValidPosition(
                                 PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1));
@@ -245,7 +245,7 @@ public class BacklogQuotaManager {
      *            The topic on which all producers should be disconnected
      */
     private void disconnectProducers(PersistentTopic persistentTopic) {
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         Map<String, Producer> producers = persistentTopic.getProducers();
 
         producers.values().forEach(producer -> {

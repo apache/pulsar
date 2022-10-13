@@ -83,6 +83,18 @@ public class BookieRackAffinityMappingTest {
     }
 
     @Test
+    public void testMultipleMetadataServiceUris() {
+        BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf1 = new ClientConfiguration();
+        bkClientConf1.setProperty("metadataServiceUri", "memory:local,memory:local");
+        bkClientConf1.setProperty("zkTimeout", "100000");
+
+        mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        // This previously threw an exception when the metadataServiceUri was a comma delimited list.
+        mapping1.setConf(bkClientConf1);
+    }
+
+    @Test
     public void testInvalidRackName() {
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"/\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2

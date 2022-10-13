@@ -88,7 +88,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
 @Slf4j
 @Test(groups = "broker-admin")
@@ -3072,22 +3071,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         //shadow topic must exist
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
-                admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic1)));
+                admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1)));
 
         //shadow topic must be persistent topic
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
                 admin.topics().setShadowTopics(sourceTopic,
-                        Lists.newArrayList("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
+                        List.of("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
 
         pulsarClient.newProducer().topic(shadowTopic1).create().close();
         pulsarClient.newProducer().topic(shadowTopic2).create().close();
 
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic1));
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
-                Lists.newArrayList(shadowTopic1)));
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic1, shadowTopic2));
+                List.of(shadowTopic1)));
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1, shadowTopic2));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
-                Lists.newArrayList(shadowTopic1, shadowTopic2)));
+                List.of(shadowTopic1, shadowTopic2)));
 
         admin.topics().removeShadowTopics(sourceTopic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getShadowTopics(sourceTopic)));

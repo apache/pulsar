@@ -177,7 +177,7 @@ public class LinuxInfoUtils {
                 log.error("[LinuxInfo] Failed to get total nic limit.", e);
                 return 0d;
             }
-        }).sum(), BitRateUnit.Bit);
+        }).sum(), BitRateUnit.Megabit);
     }
 
     /**

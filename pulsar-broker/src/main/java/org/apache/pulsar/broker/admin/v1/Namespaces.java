@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.admin.v1;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -107,7 +107,7 @@ public class Namespaces extends NamespacesBase {
     public List<String> getNamespacesForCluster(@PathParam("property") String tenant,
             @PathParam("cluster") String cluster) {
         validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
-        List<String> namespaces = Lists.newArrayList();
+        List<String> namespaces = new ArrayList<>();
         if (!clusters().contains(cluster)) {
             log.warn("[{}] Failed to get namespace list for tenant: {}/{} - Cluster does not exist", clientAppId(),
                     tenant, cluster);

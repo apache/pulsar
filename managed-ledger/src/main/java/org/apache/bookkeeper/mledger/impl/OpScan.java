@@ -18,11 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.google.common.base.Predicate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
@@ -81,7 +81,7 @@ class OpScan implements ReadEntriesCallback {
                         callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
                         return;
                     }
-                    if (!condition.apply(entry)) {
+                    if (!condition.test(entry)) {
                         log.warn("[{}] Scan abort due to user code", OpScan.this.cursor);
                         callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
                         return;

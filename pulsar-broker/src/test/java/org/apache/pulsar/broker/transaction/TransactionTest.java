@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -691,7 +692,8 @@ public class TransactionTest extends TransactionTestBase {
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
                 new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
-                        500, bufferedWriterConfig, transactionTimer)))
+                        500, bufferedWriterConfig, transactionTimer,
+                        DISABLED_BUFFERED_WRITER_METRICS)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -757,7 +759,7 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        transactionTimer);
+                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);

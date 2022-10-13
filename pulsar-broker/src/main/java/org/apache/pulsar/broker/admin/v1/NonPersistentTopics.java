@@ -19,11 +19,11 @@
 
 package org.apache.pulsar.broker.admin.v1;
 
-import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -200,7 +200,7 @@ public class NonPersistentTopics extends PersistentTopics {
             return;
         }
 
-        final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
+        final List<CompletableFuture<List<String>>> futures = new ArrayList<>();
         final List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
@@ -222,7 +222,7 @@ public class NonPersistentTopics extends PersistentTopics {
             if (ex != null) {
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
             } else {
-                final List<String> topics = Lists.newArrayList();
+                final List<String> topics = new ArrayList<>();
                 for (int i = 0; i < futures.size(); i++) {
                     List<String> topicList = futures.get(i).join();
                     if (topicList != null) {
@@ -267,7 +267,7 @@ public class NonPersistentTopics extends PersistentTopics {
             }
             NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange,
                 true, true);
-            final List<String> topicList = Lists.newArrayList();
+            final List<String> topicList = new ArrayList<>();
             pulsar().getBrokerService().forEachTopic(topic -> {
                 TopicName topicName = TopicName.get(topic.getName());
                 if (nsBundle.includes(topicName)) {

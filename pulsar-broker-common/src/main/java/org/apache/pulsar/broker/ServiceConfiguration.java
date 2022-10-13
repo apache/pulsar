@@ -372,6 +372,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
     private boolean delayedDeliverySharedIndexEnabled = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
+            + "when detecting if all the messages in the topic have a fixed delay. "
+            + "Default is 50,000. Setting the lookahead window to 0 will disable the "
+            + "logic to handle fixed delays in messages in a different way.")
+    private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
@@ -1049,6 +1055,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
     )
     private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+
+    @FieldContext(
+        dynamic = false,
+        category = CATEGORY_SERVER,
+        doc = "Whether the broker should count filtered entries in dispatch rate limit calculations. When disabled, "
+            + "only messages sent to a consumer count towards a dispatch rate limit at the broker, topic, and "
+            + "subscription level. When enabled, messages filtered out due to entry filter logic are counted towards "
+            + "each relevant rate limit."
+    )
+    private boolean dispatchThrottlingForFilteredEntriesEnabled = false;
 
     // <-- dispatcher read settings -->
     @FieldContext(

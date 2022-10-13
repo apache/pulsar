@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.Optional;
@@ -250,7 +249,7 @@ public interface Topic {
 
     EntryFilters getEntryFiltersPolicy();
 
-    ImmutableMap<String, EntryFilterWithClassLoader> getEntryFilters();
+    Map<String, EntryFilterWithClassLoader> getEntryFilters();
 
     BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 

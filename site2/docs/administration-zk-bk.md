@@ -283,8 +283,8 @@ The following is an example:
 
 ```shell
 pulsar-admin namespaces set-persistence my-tenant/my-ns \
---bookkeeper-ack-quorum 3 \
---bookkeeper-ensemble 2
+--bookkeeper-ack-quorum 2 \
+--bookkeeper-ensemble 3
 ```
 
 #### REST API
@@ -294,8 +294,9 @@ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 #### Java
 
 ```java
-int bkEnsemble = 2;
-int bkQuorum = 3;
+// The following must be true: bkEnsemble >= bkQuorum >= bkAckQuorum
+int bkEnsemble = 3;
+int bkQuorum = 2;
 int bkAckQuorum = 2;
 double markDeleteRate = 0.7;
 PersistencePolicies policies =

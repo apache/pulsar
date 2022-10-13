@@ -31,13 +31,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -63,6 +63,45 @@ public class CompactorTool {
 
         @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
+    }
+
+    public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .memoryLimit(0, SizeUnit.BYTES);
+
+        // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+        // @Secret on the ClientConfigurationData object because of the way they are serialized.
+        // See https://github.com/apache/pulsar/issues/8509 for more information.
+        clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(brokerConfig.getProperties(), "brokerClient_"));
+
+        if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
+            clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
+                    brokerConfig.getBrokerClientAuthenticationParameters());
+        }
+
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
+        if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
+            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
+                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+            if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
+                clientBuilder.useKeyStoreTls(true)
+                        .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
+                        .tlsKeyStorePath(brokerConfig.getBrokerClientTlsKeyStore())
+                        .tlsKeyStorePassword(brokerConfig.getBrokerClientTlsKeyStorePassword())
+                        .tlsTrustStoreType(brokerConfig.getBrokerClientTlsTrustStoreType())
+                        .tlsTrustStorePath(brokerConfig.getBrokerClientTlsTrustStore())
+                        .tlsTrustStorePassword(brokerConfig.getBrokerClientTlsTrustStorePassword());
+            } else {
+                clientBuilder.tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
+                        .tlsKeyFilePath(brokerConfig.getBrokerClientKeyFilePath())
+                        .tlsCertificateFilePath(brokerConfig.getBrokerClientCertificateFilePath());
+            }
+        } else {
+            internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
+            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
+        }
+
+        return clientBuilder.build();
     }
 
     public static void main(String[] args) throws Exception {
@@ -105,39 +144,9 @@ public class CompactorTool {
             );
         }
 
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES);
-
-        // Apply all arbitrary configuration. This must be called before setting any fields annotated as
-        // @Secret on the ClientConfigurationData object because of the way they are serialized.
-        // See https://github.com/apache/pulsar/issues/8509 for more information.
-        clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(brokerConfig.getProperties(), "brokerClient_"));
-
-        if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
-            clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
-                    brokerConfig.getBrokerClientAuthenticationParameters());
-        }
-
-        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
-        if (internalListener.getBrokerServiceUrlTls() != null) {
-            log.info("Found a TLS-based advertised listener in configuration file. \n"
-                    + "Will connect pulsar use TLS.");
-            clientBuilder
-                    .serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
-                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
-
-        } else {
-            internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
-            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
-        }
-
         @Cleanup(value = "shutdownNow")
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-
-        @Cleanup(value = "shutdownNow")
-        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
 
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
@@ -157,7 +166,7 @@ public class CompactorTool {
         BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
 
         @Cleanup
-        PulsarClient pulsar = clientBuilder.build();
+        PulsarClient pulsar = createClient(brokerConfig);
 
         Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
         long ledgerId = compactor.compact(arguments.topic).get();

@@ -49,6 +49,11 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
     }
 
     @Override
+    public List<ColumnId> getColumnsForUpsert() {
+        throw new IllegalStateException("UPSERT not supported");
+    }
+
+    @Override
     public void bindValue(PreparedStatement statement, Mutation mutation) throws Exception {
         final List<ColumnId> columns = new ArrayList<>();
         switch (mutation.getType()) {
@@ -56,8 +61,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                 columns.addAll(tableDefinition.getColumns());
                 break;
             case UPSERT:
-                columns.addAll(tableDefinition.getColumns());
-                columns.addAll(tableDefinition.getNonKeyColumns());
+                columns.addAll(getColumnsForUpsert());
                 break;
             case UPDATE:
                 columns.addAll(tableDefinition.getNonKeyColumns());

@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
@@ -352,6 +353,12 @@ public class MockManagedLedger implements ManagedLedger {
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
         final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
         return CompletableFuture.completedFuture(build);
+    }
+
+    @Override
+    public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
+        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        return Optional.of(build);
     }
 
     @Override
