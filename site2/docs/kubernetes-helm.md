@@ -22,8 +22,8 @@ For deploying a Pulsar cluster for production usage, read the documentation on [
 
 ## Prerequisite
 
-- Kubernetes server 1.14.0+
-- kubectl 1.14.0+
+- Kubernetes server 1.18.0+
+- kubectl 1.18.0+
 - Helm 3.0+
 
 :::tip

@@ -12,7 +12,7 @@ Set up your environment by installing the required tools.
 
 ### Install kubectl
 
-`kubectl` 1.14 or higher is the required tool that talks to the Kubernetes API. It needs to be compatible with your cluster ([+/- 1 minor release from your cluster](https://kubernetes.io/docs/tasks/tools/install-kubectl/#before-you-begin)). The server version of `kubectl` cannot be obtained until you connect to a cluster.
+`kubectl` 1.18 or higher is the required tool that talks to the Kubernetes API. It needs to be compatible with your cluster ([+/- 1 minor release from your cluster](https://kubernetes.io/docs/tasks/tools/install-kubectl/#before-you-begin)). The server version of `kubectl` cannot be obtained until you connect to a cluster.
 
 For the installation instructions, see the [Kubernetes documentation](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl).
 
@@ -25,7 +25,7 @@ You can get the Helm from the project's [releases page](https://github.com/helm/
 
 ## Create Kubernetes cluster
 
-A Kubernetes cluster version 1.14 or higher is required for continuing the deployment. To create a cluster, you can either use a script to automate the process or manually do it.
+A Kubernetes cluster version 1.18 or higher is required for continuing the deployment. To create a cluster, you can either use a script to automate the process or manually do it.
 
 ### Create a cluster manually 
 
