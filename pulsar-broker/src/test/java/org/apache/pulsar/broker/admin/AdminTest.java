@@ -773,7 +773,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl admin = TenantInfoImpl.builder()
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
-        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl(cluster).build();
+        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl("http://test").build();
         asyncRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData ));
         asyncRequests(ctx -> properties.createTenant(ctx, property, admin));
 

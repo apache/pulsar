@@ -373,8 +373,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-tenant/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrlTls(brokerUrlTls.toString()).build());
-
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .serviceUrlTls(pulsar.getWebServiceAddressTls()).build());
         admin.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
@@ -412,8 +413,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         String namespaceName = "my-tenant/my-ns";
         createAdminClient();
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrlTls.toString()).build());
-
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .serviceUrlTls(pulsar.getWebServiceAddressTls()).build());
         admin.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
@@ -523,9 +525,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-tenant/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization",
-                ClusterData.builder().serviceUrlTls(brokerUrlTls.toString()).build());
-
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .serviceUrlTls(pulsar.getWebServiceAddressTls()).build());
         admin.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
