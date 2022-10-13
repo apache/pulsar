@@ -2476,7 +2476,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-gpb`,`--get-precise-backlog`| Set to `true` to get precise backlog | false |
-|`-sbs`,` --get-subscription-backlog-size`| Set true to get backlog size for each subscription, locking required | false | 
+|`-sbs`,` --get-subscription-backlog-size`| Set to `true` to get backlog size for each subscription, locking required | false | 
 |`--per-partition`|Get per-partition stats|false|
 
 
