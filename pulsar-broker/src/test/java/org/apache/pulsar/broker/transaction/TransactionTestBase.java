@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -331,10 +332,26 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarService, PulsarAdmin)}
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
      */
     protected void deleteNamespaceGraceFully(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, pulsarServiceList.get(0), admin);
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
+                                                           Collection<PulsarService> pulsars) throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
     }
 }
