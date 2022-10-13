@@ -2433,7 +2433,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-etb`,`--get-earliest-time-in-backlog` | Set true to get earliest time in backlog | false |
+|`-etb`,`--get-earliest-time-in-backlog` | Set to `true` to get the earliest time in backlog | false |
 |`-gpb`,`--get-precise-backlog`| Set true to get precise backlog | false |
 |`-sbs`,` --get-subscription-backlog-size`| Set true to get backlog size for each subscription, locking required | false | 
 
