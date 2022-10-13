@@ -97,25 +97,22 @@ public class ClientCnxTest {
         when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
         when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
         cnx.channelActive(ctx);
-        CountDownLatch countDownLatch1 = new CountDownLatch(1);
-        CountDownLatch countDownLatch2 = new CountDownLatch(1);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
         new Thread(() -> {
             try {
                 Thread.sleep(1_000);
                 CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
                         cnx.newLookup(null, 123);
-                countDownLatch1.countDown();
+                countDownLatch.countDown();
                 future.get();
             } catch (Exception e) {
-                // ignore exception
-                assertTrue(e instanceof PulsarClientException.ConnectException);
-            } finally {
-                countDownLatch2.countDown();
+                completableFuture.complete(e);
             }
         }).start();
-        countDownLatch1.await();
+        countDownLatch.await();
         cnx.channelInactive(ctx);
-        countDownLatch2.await();
+        assertTrue(completableFuture.get().getCause() instanceof PulsarClientException.ConnectException);
         // wait for subsequent calls over
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
