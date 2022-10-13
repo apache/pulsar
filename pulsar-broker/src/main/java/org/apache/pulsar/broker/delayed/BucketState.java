@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELA
 import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELIMITER;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,12 +45,12 @@ public class BucketState {
 
     long snapshotLength;
 
-    long bucketId;
+    private volatile Long bucketId;
 
-    volatile CompletableFuture<Long> snapshotCreateFuture;
+    private volatile CompletableFuture<Long> snapshotCreateFuture;
 
     BucketState(long startLedgerId, long endLedgerId) {
-        this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, -1, null);
+        this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -85,5 +86,13 @@ public class BucketState {
     public String bucketKey() {
         return String.join(DELIMITER, DELAYED_BUCKET_KEY_PREFIX, String.valueOf(startLedgerId),
                 String.valueOf(endLedgerId));
+    }
+
+    public Optional<CompletableFuture<Long>> getSnapshotCreateFuture() {
+        return Optional.ofNullable(snapshotCreateFuture);
+    }
+
+    public Optional<Long> getBucketId() {
+        return Optional.ofNullable(bucketId);
     }
 }

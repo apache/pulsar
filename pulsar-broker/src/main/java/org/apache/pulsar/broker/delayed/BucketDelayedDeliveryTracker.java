@@ -49,7 +49,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
@@ -143,6 +142,9 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     @Override
     public void run(Timeout timeout) throws Exception {
         synchronized (this) {
+            if (timeout == null || timeout.isCancelled()) {
+                return;
+            }
             moveScheduledMessageToSharedQueue(getCutoffTime());
         }
         super.run(timeout);
@@ -160,23 +162,19 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         return Optional.ofNullable(immutableBuckets.get(ledgerId));
     }
 
-    private Long getBucketId(BucketState bucketState) {
-        long bucketId = bucketState.getBucketId();
-        if (bucketId != -1L) {
-            return bucketId;
+    private long getBucketId(BucketState bucketState) {
+        Optional<Long> bucketIdOptional = bucketState.getBucketId();
+        if (bucketIdOptional.isPresent()) {
+            return bucketIdOptional.get();
         }
 
         String bucketIdStr = cursor.getCursorProperties().get(bucketState.bucketKey());
-        if (StringUtils.isBlank(bucketIdStr)) {
-            return -1L;
-        }
-
-        bucketId = Long.parseLong(bucketIdStr);
+        long bucketId = Long.parseLong(bucketIdStr);
         bucketState.setBucketId(bucketId);
         return bucketId;
     }
 
-    private BucketState createImmutableBucket(long startLedgerId, long endLedgerId) {
+    private BucketState createBucket(long startLedgerId, long endLedgerId) {
         BucketState bucketState = new BucketState(startLedgerId, endLedgerId);
         immutableBuckets.put(Range.closed(startLedgerId, endLedgerId), bucketState);
         return bucketState;
@@ -276,7 +274,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        BucketState bucketState = this.createImmutableBucket(startLedgerId, endLedgerId);
+        BucketState bucketState = this.createBucket(startLedgerId, endLedgerId);
         bucketState.setCurrentSegmentEntryId(1);
         bucketState.setNumberBucketDelayedMessages(numMessages);
         bucketState.setLastSegmentEntryId(lastSegmentEntryId);
@@ -316,13 +314,11 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         }
 
         // Wait bucket snapshot create finish
-        CompletableFuture<Long> snapshotCreateFuture = bucketState.snapshotCreateFuture;
-        if (snapshotCreateFuture == null) {
-            snapshotCreateFuture = CompletableFuture.completedFuture(-1L);
-        }
+        CompletableFuture<Long> snapshotCreateFuture =
+                bucketState.getSnapshotCreateFuture().orElseGet(() -> CompletableFuture.completedFuture(-1L));
 
         return snapshotCreateFuture.thenCompose(__ -> {
-            final Long bucketId = getBucketId(bucketState);
+            final long bucketId = getBucketId(bucketState);
             CompletableFuture<Integer> loadMetaDataFuture = new CompletableFuture<>();
             if (isRecover) {
                 // TODO Recover bucket snapshot
@@ -534,8 +530,8 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                 if (bucketState.delayedIndexBitMap != null) {
                     bucketState.delayedIndexBitMap.clear();
                 }
-                CompletableFuture<Long> snapshotGenerateFuture = bucketState.snapshotCreateFuture;
-                if (snapshotGenerateFuture != null) {
+
+                bucketState.getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
                     if (delete) {
                         snapshotGenerateFuture.cancel(true);
                         // TODO delete bucket snapshot
@@ -546,7 +542,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                             log.warn("Failed wait to snapshot generate, bucketState: {}", bucketState);
                         }
                     }
-                }
+                });
                 iterator.remove();
             }
         }
