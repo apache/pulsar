@@ -218,8 +218,8 @@ public class BacklogQuotaManager {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
                     Position oldestReadPosition = slowestConsumer.getReadPosition();
-                    if(log.isInfoEnabled()) {
-                        log.info("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
                                 slowestConsumer.getName(), oldestPosition.toString(), oldestReadPosition.toString());
                     }
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
@@ -229,8 +229,8 @@ public class BacklogQuotaManager {
                         slowestConsumer.asyncMarkDelete(nextPosition, new AsyncCallbacks.MarkDeleteCallback() {
                             @Override
                             public void markDeleteComplete(Object ctx) {
-                                if (log.isInfoEnabled()) {
-                                    log.info("[{}] subscription mark deleted messages at position [{}]",
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] subscription mark deleted messages at position [{}]",
                                             slowestConsumer.getName(), nextPosition);
                                 }
                                 countDownLatch.countDown();
@@ -258,8 +258,8 @@ public class BacklogQuotaManager {
                             slowestConsumer.asyncMarkDelete(nextPosition, new AsyncCallbacks.MarkDeleteCallback() {
                                 @Override
                                 public void markDeleteComplete(Object ctx) {
-                                    if (log.isInfoEnabled()) {
-                                        log.info("[{}] subscription mark deleted messages at position [{}]",
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] subscription mark deleted messages at position [{}]",
                                                 slowestConsumer.getName(), nextPosition);
                                     }
                                     countDownLatch.countDown();
