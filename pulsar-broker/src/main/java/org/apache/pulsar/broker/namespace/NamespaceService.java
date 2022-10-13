@@ -1393,6 +1393,12 @@ public class NamespaceService implements AutoCloseable {
                 || SLA_NAMESPACE_PATTERN.matcher(namespace).matches();
     }
 
+    public static boolean isHeartbeatNamespace(ServiceUnitId ns) {
+        String namespace = ns.getNamespaceObject().toString();
+        return HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+    }
+
     public boolean registerSLANamespace() throws PulsarServerException {
         boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(host, config), false);
         if (isNameSpaceRegistered) {
