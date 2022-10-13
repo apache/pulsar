@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -381,7 +382,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         doReturn(configSynchronizer != null ? createConfigurationMetadataStore(configSynchronizer)
                 : createConfigurationMetadataStore()).when(pulsar).createConfigurationMetadataStore(any());
 
-        Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
+        Supplier<NamespaceService> namespaceServiceSupplier =
+                () -> spyWithClassAndConstructorArgs(CanPausedNamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();

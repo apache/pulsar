@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.collections4.CollectionUtils;
@@ -32,8 +33,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -41,9 +44,11 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,14 +150,34 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             admin.namespaces().deleteNamespace(ns, force);
             return;
         }
+        // If disabled system-topic, should not wait system topic create.
         if (!pulsar.getConfiguration().isSystemTopicEnabled()){
             admin.namespaces().deleteNamespace(ns, force);
             return;
         }
+        TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
+        if (!(topicPoliciesService instanceof SystemTopicBasedTopicPoliciesService)){
+            admin.namespaces().deleteNamespace(ns, force);
+            return;
+        }
+
+        // Prevents new events from triggering system topic creation.
+        CanPausedNamespaceService canPausedNamespaceService = (CanPausedNamespaceService) pulsar.getNamespaceService();
+        canPausedNamespaceService.pause();
+
+        // Determines whether the creation of System topic is triggered.
+        // If readerCaches contains namespace, the creation of System topic already triggered.
+        SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
+                WhiteboxImpl.getInternalState(systemTopicBasedTopicPoliciesService, "readerCaches");
         // If no bundle has been loaded, then the System Topic will not trigger creation.
         LockManager lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         List<String> lockedBundles = (List<String>) lockManager.listLocks("/namespace" + "/" + ns).join();
-        if (CollectionUtils.isEmpty(lockedBundles)){
+        FutureUtil.waitForAll(readerCaches.values()).join();
+
+        // If the bundle elect has not yet been triggered, skip wait.
+        if (CollectionUtils.isEmpty(lockedBundles) && !readerCaches.containsKey(NamespaceName.get(ns))){
             admin.namespaces().deleteNamespace(ns, force);
             return;
         }
@@ -223,6 +248,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
                 throw ex;
             }
         }
+        canPausedNamespaceService.resume();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerTestBase.class);
