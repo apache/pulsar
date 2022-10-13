@@ -2737,6 +2737,7 @@ pulsar-admin topics remove-message-ttl tenant/namespace/topic
 ```
 
 Options 
+
 |Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
