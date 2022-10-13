@@ -2188,11 +2188,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                             individualDeletedMessages);
                     }
                 } else if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
-                    BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) ->
-                        BitSetRecyclable.create().resetWords(position.ackSet));
                     BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(position.ackSet);
-                    bitSet.and(givenBitSet);
-                    givenBitSet.recycle();
+                    BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) -> givenBitSet);
+                    if (givenBitSet != bitSet) {
+                        bitSet.and(givenBitSet);
+                        givenBitSet.recycle();
+                    }
                     if (bitSet.isEmpty()) {
                         PositionImpl previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
