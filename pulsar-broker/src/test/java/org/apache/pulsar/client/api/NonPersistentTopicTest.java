@@ -700,15 +700,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setLoadManagerClassName(loadManagerName);
             startBroker();
 
-            Field field = PulsarService.class.getDeclaredField("loadManager");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
-            LoadManager manager = LoadManager.create(pulsar);
-            manager.start();
-            LoadManager oldLoadManager = loadManagerRef.getAndSet(manager);
-            oldLoadManager.stop();
-
             NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
             ResourceUnit broker = null;
@@ -788,15 +779,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setEnablePersistentTopics(false);
             conf.setLoadManagerClassName(loadManagerName);
             startBroker();
-
-            Field field = PulsarService.class.getDeclaredField("loadManager");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
-            LoadManager manager = LoadManager.create(pulsar);
-            manager.start();
-            LoadManager oldLoadManager = loadManagerRef.getAndSet(manager);
-            oldLoadManager.stop();
 
             NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
