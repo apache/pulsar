@@ -2370,11 +2370,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final long offloadThresholdInSeconds =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).orElse(-1L);
         if (offloadThresholdInBytes >= 0 || offloadThresholdInSeconds >= 0) {
-            executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+            executor.executeOrdered(name,
+                    safeRun(() -> maybeOffload(offloadThresholdInBytes, offloadThresholdInSeconds, promise)));
         }
     }
 
-    private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
+    private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
+                              CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
             scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
                     100, TimeUnit.MILLISECONDS);
@@ -2402,20 +2404,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         long toOffloadSize = 0;
         long alreadyOffloadedSize = 0;
         ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
-
-        final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
-        final long offloadThresholdInBytes =
-                Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
-        final long offloadTimeThresholdMillis =
-                Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).filter(v -> v >= 0)
-                        .map(TimeUnit.SECONDS::toMillis).orElse(-1L);
-
-        if (offloadThresholdInBytes < 0 && offloadTimeThresholdMillis < 0) {
-            log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] "
-                    + "and [managedLedgerOffloadThresholdInSeconds] are null OR negative values.", name);
-            unlockingPromise.complete(PositionImpl.LATEST);
-            return;
-        }
+        final long offloadTimeThresholdMillis = TimeUnit.SECONDS.toMillis(offloadThresholdInSeconds);
 
         for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
             final LedgerInfo info = e.getValue();
@@ -2434,8 +2423,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (alreadyOffloaded) {
                 alreadyOffloadedSize += size;
             } else {
-                if ((offloadThresholdInBytes >= 0 && sizeSummed > offloadThresholdInBytes)
-                        || (offloadTimeThresholdMillis >= 0 && now - timestamp >= offloadTimeThresholdMillis)) {
+                if (sizeSummed > offloadThresholdInBytes || now - timestamp >= offloadTimeThresholdMillis) {
                     toOffloadSize += size;
                     toOffload.addFirst(info);
                 }

@@ -798,7 +798,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 {-1L, null},
                 {null, null},
                 {-1L, -1L},
-                {1L, 1L}
+                {1L, 1L},
+                {100L, Long.MAX_VALUE}
         };
     }
 
@@ -845,6 +846,12 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
             List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
             assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
+        } else if (sizeThreshold != null && sizeThreshold == 100L
+                && timeThreshold != null && timeThreshold == Long.MAX_VALUE) {
+            // The last 2 ledgers won't be offloaded
+            assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
+            List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+            assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0)));
         }
     }
 
