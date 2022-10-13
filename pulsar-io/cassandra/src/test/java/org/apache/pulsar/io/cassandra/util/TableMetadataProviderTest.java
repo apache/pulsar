@@ -20,8 +20,8 @@
 package org.apache.pulsar.io.cassandra.util;
 
 import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
-import org.testng.annotations.Ignore;
-import org.testng.annotations.Test;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;

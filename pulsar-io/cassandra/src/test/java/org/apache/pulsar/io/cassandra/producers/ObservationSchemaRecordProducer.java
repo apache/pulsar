@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class ObservationSchemaRecordProducer extends AbstractGenericRecordProducer {
 
     public ObservationSchemaRecordProducer(String brokerUrl, String inputTopic) {

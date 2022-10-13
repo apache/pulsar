@@ -19,11 +19,17 @@
 
 package org.apache.pulsar.io.cassandra.util;
 
-import com.datastax.driver.core.*;
+import com.datastax.driver.core.ColumnMetadata;
+import com.datastax.driver.core.DataType;
+import com.datastax.driver.core.Metadata;
+import com.datastax.driver.core.TableMetadata;
 import com.google.common.collect.Lists;
-import lombok.*;
-
 import java.util.List;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 public class TableMetadataProvider {
 

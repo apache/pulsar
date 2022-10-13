@@ -29,6 +29,7 @@ import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class InputTopicStringProducer extends InputTopicProducerThread<String> {
 
     private Random rnd = new Random();

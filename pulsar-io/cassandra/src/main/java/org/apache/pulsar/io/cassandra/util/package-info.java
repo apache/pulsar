@@ -16,28 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.io.cassandra.producers;
-
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.*;
-import org.apache.pulsar.common.schema.SchemaInfo;
-
-@SuppressWarnings({"unchecked", "rawtypes"})
-public abstract class AbstractGenericRecordProducer extends InputTopicProducerThread<GenericRecord> {
-
-    public AbstractGenericRecordProducer(String brokerUrl, String inputTopic) {
-        super(brokerUrl, inputTopic);
-    }
-
-    @Override
-    Schema getSchema() {
-        return Schema.generic(getGenericSchemaInfo());
-    }
-
-    @Override
-    abstract GenericRecord getValue();
-
-    abstract SchemaInfo getGenericSchemaInfo();
-
- }
+package org.apache.pulsar.io.cassandra.util;

@@ -21,7 +21,7 @@ package org.apache.pulsar.io.cassandra;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.io.cassandra.producers.InputTopicProducerThread;
-import org.apache.pulsar.io.cassandra.producers.InputTopicStringProducer;
 import org.apache.pulsar.io.cassandra.producers.ReadingSchemaRecordProducer;
 import org.yaml.snakeyaml.Yaml;
 
@@ -38,11 +37,12 @@ import org.yaml.snakeyaml.Yaml;
  * Useful for testing within IDE.
  *
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class CassandraSinkExec {
 
     public static final String BROKER_URL = "pulsar://localhost:6650";
     public static final String INPUT_TOPIC = "persistent://public/default/air-quality-reading-generic";
-    // public static final String INPUT_TOPIC = "persistent://public/default/air-quality-reading-string";
+
     public static final String CONFIG_FILE = "cassandra-sink-config.yaml";
 
     public static void main(String[] args) throws Exception {
@@ -65,7 +65,7 @@ public class CassandraSinkExec {
         System.exit(0);
     }
 
-    private static SinkConfig getSinkConfig() throws FileNotFoundException {
+    private static SinkConfig getSinkConfig() throws IOException {
         SinkConfig sinkConfig = SinkConfig.builder()
                 .autoAck(true)
                 .cleanupSubscription(Boolean.TRUE)
@@ -78,14 +78,17 @@ public class CassandraSinkExec {
         return sinkConfig;
     }
 
-    private static Map<String, Object> getConfigs() throws FileNotFoundException {
+    private static Map<String, Object> getConfigs() throws IOException {
         Map<String, Object> configs = new HashMap<String, Object>();
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         File file = new File(classLoader.getResource(CONFIG_FILE).getFile());
 
-        Yaml yaml = new Yaml();
-        configs = yaml.load(new FileInputStream(file));
+        try (FileInputStream fis = new FileInputStream(file)) {
+            configs = new Yaml().load(fis);
+        } catch (IOException ex) {
+            throw ex;
+        }
 
         return configs;
     }

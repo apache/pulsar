@@ -28,6 +28,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Random;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class ReadingSchemaRecordProducer extends AbstractGenericRecordProducer {
 
     private Random rnd = new Random();

@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.io.cassandra.producers;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -26,10 +27,11 @@ import org.apache.pulsar.client.api.Schema;
 
 import java.util.Random;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
+@Slf4j
 public abstract class InputTopicProducerThread<T> implements Runnable {
 
     private Random rnd = new Random();
-
     final String inputTopic;
     final String brokerUrl;
     PulsarClient client;
@@ -46,7 +48,7 @@ public abstract class InputTopicProducerThread<T> implements Runnable {
             try {
                 getProducer().newMessage().key(getKey()).value(getValue()).send();
             } catch (PulsarClientException e) {
-                e.printStackTrace();
+                log.error("Unable to connect to Pulsar", e);
             }
         }
     }
@@ -58,7 +60,7 @@ public abstract class InputTopicProducerThread<T> implements Runnable {
 
     abstract T getValue();
 
-    abstract Schema getSchema();
+    abstract Schema<T> getSchema();
 
     private PulsarClient getPulsarClient() throws PulsarClientException {
         if (client == null) {

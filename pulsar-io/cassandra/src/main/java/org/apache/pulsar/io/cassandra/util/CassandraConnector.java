@@ -19,12 +19,15 @@
 
 package org.apache.pulsar.io.cassandra.util;
 
-import com.datastax.driver.core.*;
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ColumnMetadata;
+import com.datastax.driver.core.Metadata;
+import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
-import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
-
+import com.datastax.driver.core.TableMetadata;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
 
 public class CassandraConnector {
 
@@ -42,7 +45,7 @@ public class CassandraConnector {
         session = getCluster().connect(config.getKeyspace());
     }
 
-    public Session getSession() {
+    public synchronized Session getSession() {
         if (session == null || session.isClosed()) {
             this.connect();
         }
@@ -62,7 +65,7 @@ public class CassandraConnector {
 
             for (int idx = 0; idx < fields.size(); idx++) {
                sb.append(fields.get(idx));
-               if (idx < fields.size()-1) {
+               if (idx < fields.size() - 1) {
                    sb.append(", ");
                }
             }
@@ -71,7 +74,7 @@ public class CassandraConnector {
 
             for (int idx = 0; idx < fields.size(); idx++) {
                 sb.append("?");
-                if (idx < fields.size()-1) {
+                if (idx < fields.size() - 1) {
                     sb.append(", ");
                 }
             }
@@ -100,7 +103,7 @@ public class CassandraConnector {
         return tableFields;
     }
 
-    private Cluster getCluster() {
+    private synchronized Cluster getCluster() {
         if (cluster == null) {
             String[] hosts = config.getRoots().split(",");
 
@@ -129,7 +132,7 @@ public class CassandraConnector {
     }
 
     public void close() {
-        session.close();
-        cluster.close();
+        getSession().close();
+        getCluster().close();
     }
 }
