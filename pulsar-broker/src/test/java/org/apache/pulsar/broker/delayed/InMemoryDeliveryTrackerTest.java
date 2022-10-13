@@ -28,13 +28,13 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.NavigableMap;
@@ -42,10 +42,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
@@ -431,6 +428,48 @@ public class InMemoryDeliveryTrackerTest {
         assertFalse(tracker.addMessage(5, 5, -1L));
 
         assertFalse(tracker.shouldPauseAllDeliveries());
+    }
+
+    @Test
+    public void testClose() throws Exception {
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
+                1, TimeUnit.MILLISECONDS);
+
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        final Exception[] exceptions = new Exception[1];
+
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                true, 0) {
+            @Override
+            public void run(Timeout timeout) throws Exception {
+                super.timeout = timer.newTimeout(this, 1, TimeUnit.MILLISECONDS);
+                if (timeout == null || timeout.isCancelled()) {
+                    return;
+                }
+                try {
+                    this.priorityQueue.peekN1();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    exceptions[0] = e;
+                }
+            }
+        };
+
+        tracker.addMessage(1, 1, 10);
+        clockTime.set(10);
+
+        Thread.sleep(300);
+
+        tracker.close();
+
+        assertNull(exceptions[0]);
+
+        timer.stop();
     }
 
 }
