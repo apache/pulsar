@@ -1889,7 +1889,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // update
         cluster = ClusterData.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
-                .proxyServiceUrl("proxy")
+                .proxyServiceUrl("pulsar://proxy")
                 .proxyProtocol(ProxyProtocol.SNI)
                 .build();
         admin.clusters().updateCluster(clusterName, cluster);
