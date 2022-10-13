@@ -185,14 +185,13 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             List<SnapshotSegment> bucketSnapshotSegments) {
 
         return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments)
-                .thenApply(newBucketId -> {
+                .thenCompose(newBucketId -> {
                     bucketState.setBucketId(newBucketId);
                     String bucketKey = bucketState.bucketKey();
-                    putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
+                    return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
                         log.warn("Failed to record bucketId to cursor property, bucketKey: {}", bucketKey);
                         return null;
-                    });
-                    return newBucketId;
+                    }).thenApply(__ -> newBucketId);
                 });
     }
 
@@ -480,6 +479,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                     log.debug("[{}] Load next snapshot segment, bucketState: {}", dispatcher.getName(), bucketState);
                 }
                 // All message of current snapshot segment are scheduled, load next snapshot segment
+                // TODO make it asynchronous
                 try {
                     asyncLoadNextBucketSnapshotEntry(bucketState, false).get(AsyncOperationTimeoutSeconds,
                             TimeUnit.SECONDS);
