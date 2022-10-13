@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -326,11 +327,26 @@ public class PulsarWorkerService implements WorkerService {
         // create cluster for function worker service
         try {
             NamedEntity.checkName(cluster);
-            ClusterDataImpl clusterData = ClusterDataImpl.builder()
-                    .serviceUrl(workerConfig.getPulsarWebServiceUrl())
-                    .brokerServiceUrl(workerConfig.getPulsarServiceUrl())
-                    .build();
-            pulsarResources.getClusterResources().createCluster(cluster, clusterData);
+            ClusterDataImpl.ClusterDataImplBuilder clusterDataBuilder = ClusterDataImpl.builder();
+            // set pulsar service url
+            String pulsarServiceUrl = workerConfig.getPulsarServiceUrl();
+            if (ServiceURI.getServiceType(pulsarServiceUrl)
+                    == ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE) {
+                clusterDataBuilder.setBrokerServiceUrlTls(pulsarServiceUrl);
+            } else {
+                // The builder will check url.
+                clusterDataBuilder.setBrokerServiceUrl(pulsarServiceUrl);
+            }
+            // set web service url
+            String webServiceUrl = workerConfig.getPulsarWebServiceUrl();
+            if (ServiceURI.getServiceType(webServiceUrl)
+                    == ServiceURI.ServiceNameType.SECURE_WEB_SERVICE) {
+                clusterDataBuilder.setServiceUrlTls(webServiceUrl);
+            } else {
+                // The builder will check url.
+                clusterDataBuilder.setServiceUrl(webServiceUrl);
+            }
+            pulsarResources.getClusterResources().createCluster(cluster, clusterDataBuilder.build());
             LOG.info("Created cluster {} for function worker", cluster);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);

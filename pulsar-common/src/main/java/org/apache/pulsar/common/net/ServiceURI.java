@@ -130,7 +130,7 @@ public class ServiceURI {
         }
         boolean passCheck = Arrays.stream(serviceNameTypes).anyMatch(type -> {
             switch (type) {
-                case NONE:
+                case UNKNOWN:
                     return true;
                 case WEB_SERVICE:
                     return svName.equals(HTTP_SERVICE);
@@ -309,8 +309,29 @@ public class ServiceURI {
         return sb.append(servicePath).toString();
     }
 
+    public static ServiceNameType getServiceType(String urlStr) {
+        ServiceURI serviceURI = create(urlStr);
+        switch(serviceURI.getServiceName().toLowerCase()) {
+            case BINARY_SERVICE:
+                String[] serviceInfos = serviceURI.getServiceInfos();
+                if (serviceInfos.length == 0) {
+                    return ServiceNameType.BINARY_SERVICE;
+                } else if (serviceInfos.length == 1 && serviceInfos[0].equalsIgnoreCase(SSL_SERVICE)) {
+                    return ServiceNameType.SECURE_BINARY_SERVICE;
+                } else {
+                    return ServiceNameType.UNKNOWN;
+                }
+            case HTTP_SERVICE:
+                return ServiceNameType.WEB_SERVICE;
+            case HTTPS_SERVICE:
+                return ServiceNameType.SECURE_WEB_SERVICE;
+            default:
+                return ServiceNameType.UNKNOWN;
+        }
+    }
+
     public enum ServiceNameType {
-        NONE,
+        UNKNOWN,
         WEB_SERVICE,
         SECURE_WEB_SERVICE,
         BINARY_SERVICE,
