@@ -56,6 +56,7 @@ This change added tests and can be verified as follows:
 - [ ] The public API
 - [ ] The schema
 - [ ] The default values of configurations
+- [ ] The threading model
 - [ ] The binary protocol
 - [ ] The REST endpoints
 - [ ] The admin CLI options
@@ -83,6 +84,6 @@ apache/pulsar CI based on GitHub Actions has constrained resources and quota.
 GitHub Actions provides separate quota for pull requests that are executed in 
 a forked repository.
 
-The tests will be run in the forked repository until all PR review comments have
+The tests will be run in the forkedrepository until all PR review comments have
 been handled, the tests pass and the PR is approved by a reviewer.
 -->
