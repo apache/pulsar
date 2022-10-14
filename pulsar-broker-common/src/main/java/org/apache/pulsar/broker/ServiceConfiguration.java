@@ -798,7 +798,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "Support for selecting brokers by throughput in LeastLongTermMessageRate."
     )
-    private boolean selectBrokerByThroughput = true;
+    private boolean selectBrokerByThroughput = false;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
