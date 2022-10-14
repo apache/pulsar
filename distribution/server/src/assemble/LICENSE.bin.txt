@@ -284,7 +284,7 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-collections4-4.4.jar
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
-    - org.apache.commons-commons-text-1.9.jar
+    - org.apache.commons-commons-text-1.10.0.jar
  * Netty
     - io.netty-netty-buffer-4.1.77.Final.jar
     - io.netty-netty-codec-4.1.77.Final.jar
