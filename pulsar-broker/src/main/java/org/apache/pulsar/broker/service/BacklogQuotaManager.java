@@ -215,8 +215,7 @@ public class BacklogQuotaManager {
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
-                                slowestConsumer.getName(), oldestPosition.toString(),
-                                slowestConsumer.getReadPosition().toString());
+                                slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
                     }
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {

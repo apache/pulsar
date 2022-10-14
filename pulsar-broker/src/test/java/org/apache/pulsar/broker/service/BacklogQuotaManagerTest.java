@@ -35,6 +35,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -515,7 +516,7 @@ public class BacklogQuotaManagerTest {
 
         PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
-        assertEquals(ml.getSlowestConsumer().getReadPosition(), PositionImpl.get(2,4));
+        Position slowConsumerReadPos = ml.getSlowestConsumer().getReadPosition();
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
@@ -528,7 +529,7 @@ public class BacklogQuotaManagerTest {
             assertEquals(stats2.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
         });
 
-        assertEquals(ml.getSlowestConsumer().getReadPosition(), PositionImpl.get(2,4));
+        assertEquals(ml.getSlowestConsumer().getReadPosition(), slowConsumerReadPos);
         client.close();
     }
 
