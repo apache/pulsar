@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.Optional;
+import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -65,10 +66,22 @@ public class NamespaceStatsAggregator {
         TopicStats.resetTypes();
         TopicStats topicStats = localTopicStats.get();
 
-        printDefaultBrokerStats(stream, cluster);
-
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
+        LongAdder brokerTopicsCount = new LongAdder();
+        LongAdder brokerSubscriptionsCount = new LongAdder();
+        LongAdder brokerProducersCount = new LongAdder();
+        LongAdder brokerConsumersCount = new LongAdder();
+        DoubleAdder brokerRateIn = new DoubleAdder();
+        DoubleAdder brokerRateOut = new DoubleAdder();
+        DoubleAdder brokerThroughputIn = new DoubleAdder();
+        DoubleAdder brokerThroughputOut = new DoubleAdder();
+        DoubleAdder brokerStorageSize = new DoubleAdder();
+        DoubleAdder brokerStorageLogicalSize = new DoubleAdder();
+        DoubleAdder brokerStorageWriteRate = new DoubleAdder();
+        DoubleAdder brokerStorageReadRate = new DoubleAdder();
+        DoubleAdder brokerMsgBacklog = new DoubleAdder();
+
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
@@ -81,8 +94,23 @@ public class NamespaceStatsAggregator {
                             compactorMXBean
                     );
 
+                    //Record broker level metrics
+                    brokerSubscriptionsCount.add(topicStats.subscriptionsCount);
+                    brokerProducersCount.add(topicStats.producersCount);
+                    brokerConsumersCount.add(topicStats.consumersCount);
+                    brokerRateIn.add(topicStats.rateIn);
+                    brokerRateOut.add(topicStats.rateOut);
+                    brokerThroughputIn.add(topicStats.throughputIn);
+                    brokerThroughputOut.add(topicStats.throughputOut);
+                    brokerStorageSize.add(topicStats.managedLedgerStats.storageSize);
+                    brokerStorageLogicalSize.add(topicStats.managedLedgerStats.storageLogicalSize);
+                    brokerStorageWriteRate.add(topicStats.managedLedgerStats.storageWriteRate);
+                    brokerStorageReadRate.add(topicStats.managedLedgerStats.storageReadRate);
+                    brokerMsgBacklog.add(topicStats.msgBacklog);
+
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
+                        brokerTopicsCount.add(1);
                         TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats, compactorMXBean,
                                 splitTopicAndPartitionIndexLabel);
                     } else {
@@ -99,6 +127,13 @@ public class NamespaceStatsAggregator {
                 printTopicsCountStats(stream, cluster, namespace, topicsCount);
             }
         });
+
+        //Print broker level metrics
+        printBrokerStats(stream, cluster, brokerTopicsCount, brokerSubscriptionsCount,
+                brokerProducersCount, brokerConsumersCount, brokerRateIn,
+                brokerRateOut, brokerThroughputIn, brokerThroughputOut, brokerStorageSize,
+                brokerStorageLogicalSize, brokerStorageWriteRate, brokerStorageReadRate,
+                brokerMsgBacklog);
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
@@ -294,22 +329,35 @@ public class NamespaceStatsAggregator {
                 });
     }
 
-    private static void printDefaultBrokerStats(SimpleTextOutputStream stream, String cluster) {
-        // Print metrics with 0 values. This is necessary to have the available brokers being
+    private static void printBrokerStats(SimpleTextOutputStream stream, String cluster,
+                                         LongAdder brokerTopicsCount,
+                                         LongAdder brokerSubscriptionsCount,
+                                         LongAdder brokerProducersCount,
+                                         LongAdder brokerConsumersCount,
+                                         DoubleAdder brokerRateIn,
+                                         DoubleAdder brokerRateOut,
+                                         DoubleAdder brokerThroughputIn,
+                                         DoubleAdder brokerThroughputOut,
+                                         DoubleAdder brokerStorageSize,
+                                         DoubleAdder brokerStorageLogicalSize,
+                                         DoubleAdder brokerStorageWriteRate,
+                                         DoubleAdder brokerStorageReadRate,
+                                         DoubleAdder brokerMsgBacklog) {
+        // Print metrics values. This is necessary to have the available brokers being
         // reported in the brokers dashboard even if they don't have any topic or traffic
-        metric(stream, cluster, "pulsar_topics_count", 0);
-        metric(stream, cluster, "pulsar_subscriptions_count", 0);
-        metric(stream, cluster, "pulsar_producers_count", 0);
-        metric(stream, cluster, "pulsar_consumers_count", 0);
-        metric(stream, cluster, "pulsar_rate_in", 0);
-        metric(stream, cluster, "pulsar_rate_out", 0);
-        metric(stream, cluster, "pulsar_throughput_in", 0);
-        metric(stream, cluster, "pulsar_throughput_out", 0);
-        metric(stream, cluster, "pulsar_storage_size", 0);
-        metric(stream, cluster, "pulsar_storage_logical_size", 0);
-        metric(stream, cluster, "pulsar_storage_write_rate", 0);
-        metric(stream, cluster, "pulsar_storage_read_rate", 0);
-        metric(stream, cluster, "pulsar_msg_backlog", 0);
+        metric(stream, cluster, "pulsar_broker_topics_count", brokerTopicsCount.longValue());
+        metric(stream, cluster, "pulsar_broker_subscriptions_count", brokerSubscriptionsCount.longValue());
+        metric(stream, cluster, "pulsar_broker_producers_count", brokerProducersCount.longValue());
+        metric(stream, cluster, "pulsar_broker_consumers_count", brokerConsumersCount.longValue());
+        metric(stream, cluster, "pulsar_broker_rate_in", brokerRateIn.doubleValue());
+        metric(stream, cluster, "pulsar_broker_rate_out", brokerRateOut.doubleValue());
+        metric(stream, cluster, "pulsar_broker_throughput_in", brokerThroughputIn.doubleValue());
+        metric(stream, cluster, "pulsar_broker_throughput_out", brokerThroughputOut.doubleValue());
+        metric(stream, cluster, "pulsar_broker_storage_size", brokerStorageSize.doubleValue());
+        metric(stream, cluster, "pulsar_broker_storage_logical_size", brokerStorageLogicalSize.doubleValue());
+        metric(stream, cluster, "pulsar_broker_storage_write_rate", brokerStorageWriteRate.doubleValue());
+        metric(stream, cluster, "pulsar_broker_storage_read_rate", brokerStorageReadRate.doubleValue());
+        metric(stream, cluster, "pulsar_broker_msg_backlog", brokerMsgBacklog.doubleValue());
     }
 
     private static void printTopicsCountStats(SimpleTextOutputStream stream, String cluster, String namespace,
@@ -426,6 +474,15 @@ public class NamespaceStatsAggregator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
             long value) {
+        TopicStats.metricType(stream, name);
+        stream.write(name)
+                .write("{cluster=\"").write(cluster).write("\"} ")
+                .write(value).write(' ').write(System.currentTimeMillis())
+                .write('\n');
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String name,
+            double value) {
         TopicStats.metricType(stream, name);
         stream.write(name)
                 .write("{cluster=\"").write(cluster).write("\"} ")
