@@ -80,6 +80,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.data.ACL;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
@@ -400,7 +401,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return new ZKMetadataStore(mockZooKeeper, MetadataStoreConfig.builder()
+        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeper), MetadataStoreConfig.builder()
                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
@@ -413,7 +414,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return new ZKMetadataStore(mockZooKeeperGlobal, MetadataStoreConfig.builder()
+        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeperGlobal), MetadataStoreConfig.builder()
                 .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
     }
 
