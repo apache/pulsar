@@ -54,7 +54,7 @@ jobs:
       - name: Check changed files
         id: check_changes
         run: |
-          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+          echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
 
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
