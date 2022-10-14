@@ -10,10 +10,10 @@ Pulsar offers several command-line tools that you can use for managing Pulsar in
 * [`pulsar`](https://pulsar.apache.org/reference/#/latest/pulsar/)
 * [`pulsar-client`](https://pulsar.apache.org/reference/#/latest/pulsar-client/)
 * [`pulsar-perf`](https://pulsar.apache.org/reference/#/latest/pulsar-perf/)
-* [`pulsar-daemon`](#pulsar-daemon)
-* [`bookkeeper`](#bookkeeper)
-* [`broker-tool`](#broker-tool)
-* [`pulsar-shell`](#pulsar-shell)
+* [`pulsar-daemon`](reference-cli-pulsar-daemon.md)
+* [`pulsar-shell`](reference-cli-pulsar-shell.md)
+* [`bookkeeper`](reference-cli-bookkeeper.md)
+* [`broker-tool`](reference-cli-broker-tool.md) 
 
 All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone.md). 
 
