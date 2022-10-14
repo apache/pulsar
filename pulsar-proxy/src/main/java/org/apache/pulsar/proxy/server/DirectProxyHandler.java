@@ -232,11 +232,11 @@ public class DirectProxyHandler {
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         } else {
             if (inboundChannel.remoteAddress() instanceof InetSocketAddress
-                    && outboundChannel.localAddress() instanceof InetSocketAddress) {
+                    && inboundChannel.localAddress() instanceof InetSocketAddress) {
                 InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
                 String sourceAddress = clientAddress.getAddress().getHostAddress();
                 int sourcePort = clientAddress.getPort();
-                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.localAddress();
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
