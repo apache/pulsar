@@ -58,7 +58,7 @@ public class ManagedLedgerFactoryConfig {
     private boolean copyEntriesInCache = false;
 
     /**
-     * Maximum number of (estimated) data in-flight reading from storage.
+     * Maximum number of (estimated) bytes in-flight reading from storage.
      */
     private long maxPendingReadsBufferSize = 0;
 
