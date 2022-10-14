@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.authorization;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +38,6 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -309,53 +307,45 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
-            String role, String authDataJson) {
-        try {
-            validatePoliciesReadOnlyAccess();
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-
-        String topicUri = topicName.toString();
-        return pulsarResources.getNamespaceResources()
-                .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
-                    policies.auth_policies.getTopicAuthentication()
-                            .computeIfAbsent(topicUri, __ -> new HashMap<>())
-                            .put(role, actions);
-                    return policies;
-                }).whenComplete((__, throwable) -> {
-                    if (throwable != null) {
-                        log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName,
-                                throwable);
-                    } else {
-                        log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
-                                topicUri);
-                    }
-                });
+                                                        String role, String authDataJson) {
+        return validatePoliciesReadOnlyAccessAsync().thenCompose(__ -> {
+            String topicUri = topicName.toString();
+            return pulsarResources.getNamespaceResources()
+                    .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                        policies.auth_policies.getTopicAuthentication()
+                                .computeIfAbsent(topicUri, ___ -> new HashMap<>())
+                                .put(role, actions);
+                        return policies;
+                    }).whenComplete((___, throwable) -> {
+                        if (throwable != null) {
+                            log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName,
+                                    throwable);
+                        } else {
+                            log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
+                                    topicUri);
+                        }
+                    });
+        });
     }
 
     @Override
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespaceName, Set<AuthAction> actions,
-            String role, String authDataJson) {
-        try {
-            validatePoliciesReadOnlyAccess();
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-
-        return pulsarResources.getNamespaceResources()
+                                                        String role, String authDataJson) {
+        return validatePoliciesReadOnlyAccessAsync().thenCompose(__ -> pulsarResources.getNamespaceResources()
                 .setPoliciesAsync(namespaceName, policies -> {
                     policies.auth_policies.getNamespaceAuthentication().put(role, actions);
                     return policies;
-                }).whenComplete((__, throwable) -> {
+                }).whenComplete((___, throwable) -> {
                     if (throwable != null) {
-                        log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName,
+                        log.error("[{}] Failed to set permissions for role {} namespace {}", role, role,
+                                namespaceName,
                                 throwable);
                     } else {
-                        log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
+                        log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role,
+                                actions,
                                 namespaceName);
                     }
-                });
+                }));
     }
 
     @Override
@@ -373,13 +363,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
                                                                       Set<String> roles,
                                                                       boolean remove) {
-        try {
-            validatePoliciesReadOnlyAccess();
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-
-        return pulsarResources.getNamespaceResources()
+        return validatePoliciesReadOnlyAccessAsync().thenCompose(__ -> pulsarResources.getNamespaceResources()
                 .setPoliciesAsync(namespace, policies -> {
                     if (remove) {
                         Set<String> subscriptionAuth =
@@ -395,15 +379,16 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
                     }
                     return policies;
-                }).whenComplete((__, throwable) -> {
+                }).whenComplete((___, throwable) -> {
                     if (throwable != null) {
-                        log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles,
+                        log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName,
+                                roles,
                                 namespace, throwable);
                     } else {
                         log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
                                 roles, subscriptionName);
                     }
-                });
+                }));
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
@@ -535,22 +520,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         // No-op
     }
 
-    private void validatePoliciesReadOnlyAccess() {
-        boolean arePoliciesReadOnly = true;
-
-        try {
-            arePoliciesReadOnly = pulsarResources.getNamespaceResources().getPoliciesReadOnly();
-        } catch (Exception e) {
-            log.warn("Unable to check if policies are read-only", e);
-            throw new IllegalStateException("Unable to fetch content from configuration metadata store");
-        }
-
-        if (arePoliciesReadOnly) {
-            if (log.isDebugEnabled()) {
-                log.debug("Policies are read-only. Broker cannot do read-write operations");
+    private CompletableFuture<Void> validatePoliciesReadOnlyAccessAsync() {
+        return pulsarResources.getNamespaceResources().getPoliciesReadOnlyAsync().thenAccept(readonly->{
+            if (readonly) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Policies are read-only. Broker cannot do read-write operations");
+                }
+                throw new IllegalStateException("policies are in readonly mode");
             }
-            throw new IllegalStateException("policies are in readonly mode");
-        }
+        });
     }
 
     @Override
@@ -678,36 +656,28 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return validateTenantAdminAccess(topicName.getTenant(), role, authData);
     }
 
-    private static String path(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("/admin/");
-        Joiner.on('/').appendTo(sb, parts);
-        return sb.toString();
-    }
-
-    public CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName,
-                                                                 String role,
-                                                                 AuthenticationDataSource authData) {
-        return isSuperUser(role, authData, conf)
-                .thenCompose(isSuperUser -> {
-                    if (isSuperUser) {
-                        return CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName, String role,
+                                                                AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf).thenCompose(isSuperUser -> {
+            if (isSuperUser) {
+                return CompletableFuture.completedFuture(true);
+            } else {
+                return pulsarResources.getTenantResources().getTenantAsync(tenantName).thenCompose(op -> {
+                    if (op.isPresent()) {
+                        return isTenantAdmin(tenantName, role, op.get(), authData);
                     } else {
-                        try {
-                            TenantInfo tenantInfo = pulsarResources.getTenantResources()
-                                    .getTenant(tenantName)
-                                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND,
-                                            "Tenant does not exist"));
-                            return isTenantAdmin(tenantName, role, tenantInfo, authData);
-                        } catch (NotFoundException e) {
-                            log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
-                            throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
-                        } catch (Exception e) {
-                            log.error("Failed to get tenant {}", tenantName, e);
-                            throw new RestException(e);
-                        }
+                        throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                     }
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof NotFoundException) {
+                        log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
+                        throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
+                    }
+                    log.error("Failed to get tenant {}", tenantName, cause);
+                    throw new RestException(cause);
                 });
+            }
+        });
     }
-
 }
