@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -26,7 +25,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 
 public class CanPausedNamespaceService extends NamespaceService {
 
-    private AtomicBoolean paused = new AtomicBoolean();
+    private volatile boolean paused = false;
 
     private ReentrantLock lock = new ReentrantLock();
 
@@ -38,7 +37,7 @@ public class CanPausedNamespaceService extends NamespaceService {
     protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
         lock.lock();
         try {
-            if (paused.get()){
+            if (paused){
                 return;
             }
             super.onNamespaceBundleOwned(bundle);
@@ -50,7 +49,7 @@ public class CanPausedNamespaceService extends NamespaceService {
     public void pause(){
         lock.lock();
         try {
-            paused.set(true);
+            paused = true;
         } finally {
             lock.unlock();
         }
@@ -59,7 +58,7 @@ public class CanPausedNamespaceService extends NamespaceService {
     public void resume(){
         lock.lock();
         try {
-            paused.set(false);
+            paused = false;
         } finally {
             lock.unlock();
         }

@@ -185,19 +185,22 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             // Prevents new events from triggering system topic creation.
             CanPausedNamespaceService canPausedNamespaceService = (CanPausedNamespaceService) pulsar.getNamespaceService();
             canPausedNamespaceService.pause();
-            // Determines whether the creation of System topic is triggered.
-            // If readerCaches contains namespace, the creation of System topic already triggered.
-            SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService =
-                    (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-            Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
-                    WhiteboxImpl.getInternalState(systemTopicBasedTopicPoliciesService, "readerCaches");
-            if (readerCaches.containsKey(NamespaceName.get(ns))) {
-                createReaderTasks.add(readerCaches.get(NamespaceName.get(ns)));
-            }
 
             // If no bundle has been loaded, then the System Topic will not trigger creation.
             LockManager lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
             lockedBundles.addAll((List<String>) lockManager.listLocks("/namespace" + "/" + ns).join());
+
+            // Determines whether the creation of System topic is triggered.
+            // If readerCaches contains namespace, the creation of System topic already triggered.
+            TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
+            if (topicPoliciesService instanceof
+                    SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService) {
+                Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
+                        WhiteboxImpl.getInternalState(systemTopicBasedTopicPoliciesService, "readerCaches");
+                if (readerCaches.containsKey(NamespaceName.get(ns))) {
+                    createReaderTasks.add(readerCaches.get(NamespaceName.get(ns)));
+                }
+            }
         }
         // Wait all reader-create tasks.
         FutureUtil.waitForAll(createReaderTasks).join();
