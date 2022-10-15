@@ -986,13 +986,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertFalse(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 0);
 
-        // markDelete p1 again, should throw exception
-        try {
-            cursor.markDelete(p1);
-            fail("Should throw exception!");
-        } catch (ManagedLedgerException e) {
-            assertTrue(e.getMessage().contains("Mark deleting an already mark-deleted position."));
-        }
+        // markDelete p1 again
+        cursor.markDelete(p1);
     }
 
     @Test(timeOut = 20000)
