@@ -148,7 +148,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final ConnectionHandler connectionHandler;
 
-    private AtomicReference<Timeout> batchTimerTask;
+    private final AtomicReference<Timeout> batchTimerTask;
 
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
@@ -1683,10 +1683,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         if (batchTimerTask != null) {
-            Timeout batchTimerTask = this.batchTimerTask.get();
+            Timeout batchTimerTask = this.batchTimerTask.getAndSet(null);
             if (batchTimerTask != null) {
                 batchTimerTask.cancel();
-                this.batchTimerTask = null;
             }
         }
 
