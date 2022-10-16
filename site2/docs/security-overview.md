@@ -7,9 +7,9 @@ sidebar_label: "Overview"
 As the central message bus for a business, Apache Pulsar is frequently used for storing mission-critical data. Therefore, enabling security features in Pulsar is crucial. This chapter describes the main security controls that Pulsar uses to help protect your data.
 
 Pulsar security is based on the following core pillars.
-* [Encryption](#encryption)
-* [Authentication](#authentication)
-* [Authorization](#authorization)
+- [Encryption](#encryption)
+- [Authentication](#authentication)
+- [Authorization](#authorization)
 
 By default, Pulsar configures no encryption, authentication, or authorization. Any clients can communicate to Pulsar via plain text service URLs. So you must ensure that Pulsar accessing via these plain text service URLs is restricted to trusted clients only. In such cases, you can use network segmentation and/or authorization ACLs to restrict access to trusted IPs. If you use neither, the state of the cluster is wide open and anyone can access the cluster.
 
@@ -21,28 +21,41 @@ Encryption ensures that if an attacker gets access to your data, the attacker ca
 
 **What's next?**
 
-* To configure end-to-end encryption, see [End-to-end encryption](security-encryption.md) for more details.
-* To configure transport layer encryption, see [TLS encryption](security-tls-transport.md) for more details.
+- To configure end-to-end encryption, see [End-to-end encryption](security-encryption.md) for more details.
+- To configure transport layer encryption, see [TLS encryption](security-tls-transport.md) for more details.
 
 ## Authentication
 
-Authentication is the process of verifying the identity of clients. In Pulsar, the authentication provider is responsible for properly identifying clients and associating the clients with role tokens. If you only enable authentication, an authenticated role token can access all resources in the cluster. 
+Authentication is the process of verifying the identity of clients. In Pulsar, the authentication provider is responsible for properly identifying clients and associating them with role tokens. Note that if you only enable authentication, an authenticated role token can access all resources in the cluster. 
 
-Pulsar supports a pluggable authentication mechanism, and Pulsar clients use this mechanism to authenticate with brokers and proxies. 
+**How it works in Pulsar**
 
-Pulsar broker validates the authentication credentials when a connection is established. After the initial connection is authenticated, the "principal" token is stored for authorization though the connection is not re-authenticated. The broker periodically checks the expiration status of every `ServerCnx` object. By default, the `authenticationRefreshCheckSeconds` is set to 60s. When the authentication is expired, the broker re-authenticates the connection. If the re-authentication fails, the broker disconnects the client.
+Pulsar provides a pluggable authentication framework, and Pulsar brokers/proxies use this mechanism to authenticate clients.
 
-Pulsar broker supports learning whether a particular client supports authentication refreshing. If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process. If a client does not support authentication refreshing and the credential is expired, the broker disconnects the client.
+The way how each client passes its authentication data to brokers varies depending on the protocols it uses. Brokers validate the authentication credentials when a connection is established and check whether the authentication data is expired.
+- When using HTTP/HTTPS protocol for cluster management, each client passes the authentication data based on the HTTP/HTTPS header, and brokers check the data upon request.
+- When using [Pulsar protocol](developing-binary-protocol.md) for productions/consumptions, each client passes the authentication data by sending the `CommandConnect` command. Brokers cache the data and periodically check whether the data has expired. If it has expired, brokers send a `CommandAuthChallenge` command to exchange the authentication data with the client. Without the previous authentication challenge returned, brokers disconnect the client.
+
+As soon as the initial connection is authenticated, the "principal" token is stored for authorization though the connection has not been re-authenticated. Brokers periodically check the expiration status of every `ServerCnx` object and learn whether a particular client supports authentication refreshing.
+- If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process and re-authenticate the connection. By default, the `authenticationRefreshCheckSeconds` is set to 60s. 
+- If a client does not support authentication refreshing and the credential is expired, brokers disconnect the client.
+
+:::note
+
+When using proxies between clients and brokers, you only get proxies authenticated (named **self-authentication**) by default. To forward the authentication data from clients to brokers for client authentication (named **original authentication**), you need to set `forwardAuthorizationCredentials` to `true`.
+
+:::
 
 **What's next?**
 
-Pulsar supports the following authentication providers, and you can configure multiple authentication providers.
-- [TLS authentication](security-tls-authentication.md)
-- [Athenz authentication](security-athenz.md)
-- [Kerberos authentication](security-kerberos.md)
-- [JSON Web Token (JWT) authentication](security-jwt.md)
-- [OAuth 2.0 authentication](security-oauth2.md)
-- [HTTP basic authentication](security-basic-auth.md)
+- To configure built-in authentication plugins, read:
+  - [TLS authentication](security-tls-authentication.md)
+  - [Athenz authentication](security-athenz.md)
+  - [Kerberos authentication](security-kerberos.md)
+  - [JSON Web Token (JWT) authentication](security-jwt.md)
+  - [OAuth 2.0 authentication](security-oauth2.md)
+  - [HTTP basic authentication](security-basic-auth.md)
+- To customize an authentication plugin, read [extended authentication](security-extending).
 
 :::note
 
