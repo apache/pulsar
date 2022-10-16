@@ -1906,8 +1906,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lock.writeLock().lock();
         try {
-            // When newPosition is equal to markDeletePosition,
-            // it means that the memory of markDeletePosition has been updated, but it may not be persistent.
             if (!newPosition.equals(markDeletePosition)) {
                 newPosition = setAcknowledgedPosition(newPosition);
             }
