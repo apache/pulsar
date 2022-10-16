@@ -2056,9 +2056,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         final long currentBatchSize = batchMessageContainer.getCurrentBatchSize();
-        final int batchAllocatedSize = batchMessageContainer.getBatchAllocatedSize();
+        final int batchAllocatedSizeBytes = batchMessageContainer.getBatchAllocatedSizeBytes();
         semaphoreRelease(numMessagesInBatch);
-        client.getMemoryLimitController().releaseMemory(currentBatchSize + batchAllocatedSize);
+        client.getMemoryLimitController().releaseMemory(currentBatchSize + batchAllocatedSizeBytes);
         batchMessageContainer.discard(ex);
     }
 
