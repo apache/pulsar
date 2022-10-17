@@ -562,6 +562,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (transactionExecutorProvider != null) {
                 transactionExecutorProvider.shutdownNow();
             }
+            MLPendingAckStoreProvider.closeBufferedWriterMetrics();
+            MLTransactionMetadataStoreProvider.closeBufferedWriterMetrics();
             if (this.offloaderStats != null) {
                 this.offloaderStats.close();
             }

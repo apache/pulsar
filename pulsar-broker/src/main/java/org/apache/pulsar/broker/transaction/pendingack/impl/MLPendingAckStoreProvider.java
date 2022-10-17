@@ -61,6 +61,16 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         }
     }
 
+    public static void closeBufferedWriterMetrics() {
+        synchronized (MLPendingAckStoreProvider.class){
+            if (bufferedWriterMetrics == DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+                return;
+            }
+            bufferedWriterMetrics.close();
+            bufferedWriterMetrics = DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+        }
+    }
+
     @Override
     public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
         CompletableFuture<PendingAckStore> pendingAckStoreFuture = new CompletableFuture<>();
