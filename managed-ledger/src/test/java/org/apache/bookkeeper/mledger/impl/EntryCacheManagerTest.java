@@ -34,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
