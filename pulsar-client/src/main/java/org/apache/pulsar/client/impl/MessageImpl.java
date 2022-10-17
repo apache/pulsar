@@ -436,7 +436,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public SchemaHash getSchemaHash() {
-        return schemaHash == null ? SchemaHash.of(new byte[0], null) : schemaHash;
+        return schemaHash == null ? SchemaHash.empty() : schemaHash;
     }
 
     public void setSchemaInfoForReplicator(SchemaInfo schemaInfo) {

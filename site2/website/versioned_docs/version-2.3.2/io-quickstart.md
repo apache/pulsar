@@ -6,14 +6,14 @@ original_id: io-quickstart
 ---
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.
-It is helpful to review the [concepts](io-overview) for Pulsar I/O in tandem with running the steps in this guide
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O in tandem with running the steps in this guide
 to gain a deeper understanding. At the end of this tutorial, you will be able to:
 
 - Connect your Pulsar cluster with your Cassandra cluster
 
 :::tip
 
-1. These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone). However all
+1. These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone.md). However all
 the commands used in this tutorial should be able to be used in a multi-nodes Pulsar cluster without any changes.
 2. All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
@@ -260,11 +260,11 @@ configs:
 
 ```
 
-To learn more about Cassandra Connector, see [Cassandra Connector](io-cassandra).
+To learn more about Cassandra Connector, see [Cassandra Connector](io-cassandra.md).
 
 ### Submit a Cassandra Sink
 
-Pulsar provides the [CLI](reference-cli-tools) for running and managing Pulsar I/O connectors.
+Pulsar provides the [CLI](reference-cli-tools.md) for running and managing Pulsar I/O connectors.
 
 We can run following command to sink a sink connector with type `cassandra` and config file `examples/cassandra-sink.yml`.
 

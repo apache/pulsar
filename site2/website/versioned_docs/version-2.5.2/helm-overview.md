@@ -51,9 +51,9 @@ Moreover, Helm chart supports:
 
 ## Quick start
 
-To run with Apache Pulsar Helm chart as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm) for Proof of Concept (PoC) deployments.
+To run with Apache Pulsar Helm chart as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
-This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install).
+This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install.md).
 
 ## Troubleshooting
 
@@ -63,7 +63,7 @@ Although we have done our best to make these charts as seamless as possible, tro
 
 The Apache Pulsar Helm chart contains all required dependencies.
 
-If you deploy a PoC for testing, we strongly suggest you follow this [Quick Start Guide](getting-started-helm) for your first iteration.
+If you deploy a PoC for testing, we strongly suggest you follow this [Quick Start Guide](getting-started-helm.md) for your first iteration.
 
 1. [Preparation](helm-prepare.md)
 2. [Deployment](helm-deploy.md)
@@ -81,7 +81,7 @@ helm upgrade <pulsar-release-name> apache/pulsar -f pulsar.yaml
 
 ```
 
-For more detailed information, see [Upgrading](helm-upgrade).
+For more detailed information, see [Upgrading](helm-upgrade.md).
 
 ## Uninstallation
 

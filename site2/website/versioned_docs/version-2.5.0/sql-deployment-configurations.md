@@ -54,7 +54,7 @@ Since Pulsar SQL is powered by [Presto](https://prestosql.io), the configuration
 
 :::note
 
-For how to set up a standalone single node environment, refer to [Query data](sql-getting-started). 
+For how to set up a standalone single node environment, refer to [Query data](sql-getting-started.md). 
 
 :::
 

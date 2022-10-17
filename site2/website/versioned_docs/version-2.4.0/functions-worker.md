@@ -123,7 +123,7 @@ tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 
 ```
 
-For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport).
+For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
 
 **Enable Authentication Provider**
 
@@ -150,7 +150,7 @@ properties:
 ```
 
 For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
-See [Token Authentication](security-token-admin) for more details.
+See [Token Authentication](security-token-admin.md) for more details.
 
 ```
 

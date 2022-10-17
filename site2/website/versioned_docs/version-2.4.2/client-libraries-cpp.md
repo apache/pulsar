@@ -661,7 +661,7 @@ For complete examples, refer to [C++ client examples](https://github.com/apache/
 ## Schema
 
 This section describes some examples about schema. For more information about
-schema, see [Pulsar schema](schema-get-started).
+schema, see [Pulsar schema](schema-get-started.md).
 
 ### Avro schema
 

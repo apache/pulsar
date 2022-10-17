@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -30,6 +30,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -40,10 +41,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-@Builder
 public class SchemaInfoImpl implements SchemaInfo {
 
     @EqualsAndHashCode.Exclude
@@ -67,8 +66,22 @@ public class SchemaInfoImpl implements SchemaInfo {
     /**
      * Additional properties of the schema definition (implementation defined).
      */
-    @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
+
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
+    private transient SchemaHash schemaHash;
+
+    @Builder
+    public SchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                          Map<String, String> properties) {
+        this.name = name;
+        this.schema = schema;
+        this.type = type;
+        this.timestamp = timestamp;
+        this.properties = properties == null ? Collections.emptyMap() : properties;
+        this.schemaHash = SchemaHash.of(this.schema, this.type);
+    }
 
     public String getSchemaDefinition() {
         if (null == schema) {
@@ -87,6 +100,19 @@ public class SchemaInfoImpl implements SchemaInfo {
             default:
                 return Base64.getEncoder().encodeToString(schema);
         }
+    }
+
+    /**
+     * Calculate the SchemaHash for compatible with `@NoArgsConstructor`.
+     * If SchemaInfoImpl is created by no-args-constructor from users, the schemaHash will be null.
+     * Note: We should remove this method as long as `@NoArgsConstructor` removed at major release to avoid null-check
+     * overhead.
+     */
+    public SchemaHash getSchemaHash() {
+        if (schemaHash == null) {
+            schemaHash = SchemaHash.of(this.schema, this.type);
+        }
+        return schemaHash;
     }
 
     @Override

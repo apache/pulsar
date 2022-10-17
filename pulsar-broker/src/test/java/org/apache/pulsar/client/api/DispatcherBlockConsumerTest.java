@@ -26,12 +26,13 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -127,7 +129,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
             Message<?> msg = null;
-            Map<Message<?>, Consumer<?>> messages = Maps.newHashMap();
+            Map<Message<?>, Consumer<?>> messages = new HashMap<>();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
                     msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
@@ -337,7 +339,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
             Message<?> msg = null;
-            Map<Message<?>, Consumer<?>> messages = Maps.newHashMap();
+            Map<Message<?>, Consumer<?>> messages = new HashMap<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer1.receive(500, TimeUnit.MILLISECONDS);
                 if (msg != null) {
@@ -361,7 +363,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared)
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                     .subscribe();
-            Map<Message<?>, Consumer<?>> messages2 = Maps.newHashMap();
+            Map<Message<?>, Consumer<?>> messages2 = new HashMap<>();
             // try to consume remaining messages: broker may take time to deliver so, retry multiple time to consume
             // all messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -422,7 +424,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
             Message<?> msg = null;
-            Set<MessageId> messages = Sets.newHashSet();
+            Set<MessageId> messages = new HashSet<>();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
                     msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
@@ -448,12 +450,12 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Thread.sleep(1000);
 
             // now, broker must have redelivered all unacked messages
-            Map<ConsumerImpl<?>, Set<MessageId>> messages1 = Maps.newHashMap();
+            Map<ConsumerImpl<?>, Set<MessageId>> messages1 = new HashMap<>();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
                     msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
                     if (msg != null) {
-                        messages1.putIfAbsent(consumers.get(i), Sets.newHashSet());
+                        messages1.putIfAbsent(consumers.get(i), new HashSet<>());
                         messages1.get(consumers.get(i)).add(msg.getMessageId());
                         log.info("Received message: " + new String(msg.getData()));
                     } else {
@@ -462,7 +464,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 }
             }
 
-            Set<MessageId> result = Sets.newHashSet();
+            Set<MessageId> result = new HashSet<>();
             messages1.values().forEach(result::addAll);
 
             // check all unacked messages have been redelivered
@@ -632,7 +634,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         // if broker unload bundle gracefully then cursor metadata recovered from zk else from ledger
         if (unloadBundleGracefully) {
             // set clean namespace which will not let broker unload bundle gracefully: stop broker
-            Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
+            Supplier<NamespaceService> namespaceServiceSupplier =
+                    () -> spyWithClassAndConstructorArgs(CanPausedNamespaceService.class, pulsar);
             doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
         }
         stopBroker();
@@ -644,7 +647,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
         // consumer should only receive unakced messages
         Set<String> unackMsgs = unackMessages.stream().map(i -> "my-message-" + i).collect(Collectors.toSet());
-        Set<String> receivedMsgs = Sets.newHashSet();
+        Set<String> receivedMsgs = new HashSet<>();
         for (int i = 0; i < totalProducedMsgs; i++) {
             Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
             if (msg == null) {
@@ -745,7 +748,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              * maxUnAckPerBroker limit
              ***/
             Message<byte[]> msg = null;
-            Set<MessageId> messages1 = Sets.newHashSet();
+            Set<MessageId> messages1 = new HashSet<>();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer1Sub1.receive(waitMills, TimeUnit.MILLISECONDS);
                 if (msg != null) {
@@ -793,7 +796,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerImpl<byte[]> consumerSub2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName2).receiverQueueSize(receiverQueueSize)
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-            Set<MessageId> messages2 = Sets.newHashSet();
+            Set<MessageId> messages2 = new HashSet<>();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumerSub2.receive(waitMills, TimeUnit.MILLISECONDS);
                 if (msg != null) {
@@ -954,7 +957,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              * maxUnAckPerBroker limit
              ***/
             Message<?> msg = null;
-            Set<MessageId> messages1 = Sets.newHashSet();
+            Set<MessageId> messages1 = new HashSet<>();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer1Sub1.receive(100, TimeUnit.MILLISECONDS);
                 if (msg != null) {
@@ -1006,7 +1009,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                     .subscriptionName(subscriberName2).receiverQueueSize(receiverQueueSize)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
-            Set<MessageId> messages2 = Sets.newHashSet();
+            Set<MessageId> messages2 = new HashSet<>();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer1Sub2.receive(100, TimeUnit.MILLISECONDS);
                 if (msg != null) {

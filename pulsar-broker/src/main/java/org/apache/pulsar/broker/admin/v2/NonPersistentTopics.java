@@ -19,12 +19,12 @@
 
 package org.apache.pulsar.broker.admin.v2;
 
-import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -233,7 +233,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 }
                 NonPersistentPartitionedTopicStatsImpl stats =
                         new NonPersistentPartitionedTopicStatsImpl(partitionMetadata);
-                List<CompletableFuture<TopicStats>> topicStatsFutureList = Lists.newArrayList();
+                List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>();
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                     try {
                         topicStatsFutureList
@@ -369,7 +369,7 @@ public class NonPersistentTopics extends PersistentTopics {
             return;
         }
 
-        final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
+        final List<CompletableFuture<List<String>>> futures = new ArrayList<>();
         final List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
@@ -390,7 +390,7 @@ public class NonPersistentTopics extends PersistentTopics {
             if (ex != null) {
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
             } else {
-                final List<String> topics = Lists.newArrayList();
+                final List<String> topics = new ArrayList<>();
                 for (int i = 0; i < futures.size(); i++) {
                     List<String> topicList = futures.get(i).join();
                     if (topicList != null) {
@@ -458,7 +458,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         asyncResponse.resume(Collections.emptyList());
                         return;
                     }
-                    final List<String> topicList = Lists.newArrayList();
+                    final List<String> topicList = new ArrayList<>();
                     String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
                     ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
                     if (topicMap != null) {

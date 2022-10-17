@@ -27,7 +27,8 @@ pulsar-functions/worker/src/test/resources/
 .factorypath
 
 # IntelliJ
-.idea/
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
 
@@ -48,6 +49,7 @@ target/
 
 # Python
 *.pyc
+.python-version
 
 # Perf tools
 *.hgrm
@@ -67,11 +69,6 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 
 # Vagrant
 **/.vagrant
-
-
-pulsar-client-cpp/python/pkg/osx/*/*.bak
-pulsar-client-cpp/python/pkg/osx/*/*.whl
-pulsar-client-cpp/python/wheelhouse
 
 # CI generated files
 .repository

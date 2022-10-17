@@ -61,8 +61,8 @@ For more info, see [Topics](concepts-messaging.md#topics).
 
 ## Start publishing and consuming messages
 
-Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python) 
-and [C++](client-libraries-cpp). If you're running a local standalone cluster, you can
+Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
+and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
 use one of these root URLs for interacting with your cluster:
 
 * `pulsar://localhost:6650`
@@ -117,7 +117,7 @@ client.close()
 ## Get the topic statistics
 
 In Pulsar you can use REST, Java, or command-line tools to control every aspect of the system.
-You can find detailed documentation of all the APIs in the [Admin API Overview](admin-api-overview).
+You can find detailed documentation of all the APIs in the [Admin API Overview](admin-api-overview.md).
 
 In the simplest example, you can use curl to probe the stats for a particular topic:
 

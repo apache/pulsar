@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -123,12 +122,12 @@ public class SchemasResourceBase extends AdminResource {
                         try {
                             data = DefaultImplementation.getDefaultImplementation()
                                     .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema()
-                                            .getBytes(Charsets.UTF_8));
+                                            .getBytes(StandardCharsets.UTF_8));
                         } catch (IOException conversionError) {
                             throw new RestException(conversionError);
                         }
                     } else {
-                        data = payload.getSchema().getBytes(Charsets.UTF_8);
+                        data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
                     }
                     return pulsar().getSchemaRegistryService()
                             .putSchemaIfAbsent(getSchemaId(),
@@ -148,7 +147,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                            SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
@@ -164,7 +163,7 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                                    SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
                                             .isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
@@ -185,7 +184,7 @@ public class SchemasResourceBase extends AdminResource {
                         DefaultImplementation.getDefaultImplementation()
                                 .decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
             } else {
-                schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+                schemaData = new String(schemaAndMetadata.schema.getData(), StandardCharsets.UTF_8);
             }
             return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
                     .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
