@@ -33,16 +33,16 @@ Authentication is the process of verifying the identity of clients. In Pulsar, t
 Pulsar provides a pluggable authentication framework, and Pulsar brokers/proxies use this mechanism to authenticate clients.
 
 The way how each client passes its authentication data to brokers varies depending on the protocols it uses. Brokers validate the authentication credentials when a connection is established and check whether the authentication data is expired.
-- When using HTTP/HTTPS protocol for cluster management, each client passes the authentication data based on the HTTP/HTTPS header, and brokers check the data upon request.
-- When using [Pulsar protocol](developing-binary-protocol.md) for productions/consumptions, each client passes the authentication data by sending the `CommandConnect` command. Brokers cache the data and periodically check whether the data has expired. If it has expired, brokers send a `CommandAuthChallenge` command to exchange the authentication data with the client. Without the previous authentication challenge returned, brokers disconnect the client.
-
-As soon as the initial connection is authenticated, the "principal" token is stored for authorization though the connection has not been re-authenticated. Brokers periodically check the expiration status of every `ServerCnx` object and learn whether a particular client supports authentication refreshing.
-- If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process and re-authenticate the connection. By default, the `authenticationRefreshCheckSeconds` is set to 60s. 
-- If a client does not support authentication refreshing and the credential is expired, brokers disconnect the client.
+- When using HTTP/HTTPS protocol for cluster management, each client passes the authentication data based on the HTTP/HTTPS request header, and brokers check the data upon request.
+- When using [Pulsar protocol](developing-binary-protocol.md) for productions/consumptions, each client passes the authentication data by sending the `CommandConnect` command when connecting to brokers. Brokers cache the data and periodically check whether the data has expired and learn whether the client supports authentication refreshing. By default, the `authenticationRefreshCheckSeconds` is set to 60s.
+  - If a client supports authentication refreshing and the credential is expired, brokers send the `CommandAuthChallenge` command to exchange the authentication data with the client. If the next check finds that the previous authentication exchange has not been returned, brokers disconnect the client.
+  - If a client does not support authentication refreshing and the credential is expired, brokers disconnect the client.
 
 :::note
 
-When using proxies between clients and brokers, you only get proxies authenticated (named **self-authentication**) by default. To forward the authentication data from clients to brokers for client authentication (named **original authentication**), you need to set `forwardAuthorizationCredentials` to `true`.
+When you use proxies between clients and brokers, brokers only authenticate proxies (known as **self-authentication**) by default. To forward the authentication data from clients to brokers for client authentication (known as **original authentication**), you need to:
+1. Set `forwardAuthorizationCredentials` to `true` in the `conf/proxy.conf` file.
+2. Set `authenticateOriginalAuthData` to `true` in the `conf/broker.conf` file, which ensures that brokers recheck the client authentication.
 
 :::
 
