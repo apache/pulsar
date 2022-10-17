@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import static org.mockito.Mockito.mock;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -85,6 +88,16 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
                 (PersistentTopic) pulsar.getBrokerService()
                         .getTopic(topicName, false)
                         .join().get();
+
+        Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
+    }
+
+    @Test
+    public void testSystemTopicSchemaCompatibility() throws Exception {
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+        String topicName = systemTopicClientForNamespace1.getTopicName().toString();
+        SystemTopic topic = new SystemTopic(topicName, mock(ManagedLedger.class), pulsar.getBrokerService());
 
         Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
     }
