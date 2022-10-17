@@ -4524,7 +4524,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
 
                 FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
-                    log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
+                    log.info("[{}] Successfully created subscriptions on new partitions {}", clientAppId(), topicName);
                     result.complete(null);
                 }).exceptionally(ex -> {
                     log.warn("[{}] Failed to create subscriptions on new partitions for {}",

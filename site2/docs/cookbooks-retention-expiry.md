@@ -58,7 +58,7 @@ When a retention limit on a topic is exceeded, the oldest message is marked for 
 
 ### Defaults
 
-You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
+You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. By default, both parameters are set to `0`, which means disabling message retention.
 
 For more information on the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
 

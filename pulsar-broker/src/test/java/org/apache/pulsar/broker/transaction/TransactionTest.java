@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
@@ -406,20 +407,19 @@ public class TransactionTest extends TransactionTestBase {
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 0);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+
         transaction.abort();
         transaction = pulsarClient.newTransaction()
                 .build().get();
-        txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 1);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+        TxnID txnID1 = transaction.getTxnID();
+        Assert.assertEquals(txnID1.getLeastSigBits(), txnID.getLeastSigBits() + 1);
+        Assert.assertEquals(txnID1.getMostSigBits(), 0);
     }
 
     @Test
     public void testSubscriptionRecreateTopic()
             throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
-        String topic = "persistent://pulsar/system/testReCreateTopic";
+        String topic = "persistent://pulsar/system/testSubscriptionRecreateTopic";
         String subName = "sub_testReCreateTopic";
         int retentionSizeInMbSetTo = 5;
         int retentionSizeInMbSetTopic = 6;
@@ -481,11 +481,7 @@ public class TransactionTest extends TransactionTestBase {
                         }
                 );
             });
-
-
         });
-
-
     }
 
     @Test
@@ -782,6 +778,8 @@ public class TransactionTest extends TransactionTestBase {
         Class<PulsarService> pulsarServiceClass = PulsarService.class;
         Field field = pulsarServiceClass.getDeclaredField("transactionPendingAckStoreProvider");
         field.setAccessible(true);
+        TransactionPendingAckStoreProvider originPendingAckStoreProvider =
+                (TransactionPendingAckStoreProvider) field.get(getPulsarServiceList().get(0));
         field.set(getPulsarServiceList().get(0), pendingAckStoreProvider);
 
         PendingAckHandleImpl pendingAckHandle1 = new PendingAckHandleImpl(persistentSubscription);
@@ -811,6 +809,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // cleanup
         transactionTimer.stop();
+        field.set(getPulsarServiceList().get(0), originPendingAckStoreProvider);
     }
 
     @Test
@@ -1075,7 +1074,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckMarkDeletePosition() throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(1);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
-        String topic = NAMESPACE1 + "/test1";
+        String topic = NAMESPACE1 + "/testPendingAckMarkDeletePosition";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -1136,7 +1135,7 @@ public class TransactionTest extends TransactionTestBase {
                     .getPendingAckInternalStats(topic, "sub", false)
                     .pendingAckLogStats
                     .managedLedgerInternalStats;
-            String [] markDeletePosition = managedLedgerInternalStats.cursors.get("__pending_ack_state")
+            String [] markDeletePosition = managedLedgerInternalStats.cursors.get(PENDING_ACK_STORE_CURSOR_NAME)
                     .markDeletePosition.split(":");
             String [] lastConfirmedEntry = managedLedgerInternalStats.lastConfirmedEntry.split(":");
             Assert.assertEquals(markDeletePosition[0], lastConfirmedEntry[0]);

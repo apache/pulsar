@@ -73,6 +73,8 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ### Clients
 
+- [C++ Client](https://github.com/apache/pulsar-client-cpp)
+- [Python Client](https://github.com/apache/pulsar-client-python)
 - [.NET/C# Client](https://github.com/apache/pulsar-dotpulsar)
 - [Go Client](https://github.com/apache/pulsar-client-go)
 - [NodeJS Client](https://github.com/apache/pulsar-client-node)

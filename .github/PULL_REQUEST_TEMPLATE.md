@@ -56,6 +56,7 @@ This change added tests and can be verified as follows:
 - [ ] The public API
 - [ ] The schema
 - [ ] The default values of configurations
+- [ ] The threading model
 - [ ] The binary protocol
 - [ ] The REST endpoints
 - [ ] The admin CLI options
