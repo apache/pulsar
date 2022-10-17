@@ -839,8 +839,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 } else if (metricName.endsWith("_count")) {
                     String summaryMetricName = metricName.substring(0, metricName.indexOf("_count"));
                     if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding summary type definition, only "
-                                + typeDefs);
+                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
                     }
                 } else if (metricName.endsWith("_bucket")) {
                     String summaryMetricName = metricName.substring(0, metricName.indexOf("_bucket"));
