@@ -21,12 +21,14 @@ package org.apache.pulsar.broker;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -124,6 +126,9 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
                 try {
                     pulsarService.getConfiguration().setBrokerShutdownTimeoutMs(0L);
                     pulsarService.close();
+                    pulsarService.getConfiguration().getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarService.getConfiguration().getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarService.getConfiguration().getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
                 } catch (PulsarServerException e) {
                     // ignore
                 }
