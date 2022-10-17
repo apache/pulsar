@@ -33,7 +33,11 @@ function mvn_test() {
         clean_arg="clean"
         shift
     fi
-    TARGET=verify
+    if echo "${FUNCNAME[@]}" | grep "flaky"; then
+      TARGET="verify"
+    else
+      TARGET="verify -Pcoverage"
+    fi
     if [[ "$1" == "--install" ]]; then
       TARGET="install"
       shift
