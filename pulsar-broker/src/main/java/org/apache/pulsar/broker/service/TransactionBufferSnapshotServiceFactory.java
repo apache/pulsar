@@ -19,39 +19,44 @@
 
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.events.EventType;
 
-public class TransactionBufferSnapshotServiceImpl implements TransactionBufferSnapshotService {
+public class TransactionBufferSnapshotServiceFactory {
 
-    private SystemTopicTxnBufferSnapshotServiceImpl txnBufferSnapshotService;
+    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> txnBufferSnapshotService;
 
-    private SystemTopicTxnBufferSnapshotSegmentServiceImpl txnBufferSnapshotSegmentService;
+    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+            txnBufferSnapshotSegmentService;
 
-    private SystemTopicTxnBufferSnapshotIndexServiceImpl txnBufferSnapshotIndexService;
+    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> txnBufferSnapshotIndexService;
 
-    public TransactionBufferSnapshotServiceImpl(PulsarClient pulsarClient,
+    public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient,
                                                 boolean transactionBufferSegmentedSnapshotEnabled) {
-        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotSegmentServiceImpl(pulsarClient);
-        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotIndexServiceImpl(pulsarClient);
-        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotServiceImpl(pulsarClient);
+        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
+                EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
+                TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class);
+        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
+                EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
+        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
+                EventType.TRANSACTION_BUFFER_SNAPSHOT, TransactionBufferSnapshot.class);
     }
 
-    @Override
-    public SystemTopicTxnBufferSnapshotIndexServiceImpl getTxnBufferSnapshotIndexService() {
+    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> getTxnBufferSnapshotIndexService() {
         return this.txnBufferSnapshotIndexService;
     }
 
-    @Override
-    public SystemTopicTxnBufferSnapshotSegmentServiceImpl getTxnBufferSnapshotSegmentService() {
+    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+    getTxnBufferSnapshotSegmentService() {
         return this.txnBufferSnapshotSegmentService;
     }
 
-    @Override
-    public SystemTopicTxnBufferSnapshotServiceImpl getTxnBufferSnapshotService() {
+    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> getTxnBufferSnapshotService() {
         return this.txnBufferSnapshotService;
     }
 
-    @Override
     public void close() throws Exception {
         if (this.txnBufferSnapshotIndexService != null) {
             this.txnBufferSnapshotIndexService.close();

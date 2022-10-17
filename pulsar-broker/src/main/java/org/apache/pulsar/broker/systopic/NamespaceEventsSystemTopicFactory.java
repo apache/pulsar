@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.systopic;
 
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -45,34 +43,14 @@ public class NamespaceEventsSystemTopicFactory {
         return new TopicPoliciesSystemTopicClient(client, topicName);
     }
 
-    public TransactionBufferSnapshotSystemTopicClient createTransactionBufferSystemTopicClient(
-            NamespaceName namespaceName, SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot>
-            systemTopicTxnBufferSnapshotService) {
+    public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
+            NamespaceName namespaceName, SystemTopicTxnBufferSnapshotService<T>
+            systemTopicTxnBufferSnapshotService, Class<T> schemaType) {
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         log.info("Create transaction buffer snapshot client, topicName : {}", topicName.toString());
-        return new TransactionBufferSnapshotSystemTopicClient(client, topicName, systemTopicTxnBufferSnapshotService);
-    }
-
-    public TransactionBufferSnapshotIndexSystemTopicClient createTransactionBufferSnapshotIndexSystemTopicClient(
-            NamespaceName namespaceName, SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes>
-            transactionBufferSnapshotIndexService) {
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-        log.info("Create transaction buffer snapshot index client, topicName : {}", topicName.toString());
-        return new TransactionBufferSnapshotIndexSystemTopicClient(client, topicName,
-                transactionBufferSnapshotIndexService);
-    }
-
-    public TransactionBufferSnapshotSegmentSystemTopicClient createTransactionBufferSnapshotSegmentSystemTopicClient(
-            NamespaceName namespaceName,
-            SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
-                    transactionBufferSnapshotSegmentService) {
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT);
-        log.info("Create transaction buffer snapshot segment client, topicName : {}", topicName.toString());
-        return new TransactionBufferSnapshotSegmentSystemTopicClient(client, topicName,
-                transactionBufferSnapshotSegmentService);
+        return new TransactionBufferSnapshotBaseSystemTopicClient(client, topicName,
+                systemTopicTxnBufferSnapshotService, schemaType);
     }
 
     public static TopicName getSystemTopicName(NamespaceName namespaceName, EventType eventType) {

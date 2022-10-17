@@ -20,23 +20,30 @@ package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 
-public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTopicClientBase<T> {
+@Slf4j
+public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTopicClientBase<T> {
 
     protected final SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService;
+    protected final Class<T> schemaType;
+
     public TransactionBufferSnapshotBaseSystemTopicClient(PulsarClient client,
                                                           TopicName topicName,
                                                           SystemTopicTxnBufferSnapshotService<T>
-                                                                  systemTopicTxnBufferSnapshotService) {
+                                                                  systemTopicTxnBufferSnapshotService,
+                                                          Class<T> schemaType) {
         super(client, topicName);
         this.systemTopicTxnBufferSnapshotService = systemTopicTxnBufferSnapshotService;
+        this.schemaType = schemaType;
     }
 
     protected void removeWriter(Writer<T> writer) {
@@ -52,11 +59,11 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
     protected static class TransactionBufferSnapshotWriter<T> implements Writer<T> {
 
         protected final Producer<T> producer;
-        protected final TransactionBufferSnapshotBaseSystemTopicClient
+        protected final TransactionBufferSnapshotBaseSystemTopicClient<T>
                 transactionBufferSnapshotBaseSystemTopicClient;
 
         protected TransactionBufferSnapshotWriter(Producer<T> producer,
-                                                  TransactionBufferSnapshotBaseSystemTopicClient
+                                                  TransactionBufferSnapshotBaseSystemTopicClient<T>
                                                     transactionBufferSnapshotBaseSystemTopicClient) {
             this.producer = producer;
             this.transactionBufferSnapshotBaseSystemTopicClient = transactionBufferSnapshotBaseSystemTopicClient;
@@ -123,7 +130,7 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
     protected static class TransactionBufferSnapshotReader<T> implements Reader<T> {
 
         private final org.apache.pulsar.client.api.Reader<T> reader;
-        private final TransactionBufferSnapshotBaseSystemTopicClient transactionBufferSnapshotBaseSystemTopicClient;
+        private final TransactionBufferSnapshotBaseSystemTopicClient<T> transactionBufferSnapshotBaseSystemTopicClient;
 
         protected TransactionBufferSnapshotReader(
                 org.apache.pulsar.client.api.Reader<T> reader,
@@ -179,5 +186,33 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
         }
     }
 
+    @Override
+    protected CompletableFuture<Writer<T>> newWriterAsyncInternal() {
+        return client.newProducer(Schema.AVRO(schemaType))
+                .topic(topicName.toString())
+                .createAsync().thenCompose(producer -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] A new {} writer is created", topicName, schemaType.getName());
+                    }
+                    return CompletableFuture.completedFuture(
+                            new TransactionBufferSnapshotWriter<>(producer, this));
+                });
+    }
+
+    @Override
+    protected CompletableFuture<Reader<T>> newReaderAsyncInternal() {
+        return client.newReader(Schema.AVRO(schemaType))
+                .topic(topicName.toString())
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .createAsync()
+                .thenCompose(reader -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] A new {} reader is created", topicName, schemaType);
+                    }
+                    return CompletableFuture.completedFuture(
+                            new TransactionBufferSnapshotReader<>(reader, this));
+                });
+    }
 
 }
