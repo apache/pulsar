@@ -576,7 +576,21 @@ public interface Topics {
      *
      * @param topic partitioned topic name
      */
-    void createMissedPartitions(String topic) throws PulsarAdminException;
+    default void createMissedPartitions(String topic) throws PulsarAdminException {
+        createMissedPartitions(topic, null);
+    }
+
+    /**
+     * Create missed partitions for partitioned topic.
+     * <p/>
+     * When disable topic auto creation, use this method to try create missed partitions while
+     * partitions create failed or users already have partitioned topic without partitions.
+     *
+     * @param topic partitioned topic name
+     * @param subscriptions List of subscription
+     * @throws PulsarAdminException
+     */
+    void createMissedPartitions(String topic, List<String> subscriptions) throws PulsarAdminException;
 
     /**
      * Create missed partitions for partitioned topic asynchronously.
@@ -585,8 +599,9 @@ public interface Topics {
      * partitions create failed or users already have partitioned topic without partitions.
      *
      * @param topic partitioned topic name
+     * @param subscriptions List of subscription
      */
-    CompletableFuture<Void> createMissedPartitionsAsync(String topic);
+    CompletableFuture<Void> createMissedPartitionsAsync(String topic, List<String> subscriptions);
 
     /**
      * Update number of partitions of a non-global partitioned topic.

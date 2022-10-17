@@ -26,6 +26,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.assertj.core.util.Lists;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -123,7 +124,8 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     public void testCreateMissedPartitions(boolean useRestApi) throws PulsarAdminException, PulsarClientException, MetadataStoreException {
         conf.setAllowAutoTopicCreation(false);
         final String topic = "testCreateMissedPartitions-useRestApi-" + useRestApi;
-        final String group = "cg_testCreateMissedPartitions";
+        final String group1 = "cg_testCreateMissedPartitions-1";
+        final String group2 = "cg_testCreateMissedPartitions-2";
         final TopicName topicName = TopicName.get(topic);
         int numPartitions = 3;
         // simulate partitioned topic without partitions
@@ -132,7 +134,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
                 new PartitionedTopicMetadata(numPartitions));
         Consumer<byte[]> consumer = null;
         try {
-            consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribeAsync().get(3, TimeUnit.SECONDS);
+            consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(group1).subscribeAsync().get(3, TimeUnit.SECONDS);
         } catch (Exception e) {
             //ok here, consumer will create failed with 'Topic does not exist'
         }
@@ -144,13 +146,12 @@ public class PartitionCreationTest extends ProducerConsumerBase {
                 admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
             }
         }
-        consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
+        consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(group1).subscribe();
         Assert.assertNotNull(consumer);
         Assert.assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         Assert.assertEquals(((MultiTopicsConsumerImpl)consumer).getConsumers().size(), numPartitions);
 
 
-        admin.topics().createSubscription(topic, group, MessageId.latest);
         int newNumPartitions = 5;
         pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .updatePartitionedTopicAsync(TopicName.get(topic),p ->
@@ -161,7 +162,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
             try {
                 topicStats = (TopicStatsImpl) admin.topics().getStats(topicName.getPartition(i).toString());
                 Assert.assertTrue(i < numPartitions);
-                Assert.assertTrue(topicStats.getSubscriptions().containsKey(group));
+                Assert.assertTrue(topicStats.getSubscriptions().containsKey(group1));
             } catch (PulsarAdminException ex) {
                 Assert.assertTrue(numPartitions <= i);
                 Assert.assertEquals(ex.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
@@ -169,18 +170,20 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         }
 
         if (useRestApi) {
-            admin.topics().createMissedPartitions(topic);
+            admin.topics().createMissedPartitions(topic, Lists.newArrayList(group2));
         } else {
             for (int i = numPartitions; i < newNumPartitions; i++) {
                 admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
             }
         }
 
-        for (int i = numPartitions; i < newNumPartitions; i++) {
+        for (int i = 0; i < newNumPartitions; i++) {
             topicStats = (TopicStatsImpl) admin.topics().getStats(topicName.getPartition(i).toString());
             Assert.assertNotNull(topicStats);
             if (useRestApi) {
-                Assert.assertTrue(topicStats.getSubscriptions().containsKey(group));
+                Assert.assertTrue(i < numPartitions && topicStats.getSubscriptions().containsKey(group1) ||
+                        numPartitions <= i && !topicStats.getSubscriptions().containsKey(group1));
+                Assert.assertTrue(topicStats.getSubscriptions().containsKey(group2));
             }
         }
     }

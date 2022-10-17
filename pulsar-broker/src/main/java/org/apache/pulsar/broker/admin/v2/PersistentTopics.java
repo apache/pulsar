@@ -890,11 +890,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic) {
-
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "List of subscriptions created for missed partitions") List<String> subscriptions) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalCreateMissedPartitions(asyncResponse);
+            internalCreateMissedPartitions(asyncResponse, subscriptions);
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

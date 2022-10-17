@@ -309,8 +309,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void createMissedPartitions(String topic) throws PulsarAdminException {
-        sync(() -> createMissedPartitionsAsync(topic));
+    public void createMissedPartitions(String topic, List<String> subscriptions) throws PulsarAdminException {
+        sync(() -> createMissedPartitionsAsync(topic, subscriptions));
     }
 
     @Override
@@ -344,10 +344,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> createMissedPartitionsAsync(String topic) {
+    public CompletableFuture<Void> createMissedPartitionsAsync(String topic, List<String> subscriptions) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "createMissedPartitions");
-        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(subscriptions, MediaType.APPLICATION_JSON));
     }
 
     @Override
