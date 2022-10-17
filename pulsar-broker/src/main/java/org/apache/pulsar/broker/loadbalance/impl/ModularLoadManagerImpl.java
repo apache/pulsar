@@ -168,7 +168,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Map<String, String> preallocatedBundleToBroker;
 
     // Specify bundle assignment
-    private final Map<String, String> fixedBundleToBroker;
+    private final Map<String, String> assignedBundleToBroker;
 
     // Strategy used to determine where new topics should be placed.
     private ModularLoadManagerStrategy placementStrategy;
@@ -219,7 +219,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        fixedBundleToBroker = new ConcurrentHashMap<>();
+        assignedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = new HashMap<>();
 
@@ -486,15 +486,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         updateBundleData();
         // broker has latest load-report: check if any bundle requires split
         checkNamespaceBundleSplit();
-        // Assign a bundle to a given broker
-        updateFixedBundleToBroker();
+        // Assign bundle to broker
+        updateAssignedBundleToBroker();
     }
 
-    public void updateFixedBundleToBroker() {
+    public void updateAssignedBundleToBroker() {
         for (String bundle : bundleAssignCache.getChildren(BUNDLE_ASSIGN_TO_BROKER).join()) {
             Optional<String> broker = bundleAssignCache.get(String.format("%s/%s", BUNDLE_ASSIGN_TO_BROKER, bundle)).join();
             if (broker.isPresent()) {
-                fixedBundleToBroker.put(bundle, broker.get());
+                assignedBundleToBroker.put(bundle, broker.get());
             }
         }
     }
@@ -846,9 +846,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         try {
             synchronized (brokerCandidateCache) {
                 final String bundle = serviceUnit.toString();
-                if(fixedBundleToBroker.containsKey(bundle)){
+                if(assignedBundleToBroker.containsKey(bundle)){
                     // Assign specific bundles to fixed brokers.
-                    return Optional.of(fixedBundleToBroker.get(bundle));
+                    return Optional.of(assignedBundleToBroker.get(bundle));
                 }
                 if (preallocatedBundleToBroker.containsKey(bundle)) {
                     // If the given bundle is already in preallocated, return the selected broker.
