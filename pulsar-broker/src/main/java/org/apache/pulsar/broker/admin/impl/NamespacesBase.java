@@ -2374,7 +2374,8 @@ public abstract class NamespacesBase extends AdminResource {
     protected long internalGetOffloadThreshold() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.offload_policies == null) {
+        if (policies.offload_policies == null
+                || policies.offload_policies.getManagedLedgerOffloadThresholdInBytes() == null) {
             return policies.offload_threshold;
         } else {
             return policies.offload_policies.getManagedLedgerOffloadThresholdInBytes();
