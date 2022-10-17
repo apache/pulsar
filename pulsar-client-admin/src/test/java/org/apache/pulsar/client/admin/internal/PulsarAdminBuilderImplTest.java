@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin.internal;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -43,8 +42,7 @@ public class PulsarAdminBuilderImplTest {
     }
 
     @Test
-    @SneakyThrows
-    public void testGetPropertiesFromConf() {
+    public void testGetPropertiesFromConf() throws Exception {
         Map<String, Object> config = new HashMap<>();
         config.put("serviceUrl", "pulsar://localhost:6650");
         config.put("requestTimeoutMs", 10);
