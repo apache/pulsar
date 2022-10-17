@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -147,7 +148,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final ConnectionHandler connectionHandler;
 
-    private ScheduledFuture<?> batchTimerTask;
+    private final AtomicReference<Timeout> batchTimerTask;
 
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
@@ -238,8 +239,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             this.batchMessageContainer = (BatchMessageContainerBase)containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
+            this.batchTimerTask = new AtomicReference<>();
         } else {
             this.batchMessageContainer = null;
+            this.batchTimerTask = null;
         }
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ProducerStatsRecorderImpl(client, conf, this);
@@ -1520,26 +1523,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
                             // schedule the first batch message task
-                            batchTimerTask = cnx.ctx().executor()
-                                    .scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
-                                        if (log.isTraceEnabled()) {
-                                            log.trace(
-                                                    "[{}] [{}] Batching the messages from the batch container from "
-                                                            + "timer thread",
-                                                    topic,
-                                                    producerName);
-                                        }
-                                        // semaphore acquired when message was enqueued to container
-                                        synchronized (ProducerImpl.this) {
-                                            // If it's closing/closed we need to ignore the send batch timer and not
-                                            // schedule next timeout.
-                                            if (getState() == State.Closing || getState() == State.Closed) {
-                                                return;
-                                            }
+                            Timeout task = client.timer()
+                                    .newTimeout(this::triggerBatchMessageAndSend,
+                                            conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
 
-                                            batchMessageAndSend();
-                                        }
-                                    }), 0, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
+                            batchTimerTask.set(task);
                         }
                         resendMessages(cnx, epoch);
                     }
@@ -1641,6 +1629,31 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 });
     }
 
+    private void triggerBatchMessageAndSend(Timeout timeout) {
+        client.getInternalExecutorService().execute(catchingAndLoggingThrowables(() -> {
+            if (log.isTraceEnabled()) {
+                log.trace("[{}] [{}] Batching the messages from the batch container from " + "timer thread", topic, producerName);
+            }
+            // semaphore acquired when message was enqueued to container
+            synchronized (ProducerImpl.this) {
+                // If it's closing/closed we need to ignore the send batch timer and not
+                // schedule next timeout.
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    return;
+                }
+
+                batchMessageAndSend();
+            }
+
+            Timeout task = client.timer()
+                    .newTimeout(this::triggerBatchMessageAndSend,
+                            conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
+
+            batchTimerTask.set(task);
+
+        }));
+    }
+
     @Override
     public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
@@ -1669,10 +1682,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sendTimeout = null;
         }
 
-        ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
         if (batchTimerTask != null) {
-            batchTimerTask.cancel(false);
-            this.batchTimerTask = null;
+            Timeout batchTimerTask = this.batchTimerTask.getAndSet(null);
+            if (batchTimerTask != null) {
+                batchTimerTask.cancel();
+            }
         }
 
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
