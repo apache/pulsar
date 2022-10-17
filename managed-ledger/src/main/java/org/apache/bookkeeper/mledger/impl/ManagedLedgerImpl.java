@@ -2383,6 +2383,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        if (offloadThresholdInBytes < 0 || offloadThresholdInSeconds < 0) {
+            finalPromise.complete(PositionImpl.LATEST);
+            return;
+        }
+
         CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
         unlockingPromise.whenComplete((res, ex) -> {
             offloadMutex.unlock();
