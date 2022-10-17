@@ -37,7 +37,6 @@ import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -72,7 +71,6 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -2163,13 +2161,7 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
-        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
-        adminBuilderField.setAccessible(true);
-        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
-        Field confField =
-                PulsarAdminBuilderImpl.class.getDeclaredField("conf");
-        confField.setAccessible(true);
-        ClientConfigurationData conf = (ClientConfigurationData) confField.get(builder);
+        ClientConfigurationData conf =  ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get()).getClientConfigData();
 
         assertEquals(1000, conf.getRequestTimeoutMs());
     }
