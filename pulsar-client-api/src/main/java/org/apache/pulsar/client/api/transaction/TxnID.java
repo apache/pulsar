@@ -20,7 +20,9 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.Serializable;
 import java.util.Objects;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -30,6 +32,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class TxnID implements Serializable {
 
     private static final long serialVersionUID = 0L;
@@ -39,14 +43,14 @@ public class TxnID implements Serializable {
      *
      * @serial
      */
-    private final long mostSigBits;
+    private long mostSigBits;
 
     /*
      * The least significant 64 bits of this TxnID.
      *
      * @serial
      */
-    private final long leastSigBits;
+    private long leastSigBits;
 
     @Override
     public String toString() {
