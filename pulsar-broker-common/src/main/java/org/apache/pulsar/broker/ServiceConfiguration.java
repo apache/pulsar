@@ -417,6 +417,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Whether to support the specified bundle placement."
+    )
+    boolean specifiedBundleAssignmentsEnable = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "Metadata store session timeout in milliseconds."
     )
     private long metadataStoreSessionTimeoutMillis = 30_000;

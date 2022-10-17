@@ -846,11 +846,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         try {
             synchronized (brokerCandidateCache) {
                 final String bundle = serviceUnit.toString();
-                if(assignedBundleToBroker.containsKey(bundle)){
+                if (conf.isSpecifiedBundleAssignmentsEnable() && assignedBundleToBroker.containsKey(bundle)) {
                     // Assign specific bundles to fixed brokers.
                     return Optional.of(assignedBundleToBroker.get(bundle));
                 }
-                if (preallocatedBundleToBroker.containsKey(bundle)) {
+                if ( preallocatedBundleToBroker.containsKey(bundle)) {
                     // If the given bundle is already in preallocated, return the selected broker.
                     return Optional.of(preallocatedBundleToBroker.get(bundle));
                 }
