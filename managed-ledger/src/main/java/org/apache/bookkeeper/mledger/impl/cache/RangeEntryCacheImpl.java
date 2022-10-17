@@ -267,7 +267,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                    }, ml.getExecutor()).exceptionally(exception -> {
                         ml.invalidateLedgerHandle(lh);
                         pendingReadsManager.invalidateLedger(lh.getId());
                         callback.readEntryFailed(createManagedLedgerException(exception), ctx);
