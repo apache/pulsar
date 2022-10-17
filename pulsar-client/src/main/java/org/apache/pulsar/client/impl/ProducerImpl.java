@@ -159,7 +159,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // The goal is to optimize batch density while also ensuring that a producer never waits longer than the configured
     // batchingMaxPublishDelayMicros to send a batch.
     // Only update from within synchronized block on this producer.
-    private ScheduledFuture<?> batchFlushTask;
+    private Timeout batchFlushTask;
     // The time, in nanos, of the last batch send. This field ensures that we don't deliver batches via the
     // batchFlushTask before the batchingMaxPublishDelayMicros duration has passed.
     private long lastBatchSendNanoTime;
@@ -2094,7 +2094,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void scheduleBatchFlushTask(long batchingDelayMicros) {
         ClientCnx cnx = cnx();
         if (cnx != null && isBatchMessagingEnabled()) {
-            this.batchFlushTask = cnx.ctx().executor().schedule(catchingAndLoggingThrowables(this::batchFlushTask),
+            this.batchFlushTask = client.timer().newTimeout(
+                    (timeout) -> client.getInternalExecutorService().execute(
+                                    catchingAndLoggingThrowables(this::batchFlushTask)),
                     batchingDelayMicros, TimeUnit.MICROSECONDS);
         }
     }
