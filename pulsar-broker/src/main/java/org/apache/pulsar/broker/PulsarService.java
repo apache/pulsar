@@ -24,9 +24,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -41,6 +38,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -90,7 +88,6 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
@@ -117,7 +114,9 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
+import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -172,6 +171,7 @@ import org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageCon
 import org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -307,6 +307,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
+        TransactionBatchedWriteValidator.validate(config);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -367,6 +368,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
+                        .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                         .synchronizer(synchronizer)
                         .build());
     }
@@ -422,6 +424,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     LOG.warn("ResourceUsageTransportManager closing failed {}", e.getMessage());
                 }
                 this.resourceUsageTransportManager = null;
+            }
+            if (this.resourceGroupServiceManager != null) {
+                try {
+                    this.resourceGroupServiceManager.close();
+                } catch (Exception e) {
+                    LOG.warn("ResourceGroupServiceManager closing failed {}", e.getMessage());
+                }
+                this.resourceGroupServiceManager = null;
             }
 
             if (this.webService != null) {
@@ -493,7 +503,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.leaderElectionService = null;
             }
 
-            // shutdown loadmanager before shutting down the broker
+            // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
+            if (this.loadSheddingTask != null) {
+                this.loadSheddingTask.cancel();
+            }
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
             if (ledgerDeletionService != null)  {
@@ -830,6 +843,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
+                MLTransactionMetadataStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
+                MLPendingAckStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
+
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
@@ -926,10 +942,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                       ServiceConfiguration config)
             throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
-        Map<String, Object> attributeMap = Maps.newHashMap();
+        Map<String, Object> attributeMap = new HashMap<>();
         attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
 
-        Map<String, Object> vipAttributeMap = Maps.newHashMap();
+        Map<String, Object> vipAttributeMap = new HashMap<>();
         vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
         vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, (Supplier<Boolean>) () -> {
             // Ensure the VIP status is only visible when the broker is fully initialized
@@ -1054,6 +1070,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .synchronizer(synchronizer)
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .build());
     }
 
@@ -1175,7 +1192,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (config.isLoadBalancerEnabled()) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
-                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MINIMUM_INTERVAL;
+                long loadReportMinInterval = config.getLoadBalancerReportUpdateMinIntervalMillis();
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);
@@ -1194,7 +1211,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("Loading all topics on bundle: {}", bundle);
 
             NamespaceName nsName = bundle.getNamespaceObject();
-            List<CompletableFuture<Optional<Topic>>> persistentTopics = Lists.newArrayList();
+            List<CompletableFuture<Optional<Topic>>> persistentTopics = new ArrayList<>();
             long topicLoadStart = System.nanoTime();
 
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
@@ -1358,7 +1375,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     try {
                         return offloaderFactory.create(
                                 offloadPolicies,
-                                ImmutableMap.of(
+                                Map.of(
                                         LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(),
                                         PulsarVersion.getVersion(),
                                         LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(),
@@ -1661,6 +1678,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @Deprecated
     public String getSafeBrokerServiceUrl() {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+    }
+
+    public String getLookupServiceAddress() {
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
+                ? config.getWebServicePort().get()
+                : config.getWebServicePortTls().get());
     }
 
     public TopicPoliciesService getTopicPoliciesService() {

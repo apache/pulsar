@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.google.common.collect.Sets;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -50,6 +49,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -191,14 +191,25 @@ public class Namespaces extends NamespacesBase {
                                 @PathParam("namespace") String namespace,
                                 @QueryParam("force") @DefaultValue("false") boolean force,
                                 @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalDeleteNamespace(asyncResponse, authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalDeleteNamespaceAsync(force)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful delete namespace {}", clientAppId(), namespace);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof PulsarAdminException.ConflictException) {
+                        log.info("[{}] There are new topics created during the namespace deletion, "
+                                + "retry to delete the namespace again.", namespaceName);
+                        pulsar().getExecutor().execute(() -> internalDeleteNamespaceAsync(force));
+                    }
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to delete namespace {}", clientAppId(), namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -1147,15 +1158,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.BACKLOG,
-                PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> asyncResponse.resume(policies.backlog_quota_map))
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get backlog quota map on namespace {}", clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalGetBacklogQuotaMap(asyncResponse);
     }
 
     @POST
@@ -1167,11 +1170,13 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412,
                     message = "Specified backlog quota exceeds retention quota."
                             + " Increase retention quota and retry request")})
-    public void setBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setBacklogQuota(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             @ApiParam(value = "Backlog quota for all topics of the specified namespace") BacklogQuota backlogQuota) {
         validateNamespaceName(tenant, namespace);
-        internalSetBacklogQuota(backlogQuotaType, backlogQuota);
+        internalSetBacklogQuota(asyncResponse, backlogQuotaType, backlogQuota);
     }
 
     @DELETE
@@ -1180,10 +1185,12 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void removeBacklogQuota(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveBacklogQuota(backlogQuotaType);
+        internalRemoveBacklogQuota(asyncResponse, backlogQuotaType);
     }
 
     @GET
@@ -1239,11 +1246,19 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 400, message = "Invalid persistence policies")})
-    public void setPersistence(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setPersistence(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                               @PathParam("namespace") String namespace,
                                @ApiParam(value = "Persistence policies for the specified namespace", required = true)
                                        PersistencePolicies persistence) {
         validateNamespaceName(tenant, namespace);
-        internalSetPersistence(persistence);
+        internalSetPersistenceAsync(persistence)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update the persistence for a namespace {}", clientAppId(), namespaceName,
+                            ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -2039,7 +2054,8 @@ public class Namespaces extends NamespacesBase {
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> {
-                    if (policies.offload_policies == null) {
+                    if (policies.offload_policies == null
+                            || policies.offload_policies.getManagedLedgerOffloadThresholdInBytes() == null) {
                         asyncResponse.resume(policies.offload_threshold);
                     } else {
                         asyncResponse.resume(policies.offload_policies.getManagedLedgerOffloadThresholdInBytes());
@@ -2303,7 +2319,7 @@ public class Namespaces extends NamespacesBase {
     public void removeSubscriptionTypesEnabled(@PathParam("tenant") String tenant,
                                                @PathParam("namespace") String namespace) {
             validateNamespaceName(tenant, namespace);
-            internalSetSubscriptionTypesEnabled(Sets.newHashSet());
+            internalSetSubscriptionTypesEnabled(new HashSet<>());
     }
 
     @GET

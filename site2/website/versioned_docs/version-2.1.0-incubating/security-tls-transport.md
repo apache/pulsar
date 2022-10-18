@@ -9,7 +9,7 @@ original_id: security-tls-transport
 
 By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text, which means that all data is sent in the clear. TLS can be used to encrypt this traffic so that it cannot be snooped by a man-in-the-middle attacker.
 
-TLS can be configured for both encryption and authentication. You may configure just TLS transport encryption, which is covered in this guide. TLS authentication is covered [elsewhere](security-tls-authentication.md). Alternatively, you can use [another authentication mechanism](security-athenz) on top of TLS transport encryption.
+TLS can be configured for both encryption and authentication. You may configure just TLS transport encryption, which is covered in this guide. TLS authentication is covered [elsewhere](security-tls-authentication.md). Alternatively, you can use [another authentication mechanism](security-athenz.md) on top of TLS transport encryption.
 
 > Note that enabling TLS may have a performance impact due to encryption overhead.
 
@@ -19,7 +19,7 @@ TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-
 
 To use TLS transport encryption, you need two kinds of key pairs, **server key pairs** and a **certificate authority**.
 
-A third kind of key pair, **client key pairs**, are used for [client authentication](security-tls-authentication).
+A third kind of key pair, **client key pairs**, are used for [client authentication](security-tls-authentication.md).
 
 The **certificate authority** private key should be stored in a very secure location (a fully encrypted, disconnected, air gapped computer). The certificate authority public key, the **trust cert**, can be freely shared.
 
@@ -27,7 +27,7 @@ For both client and server key pairs, the administrator first generates a privat
 
 For TLS transport encryption, the clients can use the **trust cert** to verify that the server they are talking to has a key pair that was signed by the certificate authority. A man-in-the-middle attacker would not have access to the certificate authority, so they couldn't create a server with such a key pair.
 
-For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that was signed by the certificate authority. The Common Name of the **client cert** is then used as the client's role token (see [Overview](security-overview)).
+For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that was signed by the certificate authority. The Common Name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
 
 ## Creating TLS Certificates
 
@@ -127,7 +127,7 @@ At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pe
 
 ## Broker Configuration
 
-To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you'll need to make some changes to `broker.conf`, which is located in the `conf` directory of your [Pulsar installation](getting-started-standalone).
+To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you'll need to make some changes to `broker.conf`, which is located in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
 
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
@@ -169,7 +169,7 @@ As the server certificate you generated above doesn't belong to any of the defau
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You'll need to add the following parameters to that file to use TLS transport with Pulsar's CLI tools:
 

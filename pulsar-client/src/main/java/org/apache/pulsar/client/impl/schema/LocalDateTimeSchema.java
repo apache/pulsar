@@ -36,10 +36,10 @@ public class LocalDateTimeSchema extends AbstractSchema<LocalDateTime> {
    public static final String DELIMITER = ":";
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("LocalDateTime")
-             .setType(SchemaType.LOCAL_DATE_TIME)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("LocalDateTime")
+             .type(SchemaType.LOCAL_DATE_TIME)
+             .schema(new byte[0]).build();
        INSTANCE = new LocalDateTimeSchema();
    }
 

@@ -1,7 +1,7 @@
 ---
 id: reference-metrics
-title: Pulsar Metrics
-sidebar_label: "Pulsar Metrics"
+title: Pulsar metrics
+sidebar_label: "Pulsar metrics"
 ---
 
 
@@ -147,6 +147,7 @@ The following metrics are available for broker:
   - [Schema metrics](#schema-metrics)
   - [Offload metrics](#offload-metrics)
   - [Web service executor metrics](#web-service-executor-metrics)
+  - [Metadata store metrics](#metadata-store-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -287,6 +288,9 @@ All the topic metrics are labeled with the following labels:
 | pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
 | pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
 | pulsar_delayed_message_index_size_bytes | Gauge | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the topic owned by this broker (in bytes). |
+| pulsar_txn_tb_active_total | Gauge | The number of active transactions on this topic. |
+| pulsar_txn_tb_aborted_total | Counter | The number of aborted transactions on the topic. |
+| pulsar_txn_tb_committed_total | Counter | The number of committed transactions on the topic. |
 
 #### Replication metrics
 
@@ -397,7 +401,7 @@ All the bundleUnloading metrics are labeled with the following labels:
 
 | Name                          | Type    | Description                                                |
 |-------------------------------|---------|------------------------------------------------------------|
-| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
+| pulsar_lb_bundles_split_total | Counter | The total count of bundle split in this leader broker |
 
 #### Bundle metrics
 All the bundle metrics are labeled with the following labels:
@@ -599,6 +603,19 @@ All the web service executor metrics are labeled with the following labels:
 | pulsar_web_executor_active_threads | GAUGE | The number of threads performing tasks of pulsar-web thread pool |
 | pulsar_web_executor_current_threads | GAUGE | The number of threads in the pulsar-web thread pool |
 
+### Metadata store metrics
+
+All the metadata store metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *name*: `name=${metadata-store|configuration-metadata-store|state-metadata-store}`. `${name}` is the metadata store name.
+
+| Name                                   | Type      | Description                                                                                  |
+|----------------------------------------|-----------|----------------------------------------------------------------------------------------------|
+| pulsar_metadata_store_ops_latency      | Histogram | The latency of getting/deleting/putting data fail/success operations from/to metadata store. |
+| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                                                    |
+
+
 ## Pulsar Functions
 
 All the Pulsar Functions metrics are labeled with the following labels:
@@ -722,3 +739,11 @@ All the transaction metrics are labeled with the following labels:
 | pulsar_txn_timeout_total          | Counter | Number of timeout transactions. |
 | pulsar_txn_append_log_total       | Counter | Number of append transaction logs. |
 | pulsar_txn_execution_latency_le_* | Histogram | Transaction execution latency. <br /> Available latencies are as below: <br /><ul><li> latency="10" is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency="20" is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency="50" is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency="100" is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency="500" is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency="1000" is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency="5000" is TransactionExecutionLatency between (1s, 5s]</li><li>latency="15000" is TransactionExecutionLatency between (5s, 15s]</li><li>latency="30000" is TransactionExecutionLatency between (15s, 30s]</li><li>latency="60000" is TransactionExecutionLatency between (30s, 60s]</li><li>latency="300000" is TransactionExecutionLatency between (1m,5m]</li><li>latency="1500000" is TransactionExecutionLatency between (5m,15m]</li><li>latency="3000000" is TransactionExecutionLatency between (15m,30m]</li><li>latency="overflow" is TransactionExecutionLatency between (30m,∞]</li></ul>|
+| pulsar_txn_tb_client_abort_failed_total | Counter | The number of failures to abort transactions for `transaction buffer client`. |
+| pulsar_txn_tb_client_commit_failed_total | Counter | The number of failures to commit transaction for `transaction buffer client`. |
+| pulsar_txn_tb_client_abort_latency | Summary | The latency of aborting transactions for `transaction buffer client`. |
+| pulsar_txn_tb_client_commit_latency | Summary | The latency of committing transactions for `transaction buffer client`. |
+| pulsar_txn_tb_client_pending_requests | Counter | The number of pending requests for `transaction buffer client`. |
+| pulsar_txn_tp_committed_count_total | Counter | The number of committed transactions for pending ack store. |
+| pulsar_txn_tp_aborted_count_total | Counter | The number of aborted transactions for pending ack store. |
+| pulsar_txn_tp_commit_latency | Summary | The latency of committing transactions for `transaction pending ack handle`. |

@@ -273,7 +273,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0"
-                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"),
+                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"
+                    + " and number of new partitions must be greater than existing number of partitions"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist")})
     public void updatePartitionedTopic(
             @Suspended final AsyncResponse asyncResponse,
@@ -537,7 +538,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
             @ApiResponse(code = 412, message = "Subscription has active consumers")})
     public void deleteSubscription(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,

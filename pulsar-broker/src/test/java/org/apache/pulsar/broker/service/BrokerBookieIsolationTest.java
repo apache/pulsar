@@ -23,9 +23,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -390,7 +391,7 @@ public class BrokerBookieIsolationTest {
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
-            Set<BookieId> ledgerBookies = Sets.newHashSet();
+            Set<BookieId> ledgerBookies = new HashSet<>();
             ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), isolatedBookies.size());
             ledgerBookies.removeAll(isolatedBookies);
@@ -736,7 +737,7 @@ public class BrokerBookieIsolationTest {
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
-        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, Sets.newHashSet());
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, new HashSet<>());
         setDefaultIsolationGroup(tenantNamespaceIsolationGroupsSecondary, zkClient, isolatedBookies);
 
         ServiceConfiguration config = new ServiceConfiguration();
@@ -811,7 +812,7 @@ public class BrokerBookieIsolationTest {
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
-            Set<BookieId> ledgerBookies = Sets.newHashSet();
+            Set<BookieId> ledgerBookies = new HashSet<>();
             ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), defaultBookies.size());
             ledgerBookies.removeAll(defaultBookies);
@@ -854,7 +855,7 @@ public class BrokerBookieIsolationTest {
             bookies = new BookiesRackConfiguration();
         }
 
-        Map<String, BookieInfo> bookieInfoMap = Maps.newHashMap();
+        Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
         for (BookieId bkSocket : bookieAddresses) {
             BookieInfo info = BookieInfo.builder().rack("use").hostname(bkSocket.toString()).build();
             bookieInfoMap.put(bkSocket.toString(), info);

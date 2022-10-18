@@ -255,6 +255,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-shadow-topics", new GetShadowTopics());
         jcommander.addCommand("set-shadow-topics", new SetShadowTopics());
         jcommander.addCommand("remove-shadow-topics", new RemoveShadowTopics());
+        jcommander.addCommand("create-shadow-topic", new CreateShadowTopic());
+        jcommander.addCommand("get-shadow-source", new GetShadowSource());
 
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
@@ -1714,6 +1716,38 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Create a shadow topic for an existing source topic.")
+    private class CreateShadowTopic extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--source", "-s"}, description = "source topic name", required = true)
+        private String sourceTopic;
+
+        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(eg: a=a b=b c=c)")
+        private java.util.List<String> propertyList;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> properties = parseListKeyValueMap(propertyList);
+            getTopics().createShadowTopic(topic, TopicName.get(sourceTopic).toString(), properties);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the source topic for a shadow topic")
+    private class GetShadowSource extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String shadowTopic = validatePersistentTopic(params);
+            print(getTopics().getShadowSource(shadowTopic));
+        }
+    }
+
     @Parameters(commandDescription = "Get the delayed delivery policy for a topic")
     private class GetDelayedDelivery extends CliCommand {
         @Parameter(description = "tenant/namespace/topic", required = true)
@@ -1902,11 +1936,16 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
-                + "0 means no retention and -1 means infinite time retention", required = true)
+                "-t" }, description = "Retention time with optional time unit suffix. "
+                + "For example, 100m, 3h, 2d, 5w. "
+                + "If the time unit is not specified, the default unit is seconds. For example, "
+                + "-t 120 will set retention to 2 minutes. "
+                + "0 means no retention and -1 means infinite time retention.", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
+                + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
+                + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 

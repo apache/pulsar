@@ -46,7 +46,6 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test

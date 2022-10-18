@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.util.HashSet;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.ExceptionHandler;
@@ -151,7 +152,7 @@ public class InterceptFilterOutTest {
         Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
         ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
         // Disable the broker interceptor
-        Mockito.doReturn(Sets.newHashSet()).when(conf).getBrokerInterceptors();
+        Mockito.doReturn(new HashSet<>()).when(conf).getBrokerInterceptors();
         Mockito.doReturn(conf).when(pulsarService).getConfig();
         ResponseHandlerFilter filter = new ResponseHandlerFilter(pulsarService);
 

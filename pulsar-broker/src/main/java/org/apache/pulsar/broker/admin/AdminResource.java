@@ -23,6 +23,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +38,6 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -157,13 +157,28 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i, null));
+            futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
-        CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
+    protected CompletableFuture<Void> tryCreateExtendedPartitionsAsync(int oldNumPartitions, int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (numPartitions <= oldNumPartitions) {
+            return CompletableFuture.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of new partitions must be greater than existing number of partitions"));
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions - oldNumPartitions);
+        for (int i = oldNumPartitions; i < numPartitions; i++) {
+            futures.add(tryCreatePartitionAsync(i));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
@@ -355,17 +370,21 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {
+        if (retention == null
+                || (retention.getRetentionSizeInMB() <= 0 && retention.getRetentionTimeInMinutes() <= 0)) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+
+        if (retention.getRetentionSizeInMB() > 0
+                && quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         // time based quota is in second
-        if (quota.getLimitTime() >= (retention.getRetentionTimeInMinutes() * 60)) {
+        if (retention.getRetentionTimeInMinutes() > 0
+                && quota.getLimitTime() >= retention.getRetentionTimeInMinutes() * 60) {
             return false;
         }
         return true;
@@ -459,30 +478,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }
                 });
-    }
-
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
-        try {
-            return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
-    }
-
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadataCheckAllowAutoCreation(
-            PulsarService pulsar, TopicName topicName) {
-        try {
-            return pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName)
-                    .get();
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
     }
 
    protected void validateClusterExists(String cluster) {
@@ -783,7 +778,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     @CanIgnoreReturnValue
     public static <T> T checkNotNull(T reference) {
-        return com.google.common.base.Preconditions.checkNotNull(reference);
+        return Objects.requireNonNull(reference);
     }
 
     protected void checkNotNull(Object o, String errorMessage) {

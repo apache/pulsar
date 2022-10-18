@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,7 +34,6 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -50,7 +50,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
@@ -73,7 +72,7 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -590,6 +589,34 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).setRetention("myprop/clust/ns1",
                 new RetentionPolicies(60, 1));
 
+        // Test with default time unit (seconds)
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120 -s 20M"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 20));
+
+        // Test with explicit time unit (seconds)
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120s -s 20M"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 20));
+
+        // Test size with default size less than 1 mb
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120s -s 4096"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 0));
+
+        // Test size with default size greater than 1mb
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 180 -s " + (2 * 1024 * 1024)));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(3, 2));
+
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
 
@@ -948,6 +975,35 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
         verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
                 new RetentionPolicies(10, 20));
+
+        // Test with default time unit (seconds)
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 20));
+
+        // Test with explicit time unit (seconds)
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180s -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 20));
+
+        // Test size with default size less than 1 mb
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s 4096"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 0));
+
+        // Test size with default size greater than 1mb
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s " + (2 * 1024 * 1024)));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 2));
+
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 
@@ -1122,6 +1178,18 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M -g"));
         verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
                 new RetentionPolicies(10, 20));
+
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 1440s -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(24, 20));
+
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockGlobalTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 1440 -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(24, 20));
+
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 
@@ -1875,6 +1943,22 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-shadow-topics persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeShadowTopics("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("create-shadow-topic -s persistent://myprop/clust/ns1/source persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).createShadowTopic("persistent://myprop/clust/ns1/ds1", "persistent://myprop/clust/ns1/source", null);
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-shadow-topic -p a=aa,b=bb,c=cc -s persistent://myprop/clust/ns1/source persistent://myprop/clust/ns1/ds1"));
+        HashMap<String, String> p = new HashMap<>();
+        p.put("a","aa");
+        p.put("b","bb");
+        p.put("c","cc");
+        verify(mockTopics).createShadowTopic("persistent://myprop/clust/ns1/ds1", "persistent://myprop/clust/ns1/source", p);
+
+        cmdTopics.run(split("get-shadow-source persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getShadowSource("persistent://myprop/clust/ns1/ds1");
+
+
+
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {
@@ -2078,18 +2162,17 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
-        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
-        adminBuilderField.setAccessible(true);
-        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+
+        final PulsarAdmin admin = tool.getPulsarAdminSupplier().get();
         Field requestTimeoutField =
-                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeout");
+                PulsarAdminImpl.class.getDeclaredField("requestTimeout");
         requestTimeoutField.setAccessible(true);
-        int requestTimeout = (int) requestTimeoutField.get(builder);
+        int requestTimeout = (int) requestTimeoutField.get(admin);
 
         Field requestTimeoutUnitField =
-                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeoutUnit");
+                PulsarAdminImpl.class.getDeclaredField("requestTimeoutUnit");
         requestTimeoutUnitField.setAccessible(true);
-        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(builder);
+        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(admin);
         assertEquals(1, requestTimeout);
         assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
     }
@@ -2115,12 +2198,8 @@ public class PulsarAdminToolTest {
         }
 
         // validate Authentication-tls has been configured
-        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
-        adminBuilderField.setAccessible(true);
-        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
-        Field confField = PulsarAdminBuilderImpl.class.getDeclaredField("conf");
-        confField.setAccessible(true);
-        ClientConfigurationData conf = (ClientConfigurationData) confField.get(builder);
+        ClientConfigurationData conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
+                .getClientConfigData();
         AuthenticationTls atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);
@@ -2133,8 +2212,8 @@ public class PulsarAdminToolTest {
             // Ok
         }
 
-        builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
-        conf = (ClientConfigurationData) confField.get(builder);
+        conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
+                .getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
         assertNull(atuh.getCertFilePath());
         assertNull(atuh.getKeyFilePath());
@@ -2351,12 +2430,8 @@ public class PulsarAdminToolTest {
         properties.put("webServiceUrl", "http://localhost:2181");
         properties.put("cliExtensionsDirectory", narFile.getParentFile().getAbsolutePath());
         properties.put("customCommandFactories", "dummy");
-        PulsarAdminTool tool = new PulsarAdminTool(properties) {
-            @Override
-            protected PulsarAdminBuilder createAdminBuilder(Properties properties) {
-                return builder;
-            }
-        };
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+        tool.setPulsarAdminSupplier(new PulsarAdminSupplier(builder, tool.getRootParams()));
 
         // see the custom command help in the main help
         StringBuilder logs = new StringBuilder();

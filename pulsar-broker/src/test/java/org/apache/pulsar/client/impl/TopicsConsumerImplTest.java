@@ -271,7 +271,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // Asynchronously produce messages
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < totalMessages / 3; i++) {
             futures.add(producer1.sendAsync((messagePredicate + "producer1-" + i).getBytes()));
             futures.add(producer2.sendAsync((messagePredicate + "producer2-" + i).getBytes()));
@@ -697,7 +697,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         try {
             pulsarClient.newConsumer()
-                .topics(Lists.newArrayList())
+                .topics(new ArrayList<>())
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -1170,6 +1170,34 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             }
         }
     }
+
+    @Test(timeOut = testTimeout)
+    public void testAutoDiscoverMultiTopicsPartitions() throws Exception {
+        final String topicName = "persistent://public/default/issue-9585";
+        admin.topics().createPartitionedTopic(topicName, 3);
+        PatternMultiTopicsConsumerImpl<String> consumer = (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(topicName)
+                .subscriptionName("sub-issue-9585")
+                .subscribe();
+
+        Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 3);
+        Assert.assertEquals(consumer.getConsumers().size(), 3);
+
+        admin.topics().deletePartitionedTopic(topicName, true);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
+            Assert.assertEquals(consumer.getConsumers().size(), 0);
+        });
+
+        admin.topics().createPartitionedTopic(topicName, 7);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
+            Assert.assertEquals(consumer.getConsumers().size(), 7);
+        });
+    }
+
 
     @Test(timeOut = testTimeout)
     public void testPartitionsUpdatesForMultipleTopics() throws Exception {

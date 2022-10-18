@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -200,4 +201,8 @@ public interface ManagedLedgerFactory {
 
     void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService);
 
+    /**
+     * @return properties of this managedLedger.
+     */
+    CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
 }

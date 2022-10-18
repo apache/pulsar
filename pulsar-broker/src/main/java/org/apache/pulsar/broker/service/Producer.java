@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
@@ -106,7 +105,7 @@ public class Producer {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
-        this.producerName = checkNotNull(producerName);
+        this.producerName = Objects.requireNonNull(producerName);
         this.userProvidedProducerName = userProvidedProducerName;
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
@@ -246,18 +245,22 @@ public class Producer {
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked,
                                        boolean isMarker) {
-        topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn,
-                        headersAndPayload.readableBytes(), batchSize,
-                        isChunked, System.nanoTime(), isMarker));
+        MessagePublishContext messagePublishContext =
+                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(),
+                        batchSize, isChunked, System.nanoTime(), isMarker);
+        this.cnx.getBrokerService().getInterceptor()
+                .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        topic.publishMessage(headersAndPayload, messagePublishContext);
     }
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
                                        long batchSize, boolean isChunked, boolean isMarker) {
-        topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, lowestSequenceId,
-                        highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
-                        isChunked, System.nanoTime(), isMarker));
+        MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
+                highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                isChunked, System.nanoTime(), isMarker);
+        this.cnx.getBrokerService().getInterceptor()
+                .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        topic.publishMessage(headersAndPayload, messagePublishContext);
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
@@ -354,6 +357,8 @@ public class Producer {
         private long highestSequenceId;
         private long originalHighestSequenceId;
 
+        private long entryTimestamp;
+
         public String getProducerName() {
             return producer.getProducerName();
         }
@@ -367,6 +372,15 @@ public class Producer {
             return chunked;
         }
 
+        @Override
+        public long getEntryTimestamp() {
+            return entryTimestamp;
+        }
+
+        @Override
+        public void setEntryTimestamp(long entryTimestamp) {
+            this.entryTimestamp = entryTimestamp;
+        }
         @Override
         public void setProperty(String propertyName, Object value){
             if (this.propertyMap == null) {
@@ -483,10 +497,8 @@ public class Producer {
                 producer.chunkedMessageRate.recordEvent();
             }
             producer.publishOperationCompleted();
-            if (producer.cnx.getBrokerService().getInterceptor() != null){
-                producer.cnx.getBrokerService().getInterceptor().messageProduced(
-                        (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
-            }
+            producer.cnx.getBrokerService().getInterceptor().messageProduced(
+                    (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
             recycle();
         }
 
@@ -532,6 +544,11 @@ public class Producer {
         @Override
         public long getNumberOfMessages() {
             return batchSize;
+        }
+
+        @Override
+        public long getMsgSize() {
+            return  msgSize;
         }
 
         @Override
@@ -730,9 +747,12 @@ public class Producer {
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked, boolean isMarker) {
         checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize);
-        topic.publishTxnMessage(txnID, headersAndPayload,
+        MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
-                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker));
+                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker);
+        this.cnx.getBrokerService().getInterceptor()
+                .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        topic.publishTxnMessage(txnID, headersAndPayload, messagePublishContext);
     }
 
     public SchemaVersion getSchemaVersion() {

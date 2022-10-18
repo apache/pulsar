@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -215,7 +213,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
-        this.brokerToFailureDomainMap = Maps.newHashMap();
+        this.brokerToFailureDomainMap = new HashMap<>();
 
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
@@ -686,7 +684,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         unloadBrokerCount += bundlesToUnload.keySet().size();
         unloadBundleCount += bundlesToUnload.values().size();
 
-        List<Metrics> metrics = Lists.newArrayList();
+        List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
         dimensions.put("metric", "bundleUnloading");
@@ -752,6 +750,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         synchronized (bundleSplitStrategy) {
             final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
+            int splitCount = 0;
             for (String bundleName : bundlesToBeSplit) {
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
@@ -773,13 +772,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
                         unloadSplitBundles, null);
 
+                    splitCount++;
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);
                 }
             }
 
-            updateBundleSplitMetrics(bundlesToBeSplit);
+            updateBundleSplitMetrics(splitCount);
         }
 
     }
@@ -787,12 +787,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     /**
      * As leader broker, update bundle split metrics.
      *
-     * @param bundlesToBeSplit
+     * @param bundlesSplit the number of bundles splits
      */
-    private void updateBundleSplitMetrics(Set<String> bundlesToBeSplit) {
-        bundleSplitCount += bundlesToBeSplit.size();
+    private void updateBundleSplitMetrics(int bundlesSplit) {
+        bundleSplitCount += bundlesSplit;
 
-        List<Metrics> metrics = Lists.newArrayList();
+        List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
         dimensions.put("metric", "bundlesSplit");
@@ -953,9 +953,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
-            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                    + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
-                            : conf.getWebServicePortTls().get());
+            String lookupServiceAddress = pulsar.getLookupServiceAddress();
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
@@ -1019,7 +1017,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      * @param bundlesData
      */
     private void updateLoadBalancingBundlesMetrics(Map<String, NamespaceBundleStats> bundlesData) {
-        List<Metrics> metrics = Lists.newArrayList();
+        List<Metrics> metrics = new ArrayList<>();
         for (Map.Entry<String, NamespaceBundleStats> entry: bundlesData.entrySet()) {
             final String bundle = entry.getKey();
             final NamespaceBundleStats stats = entry.getValue();
@@ -1046,7 +1044,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      * @param systemResourceUsage
      */
     private void updateLoadBalancingMetrics(final SystemResourceUsage systemResourceUsage) {
-        List<Metrics> metrics = Lists.newArrayList();
+        List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
         dimensions.put("broker", pulsar.getAdvertisedAddress());
@@ -1161,7 +1159,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         String clusterName = pulsar.getConfiguration().getClusterName();
         try {
             synchronized (brokerToFailureDomainMap) {
-                Map<String, String> tempBrokerToFailureDomainMap = Maps.newHashMap();
+                Map<String, String> tempBrokerToFailureDomainMap = new HashMap<>();
                 for (String domainName : fdr.listFailureDomains(clusterName)) {
                     try {
                         Optional<FailureDomainImpl> domain = fdr.getFailureDomain(clusterName, domainName);

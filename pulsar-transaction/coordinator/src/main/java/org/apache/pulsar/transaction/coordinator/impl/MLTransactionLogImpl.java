@@ -82,11 +82,14 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig;
 
+    private final TxnLogBufferedWriterMetricsStats bufferedWriterMetrics;
+
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory,
                                 ManagedLedgerConfig managedLedgerConfig,
                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
-                                Timer timer) {
+                                Timer timer,
+                                TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
         this.topicName = getMLTransactionLogName(tcID);
         this.tcId = tcID.getId();
         this.managedLedgerFactory = managedLedgerFactory;
@@ -97,6 +100,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             this.managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
         }
         this.entryQueue = new SpscArrayQueue<>(2000);
+        this.bufferedWriterMetrics = bufferedWriterMetrics;
     }
 
     public static TopicName getMLTransactionLogName(TransactionCoordinatorID tcID) {
@@ -119,7 +123,8 @@ public class MLTransactionLogImpl implements TransactionLog {
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxRecords(),
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxSize(),
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxDelayInMillis(),
-                                txnLogBufferedWriterConfig.isBatchEnabled());
+                                txnLogBufferedWriterConfig.isBatchEnabled(),
+                                bufferedWriterMetrics);
 
                         managedLedger.asyncOpenCursor(TRANSACTION_SUBSCRIPTION_NAME,
                                 CommandSubscribe.InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {

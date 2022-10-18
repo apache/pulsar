@@ -9,29 +9,21 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
+You can use a Pulsar Python client to create producers, consumers, and readers.
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+All the methods in producer, consumer, and reader of a Python client are thread-safe. You can read the [API docs](/api/python) for the Python client.
 
-All the methods in producer, consumer, and reader of a Python client are thread-safe.
+## Installation
 
-pdoc-generated API docs for the Python client are available [here](/api/python).
+Use [pip](https://pip.pypa.io/) to install the latest version:
 
-## Install
-
-You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from [source](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp).
-
-### Install using pip
-
-To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
-
-```shell
-pip install pulsar-client==@pulsar:version_number@
+```bash
+pip install 'pulsar-client==@pulsar:version_number@'
 ```
 
-### Optional dependencies
-If you install the client libraries on Linux to support services like Pulsar functions or Avro serialization, you can install optional components alongside the `pulsar-client` library.
+You can install optional components alongside the client library:
 
-```shell
+```bash
 # avro serialization
 pip install 'pulsar-client[avro]==@pulsar:version_number@'
 
@@ -44,23 +36,10 @@ pip install 'pulsar-client[all]==@pulsar:version_number@'
 
 Installation via PyPi is available for the following Python versions:
 
-Platform | Supported Python versions
-:--------|:-------------------------
-MacOS >= 11.0 | 3.7, 3.8, 3.9 and 3.10
-Linux (including Alpine Linux) | 3.7, 3.8, 3.9 and 3.10
-
-
-### Install from source
-
-To install the `pulsar-client` library by building from source, follow [instructions](client-libraries-cpp.md#compilation) and compile the Pulsar C++ client library. That builds the Python binding for the library.
-
-To install the built Python bindings:
-
-```shell
-git clone https://github.com/apache/pulsar
-cd pulsar/pulsar-client-cpp/python
-sudo python setup.py install
-```
+| Platform                       | Supported Python versions |
+|:-------------------------------|:--------------------------|
+| macOS (>= 11.0)                | 3.7, 3.8, 3.9 and 3.10    |
+| Linux (including Alpine Linux) | 3.7, 3.8, 3.9 and 3.10    |
 
 ## Connection URLs
 
@@ -450,7 +429,7 @@ Below is an `AvroSchema` defined using a JSON file (_company.avsc_).
 }
 ```
 
-You can load a schema definition from file by using [`avro.schema`]((http://avro.apache.org/docs/current/gettingstartedpython.html) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
+You can load a schema definition from file by using [`avro.schema`](https://avro.apache.org/docs/current/getting-started-python/) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
 
 If you use the "JSON definition" method to declare an `AvroSchema`, pay attention to the following points:
 
@@ -515,100 +494,4 @@ consumer = client.subscribe(
 
 ## End-to-end encryption
 
-[End-to-end encryption](/cookbooks-encryption.md#docsNav) allows applications to encrypt messages at producers and decrypt messages at consumers.
-
-### Configuration
-
-To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` for producers and `privateKeyPath` for consumers.
-
-```
-publicKeyPath: "./public.pem"
-privateKeyPath: "./private.pem"
-```
-
-### Tutorial
-
-This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Python client.
-
-**Prerequisite**
-
-- Pulsar Python client 2.7.1 or later
-
-**Step**
-
-1. Create both public and private key pairs.
-
-   **Input**
-
-   ```shell
-   openssl genrsa -out private.pem 2048
-   openssl rsa -in private.pem -pubout -out public.pem
-   ```
-
-2. Create a producer to send encrypted messages.
-
-   **Input**
-
-   ```python
-   import pulsar
-
-   publicKeyPath = "./public.pem"
-   privateKeyPath = ""
-   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
-   client = pulsar.Client('pulsar://localhost:6650')
-   producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
-   producer.send('encryption message'.encode('utf8'))
-   print('sent message')
-   producer.close()
-   client.close()
-   ```
-
-3. Create a consumer to receive encrypted messages.
-
-   **Input**
-
-   ```python
-   import pulsar
-
-   publicKeyPath = ""
-   privateKeyPath = "./private.pem"
-   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
-   client = pulsar.Client('pulsar://localhost:6650')
-   consumer = client.subscribe(topic='encryption', subscription_name='encryption-sub', crypto_key_reader=crypto_key_reader)
-   msg = consumer.receive()
-   print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
-   consumer.close()
-   client.close()
-   ```
-
-4. Run the consumer to receive encrypted messages.
-
-   **Input**
-
-   ```shell
-   python consumer.py
-   ```
-
-5. In a new terminal tab, run the producer to produce encrypted messages.
-
-   **Input**
-
-   ```shell
-   python producer.py
-   ```
-
-   Now you can see the producer sends messages and the consumer receives messages successfully.
-
-   **Output**
-
-   This is from the producer side.
-
-   ```
-   sent message
-   ```
-
-   This is from the consumer side.
-
-   ```
-   Received msg 'encryption message' id = '(0,0,-1,-1)'
-   ```
+Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [Get started](security-encryption.md#get-started) for more details.

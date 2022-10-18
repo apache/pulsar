@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
@@ -43,8 +44,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -202,6 +201,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
         doReturn(mock(PulsarClientImpl.class)).when(pulsar).getClient();
 
+        doAnswer(invocationOnMock -> CompletableFuture.completedFuture(null))
+                .when(mlFactoryMock).getManagedLedgerPropertiesAsync(any());
         doAnswer(invocation -> {
             DeleteLedgerCallback deleteLedgerCallback = invocation.getArgument(1);
             deleteLedgerCallback.deleteLedgerComplete(null);
@@ -230,7 +231,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             doReturn(brokerService).when(pulsar).getBrokerService();
         });
         // Mock serviceCnx.
-        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        serverCnx = spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -369,7 +370,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDispatcherMultiConsumerReadFailed() throws Exception {
-        PersistentTopic topic = spyWithClassAndConstructorArgs(PersistentTopic.class, successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = spyWithClassAndConstructorArgsRecordingInvocations(PersistentTopic.class, successTopicName, ledgerMock, brokerService);
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getName()).thenReturn("cursor");
         Subscription subscription = mock(Subscription.class);
@@ -381,7 +382,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDispatcherSingleConsumerReadFailed() throws Exception {
-        PersistentTopic topic = spyWithClassAndConstructorArgs(PersistentTopic.class, successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = spyWithClassAndConstructorArgsRecordingInvocations(PersistentTopic.class, successTopicName, ledgerMock, brokerService);
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getName()).thenReturn("cursor");
         PersistentDispatcherSingleActiveConsumer dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
@@ -776,7 +777,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         consumer.close();
 
         SubType previousSubType = SubType.Exclusive;
-        for (SubType subType : Lists.newArrayList(SubType.Shared, SubType.Failover, SubType.Key_Shared,
+        for (SubType subType : List.of(SubType.Shared, SubType.Failover, SubType.Key_Shared,
                 SubType.Exclusive)) {
             Dispatcher previousDispatcher = sub.getDispatcher();
 
@@ -1874,7 +1875,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PositionImpl position = new PositionImpl(1, 1);
         long ledgerId = 0xc0bfefeL;
         sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
-                ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 
@@ -1882,7 +1883,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testCompactorSubscriptionUpdatedOnInit() throws Exception {
         long ledgerId = 0xc0bfefeL;
-        Map<String, Long> properties = ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
+        Map<String, Long> properties = Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
         PositionImpl position = new PositionImpl(1, 1);
 
         doAnswer((invokactionOnMock) -> properties).when(cursorMock).getProperties();
@@ -1934,7 +1935,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(compactPromise).when(compactor).compact(anyString());
 
         ManagedCursor subCursor = mock(ManagedCursor.class);
-        doReturn(Lists.newArrayList(subCursor)).when(ledgerMock).getCursors();
+        doReturn(List.of(subCursor)).when(ledgerMock).getCursors();
         doReturn(Compactor.COMPACTION_SUBSCRIPTION).when(subCursor).getName();
 
         Policies policies = new Policies();
@@ -2105,13 +2106,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                         .concurrencyLevel(1)
                         .build();
         // This subscription is connected by consumer.
-        PersistentSubscription nonDeletableSubscription1 = spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "nonDeletableSubscription1", cursorMock, false);
+        PersistentSubscription nonDeletableSubscription1 = spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic, "nonDeletableSubscription1", cursorMock, false);
         subscriptions.put(nonDeletableSubscription1.getName(), nonDeletableSubscription1);
         // This subscription is not connected by consumer.
-        PersistentSubscription deletableSubscription1 = spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "deletableSubscription1", cursorMock, false);
+        PersistentSubscription deletableSubscription1 = spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic, "deletableSubscription1", cursorMock, false);
         subscriptions.put(deletableSubscription1.getName(), deletableSubscription1);
         // This subscription is replicated.
-        PersistentSubscription nonDeletableSubscription2 = spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "nonDeletableSubscription2", cursorMock, true);
+        PersistentSubscription nonDeletableSubscription2 = spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic, "nonDeletableSubscription2", cursorMock, true);
         subscriptions.put(nonDeletableSubscription2.getName(), nonDeletableSubscription2);
 
         Field field = topic.getClass().getDeclaredField("subscriptions");

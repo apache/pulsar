@@ -219,9 +219,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
+        topic.getBrokerService().executor().execute(safeRun(() -> {
             internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        }));
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
@@ -247,7 +247,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      *
      */
     public void readMoreEntriesAsync() {
-        topic.getBrokerService().executor().execute(this::readMoreEntries);
+        topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
     }
 
     public synchronized void readMoreEntries() {
@@ -634,7 +634,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
             if (c.getMaxUnackedMessages() > 0) {
-                availablePermits = Math.min(availablePermits, c.getMaxUnackedMessages() - c.getUnackedMessages());
+                // Avoid negative number
+                int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             if (log.isDebugEnabled() && !c.isWritable()) {
                 log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
@@ -682,7 +684,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
-        acquirePermitsForDeliveredMessages(totalEntries, totalMessagesSent, totalBytesSent);
+        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
             if (log.isDebugEnabled()) {
@@ -696,23 +698,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             });
         }
         return true;
-    }
-
-    private void acquirePermitsForDeliveredMessages(long totalEntries, long totalMessagesSent, long totalBytesSent) {
-        // acquire message-dispatch permits for already delivered messages
-        long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
-            }
-            if (topic.getDispatchRateLimiter().isPresent()) {
-                topic.getDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
-            }
-
-            if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().tryDispatchPermit(permits, totalBytesSent);
-            }
-        }
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,
@@ -773,7 +758,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
-        acquirePermitsForDeliveredMessages(totalEntries, totalMessagesSent, totalBytesSent);
+        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         return numConsumers.get() == 0; // trigger a new readMoreEntries() call
     }

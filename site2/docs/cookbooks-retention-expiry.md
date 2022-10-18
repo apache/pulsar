@@ -58,7 +58,7 @@ When a retention limit on a topic is exceeded, the oldest message is marked for 
 
 ### Defaults
 
-You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
+You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. By default, both parameters are set to `0`, which means disabling message retention.
 
 For more information on the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
@@ -199,8 +199,8 @@ The following retention policies are available:
 
 Policy | Action
 :------|:------
-`producer_request_hold` | The broker will hold and not persist produce request payload
-`producer_exception` | The broker will disconnect from the client by throwing an exception
+`producer_request_hold` | The producer holds the message and retris until client configuration `sendTimeoutMs` is exceeded.
+`producer_exception` | The producer throws an exception when trying to send a message
 `consumer_backlog_eviction` | The broker will begin discarding backlog messages
 
 

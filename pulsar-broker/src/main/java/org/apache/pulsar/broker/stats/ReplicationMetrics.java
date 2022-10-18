@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import com.google.common.collect.Maps;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -70,7 +70,7 @@ public class ReplicationMetrics {
 
     public Metrics add(String namespace, String local, String remote) {
 
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("namespace", namespace);
         dimensionMap.put("from_cluster", local);
         dimensionMap.put("to_cluster", remote);

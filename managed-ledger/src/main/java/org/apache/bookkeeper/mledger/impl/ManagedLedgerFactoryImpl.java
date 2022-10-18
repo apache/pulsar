@@ -370,11 +370,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
-            final ManagedLedgerImpl newledger = new ManagedLedgerImpl(this,
-                    bookkeeperFactory.get(
-                            new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                    config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                    store, config, scheduledExecutor, name, mlOwnershipChecker, ledgerDeletionService);
+            BookKeeper bk = bookkeeperFactory.get(
+                    new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                            config.getBookKeeperEnsemblePlacementPolicyProperties()));
+            final ManagedLedgerImpl newledger = config.getShadowSource() == null
+                    ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker,
+                    ledgerDeletionService)
+                    : new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
+                    mlOwnershipChecker, ledgerDeletionService);
             PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
             pendingInitializeLedgers.put(name, pendingLedger);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -955,6 +958,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name) {
+        return store.getManagedLedgerPropertiesAsync(name);
     }
 
     public MetaStore getMetaStore() {

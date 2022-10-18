@@ -23,6 +23,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -148,6 +150,33 @@ public class MetaStoreImpl implements MetaStore {
                 });
     }
 
+    public CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name) {
+        CompletableFuture<Map<String, String>> result = new CompletableFuture<>();
+        getManagedLedgerInfo(name, false, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
+                HashMap<String, String> propertiesMap = new HashMap<>(mlInfo.getPropertiesCount());
+                if (mlInfo.getPropertiesCount() > 0) {
+                    for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
+                        MLDataFormats.KeyValue property = mlInfo.getProperties(i);
+                        propertiesMap.put(property.getKey(), property.getValue());
+                    }
+                }
+                result.complete(propertiesMap);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                if (e instanceof MetadataNotFoundException) {
+                    result.complete(Collections.emptyMap());
+                } else {
+                    result.completeExceptionally(e);
+                }
+            }
+        });
+        return result;
+    }
+
     @Override
     public void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat stat,
             MetaStoreCallback<Void> callback) {
@@ -215,8 +244,9 @@ public class MetaStoreImpl implements MetaStore {
     public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{}", ledgerName, cursorName,
-                    info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
+            log.debug("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{} lastActive={}",
+                    ledgerName, cursorName, info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(),
+                    info.getMarkDeleteEntryId(), info.getLastActive());
         }
 
         String path = PREFIX + ledgerName + "/" + cursorName;

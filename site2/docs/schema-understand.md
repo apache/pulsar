@@ -278,7 +278,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
    ```java
    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
-   User user = consumer.receive();
+   User user = consumer.receive().getValue();
    ```
 
 </TabItem>

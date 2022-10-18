@@ -129,8 +129,11 @@ authParams={"userId":"superuser","password":"admin"}
 
 The following example shows how to configure basic authentication when using Pulsar clients.
 
-<Tabs>
-  <TabItem value="Java" label="Java" default>
+````mdx-code-block
+<Tabs groupId="lang-choice"
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
 
    ```java
    AuthenticationBasic auth = new AuthenticationBasic();
@@ -142,7 +145,7 @@ The following example shows how to configure basic authentication when using Pul
    ```
 
   </TabItem>
-  <TabItem value="C++" label="C++" default>
+  <TabItem value="C++">
 
    ```cpp
    #include <pulsar/Client.h>
@@ -155,6 +158,28 @@ The following example shows how to configure basic authentication when using Pul
 
        return 0;
    }
+   ```
+
+  </TabItem>
+  <TabItem value="Python">
+
+   ```python
+   if __name__ == "__main__":
+      client = Client("pulsar://broker.example.com:6650", authentication=AuthenticationBasic("admin", "123456"))
+   ```
+
+  </TabItem>
+  <TabItem value="Go">
+
+   ```go
+	provider, err := pulsar.NewAuthenticationBasic("admin", "123456")
+	if err != nil {
+		log.Fatal(err)
+	}
+	client, err := pulsar.NewClient(pulsar.ClientOptions{
+		URL: "pulsar://broker.example.com:6650",
+		Authentication: provider,
+	})
    ```
 
   </TabItem>
