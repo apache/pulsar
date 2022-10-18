@@ -21,16 +21,16 @@ package org.apache.pulsar.compaction;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import lombok.Getter;
-import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 
 @Getter
 public class CompactedTopicContext {
 
-    final LedgerHandle ledger;
+    final ReadHandle ledger;
     final AsyncLoadingCache<Long, MessageIdData> cache;
 
-    public CompactedTopicContext(LedgerHandle ledger, AsyncLoadingCache<Long, MessageIdData> cache) {
+    public CompactedTopicContext(ReadHandle ledger, AsyncLoadingCache<Long, MessageIdData> cache) {
         this.ledger = ledger;
         this.cache = cache;
     }

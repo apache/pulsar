@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -291,7 +291,7 @@ public class NamespaceStatsAggregator {
                     Optional<CompactedTopicContext> compactedTopicContext = persistentTopic
                             .getCompactedTopicContext();
                     if (compactedTopicContext.isPresent()) {
-                        LedgerHandle ledger = compactedTopicContext.get().getLedger();
+                        ReadHandle ledger = compactedTopicContext.get().getLedger();
                         long entries = ledger.getLastAddConfirmed() + 1;
                         long size = ledger.getLength();
 
