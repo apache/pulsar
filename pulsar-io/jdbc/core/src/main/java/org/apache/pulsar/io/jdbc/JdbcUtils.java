@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.stream.IntStream;
@@ -113,9 +114,15 @@ public class JdbcUtils {
      * Get the {@link TableDefinition} for the given table.
      */
     public static TableDefinition getTableDefinition(
-            Connection connection, TableId tableId, List<String> keyList, List<String> nonKeyList) throws Exception {
+            Connection connection, TableId tableId,
+            List<String> keyList,
+            List<String> nonKeyList,
+            boolean excludeNonDeclaredFields) throws Exception {
         TableDefinition table = TableDefinition.of(
                 tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
+
+        keyList = keyList == null ? Collections.emptyList(): keyList;
+        nonKeyList = nonKeyList == null ? Collections.emptyList(): nonKeyList;
 
         try (ResultSet rs = connection.getMetaData().getColumns(
             tableId.getCatalogName(),
@@ -130,25 +137,20 @@ public class JdbcUtils {
                 final String typeName = rs.getString(6);
                 final int position = rs.getInt(17);
 
-                ColumnId columnId = ColumnId.of(tableId, columnName, sqlDataType, typeName, position);
-                table.columns.add(columnId);
-                if (keyList != null) {
-                    keyList.forEach((key) -> {
-                        if (key.equals(columnName)) {
-                            table.keyColumns.add(columnId);
-                        }
-                    });
-                }
-                if (nonKeyList != null) {
-                    nonKeyList.forEach((key) -> {
-                        if (key.equals(columnName)) {
-                            table.nonKeyColumns.add(columnId);
-                        }
-                    });
-                }
-
                 if (log.isDebugEnabled()) {
                     log.debug("Get column. name: {}, data type: {}, position: {}", columnName, typeName, position);
+                }
+
+                ColumnId columnId = ColumnId.of(tableId, columnName, sqlDataType, typeName, position);
+
+                if (keyList.contains(columnName)) {
+                    table.keyColumns.add(columnId);
+                    table.columns.add(columnId);
+                } else if (nonKeyList.contains(columnName)) {
+                    table.nonKeyColumns.add(columnId);
+                    table.columns.add(columnId);
+                } else if (!excludeNonDeclaredFields) {
+                    table.columns.add(columnId);
                 }
             }
             return table;
