@@ -506,8 +506,8 @@ MIT License
 
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-3.19.2.jar -- licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-3.19.2.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-3.19.6.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-3.19.6.jar -- licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
