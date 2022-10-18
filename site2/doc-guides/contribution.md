@@ -25,7 +25,7 @@
 
 ## Documentation and website repos
 
-This chapter shows the organization of Pulsar documentation and website repos
+This chapter shows the organization of Pulsar documentation and website repos.
 
 ### Intro to doc and website repos
 

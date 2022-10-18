@@ -157,7 +157,7 @@ If you want to stop the preview, use one of the following methods.
 
 ### Maintenance info
 
-* For the old Pulsar website, using` yarn start` can preview all (master + historical) changes. However, to speed up the build process, for the new Pulsar website, using `./preview.sh `only preview master changes.
+* For the old Pulsar website, using ` yarn start` can preview all (master + historical) changes. However, to speed up the build process, for the new Pulsar website, using `./preview.sh `only preview master changes.
 
 ## References
 

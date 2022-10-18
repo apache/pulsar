@@ -30,7 +30,7 @@ A PR title is a summary of your changes.
 
 * Vague, boring, and unclear PR titles decrease team efficiency and productivity. 
   
-* PR titles should be engaging, easy to understand and readable. 
+* PR titles should be engaging, easy to understand, and readable. 
 
 Good titles often bring many benefits, including but not limited to the following:
 

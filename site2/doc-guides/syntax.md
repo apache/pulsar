@@ -96,7 +96,7 @@ The new Pulsar website is launched on 2022/5/11. It is upgraded to Docusaurus V2
 
 ### Tab
 
-The image below shows the differences for writing multiple tabs before and after. For how to write multiple tabs, see [Tabs](https://docusaurus.io/docs/next/markdown-features/tabs)
+The image below shows the differences in writing multiple tabs before and after. For how to write multiple tabs, see [Tabs](https://docusaurus.io/docs/next/markdown-features/tabs).
 
 ![alt_text](assets/syntax-3.png)
 
@@ -249,7 +249,7 @@ When citing external information, use sources that are written by the people who
 
   * Books from an authoritative publisher.
 
-- Authoritative sources does not include the following ❌ 
+- Authoritative sources do not include the following ❌ 
 
   * Personal blog posts.
     
