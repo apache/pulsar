@@ -218,6 +218,7 @@ jobs:
         uses: ./.github/actions/copy-test-reports
 
       - name: Upload to Codecov
+        if: ${{ github.repository == 'apache/pulsar' }}
         uses: codecov/codecov-action@v3
         continue-on-error: true
         with:
