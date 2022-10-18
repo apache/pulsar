@@ -33,12 +33,14 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.util.Utf8;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -395,6 +397,39 @@ public class SqliteJdbcSinkTest {
         Assert.assertThrows(TimeoutException.class, () -> futureByTime.get(1, TimeUnit.SECONDS));
         futureByTime.get(3, TimeUnit.SECONDS);
 
+    }
+
+    /**
+     * Verify that if the flush is finished but the incoming records list size is equals
+     * or greater than the batch size,
+     * the next flush is immediately triggered (without any other writes).
+     * @throws Exception
+     */
+    @Test
+    public void testBatchModeContinueFlushing() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("batchSize", 1);
+        config.put("timeoutMs", 0);
+        restartSinkWithConfig(config);
+        // block the auto flushing mechanism
+        FieldUtils.writeField(jdbcSink, "isFlushing", new AtomicBoolean(true), true);
+        Foo updateObj = new Foo("f1", "f12", 1);
+        Map<String, String> updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> futureByEntries1 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries1));
+        Assert.assertThrows(TimeoutException.class, () -> futureByEntries1.get(1, TimeUnit.SECONDS));
+
+        FieldUtils.writeField(jdbcSink, "isFlushing", new AtomicBoolean(false), true);
+
+        updateObj = new Foo("f2", "f12", 1);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> futureByEntries2 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries2));
+
+        futureByEntries1.get(1, TimeUnit.SECONDS);
+        futureByEntries2.get(1, TimeUnit.SECONDS);
     }
 
     @DataProvider(name = "useTransactions")

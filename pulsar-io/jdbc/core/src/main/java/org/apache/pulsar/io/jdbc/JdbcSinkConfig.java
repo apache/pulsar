@@ -101,7 +101,7 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "false",
-            help = "Use the JDBC batch API. This option is suggested to improve writes performances."
+            help = "Use the JDBC batch API. This option is suggested to improve write performance."
     )
     private boolean useJdbcBatch = false;
 

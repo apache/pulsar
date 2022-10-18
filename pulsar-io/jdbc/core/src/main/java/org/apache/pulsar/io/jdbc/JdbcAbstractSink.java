@@ -282,10 +282,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                     count += 1;
                     if (jdbcSinkConfig.isUseJdbcBatch()) {
                         if (currentBatch != null && statement != currentBatch) {
-                            executeBatch(swapList, currentBatch);
-                            if (log.isDebugEnabled()) {
-                                log.debug("Flushed {} messages in {} ms", count, (System.nanoTime() - start) / 1000 / 1000);
-                            }
+                            internalFlushBatch(swapList, currentBatch, count, start);
                             start = System.nanoTime();
                         }
                         statement.addBatch();
@@ -299,15 +296,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 }
 
                 if (jdbcSinkConfig.isUseJdbcBatch()) {
-                    executeBatch(swapList, currentBatch);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Flushed {} messages in {} ms", count, (System.nanoTime() - start) / 1000 / 1000);
-                    }
+                    internalFlushBatch(swapList, currentBatch, count, start);
                 } else {
-                    if (jdbcSinkConfig.isUseTransactions()) {
-                        connection.commit();
-                        swapList.forEach(Record::ack);
-                    }
+                    internalFlush(swapList);
                 }
             } catch (Exception e) {
                 log.error("Got exception {} after {} ms, failing {} messages",
@@ -333,6 +324,20 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             if (log.isDebugEnabled()) {
                 log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());
             }
+        }
+    }
+
+    private void internalFlush(Deque<Record<T>> swapList) throws SQLException {
+        if (jdbcSinkConfig.isUseTransactions()) {
+            connection.commit();
+            swapList.forEach(Record::ack);
+        }
+    }
+
+    private void internalFlushBatch(Deque<Record<T>> swapList, PreparedStatement currentBatch, int count, long start) throws SQLException {
+        executeBatch(swapList, currentBatch);
+        if (log.isDebugEnabled()) {
+            log.debug("Flushed {} messages in {} ms", count, (System.nanoTime() - start) / 1000 / 1000);
         }
     }
 
