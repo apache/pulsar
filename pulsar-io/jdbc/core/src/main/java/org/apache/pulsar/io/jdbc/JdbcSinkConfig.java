@@ -73,6 +73,17 @@ public class JdbcSinkConfig implements Serializable {
             help = "Fields used in where condition of update and delete Events. A comma-separated list."
     )
     private String key;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "All the table fields are discovered automatically. 'excludeNonDeclaredFields' indicates if the "
+                    + "table fields not explicitly listed in `nonKey` and `key` must be included in the query. "
+                    + "By default all the table fields are included. To leverage of table fields defaults "
+                    + "during insertion, it is suggested to set this value to `true`."
+    )
+    private boolean excludeNonDeclaredFields = false;
+
     @FieldDoc(
         required = false,
         defaultValue = "500",
@@ -85,6 +96,41 @@ public class JdbcSinkConfig implements Serializable {
         help = "The batch size of updates made to the database"
     )
     private int batchSize = 200;
+    @FieldDoc(
+            required = false,
+            defaultValue = "true",
+            help = "Enable transactions of the database."
+    )
+    private boolean useTransactions = true;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "INSERT",
+            help = "If it is configured as UPSERT, the sink will use upsert semantics rather than "
+                    + "plain INSERT/UPDATE statements. Upsert semantics refer to atomically adding a new row or "
+                    + "updating the existing row if there is a primary key constraint violation, "
+                    + "which provides idempotence."
+    )
+    private InsertMode insertMode = InsertMode.INSERT;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "FAIL",
+            help = "How to handle records with null values, possible options are DELETE or FAIL."
+    )
+    private NullValueAction nullValueAction = NullValueAction.FAIL;
+
+    public enum InsertMode {
+        INSERT,
+        UPSERT,
+        UPDATE;
+    }
+
+    public enum NullValueAction {
+        FAIL,
+        DELETE
+    }
+
 
     public static JdbcSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

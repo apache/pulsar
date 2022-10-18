@@ -243,6 +243,29 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        MutableInt v = new MutableInt(0);
+        subMap.forEach((key, bitset) -> {
+            if (key == lowerKey || key == upperKey) {
+                BitSet temp = (BitSet) bitset.clone();
+                // Trim the bitset index which < lowerValue
+                if (key == lowerKey) {
+                    temp.clear(0, (int) Math.max(0, lowerValue));
+                }
+                // Trim the bitset index which > upperValue
+                if (key == upperKey) {
+                    temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
+                }
+                v.add(temp.cardinality());
+            } else {
+                v.add(bitset.cardinality());
+            }
+        });
+        return v.intValue();
+    }
+
+    @Override
     public int size() {
         if (updatedAfterCachedForSize) {
             MutableInt size = new MutableInt(0);

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Base64;
@@ -91,10 +90,11 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                         ADMIN_TOKEN);
         admin = Mockito.spy(pulsarAdminBuilder.build());
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
-        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
-                Sets.newHashSet(testLocalCluster)));
+        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
+                Set.of(testLocalCluster)
+        ));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
-                Sets.newHashSet(testLocalCluster));
+                Set.of(testLocalCluster));
         admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "producer",
                 EnumSet.of(AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "consumer",

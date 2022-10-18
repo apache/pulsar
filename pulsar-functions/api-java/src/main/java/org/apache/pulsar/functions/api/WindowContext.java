@@ -158,8 +158,8 @@ public interface WindowContext {
     /**
      * Get any user-defined key/value or a default value if none is present.
      *
-     * @param key
-     * @param defaultValue
+     * @param key the config key to retrieve
+     * @param defaultValue value returned if the key is not found
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);

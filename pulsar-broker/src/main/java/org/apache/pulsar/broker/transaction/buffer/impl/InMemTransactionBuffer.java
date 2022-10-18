@@ -380,12 +380,36 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public TransactionBufferStats getStats() {
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
         return null;
     }
 
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public long getOngoingTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.OPEN)
+                        || txnBuffer.status.equals(TxnStatus.COMMITTING)
+                        || txnBuffer.status.equals(TxnStatus.ABORTING)
+                )
+                .count();
+    }
+
+    @Override
+    public long getAbortedTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.ABORTED))
+                .count();
+    }
+
+    @Override
+    public long getCommittedTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.COMMITTED))
+                .count();
     }
 }

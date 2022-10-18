@@ -181,7 +181,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.info("offload {} uuid {} extraMetadata {} to {} {}", readHandle.getId(), uuid, extraMetadata,
                 config.getBlobStoreLocation(), writeBlobStore);
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).submit(() -> {
+        scheduler.chooseThread(readHandle.getId()).execute(() -> {
             if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
                 promise.completeExceptionally(
                         new IllegalArgumentException("An empty or open ledger should never be offloaded"));
@@ -539,7 +539,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
         String indexKey = DataBlockUtils.indexBlockOffloadKey(ledgerId, uid);
-        scheduler.chooseThread(ledgerId).submit(() -> {
+        scheduler.chooseThread(ledgerId).execute(() -> {
             try {
                 promise.complete(BlobStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
                         readBlobstore,
@@ -573,7 +573,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             indexKeys.add(indexKey);
         });
 
-        scheduler.chooseThread(ledgerId).submit(() -> {
+        scheduler.chooseThread(ledgerId).execute(() -> {
             try {
                 promise.complete(BlobStoreBackedReadHandleImplV2.open(scheduler.chooseThread(ledgerId),
                         readBlobstore,
@@ -597,7 +597,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(ledgerId).submit(() -> {
+        scheduler.chooseThread(ledgerId).execute(() -> {
             try {
                 readBlobstore.removeBlobs(readBucket,
                     ImmutableList.of(DataBlockUtils.dataBlockOffloadKey(ledgerId, uid),
@@ -623,7 +623,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.submit(() -> {
+        scheduler.execute(() -> {
             try {
                 readBlobstore.removeBlobs(readBucket,
                         ImmutableList.of(uid.toString(),

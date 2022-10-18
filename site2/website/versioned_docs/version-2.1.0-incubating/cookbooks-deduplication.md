@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-cookbooks-deduplication
+id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication
+sidebar_label: "Message deduplication"
 original_id: cookbooks-deduplication
 ---
 
@@ -41,9 +41,11 @@ Regardless of the value of `brokerDeduplicationEnabled`, [enabling](#enabling) a
 You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. Here's an example with `<tenant>/<namespace>`:
 
 ```bash
+
 $ bin/pulsar-admin namespaces set-deduplication \
   public/default \
   --enable # or just -e
+
 ```
 
 ### Disabling message deduplication {#disabling}
@@ -51,9 +53,11 @@ $ bin/pulsar-admin namespaces set-deduplication \
 You can disable message deduplication on a specific namespace using the same method shown [above](#enabling), except using the `--disable`/`-d` flag instead. Here's an example with `<tenant>/<namespace>`:
 
 ```bash
+
 $ bin/pulsar-admin namespaces set-deduplication \
   public/default \
   --disable # or just -d
+
 ```
 
 ## Message deduplication and Pulsar clients {#clients}
@@ -70,6 +74,7 @@ Instructions for [Java](#java), [Python](#python), and [C++](#cpp) clients can b
 To enable message deduplication on a [Java producer](client-libraries-java.md#producers), set the producer name using the `producerName` setter and set the timeout to 0 using the `sendTimeout` setter. Here's an example:
 
 ```java
+
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import java.util.concurrent.TimeUnit;
@@ -82,6 +87,7 @@ Producer producer = pulsarClient.newProducer()
         .topic("persistent://public/default/topic-1")
         .sendTimeout(0, TimeUnit.SECONDS)
         .create();
+
 ```
 
 ### Python clients {#python}
@@ -89,6 +95,7 @@ Producer producer = pulsarClient.newProducer()
 To enable message deduplication on a [Python producer](client-libraries-python.md#producers), set the producer name using `producer_name` and the timeout to 0 using `send_timeout_millis`. Here's an example:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client("pulsar://localhost:6650")
@@ -96,6 +103,7 @@ producer = client.create_producer(
     "persistent://public/default/topic-1",
     producer_name="producer-1",
     send_timeout_millis=0)
+
 ```
 
 ### C++ clients {#cpp}
@@ -103,6 +111,7 @@ producer = client.create_producer(
 To enable message deduplication on a [C++ producer](client-libraries-cpp.md#producer), set the producer name using `producer_name` and the timeout to 0 using `send_timeout_millis`. Here's an example:
 
 ```cpp
+
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
@@ -118,5 +127,6 @@ producerConfig.setProducerName(producerName);
 Producer producer;
 
 Result result = client.createProducer(topic, producerConfig, producer);
+
 ```
 

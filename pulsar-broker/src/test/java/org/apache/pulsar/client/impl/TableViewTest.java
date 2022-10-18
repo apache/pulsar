@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
 import com.google.common.collect.Sets;
 import java.time.Duration;
 import java.util.HashSet;
@@ -26,25 +33,23 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import static org.testng.Assert.fail;
 
 /**
  * Unit test for {@link org.apache.pulsar.client.impl.TableViewImpl}.
@@ -117,18 +122,18 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
         Awaitility.await().untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count);
+            assertEquals(tv.size(), count);
         });
-        Assert.assertEquals(tv.keySet(), keys);
+        assertEquals(tv.keySet(), keys);
         tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
 
         // Send more data
         Set<String> keys2 = this.publishMessages(topic, count * 2, false);
         Awaitility.await().untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count * 2);
+            assertEquals(tv.size(), count * 2);
         });
-        Assert.assertEquals(tv.keySet(), keys2);
+        assertEquals(tv.keySet(), keys2);
         // Test collection
         try {
             tv.keySet().clear();
@@ -165,9 +170,9 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
         Awaitility.await().untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count);
+            assertEquals(tv.size(), count);
         });
-        Assert.assertEquals(tv.keySet(), keys);
+        assertEquals(tv.keySet(), keys);
         tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
 
         admin.topics().updatePartitionedTopic(topic, 4);
@@ -178,61 +183,98 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count * 2);
+            assertEquals(tv.size(), count * 2);
         });
-        Assert.assertEquals(tv.keySet(), keys2);
+        assertEquals(tv.keySet(), keys2);
     }
 
-
     @Test(timeOut = 30 * 1000)
-    // Regression test for making sure partition changes are always periodically checked even after a check returned
-    // exceptionally.
-    public void testTableViewUpdatePartitionsTriggeredDespiteExceptions() throws Exception {
-        String topic = "persistent://public/default/tableview-test-update-partitions-triggered-despite-exceptions";
+    public void testPublishNullValue() throws Exception {
+        String topic = "persistent://public/default/tableview-test-publish-null-value";
         admin.topics().createPartitionedTopic(topic, 3);
-        int count = 20;
-        Set<String> keys = this.publishMessages(topic, count, false);
-        PulsarClient spyPulsarClient = Mockito.spy(pulsarClient);
-        @Cleanup
-        TableView<byte[]> tv = spyPulsarClient.newTableViewBuilder(Schema.BYTES)
+
+        final TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
-        log.info("start tv size: {}", tv.size());
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
-        Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count);
-        });
-        Assert.assertEquals(tv.keySet(), keys);
-        tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
-        // Let update partition check throw an exception
-        Mockito.doReturn(FutureUtil.failedFuture(new PulsarClientException("")))
-                .when(spyPulsarClient)
-                .getPartitionsForTopic(Mockito.any());
+        producer.newMessage().key("key1").value("value1").send();
 
-        admin.topics().updatePartitionedTopic(topic, 4);
-        TopicName topicName = TopicName.get(topic);
+        Awaitility.await().untilAsserted(() -> assertEquals(tv.get("key1"), "value1"));
+        assertEquals(tv.size(), 1);
 
-        // Make sure the get partitions callback is called; it should throw an exception
-        Mockito.verify(spyPulsarClient).getPartitionsForTopic(Mockito.any());
+        // Try to remove key1 by publishing the tombstones message.
+        producer.newMessage().key("key1").value(null).send();
+        Awaitility.await().untilAsserted(() -> assertEquals(tv.size(), 0));
 
-        // Send more data to partition 3, which is not in the current TableView, need update partitions
-        Set<String> keys2 =
-                this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
+        producer.newMessage().key("key2").value("value2").send();
+        Awaitility.await().untilAsserted(() -> assertEquals(tv.get("key2"), "value2"));
+        assertEquals(tv.size(), 1);
 
-        // Wait for 10 seconds; verify that the messages haven't arrived, which would have happened if the partitions
-        // has been updated
-        TimeUnit.SECONDS.sleep(10);
-        Assert.assertEquals(tv.size(), count);
+        tv.close();
 
-        // Let update partition check succeed, and check the messages eventually arrives
-        Mockito.doCallRealMethod().when(spyPulsarClient).getPartitionsForTopic(Mockito.any());
-        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count * 2);
-        });
-        Assert.assertEquals(tv.keySet(), keys2);
+        @Cleanup
+        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        assertEquals(tv1.size(), 1);
+        assertEquals(tv.get("key2"), "value2");
+    }
+
+    @DataProvider(name = "partitionedTopic")
+    public static Object[][] partitioned() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(timeOut = 30 * 1000, dataProvider = "partitionedTopic")
+    public void testAck(boolean partitionedTopic) throws Exception {
+        String topic = null;
+        if (partitionedTopic) {
+            topic = "persistent://public/default/tableview-ack-test";
+            admin.topics().createPartitionedTopic(topic, 3);
+        } else {
+            topic = "persistent://public/default/tableview-no-partition-ack-test";
+            admin.topics().createNonPartitionedTopic(topic);
+        }
+
+        @Cleanup
+        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        ConsumerBase consumerBase;
+        if (partitionedTopic) {
+            MultiTopicsReaderImpl<String> reader =
+                    ((CompletableFuture<MultiTopicsReaderImpl<String>>) FieldUtils
+                            .readDeclaredField(tv1, "reader", true)).get();
+            consumerBase = spy(reader.getMultiTopicsConsumer());
+            FieldUtils.writeDeclaredField(reader, "multiTopicsConsumer", consumerBase, true);
+        } else {
+            ReaderImpl<String> reader = ((CompletableFuture<ReaderImpl<String>>) FieldUtils
+                    .readDeclaredField(tv1, "reader", true)).get();
+            consumerBase = spy(reader.getConsumer());
+            FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
+        }
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        int msgCount = 20;
+        for (int i = 0; i < msgCount; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .untilAsserted(()
+                        -> verify(consumerBase, times(msgCount)).acknowledgeCumulativeAsync(any(MessageId.class)));
+
+
     }
 }

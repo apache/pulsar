@@ -28,7 +28,6 @@ import com.google.common.collect.Sets;
 import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
+import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -49,6 +50,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -97,10 +99,22 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-m", "--mode"},
+                description = "Allowed topic domain mode (persistent, non_persistent, all).")
+        private Mode mode;
+
+        @Parameter(names = { "-ist",
+                "--include-system-topic" }, description = "Include system topic")
+        private boolean includeSystemTopic;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getAdmin().namespaces().getTopics(namespace));
+            ListNamespaceTopicsOptions options = ListNamespaceTopicsOptions.builder()
+                    .mode(mode)
+                    .includeSystemTopic(includeSystemTopic)
+                    .build();
+            print(getAdmin().namespaces().getTopics(namespace, options));
         }
     }
 
@@ -387,14 +401,27 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--messageTTL", "-ttl" }, description = "Message TTL in seconds. "
-                + "When the value is set to `0`, TTL is disabled.", required = true)
-        private int messageTTL;
+        @Parameter(names = { "--messageTTL", "-ttl" },
+                description = "Message TTL in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w). "
+                        + "When the value is set to `0`, TTL is disabled.", required = true)
+        private String messageTTLStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long messageTTLInSecond;
+            try {
+                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
+
+            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
+            }
+
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setNamespaceMessageTTL(namespace, messageTTL);
+            getAdmin().namespaces().setNamespaceMessageTTL(namespace, (int) messageTTLInSecond);
         }
     }
 
@@ -715,11 +742,16 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
-                        + "0 means no retention and -1 means infinite time retention", required = true)
+                "-t" }, description = "Retention time with optional time unit suffix. "
+                        + "For example, 100m, 3h, 2d, 5w. "
+                        + "If the time unit is not specified, the default unit is seconds. For example, "
+                        + "-t 120 sets retention to 2 minutes. "
+                        + "0 means no retention and -1 means infinite time retention.", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
+                + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
+                + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
@@ -879,7 +911,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split "
                 + "namespace bundle. Valid options are: [range_equally_divide, topic_count_equally_divide, "
-                + "specified_positions_divide]. Use broker side config if absent", required = false)
+                + "specified_positions_divide, flow_or_qps_equally_divide]. Use broker side config if absent"
+                , required = false)
         private String splitAlgorithmName;
 
         @Parameter(names = { "--split-boundaries",
@@ -2329,8 +2362,7 @@ public class CmdNamespaces extends CmdBase {
             Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
             if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
                 long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
-                if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
-                        && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                if (maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
@@ -2456,24 +2488,11 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws Exception {
             String namespace = validateNamespace(params);
-            Map<String, String> map = new HashMap<>();
             if (properties.size() == 0) {
                 throw new ParameterException(String.format("Required at least one property for the namespace, "
                         + "but found %d.", properties.size()));
             }
-            for (String property : properties) {
-                if (!property.contains("=")) {
-                    throw new ParameterException(String.format("Invalid key value pair '%s', "
-                            + "valid format like 'a=a,b=b,c=c'.", property));
-                } else {
-                    String[] keyValue = property.split("=");
-                    if (keyValue.length != 2) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    }
-                    map.put(keyValue[0], keyValue[1]);
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(properties);
             getAdmin().namespaces().setProperties(namespace, map);
         }
     }
@@ -2572,6 +2591,46 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             getAdmin().namespaces().removeNamespaceResourceGroup(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Get entry filters for a namespace")
+    private class GetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getNamespaceEntryFilters(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set entry filters for a namespace")
+    private class SetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--entry-filters-name", "-efn" },
+                description = "The class name for the entry filter.", required = true)
+        private String  entryFiltersName = "";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setNamespaceEntryFilters(namespace, new EntryFilters(entryFiltersName));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove entry filters for a namespace")
+    private class RemoveEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeNamespaceEntryFilters(namespace);
         }
     }
 
@@ -2755,5 +2814,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-resource-group", new GetResourceGroup());
         jcommander.addCommand("set-resource-group", new SetResourceGroup());
         jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
+
+        jcommander.addCommand("get-entry-filters", new GetEntryFiltersPerTopic());
+        jcommander.addCommand("set-entry-filters", new SetEntryFiltersPerTopic());
+        jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
     }
 }

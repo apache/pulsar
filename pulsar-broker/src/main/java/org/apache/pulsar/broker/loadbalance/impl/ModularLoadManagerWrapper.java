@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -65,8 +66,12 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
-        return leastLoadedBroker.map(s -> new SimpleResourceUnit(getBrokerWebServiceUrl(s),
-                new PulsarResourceDescription()));
+        return leastLoadedBroker.map(s -> {
+            String webServiceUrl = getBrokerWebServiceUrl(s);
+            String brokerZnodeName = getBrokerZnodeName(s, webServiceUrl);
+            return new SimpleResourceUnit(webServiceUrl,
+                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+        });
     }
 
     private String getBrokerWebServiceUrl(String broker) {
@@ -76,6 +81,11 @@ public class ModularLoadManagerWrapper implements LoadManager {
                     : localData.getWebServiceUrlTls();
         }
         return String.format("http://%s", broker);
+    }
+
+    private String getBrokerZnodeName(String broker, String webServiceUrl) {
+        String scheme = webServiceUrl.substring(0, webServiceUrl.indexOf("://"));
+        return String.format("%s://%s", scheme, broker);
     }
 
     @Override

@@ -454,6 +454,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
         }
 
+        if (service.getCryptoKeyReader().isPresent()) {
+            builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+        }
         return builder;
     }
 

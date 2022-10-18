@@ -70,7 +70,7 @@ public class BaseResources<T> {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
-            throw new MetadataStoreException("Failed to get childeren of " + path, e);
+            throw new MetadataStoreException("Failed to get children of " + path, e);
         }
     }
 

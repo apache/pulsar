@@ -117,7 +117,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
         setup();
 
@@ -177,7 +177,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setEnablePackagesManagement(true);
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
@@ -367,7 +367,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testClearBacklogPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -466,9 +466,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSchemaCompatibilityStrategyPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
+        cleanup();
         conf.setAnonymousUserRole("superUser");
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
@@ -553,7 +551,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProviderWithSubscriptionPrefix.class.getName());
         setup();
 
@@ -595,7 +593,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testGrantPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProviderWithGrantPermission.class.getName());
         setup();
 
@@ -614,7 +612,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProviderWithGrantPermission.class.getName());
         setup();
 
@@ -637,7 +635,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testPermissionForProducerCreateInitialSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -954,7 +952,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
     public static class TestAuthorizationProviderWithGrantPermission extends TestAuthorizationProvider {
 
-        private Set<String> grantRoles = Sets.newHashSet();
+        private Set<String> grantRoles = new HashSet<>();
         static AuthenticationDataSource authenticationData;
         static String authDataJson;
 

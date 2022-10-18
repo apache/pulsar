@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-administration-proxy
+id: administration-proxy
 title: The Pulsar proxy
-sidebar_label: Pulsar proxy
+sidebar_label: "Pulsar proxy"
 original_id: administration-proxy
 ---
 
@@ -14,10 +14,12 @@ In order to run the Pulsar proxy, you need to have both a local [ZooKeeper](http
 To start the proxy:
 
 ```bash
+
 $ cd /path/to/pulsar/directory
 $ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
   --configuration-store-servers zk-0,zk-1,zk-2
+
 ```
 
 > You can run as many instances of the Pulsar proxy in a cluster as you would like.
@@ -54,7 +56,7 @@ The Pulsar proxy can be configured using the [`proxy.conf`](reference-configurat
 |brokerClientAuthenticationPlugin|  The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientAuthenticationParameters|  The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientTrustCertsFilePath|  The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers ||
-|superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
+|superUserRoles|  Role names that are treated as "super-users," meaning that they will be able to perform all admin ||
 |forwardAuthorizationCredentials| Whether client authorization credentials are forwarded to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |10000|

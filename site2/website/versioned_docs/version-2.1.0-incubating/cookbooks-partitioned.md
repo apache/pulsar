@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-cookbooks-partitioned
+id: cookbooks-partitioned
 title: Non-persistent messaging
-sidebar_label: Partitioned Topics
+sidebar_label: "Partitioned Topics"
 original_id: cookbooks-partitioned
 ---
 
@@ -28,6 +28,7 @@ You can specify the routing mode in the ProducerConfiguration object that you us
 Here's an example:
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
@@ -37,6 +38,7 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRoutingMode(MessageRoutingMode.SinglePartition)
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 #### Custom message router
@@ -44,24 +46,29 @@ producer.send("Partitioned topic message".getBytes());
 To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
+
 public interface MessageRouter extends Serializable {
     int choosePartition(Message msg);
 }
+
 ```
 
 Here's a (not very useful!) router that routes every message to partition 10:
 
 ```java
+
 public class AlwaysTenRouter implements MessageRouter {
     public int choosePartition(Message msg) {
         return 10;
     }
 }
+
 ```
 
 With that implementation in hand, you can send
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
@@ -71,6 +78,7 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ## Managing partitioned topics

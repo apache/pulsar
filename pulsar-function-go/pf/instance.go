@@ -40,7 +40,7 @@ type goInstance struct {
 	producer          pulsar.Producer
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
-	lastHealthCheckTs int64
+	lastHealthCheckTS int64
 	properties        map[string]string
 	stats             StatWithLabelValues
 }
@@ -75,7 +75,7 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
-	goInstance.lastHealthCheckTs = now.UnixNano()
+	goInstance.lastHealthCheckTS = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
 	return goInstance
@@ -85,7 +85,7 @@ func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker) {
 	log.Info("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := gi.context.GetMaxIdleTime()
-	timeSinceLastCheck := now.UnixNano() - gi.lastHealthCheckTs
+	timeSinceLastCheck := now.UnixNano() - gi.lastHealthCheckTS
 	if (timeSinceLastCheck) > (maxIdleTime) {
 		log.Error("Haven't received health check from spawner in a while. Stopping instance...")
 		gi.close()
@@ -112,7 +112,7 @@ func (gi *goInstance) startFunction(function function) error {
 
 	// start process spawner health check timer
 	now := time.Now()
-	gi.lastHealthCheckTs = now.UnixNano()
+	gi.lastHealthCheckTS = now.UnixNano()
 
 	gi.startScheduler()
 
@@ -349,7 +349,6 @@ func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error
 
 func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-	atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
 	autoAck := gi.context.instanceConf.funcDetails.AutoAck
 
 	// If the function had an output and the user has specified an output topic, the output needs to be sent to the
@@ -372,9 +371,9 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 					gi.stats.incrTotalSysExceptions(err)
 					log.Fatal(err)
 				}
-				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are not using
-				// at-most-once delivery semantics, ack the message.
-				if autoAck && !atMostOnce {
+				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are using
+				// atLeastOnce delivery semantics, ack the message.
+				if autoAck && atLeastOnce {
 					gi.ackInputMessage(msgInput)
 				}
 				gi.stats.incrTotalProcessedSuccessfully()
@@ -463,7 +462,7 @@ func (gi *goInstance) close() {
 
 func (gi *goInstance) healthCheck() *pb.HealthCheckResult {
 	now := time.Now()
-	gi.lastHealthCheckTs = now.UnixNano()
+	gi.lastHealthCheckTS = now.UnixNano()
 	healthCheckResult := pb.HealthCheckResult{Success: true}
 	return &healthCheckResult
 }

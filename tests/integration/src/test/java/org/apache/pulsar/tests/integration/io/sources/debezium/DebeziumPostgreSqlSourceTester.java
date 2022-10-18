@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
@@ -26,10 +28,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
-
-import java.io.Closeable;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A tester for testing Debezium Postgresql source.
@@ -41,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * which is a Postgresql database server preconfigured with an inventory database.
  */
 @Slf4j
-public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgreSqlContainer> implements Closeable {
+public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgreSqlContainer> {
 
     private static final String NAME = "debezium-postgres";
 
@@ -155,7 +153,10 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            PulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
+            if (debeziumPostgresqlContainer != null) {
+                PulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
+                debeziumPostgresqlContainer = null;
+            }
         }
     }
 

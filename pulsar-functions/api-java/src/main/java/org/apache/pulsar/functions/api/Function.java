@@ -44,14 +44,14 @@ public interface Function<X, T> {
      *
      * @param context The Function context
      *
-     * @throws Exception
+     * @throws Exception if an error occurs
      */
     default void initialize(Context context) throws Exception {}
 
     /**
      * Called once to properly close resources when function instance is stopped.
      *
-     * @throws Exception
+     * @throws Exception if an error occurs
      */
     default void close() throws Exception {}
 }

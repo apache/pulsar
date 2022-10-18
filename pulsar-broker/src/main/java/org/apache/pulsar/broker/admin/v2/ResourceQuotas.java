@@ -30,10 +30,15 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.ResourceQuotasBase;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
+@Slf4j
 @Path("/resource-quotas")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -43,16 +48,29 @@ public class ResourceQuotas extends ResourceQuotasBase {
     @GET
     @ApiOperation(value = "Get the default quota", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public ResourceQuota getDefaultResourceQuota() throws Exception {
-        return super.getDefaultResourceQuota();
+    public void getDefaultResourceQuota(@Suspended AsyncResponse response) {
+        getDefaultResourceQuotaAsync()
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get default resource quota", clientAppId());
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @POST
     @ApiOperation(value = "Set the default quota", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDefaultResourceQuota(
-            @ApiParam(value = "Default resource quota") ResourceQuota quota) throws Exception {
-        super.setDefaultResourceQuota(quota);
+            @Suspended AsyncResponse response,
+            @ApiParam(value = "Default resource quota") ResourceQuota quota) {
+        setDefaultResourceQuotaAsync(quota)
+                .thenAccept(__ -> response.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set default resource quota", clientAppId());
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+        });
     }
 
     @GET
@@ -62,7 +80,8 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public ResourceQuota getNamespaceBundleResourceQuota(
+    public void getNamespaceBundleResourceQuota(
+            @Suspended AsyncResponse response,
             @ApiParam(value = "Tenant name")
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Namespace name within the specified tenant")
@@ -70,7 +89,14 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiParam(value = "Namespace bundle range")
             @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
-        return internalGetNamespaceBundleResourceQuota(bundleRange);
+        internalGetNamespaceBundleResourceQuota(bundleRange)
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace resource quota for bundle {}",
+                            clientAppId(), bundleRange, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -81,6 +107,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setNamespaceBundleResourceQuota(
+            @Suspended AsyncResponse response,
             @ApiParam(value = "Tenant name")
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Namespace name within the specified tenant")
@@ -89,7 +116,17 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @PathParam("bundle") String bundleRange,
             @ApiParam(value = "Resource quota for the specified namespace") ResourceQuota quota) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceBundleResourceQuota(bundleRange, quota);
+        internalSetNamespaceBundleResourceQuota(bundleRange, quota)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully set namespace bundle resource quota {}", clientAppId(), bundleRange);
+                    response.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set namespace resource quota for bundle {}",
+                            clientAppId(), bundleRange, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -100,6 +137,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void removeNamespaceBundleResourceQuota(
+            @Suspended AsyncResponse response,
             @ApiParam(value = "Tenant name")
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Namespace name within the specified tenant")
@@ -107,6 +145,16 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiParam(value = "Namespace bundle range")
             @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveNamespaceBundleResourceQuota(bundleRange);
+        internalRemoveNamespaceBundleResourceQuota(bundleRange)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully remove namespace bundle resource quota {}", clientAppId(), bundleRange);
+                    response.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove namespace bundle resource quota {}",
+                            clientAppId(), bundleRange, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 }

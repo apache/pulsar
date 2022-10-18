@@ -1,7 +1,7 @@
 ---
 id: io-connectors
 title: Built-in connector
-sidebar_label: Built-in connector
+sidebar_label: "Built-in connector"
 ---
 
 Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. 
@@ -101,7 +101,13 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 * [Configuration](io-kinesis-source.md#configuration)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/KinesisSource.java)
-  
+
+### MongoDB
+
+* [Configuration](io-mongo-source.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/mongo/src/main/java/org/apache/pulsar/io/mongodb/MongoSource.java)
+
 ### Netty
 
 * [Configuration](io-netty-source.md#configuration)

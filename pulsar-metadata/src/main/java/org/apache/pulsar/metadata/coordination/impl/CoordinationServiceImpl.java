@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.coordination.impl;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -29,8 +30,11 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -40,8 +44,13 @@ import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Slf4j
 @SuppressWarnings("unchecked")
 public class CoordinationServiceImpl implements CoordinationService {
+
+    private static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(10);
+
+    private static final int GET_NEXT_COUNTER_VALUE_RETRY_COUNT = 5;
 
     private final MetadataStoreExtended store;
 
@@ -60,6 +69,10 @@ public class CoordinationServiceImpl implements CoordinationService {
     public void close() throws Exception {
         try {
             List<CompletableFuture<Void>> futures = new ArrayList<>();
+            futures.add(GracefulExecutorServicesShutdown
+                    .initiate()
+                    .shutdown(executor)
+                    .handle());
 
             for (LeaderElection<?> le : leaderElections.values()) {
                 futures.add(le.asyncClose());
@@ -69,9 +82,12 @@ public class CoordinationServiceImpl implements CoordinationService {
                 futures.add(lm.asyncClose());
             }
 
-            FutureUtils.collect(futures).join();
+
+            FutureUtils.collect(futures).get(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         } catch (CompletionException ce) {
             throw MetadataStoreException.unwrap(ce);
+        } finally {
+            executor.shutdownNow();
         }
     }
 
@@ -89,6 +105,12 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     @Override
     public CompletableFuture<Long> getNextCounterValue(String path) {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        internalGetNextCounterValueWithRetry(path, future, GET_NEXT_COUNTER_VALUE_RETRY_COUNT);
+        return future;
+    }
+
+    private CompletableFuture<Long> internalGetNextCounterValue(String path) {
         return store.exists(path)
                 .thenCompose(exists -> {
                     if (exists) {
@@ -98,6 +120,27 @@ public class CoordinationServiceImpl implements CoordinationService {
                         return store.put(path, new byte[0], Optional.empty())
                                 .thenCompose(__ -> incrementCounter(path));
                     }
+                });
+    }
+
+    private void internalGetNextCounterValueWithRetry(String path, CompletableFuture<Long> future, int count) {
+        if (count == 0) {
+            log.error("The number of retries has exhausted when get next counter value from path {}", path);
+            future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
+            return;
+        }
+        this.internalGetNextCounterValue(path)
+                .thenAccept(future::complete)
+                .exceptionally(ex -> {
+                    if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                        log.warn("Failed to get next counter value because of bad version. "
+                                + "Retry to get next counter value from path {}", path);
+                        internalGetNextCounterValueWithRetry(path, future, count - 1);
+                    } else {
+                        log.error("Failed to get next counter value from path {}", path, ex);
+                        future.completeExceptionally(ex);
+                    }
+                    return null;
                 });
     }
 

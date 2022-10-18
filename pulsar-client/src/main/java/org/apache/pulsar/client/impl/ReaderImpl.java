@@ -42,6 +42,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
 @Slf4j
 public class ReaderImpl<T> implements Reader<T> {
@@ -177,17 +178,20 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
-        receiveFuture.whenComplete((msg, t) -> {
-           if (msg != null) {
-               consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-                   log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                           getConsumer().getSubscription(), msg.getMessageId(), ex);
-                   return null;
-               });
-           }
+        CompletableFuture<Message<T>> originalFuture = consumer.receiveAsync();
+        CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
+            consumer.acknowledgeCumulativeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.error("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                                getConsumer().getSubscription(), msg.getMessageId(), ex);
+                        return null;
+                    });
+            return msg;
         });
-        return receiveFuture;
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
     }
 
     @Override

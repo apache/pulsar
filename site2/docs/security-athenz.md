@@ -1,14 +1,14 @@
 ---
 id: security-athenz
 title: Authentication using Athenz
-sidebar_label: Authentication using Athenz
+sidebar_label: "Authentication using Athenz"
 ---
 
-[Athenz](https://github.com/AthenZ/athenz) is a role-based authentication/authorization system. In Pulsar, you can use Athenz role tokens (also known as *z-tokens*) to establish the identify of the client.
+[Athenz](https://github.com/AthenZ/athenz) is a role-based authentication/authorization system. In Pulsar, you can use Athenz role tokens (also known as *z-tokens*) to establish the identity of the client.
 
-## Athenz authentication settings
+## Enable Athenz authentication
 
-A [decentralized Athenz system](https://github.com/AthenZ/athenz/blob/master/docs/decent_authz_flow.md) contains an [authori**Z**ation **M**anagement **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zms.md) (ZMS) server and an [authori**Z**ation **T**oken **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zts.md) (ZTS) server.
+A [decentralized Athenz system](https://github.com/AthenZ/athenz/blob/master/docs/decent_authz_flow.md) contains an [authori**Z**ation **M**anagement **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zms.md) (ZMS) server and an [authori**Z**ation **T**oken **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zts) (ZTS) server.
 
 To begin, you need to set up Athenz service access control. You need to create domains for the *provider* (which provides some resources to other services with some authentication/authorization policies) and the *tenant* (which is provisioned to access some resources in a provider). In this case, the provider corresponds to the Pulsar service itself and the tenant corresponds to each application using Pulsar (typically, a [tenant](reference-terminology.md#tenant) in Pulsar).
 
@@ -36,12 +36,12 @@ Note that you can specify any action and resource in step 2 since they are not u
 
 For more specific steps involving UI, refer to [Example Service Access Control Setup](https://github.com/AthenZ/athenz/blob/master/docs/example_service_athenz_setup.md#server-provider-domain).
 
-## Configure the broker for Athenz
+## Enable Athenz authentication on brokers
 
 > ### TLS encryption 
 >
 > Note that when you are using Athenz as an authentication provider, you had better use TLS encryption 
-> as it can protect role tokens from being intercepted and reused. (for more details involving TLS encryption see [Architecture - Data Model](https://github.com/AthenZ/athenz/blob/master/docs/data_model.md)).
+> as it can protect role tokens from being intercepted and reused. (for more details involving TLS encryption see [Architecture - Data Model](https://github.com/AthenZ/athenz/blob/master/docs/data_model)).
 
 In the `conf/broker.conf` configuration file in your Pulsar installation, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names.
 
@@ -65,15 +65,43 @@ brokerClientAuthenticationParameters={"tenantDomain":"shopping","tenantService":
 > A full listing of parameters is available in the `conf/broker.conf` file, you can also find the default
 > values for those parameters in [Broker Configuration](reference-configuration.md#broker).
 
-## Configure clients for Athenz
+## Configure Athenz authentication in Pulsar clients
 
-For more information on Pulsar client authentication using Athenz, see the following language-specific docs:
+To use Athenz as an authentication provider, you need to [use TLS](#tls-authentication.md) and provide values for four parameters in a hash:
+* `tenantDomain`
+* `tenantService`
+* `providerDomain`
+* `privateKey`
 
-* [Java client](client-libraries-java.md#athenz)
+You can also set an optional `keyId`. The following is an example.
 
-## Configure CLI tools for Athenz
+```java
+Map<String, String> authParams = new HashMap();
+authParams.put("tenantDomain", "shopping"); // Tenant domain name
+authParams.put("tenantService", "some_app"); // Tenant service name
+authParams.put("providerDomain", "pulsar"); // Provider domain name
+authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
+authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+Authentication athenzAuth = AuthenticationFactory
+        .create(AuthenticationAthenz.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar+ssl://my-broker.com:6651")
+        .tlsTrustCertsFilePath("/path/to/cacert.pem")
+        .authentication(athenzAuth)
+        .build();
+```
+
+#### Supported pattern formats
+The `privateKey` parameter supports the following three pattern formats:
+* `file:///path/to/file`
+* `file:/path/to/file`
+* `data:application/x-pem-file;base64,<base64-encoded value>`
+
+## Configure Athenz authentication in CLI tools
+
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following authentication parameters to the `conf/client.conf` config file to use Athenz with CLI tools of Pulsar:
 
@@ -90,3 +118,4 @@ useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/cacert.pem
 ```
+

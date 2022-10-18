@@ -320,14 +320,14 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         int numberOfMessages = 100;
         String message = "my-message";
-        Set<String> messages = new HashSet(); // Since messages are in random order
+        Set<String> messages = new HashSet<>(); // Since messages are in random order
         for (int i = 0; i < numberOfMessages; i++) {
             producer.send((message + i).getBytes());
         }
 
         // Consuming from consumer 2 and 3
         // no message should be returned since they can't decrypt the message
-        Message m = consumer2.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> m = consumer2.receive(3, TimeUnit.SECONDS);
         assertNull(m);
         m = consumer3.receive(3, TimeUnit.SECONDS);
         assertNull(m);
@@ -567,7 +567,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
-        MessageCrypto crypto = new MessageCryptoBc("test", false);
+        MessageCryptoBc crypto = new MessageCryptoBc("test", false);
         MessageMetadata msgMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
                 .setProducerName("test")

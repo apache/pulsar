@@ -33,6 +33,41 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
  */
 public interface Brokers {
     /**
+     * Get the list of active brokers in the local cluster.
+     * <p/>
+     * Get the list of active brokers (web service addresses) in the local cluster.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["prod1-broker1.messaging.use.example.com:8080", "prod1-broker2.messaging.use.example.com:8080"
+     * * * "prod1-broker3.messaging.use.example.com:8080"]</code>
+     * </pre>
+     *
+     * @return a list of (host:port)
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to get the list of active brokers in the cluster
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getActiveBrokers() throws PulsarAdminException;
+
+    /**
+     * Get the list of active brokers in the local cluster asynchronously.
+     * <p/>
+     * Get the list of active brokers (web service addresses) in the local cluster.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["prod1-broker1.messaging.use.example.com:8080", "prod1-broker2.messaging.use.example.com:8080",
+     * "prod1-broker3.messaging.use.example.com:8080"]</code>
+     * </pre>
+     *
+     * @return a list of (host:port)
+     */
+    CompletableFuture<List<String>> getActiveBrokersAsync();
+    /**
      * Get the list of active brokers in the cluster.
      * <p/>
      * Get the list of active brokers (web service addresses) in the cluster.

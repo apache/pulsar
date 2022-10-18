@@ -199,6 +199,13 @@ public class MessageDuplicationTest {
         messageDeduplication.purgeInactiveProducers();
         assertEquals(inactiveProducers.size(), 3);
 
+        doReturn(false).when(messageDeduplication).isEnabled();
+        inactiveProducers.put(producerName2, System.currentTimeMillis() - 80000);
+        inactiveProducers.put(producerName3, System.currentTimeMillis() - 80000);
+        messageDeduplication.purgeInactiveProducers();
+        assertFalse(inactiveProducers.containsKey(producerName2));
+        assertFalse(inactiveProducers.containsKey(producerName3));
+        doReturn(true).when(messageDeduplication).isEnabled();
         // Modify the inactive time of produce2 and produce3
         // messageDeduplication.purgeInactiveProducers() will remove producer2 and producer3
         inactiveProducers.put(producerName2, System.currentTimeMillis() - 70000);

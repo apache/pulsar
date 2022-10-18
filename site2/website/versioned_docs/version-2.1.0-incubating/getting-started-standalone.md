@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-getting-started-standalone
+id: getting-started-standalone
 title: Setting up a local standalone cluster
-sidebar_label: Run Pulsar locally
+sidebar_label: "Run Pulsar locally"
 original_id: getting-started-standalone
 ---
 
@@ -24,21 +24,25 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar @pulsar:version@ binary release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
+  
   $ wget pulsar:binary_release_url
+  
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
-$ cd apache-pulsar-{{pulsar:version}}
+
+$ tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
+$ cd apache-pulsar-@pulsar:version@
+
 ```
 
 ### What your package contains
@@ -69,35 +73,39 @@ If you would like to enable those `builtin` connectors, you can download the con
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
+  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors @pulsar:version@ release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
+  
   $ wget pulsar:connector_release_url
+  
   ```
 
 Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
 in the pulsar directory:
 
 ```bash
-$ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
+$ tar xvfz /path/to/apache-pulsar-io-connectors-@pulsar:version@-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-io-connectors-@pulsar:version@` in the pulsar directory
 // then copy the connectors
 
-$ cd apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+$ cd apache-pulsar-io-connectors-@pulsar:version@/connectors connectors
 
 $ ls connectors
-pulsar-io-aerospike-{{pulsar:version}}.nar
-pulsar-io-cassandra-{{pulsar:version}}.nar
-pulsar-io-kafka-{{pulsar:version}}.nar
-pulsar-io-kinesis-{{pulsar:version}}.nar
-pulsar-io-rabbitmq-{{pulsar:version}}.nar
-pulsar-io-twitter-{{pulsar:version}}.nar
+pulsar-io-aerospike-@pulsar:version@.nar
+pulsar-io-cassandra-@pulsar:version@.nar
+pulsar-io-kafka-@pulsar:version@.nar
+pulsar-io-kinesis-@pulsar:version@.nar
+pulsar-io-rabbitmq-@pulsar:version@.nar
+pulsar-io-twitter-@pulsar:version@.nar
 ...
+
 ```
 
 > #### NOTES
@@ -113,15 +121,19 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 Once you have an up-to-date local copy of the release, you can start up a local cluster using the [`pulsar`](reference-cli-tools.md#pulsar) command, which is stored in the `bin` directory, and specifying that you want to start up Pulsar in standalone mode:
 
 ```bash
+
 $ bin/pulsar standalone
+
 ```
 
 If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
 
 ```bash
+
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
+
 ```
 
 > #### Automatically created namespace
@@ -132,15 +144,18 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client) that enables you to do things like send messages to a Pulsar topic in a running cluster. This command will send a simple message saying `hello-pulsar` to the `my-topic` topic:
 
 ```bash
+
 $ bin/pulsar-client produce my-topic --messages "hello-pulsar"
+
 ```
 
 If the message has been successfully published to the topic, you should see a confirmation like this in the `pulsar-client` logs:
 
 ```
-13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
-```
 
+13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
+
+```
 
 > #### No need to explicitly create new topics
 > You may have noticed that we did not explicitly create the `my-topic` topic to which we sent the `hello-pulsar` message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you.
@@ -155,24 +170,29 @@ Pulsar currently offers client libraries for [Java](client-libraries-java.md), [
 Here's an example producer for a Pulsar topic using the [Java](client-libraries-java.md) client:
 
 ```java
+
 String localClusterUrl = "pulsar://localhost:6650";
 
 PulsarClient client = PulsarClient.builder().serviceUrl(localClusterUrl).build();
 Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
+
 ```
 
 Here's an example [Python](client-libraries-python.md) producer:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
 producer = client.create_producer('my-topic')
+
 ```
 
 Finally, here's an example [C++](client-libraries-cpp.md) producer:
 
 ```cpp
+
 Client client("pulsar://localhost:6650");
 Producer producer;
 Result result = client.createProducer("my-topic", producer);
@@ -180,4 +200,6 @@ if (result != ResultOk) {
     LOG_ERROR("Error creating producer: " << result);
     return -1;
 }
+
 ```
+

@@ -19,9 +19,9 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import com.google.common.collect.Lists;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -48,11 +48,11 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
-        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
+        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
-        op.entries = Lists.newArrayList();
+        op.entries = new ArrayList<>();
         if (maxPosition == null) {
             maxPosition = PositionImpl.LATEST;
         }
@@ -100,8 +100,15 @@ class OpReadEntry implements ReadEntriesCallback {
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
-            // try to find and move to next valid ledger
-            final Position nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+            final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+            Position nexReadPosition;
+            if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                // try to find and move to next valid ledger
+                nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+            } else {
+                // Skip this read operation
+                nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+            }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
@@ -140,7 +147,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
             // We still have more entries to read from the next ledger, schedule a new async operation
             cursor.ledger.getExecutor().execute(safeRun(() -> {
-                readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
+                readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
             }));
         } else {

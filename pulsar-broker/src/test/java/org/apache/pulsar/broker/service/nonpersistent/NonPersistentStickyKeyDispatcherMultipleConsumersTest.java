@@ -23,12 +23,10 @@ import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPay
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,7 +37,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -50,11 +47,9 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
-import org.mockito.MockedStatic;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -94,17 +89,9 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
 
         subscriptionMock = mock(NonPersistentSubscription.class);
 
-        try (MockedStatic<DispatchRateLimiter> rateLimiterMockedStatic = mockStatic(DispatchRateLimiter.class);) {
-            rateLimiterMockedStatic.when(() -> DispatchRateLimiter.isDispatchRateNeeded(
-                            any(BrokerService.class),
-                            any(Optional.class),
-                            anyString(),
-                            any(DispatchRateLimiter.Type.class)))
-                    .thenReturn(false);
-            nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
-                    topicMock, subscriptionMock,
-                    new HashRangeAutoSplitStickyKeyConsumerSelector());
-        }
+        nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
+            topicMock, subscriptionMock,
+            new HashRangeAutoSplitStickyKeyConsumerSelector());
     }
 
     @Test(timeOut = 10000)

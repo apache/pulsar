@@ -33,7 +33,6 @@
     <name>Pulsar IO :: Canal</name>
 
     <properties>
-        <spring.version>5.3.19</spring.version>
         <canal.version>1.1.5</canal.version>
     </properties>
 
@@ -55,7 +54,7 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
-            <version>1.2.73</version>
+            <version>1.2.83</version>
         </dependency>
 
         <dependency>

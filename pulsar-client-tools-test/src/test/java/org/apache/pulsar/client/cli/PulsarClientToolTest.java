@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.beust.jcommander.JCommander;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -243,16 +244,19 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("disable-batching");
-        final int numberOfMessages = 5;
+        // `numberOfMessages` should be an even number, because we set `batchNum` as 2, make sure batch and non batch
+        // messages in the same batch
+        final int numberOfMessages = 6;
+        final int batchNum = 2;
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
 
-        PulsarClientTool pulsarClientTool1 = new PulsarClientTool(properties);
+        PulsarClientTool pulsarClientTool1 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
         String[] args1 = {"produce", "-m", "batched", "-n", Integer.toString(numberOfMessages), topicName};
         Assert.assertEquals(pulsarClientTool1.run(args1), 0);
 
-        PulsarClientTool pulsarClientTool2 = new PulsarClientTool(properties);
+        PulsarClientTool pulsarClientTool2 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
         String[] args2 = {"produce", "-m", "non-batched", "-n", Integer.toString(numberOfMessages), "-db", topicName};
         Assert.assertEquals(pulsarClientTool2.run(args2), 0);
 
@@ -269,6 +273,31 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
+    @Test(timeOut = 20000)
+    public void testArgs() throws Exception {
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
+        final String url = "pulsar+ssl://localhost:6651";
+        final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        final String authParams = "tlsCertFile:pulsar-broker/src/test/resources/authentication/tls/client-cert.pem," +
+                "tlsKeyFile:pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
+        final String tlsTrustCertsFilePath = "pulsar/pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
+        final String message = "test msg";
+        final int numberOfMessages = 1;
+        final String topicName = getTopicWithRandomSuffix("test-topic");
+        
+        String[] args = {"--url", url, 
+                "--auth-plugin", authPlugin,
+                "--auth-params", authParams,
+                "--tlsTrustCertsFilePath", tlsTrustCertsFilePath,
+                "produce", "-m", message,
+                "-n", Integer.toString(numberOfMessages), topicName};
+        pulsarClientTool.jcommander.parse(args);
+        assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), tlsTrustCertsFilePath);
+        assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
+        assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
+        assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+    }
+    
     private static String getTopicWithRandomSuffix(String localNameBase) {
         return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }

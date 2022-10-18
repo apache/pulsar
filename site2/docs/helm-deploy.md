@@ -1,7 +1,7 @@
 ---
 id: helm-deploy
 title: Deploy Pulsar cluster using Helm
-sidebar_label: Deployment
+sidebar_label: "Deployment"
 ---
 
 Before running `helm install`, you need to decide how to run Pulsar.
@@ -13,7 +13,7 @@ In each section, collect the options that are combined to use with the `helm ins
 
 ### Kubernetes namespace
 
-By default, the Pulsar Helm chart is installed to a namespace called `pulsar`.
+By default, the Pulsar Helm chart is installed in a namespace called `pulsar`.
 
 ```yaml
 namespace: pulsar
@@ -55,9 +55,11 @@ To use local persistent volumes as the persistent storage for Helm release, you 
 --set volumes.local_storage=true
 ```
 
-> #### Note
-> 
-> Before installing the production instance of Pulsar, ensure to plan the storage settings to avoid extra storage migration work. Because after initial installation, you must edit Kubernetes objects manually if you want to change storage settings.
+:::note
+
+Before installing the production instance of Pulsar, ensure to plan the storage settings to avoid extra storage migration work. Because after initial installation, you must edit Kubernetes objects manually if you want to change storage settings.
+
+:::
 
 The Pulsar Helm chart is designed for production use. To use the Pulsar Helm chart in a development environment (such as Minikube), you can disable persistence by including this option in your `helm install` command.
 
@@ -74,7 +76,7 @@ affinity:
   anti_affinity: true
 ```
 
-To use the Pulsar Helm chart in a development environment (such as Minikue), you can disable `anti-affinity` by including this option in your `helm install` command.
+To use the Pulsar Helm chart in a development environment (such as Minikube), you can disable `anti-affinity` by including this option in your `helm install` command.
 
 ```bash
 --set affinity.anti_affinity=false
@@ -120,7 +122,7 @@ monitoring:
 
 ### Docker images
 
-The Pulsar Helm chart is designed to enable controlled upgrades. So it can configure independent image versions for components. You can customize the images by setting individual component.
+The Pulsar Helm chart is designed to enable controlled upgrades. So it can configure independent image versions for components. You can customize the images by setting individual components.
 
 ```yaml
 ## Images
@@ -180,6 +182,7 @@ certs:
     component: internal-cert-issuer
     type: selfsigning
 ```
+
 You can also customize the generated TLS certificates by configuring the fields as the following.
 
 ```yaml
@@ -206,7 +209,7 @@ tls:
   enabled: false
 ```
 
-You can also configure whether to enable TLS encryption for individual component.
+You can also configure whether to enable TLS encryption for individual components.
 
 ```yaml
 tls:
@@ -237,7 +240,7 @@ tls:
 ### Authentication
 
 By default, authentication is disabled. You can set `auth.authentication.enabled` to `true` to enable authentication.
-Currently, the Pulsar Helm chart only supports JWT authentication provider. You can set `auth.authentication.provider` to `jwt` to use the JWT authentication provider.
+Currently, the Pulsar Helm chart only supports the JWT authentication provider. You can set `auth.authentication.provider` to `jwt` to use the JWT authentication provider.
 
 ```yaml
 # Enable or disable broker authentication and authorization.
@@ -283,7 +286,7 @@ To enable authorization, you can include this option in the `helm install` comma
 
 ### CPU and RAM resource requirements
 
-By default, the resource requests and the number of replicas for the Pulsar components in the Pulsar Helm chart are adequate for a small production deployment. If you deploy a non-production instance, you can reduce the defaults to fit into a smaller cluster.
+By default, the resource requests and the number of replicas for the Pulsar components in the Pulsar Helm chart are adequate for small production deployment. If you deploy a non-production instance, you can reduce the defaults to fit into a smaller cluster.
 
 Once you have all of your configuration options collected, you can install dependent charts before installing the Pulsar Helm chart.
 
@@ -293,7 +296,7 @@ Once you have all of your configuration options collected, you can install depen
 
 To use local persistent volumes as the persistent storage, you need to install a storage provisioner for [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/).
 
-One of the easiest way to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
+One of the easiest ways to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
 
 ```
 helm repo add streamnative https://charts.streamnative.io
@@ -317,7 +320,7 @@ cd pulsar-helm-chart
 
 ## Prepare Helm release
 
-Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh) to prepare the Helm release.
+Once you have installed all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh) to prepare the Helm release.
 
 ```bash
 git clone https://github.com/apache/pulsar-helm-chart
@@ -328,10 +331,10 @@ cd pulsar-helm-chart
 The `prepare_helm_release` creates the following resources:
 
 - A Kubernetes namespace for installing the Pulsar release
-- JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
-    - `proxy-admin` role is used for proxies to communicate to brokers.
-    - `broker-admin` role is used for inter-broker communications.
-    - `admin` role is used by the admin tools.
+- JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric public/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
+  - `proxy-admin` role is used for proxies to communicate to brokers.
+  - `broker-admin` role is used for inter-broker communications.
+  - `admin` role is used by the admin tools.
 
 ## Deploy Pulsar cluster using Helm
 
@@ -348,18 +351,14 @@ helm repo add apache https://pulsar.apache.org/charts
 helm repo update
 helm install pulsar apache/pulsar \
     --timeout 10m \
-    --set initialize=true \
     --set [your configuration options]
 ```
-> **Note**
-> 
-> For the first deployment, add `--set initialize=true` option to initialize bookie and Pulsar cluster metadata.
 
 You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm chart.
 
 ## Monitor deployment
 
-A list of installed resources are output once the Pulsar cluster is deployed. This may take 5-10 minutes.
+A list of installed resources is output once the Pulsar cluster is deployed. This may take 5-10 minutes.
 
 The status of the deployment can be checked by running the `helm status pulsar` command, which can also be done while the deployment is taking place if you run the command in another terminal.
 
@@ -376,3 +375,4 @@ To find the IP addresses of those components, run the following command:
 ```bash
 kubectl get service -n <k8s-namespace>
 ```
+

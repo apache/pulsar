@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-io-cassandra
+id: io-cassandra
 title: Cassandra Sink Connector
-sidebar_label: Cassandra Sink Connector
+sidebar_label: "Cassandra Sink Connector"
 original_id: io-cassandra
 ---
 

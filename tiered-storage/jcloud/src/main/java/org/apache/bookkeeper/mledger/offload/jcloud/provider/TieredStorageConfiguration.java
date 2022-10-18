@@ -329,6 +329,19 @@ public class TieredStorageConfiguration {
             overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
         }
 
+        // load more jclouds properties into the overrides
+        System.getProperties().entrySet().stream()
+            .filter(p -> p.getKey().toString().startsWith("jclouds"))
+            .forEach(jcloudsProp -> {
+                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
+            });
+
+        System.getenv().entrySet().stream()
+            .filter(p -> p.getKey().toString().startsWith("jclouds"))
+            .forEach(jcloudsProp -> {
+                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
+            });
+
         log.info("getOverrides: {}", overrides.toString());
         return overrides;
     }

@@ -33,6 +33,7 @@ import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
 import org.apache.avro.data.TimeConversions;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
@@ -85,18 +86,26 @@ public class JsonConverter {
             case ARRAY: {
                 Schema elementSchema = schema.getElementType();
                 ArrayNode arrayNode = jsonNodeFactory.arrayNode();
-                for (Object elem : (Object[]) value) {
+                Object[] iterable;
+                if (value instanceof GenericData.Array) {
+                    iterable = ((GenericData.Array) value).toArray();
+                } else {
+                    iterable = (Object[]) value;
+                }
+                for (Object elem : iterable) {
                     JsonNode fieldValue = toJson(elementSchema, elem);
                     arrayNode.add(fieldValue);
                 }
                 return arrayNode;
             }
             case MAP: {
-                Map<String, Object> map = (Map<String, Object>) value;
+                Map<Object, Object> map = (Map<Object, Object>) value;
                 ObjectNode objectNode = jsonNodeFactory.objectNode();
-                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                for (Map.Entry<Object, Object> entry : map.entrySet()) {
                     JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue());
-                    objectNode.set(entry.getKey(), jsonNode);
+                    // can be a String or org.apache.avro.util.Utf8
+                    final String entryKey = entry.getKey() == null ? null : entry.getKey().toString();
+                    objectNode.set(entryKey, jsonNode);
                 }
                 return objectNode;
             }

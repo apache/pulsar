@@ -36,14 +36,15 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.BufferedBinaryEncoder;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
@@ -64,7 +65,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.json.JSONException;
-import org.powermock.reflect.Whitebox;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -396,11 +396,8 @@ public class AvroSchemaTest {
         // Because data does not conform to schema expect a crash
         Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
 
-        // Get the buffered data using powermock
-        BinaryEncoder encoder = Whitebox.getInternalState(avroWriter, "encoder");
-
         // Assert that the buffer position is reset to zero
-        Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
+        Assert.assertEquals(avroWriter.getEncoder().bytesBuffered(), 0);
     }
 
     @Test
@@ -459,4 +456,91 @@ public class AvroSchemaTest {
         assertEquals(pojo2.value1, myBigDecimalPojo.value1);
         assertEquals(pojo2.value2, myBigDecimalPojo.value2);
     }
+
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    private static class TimestampPojo {
+        Instant value;
+    }
+
+    @Test
+    public void testTimestampWithJsr310Conversion() {
+        AvroSchema<TimestampPojo> schema = AvroSchema.of(TimestampPojo.class);
+        Assert.assertEquals(
+                schema.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMicrosConversion().getLogicalTypeName());
+
+        AvroSchema<TimestampPojo> schema2 = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withPojo(TimestampPojo.class).withJSR310ConversionEnabled(true).build());
+        Assert.assertEquals(
+                schema2.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMillisConversion().getLogicalTypeName());
+    }
+
+    @Test
+    public void testTimestampWithJsonDef(){
+        AvroSchema<TimestampPojo> schemaWithPojo = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withPojo(TimestampPojo.class)
+                .withJSR310ConversionEnabled(false).build());
+
+        TimestampPojo timestampPojo = new TimestampPojo(Instant.parse("2022-06-10T12:38:59.039084Z"));
+        byte[] encode = schemaWithPojo.encode(timestampPojo);
+        TimestampPojo decodeWithPojo = schemaWithPojo.decode(encode);
+
+        Assert.assertEquals(decodeWithPojo, timestampPojo);
+
+        String schemaDefinition = new String(schemaWithPojo.schemaInfo.getSchema());
+        AvroSchema<TimestampPojo> schemaWithJsonDef = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withClassLoader(TimestampPojo.class.getClassLoader())
+                .withJSR310ConversionEnabled(false).build());
+
+        TimestampPojo decodeWithJson = schemaWithJsonDef.decode(encode);
+
+        Assert.assertEquals(decodeWithJson, decodeWithPojo);
+        Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
+
+        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withJSR310ConversionEnabled(false).build());
+
+        TimestampPojo decodeWithJsonNoClassLoader = schemaWithJsonDefNoClassLoader.decode(encode);
+        Assert.assertNotEquals(decodeWithJsonNoClassLoader, decodeWithPojo);
+        Assert.assertNotEquals(Instant.class, decodeWithJsonNoClassLoader.getValue().getClass());
+    }
+
+    @Test
+    public void testTimestampWithJsonDefAndJSR310ConversionEnabled(){
+        AvroSchema<TimestampPojo> schemaWithPojo = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withPojo(TimestampPojo.class)
+                .withJSR310ConversionEnabled(true).build());
+
+        TimestampPojo timestampPojo = new TimestampPojo(Instant.parse("2022-06-10T12:38:59.039084Z"));
+        byte[] encode = schemaWithPojo.encode(timestampPojo);
+        TimestampPojo decodeWithPojo = schemaWithPojo.decode(encode);
+
+        Assert.assertNotEquals(decodeWithPojo, timestampPojo);
+
+        String schemaDefinition = new String(schemaWithPojo.schemaInfo.getSchema());
+        AvroSchema<TimestampPojo> schemaWithJsonDef = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withClassLoader(TimestampPojo.class.getClassLoader())
+                .withJSR310ConversionEnabled(true).build());
+
+        TimestampPojo decodeWithJson = schemaWithJsonDef.decode(encode);
+
+        Assert.assertEquals(decodeWithJson, decodeWithPojo);
+        Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
+
+        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withJSR310ConversionEnabled(true).build());
+
+        TimestampPojo decodeWithJsonNoClassLoader = schemaWithJsonDefNoClassLoader.decode(encode);
+        Assert.assertNotEquals(decodeWithJsonNoClassLoader, decodeWithPojo);
+        Assert.assertNotEquals(Instant.class, decodeWithJsonNoClassLoader.getValue().getClass());
+    }
+
 }

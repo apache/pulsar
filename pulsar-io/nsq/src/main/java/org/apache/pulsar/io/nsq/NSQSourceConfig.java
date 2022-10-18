@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 

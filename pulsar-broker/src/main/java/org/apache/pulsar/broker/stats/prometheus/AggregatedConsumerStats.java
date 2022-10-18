@@ -28,6 +28,8 @@ public class AggregatedConsumerStats {
 
     public double msgRateOut;
 
+    public double msgAckRate;
+
     public double msgThroughputOut;
 
     public long availablePermits;

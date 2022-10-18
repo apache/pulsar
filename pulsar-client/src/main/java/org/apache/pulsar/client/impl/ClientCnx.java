@@ -22,15 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.TransactionMetaStoreHandler.getExceptionByServerError;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -45,7 +44,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import javax.net.ssl.SSLSession;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -61,6 +60,7 @@ import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
@@ -87,13 +87,14 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
@@ -103,7 +104,7 @@ import org.slf4j.LoggerFactory;
 public class ClientCnx extends PulsarHandler {
 
     protected final Authentication authentication;
-    private State state;
+    protected State state;
 
     @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
@@ -114,12 +115,14 @@ public class ClientCnx extends PulsarHandler {
     // LookupRequests that waiting in client side.
     private final Queue<Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>>> waitingLookupRequests;
 
-    private final ConcurrentLongHashMap<ProducerImpl<?>> producers =
+    @VisibleForTesting
+    final ConcurrentLongHashMap<ProducerImpl<?>> producers =
             ConcurrentLongHashMap.<ProducerImpl<?>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
                     .build();
-    private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers =
+    @VisibleForTesting
+    final ConcurrentLongHashMap<ConsumerImpl<?>> consumers =
             ConcurrentLongHashMap.<ConsumerImpl<?>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
@@ -129,9 +132,18 @@ public class ClientCnx extends PulsarHandler {
                     .expectedItems(16)
                     .concurrencyLevel(1)
                     .build();
+    @Getter(AccessLevel.PACKAGE)
+    private final ConcurrentLongHashMap<TopicListWatcher> topicListWatchers =
+            ConcurrentLongHashMap.<TopicListWatcher>newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(1)
+                    .build();
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
+
+    @VisibleForTesting
+    @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
@@ -146,15 +158,12 @@ public class ClientCnx extends PulsarHandler {
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
-    private final int protocolVersion;
+    protected final int protocolVersion;
     private final long operationTimeoutMs;
 
     protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
     protected String remoteHostName = null;
-    private boolean isTlsHostnameVerificationEnable;
-
-    private static final TlsHostnameVerifier HOSTNAME_VERIFIER = new TlsHostnameVerifier();
 
     private ScheduledFuture<?> timeoutTask;
     private SocketAddress localAddress;
@@ -164,8 +173,16 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
+    private boolean supportsTopicWatchers;
 
-    enum State {
+    /** Idle stat. **/
+    @Getter
+    private final ClientCnxIdleState idleState;
+
+    @Getter
+    private long lastDisconnectedTimestamp;
+
+    protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
@@ -221,8 +238,8 @@ public class ClientCnx extends PulsarHandler {
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
-        this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
         this.protocolVersion = protocolVersion;
+        this.idleState = new ClientCnxIdleState(this);
     }
 
     @Override
@@ -270,6 +287,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {
             connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
@@ -279,19 +297,24 @@ public class ClientCnx extends PulsarHandler {
                 "Disconnected from server at " + ctx.channel().remoteAddress());
 
         // Fail out all the pending ops
-        pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingRequests.forEach((key, future) -> {
+            if (pendingRequests.remove(key, future) && !future.isDone()) {
+                future.completeExceptionally(e);
+            }
+        });
         waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
+        topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
 
-        pendingRequests.clear();
         waitingLookupRequests.clear();
 
         producers.clear();
         consumers.clear();
+        topicListWatchers.clear();
 
         timeoutTask.cancel(true);
     }
@@ -322,14 +345,6 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleConnected(CommandConnected connected) {
-
-        if (isTlsHostnameVerificationEnable && remoteHostName != null && !verifyTlsHostName(remoteHostName, ctx)) {
-            // close the connection if host-verification failed with the broker
-            log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
-            ctx.close();
-            return;
-        }
-
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
         if (connected.hasMaxMessageSize()) {
             if (log.isDebugEnabled()) {
@@ -343,6 +358,10 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }
+
+        supportsTopicWatchers =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers();
+
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
         connectionFuture.complete(null);
@@ -655,7 +674,7 @@ public class ClientCnx extends PulsarHandler {
             if (firstOneWaiting != null) {
                 maxLookupRequestSemaphore.release();
                 // schedule a new lookup in.
-                eventLoopGroup.submit(() -> {
+                eventLoopGroup.execute(() -> {
                     long newId = firstOneWaiting.getLeft();
                     TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
                     addPendingLookupRequests(newId, newFuture);
@@ -735,7 +754,7 @@ public class ClientCnx extends PulsarHandler {
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
         log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
-        ProducerImpl<?> producer = producers.get(producerId);
+        ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
             producer.connectionClosed(this);
         } else {
@@ -747,7 +766,7 @@ public class ClientCnx extends PulsarHandler {
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
         log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
         final long consumerId = closeConsumer.getConsumerId();
-        ConsumerImpl<?> consumer = consumers.get(consumerId);
+        ConsumerImpl<?> consumer = consumers.remove(consumerId);
         if (consumer != null) {
             consumer.connectionClosed(this);
         } else {
@@ -764,6 +783,11 @@ public class ClientCnx extends PulsarHandler {
         TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
+            future.whenComplete((lookupDataResult, throwable) -> {
+                if (throwable instanceof ConnectException) {
+                    pendingLookupRequestSemaphore.release();
+                }
+            });
             addPendingLookupRequests(requestId, future);
             ctx.writeAndFlush(request).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
@@ -787,7 +811,7 @@ public class ClientCnx extends PulsarHandler {
                 future.completeExceptionally(new PulsarClientException.TooManyRequestsException(String.format(
                     "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests"
                             + " pending.",
-                    pendingLookupRequestSemaphore.availablePermits(),
+                    pendingLookupRequestSemaphore.getQueueLength(),
                     waitingLookupRequests.size())));
             }
         }
@@ -891,8 +915,7 @@ public class ClientCnx extends PulsarHandler {
         if (flush) {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
-                    CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
-                    if (newFuture != null && !newFuture.isDone()) {
+                    if (pendingRequests.remove(requestId, future) && !future.isDone()) {
                         log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
                                 requestType.getDescription(), writeFuture.cause().getMessage());
                         future.completeExceptionally(writeFuture.cause());
@@ -1049,6 +1072,57 @@ public class ClientCnx extends PulsarHandler {
         return transactionBufferHandler;
     }
 
+    public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
+            BaseCommand commandWatchTopicList, long requestId) {
+        if (!supportsTopicWatchers) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.NotAllowedException(
+                            "Broker does not allow broker side pattern evaluation."));
+        }
+        return sendRequestAndHandleTimeout(Commands.serializeWithSize(commandWatchTopicList), requestId,
+                RequestType.Command, true);
+    }
+
+    public CompletableFuture<CommandSuccess> newWatchTopicListClose(
+            BaseCommand commandWatchTopicListClose, long requestId) {
+        return sendRequestAndHandleTimeout(
+                Commands.serializeWithSize(commandWatchTopicListClose), requestId, RequestType.Command, true);
+    }
+
+    protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received watchTopicListSuccess response from server: {}",
+                    ctx.channel(), commandWatchTopicListSuccess.getRequestId());
+        }
+        long requestId = commandWatchTopicListSuccess.getRequestId();
+        CompletableFuture<CommandWatchTopicListSuccess> requestFuture =
+                (CompletableFuture<CommandWatchTopicListSuccess>) pendingRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(commandWatchTopicListSuccess);
+        } else {
+            log.warn("{} Received unknown request id from server: {}",
+                    ctx.channel(), commandWatchTopicListSuccess.getRequestId());
+        }
+    }
+
+    protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received watchTopicUpdate command from server: {}",
+                    ctx.channel(), commandWatchTopicUpdate.getWatcherId());
+        }
+        long watcherId = commandWatchTopicUpdate.getWatcherId();
+        TopicListWatcher watcher = topicListWatchers.get(watcherId);
+        if (watcher != null) {
+            watcher.handleCommandWatchTopicUpdate(commandWatchTopicUpdate);
+        } else {
+            log.warn("{} Received topic list update for unknown watcher from server: {}", ctx.channel(), watcherId);
+        }
+    }
+
     /**
      * check serverError and take appropriate action.
      * <ul>
@@ -1082,39 +1156,6 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    /**
-     * verifies host name provided in x509 Certificate in tls session
-     *
-     * it matches hostname with below scenarios
-     *
-     * <pre>
-     *  1. Supports IPV4 and IPV6 host matching
-     *  2. Supports wild card matching for DNS-name
-     *  eg:
-     *     HostName                     CN           Result
-     * 1.  localhost                    localhost    PASS
-     * 2.  localhost                    local*       PASS
-     * 3.  pulsar1-broker.com           pulsar*.com  PASS
-     * </pre>
-     *
-     * @param ctx
-     * @return true if hostname is verified else return false
-     */
-    private boolean verifyTlsHostName(String hostname, ChannelHandlerContext ctx) {
-        ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
-
-        SSLSession sslSession = null;
-        if (sslHandler != null) {
-            sslSession = ((SslHandler) sslHandler).engine().getSession();
-            if (log.isDebugEnabled()) {
-                log.debug("Verifying HostName for {}, Cipher {}, Protocols {}", hostname, sslSession.getCipherSuite(),
-                        sslSession.getProtocol());
-            }
-            return HOSTNAME_VERIFIER.verify(hostname, sslSession);
-        }
-        return false;
-    }
-
     void registerConsumer(final long consumerId, final ConsumerImpl<?> consumer) {
         consumers.put(consumerId, consumer);
     }
@@ -1128,6 +1169,11 @@ public class ClientCnx extends PulsarHandler {
         transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
     }
 
+    void registerTopicListWatcher(final long watcherId, final TopicListWatcher watcher) {
+        topicListWatchers.put(watcherId, watcher);
+
+    }
+
     public void registerTransactionBufferHandler(final TransactionBufferHandler handler) {
         transactionBufferHandler = handler;
     }
@@ -1138,6 +1184,10 @@ public class ClientCnx extends PulsarHandler {
 
     void removeConsumer(final long consumerId) {
         consumers.remove(consumerId);
+    }
+
+    void removeTopicListWatcher(final long watcherId) {
+        topicListWatchers.remove(watcherId);
     }
 
     void setTargetBroker(InetSocketAddress targetBrokerAddress) {
@@ -1205,6 +1255,13 @@ public class ClientCnx extends PulsarHandler {
        }
     }
 
+    protected void closeWithException(Throwable e) {
+       if (ctx != null) {
+           connectionFuture.completeExceptionally(e);
+           ctx.close();
+       }
+    }
+
     private void checkRequestTimeout() {
         while (!requestTimeoutQueue.isEmpty()) {
             RequestTime request = requestTimeoutQueue.peek();
@@ -1234,4 +1291,27 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
+
+    /**
+     * Check client connection is now free. This method will not change the state to idle.
+     * @return true if the connection is eligible.
+     */
+    public boolean idleCheck() {
+        if (pendingRequests != null && !pendingRequests.isEmpty()) {
+            return false;
+        }
+        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()) {
+            return false;
+        }
+        if (!consumers.isEmpty()) {
+            return false;
+        }
+        if (!producers.isEmpty()) {
+            return false;
+        }
+        if (!transactionMetaStoreHandlers.isEmpty()) {
+            return false;
+        }
+        return true;
+    }
 }

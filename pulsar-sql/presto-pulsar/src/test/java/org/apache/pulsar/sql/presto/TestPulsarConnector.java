@@ -18,14 +18,40 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.connector.ConnectorContext;
-import io.prestosql.spi.predicate.TupleDomain;
-import io.prestosql.testing.TestingConnectorContext;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.testing.TestingConnectorContext;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -62,40 +88,15 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.core.Response;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotNull;
-
 public abstract class TestPulsarConnector {
 
-    protected static final long currentTimeMs = 1534806330000L;
+    protected static final long currentTimeMicros = 1534806330000000L;
 
     protected PulsarConnectorConfig pulsarConnectorConfig;
 
     protected PulsarMetadata pulsarMetadata;
+
+    protected PulsarAuth pulsarAuth;
 
     protected PulsarAdmin pulsarAdmin;
 
@@ -367,7 +368,9 @@ public abstract class TestPulsarConnector {
         pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
         PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory =
                 new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
-        PulsarMetadata pulsarMetadata = new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        PulsarAuth pulsarAuth = new PulsarAuth(pulsarConnectorConfig);
+        PulsarMetadata pulsarMetadata =
+                new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory, pulsarAuth);
         return pulsarMetadata;
     }
 
@@ -401,7 +404,7 @@ public abstract class TestPulsarConnector {
 
             MessageMetadata messageMetadata = new MessageMetadata()
                     .setProducerName("test-producer").setSequenceId(i)
-                    .setPublishTime(currentTimeMs + i);
+                    .setPublishTime(currentTimeMicros / 1000 + i);
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -539,7 +542,11 @@ public abstract class TestPulsarConnector {
         doReturn(schemas).when(pulsarAdmin).schemas();
         doReturn(pulsarAdmin).when(this.pulsarConnectorConfig).getPulsarAdmin();
 
-        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        this.pulsarAuth = mock(PulsarAuth.class);
+
+        this.pulsarMetadata =
+                new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory,
+                        this.pulsarAuth);
         this.pulsarSplitManager = Mockito.spy(new PulsarSplitManager(pulsarConnectorId, this.pulsarConnectorConfig));
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
@@ -656,8 +663,8 @@ public abstract class TestPulsarConnector {
                     @Override
                     public Position answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
-                        com.google.common.base.Predicate<Entry> predicate
-                                = (com.google.common.base.Predicate<Entry>) args[1];
+                        Predicate<Entry> predicate
+                                = (Predicate<Entry>) args[1];
 
                         String schemaName = TopicName.get(
                                 TopicName.get(
@@ -668,7 +675,7 @@ public abstract class TestPulsarConnector {
                         Integer target = null;
                         for (int i=entries.size() - 1; i >= 0; i--) {
                             Entry entry = entries.get(i);
-                            if (predicate.apply(entry)) {
+                            if (predicate.test(entry)) {
                                 target = i;
                                 break;
                             }
@@ -699,10 +706,10 @@ public abstract class TestPulsarConnector {
         when(PulsarConnectorCache.instance.getManagedLedgerFactory()).thenReturn(managedLedgerFactory);
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
+            PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
                     topicsToColumnHandles.get(split.getKey()), split.getValue(),
                     pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
-                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory));
+                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory);
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }

@@ -123,6 +123,17 @@ public class ProducerBuilderImplTest {
         assertNotNull(producer);
     }
 
+    @Test(expectedExceptions = PulsarClientException.class,
+        expectedExceptionsMessageRegExp =
+            ".*When 'messageRoutingMode' is CustomPartition, 'messageRouter' should be set")
+    public void testProducerBuilderImplWhenMessageRoutingIsCustomPartitionAndMessageRouterNotSet()
+        throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+            .messageRoutingMode(MessageRoutingMode.CustomPartition)
+            .create();
+    }
+
     @Test(expectedExceptions = PulsarClientException.class)
     public void testProducerBuilderImplWhenMessageRoutingModeIsSinglePartitionAndMessageRouterIsSet()
             throws PulsarClientException {

@@ -387,8 +387,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new MessagePayloadFactoryImpl();
     }
 
-    public SchemaInfo newSchemaInfoImpl(
-            String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue) {
-        return new SchemaInfoImpl(name, schema, type, propertiesValue);
+    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                        Map<String, String> propertiesValue) {
+        return new SchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
     }
 }

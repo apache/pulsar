@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import static org.mockito.Mockito.mock;
 import com.google.common.collect.Sets;
+import java.util.HashSet;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -90,6 +94,16 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     }
 
     @Test
+    public void testSystemTopicSchemaCompatibility() throws Exception {
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+        String topicName = systemTopicClientForNamespace1.getTopicName().toString();
+        SystemTopic topic = new SystemTopic(topicName, mock(ManagedLedger.class), pulsar.getBrokerService());
+
+        Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
+    }
+
+    @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
@@ -151,7 +165,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("system-topic",
-            new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+            new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

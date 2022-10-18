@@ -89,4 +89,9 @@ public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
             return values;
         }
     }
+
+    @Override
+    public void close() throws Exception {
+
+    }
 }

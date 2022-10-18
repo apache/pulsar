@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin.impl;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +33,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -55,6 +55,7 @@ import org.apache.pulsar.common.policies.data.TransactionLogStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -90,7 +91,7 @@ public abstract class TransactionsBase extends AdminResource {
                     return;
                 }
                 List<CompletableFuture<TransactionCoordinatorStats>> transactionMetadataStoreInfoFutures =
-                        Lists.newArrayList();
+                        new ArrayList<>();
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                     try {
                         transactionMetadataStoreInfoFutures
@@ -139,15 +140,16 @@ public abstract class TransactionsBase extends AdminResource {
                 .thenApply(topic -> topic.getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)));
     }
 
-    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative) {
+    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative,
+                                                                                          boolean lowWaterMarks) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionBufferStats());
+                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks));
     }
 
     protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
-            boolean authoritative, String subName) {
+            boolean authoritative, String subName, boolean lowWaterMarks) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionPendingAckStats(subName));
+                .thenApply(topic -> topic.getTransactionPendingAckStats(subName, lowWaterMarks));
     }
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
@@ -306,7 +308,7 @@ public abstract class TransactionsBase extends AdminResource {
                         return;
                     }
                     List<CompletableFuture<Map<String, TransactionMetadata>>> completableFutures =
-                            Lists.newArrayList();
+                            new ArrayList<>();
                     for (int i = 0; i < partitionMetadata.partitions; i++) {
                         try {
                             completableFutures
@@ -445,5 +447,20 @@ public abstract class TransactionsBase extends AdminResource {
                             }
                             return new PartitionedTopicMetadata(replicas);
                         }));
+    }
+
+    protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
+            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
+        CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
+        getExistingPersistentTopicAsync(authoritative)
+                .thenAccept(topic -> {
+                    PositionInPendingAckStats result = topic.getSubscription(subName)
+                    .checkPositionInPendingAckState(position, batchIndex);
+                    completableFuture.complete(result);
+                }).exceptionally(ex -> {
+                    completableFuture.completeExceptionally(ex);
+                    return null;
+        });
+        return completableFuture;
     }
 }

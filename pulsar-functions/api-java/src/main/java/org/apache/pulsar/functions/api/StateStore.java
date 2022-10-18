@@ -56,7 +56,7 @@ public interface StateStore extends AutoCloseable {
     /**
      * Initialize the state store.
      *
-     * @param ctx
+     * @param ctx the state store context
      */
     void init(StateStoreContext ctx);
 

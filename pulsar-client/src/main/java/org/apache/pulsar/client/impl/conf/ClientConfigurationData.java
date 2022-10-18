@@ -32,7 +32,6 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -51,6 +50,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "serviceUrl",
+            required = true,
             value = "Pulsar cluster HTTP URL to connect to a broker."
     )
     private String serviceUrl;
@@ -59,7 +59,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The implementation class of ServiceUrlProvider used to generate ServiceUrl."
     )
     @JsonIgnore
-    @Getter(onMethod_ = @JsonIgnore)
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @ApiModelProperty(
@@ -127,6 +126,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int connectionsPerBroker = 1;
 
     @ApiModelProperty(
+            name = "connectionMaxIdleSeconds",
+            value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
+                    + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
+    )
+    private int connectionMaxIdleSeconds = 180;
+
+    @ApiModelProperty(
             name = "useTcpNoDelay",
             value = "Whether to use TCP NoDelay option."
     )
@@ -139,10 +145,22 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean useTls = false;
 
     @ApiModelProperty(
+            name = "tlsKeyFilePath",
+            value = "Path to the TLS key file."
+    )
+    private String tlsKeyFilePath = null;
+
+    @ApiModelProperty(
+            name = "tlsCertificateFilePath",
+            value = "Path to the TLS certificate file."
+    )
+    private String tlsCertificateFilePath = null;
+
+    @ApiModelProperty(
             name = "tlsTrustCertsFilePath",
             value = "Path to the trusted TLS certificate file."
     )
-    private String tlsTrustCertsFilePath = "";
+    private String tlsTrustCertsFilePath = null;
 
     @ApiModelProperty(
             name = "tlsAllowInsecureConnection",
@@ -177,7 +195,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxNumberOfRejectedRequestPerConnection",
-            value = "Maximum number of rejected requests of a broker in a certain time frame (30 seconds) "
+            value = "Maximum number of rejected requests of a broker in a certain time frame (60 seconds) "
                     + "after the current connection is closed and the client "
                     + "creating a new connection to connect to a different broker."
     )
@@ -239,6 +257,25 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String sslProvider = null;
 
     @ApiModelProperty(
+            name = "tlsKeyStoreType",
+            value = "TLS KeyStore type configuration."
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePath",
+            value = "Path of TLS KeyStore."
+    )
+    private String tlsKeyStorePath = null;
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePassword",
+            value = "Password of TLS KeyStore."
+    )
+    @Secret
+    private String tlsKeyStorePassword = null;
+
+    @ApiModelProperty(
             name = "tlsTrustStoreType",
             value = "TLS TrustStore type configuration. You need to set this configuration when client authentication"
                     + " is required."
@@ -256,8 +293,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Password of TLS TrustStore."
     )
     @Secret
-    @JsonIgnore
-    @Getter(onMethod_ = @JsonIgnore)
     private String tlsTrustStorePassword = null;
 
     @ApiModelProperty(
@@ -330,10 +365,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Password of SOCKS5 proxy."
     )
     @Secret
-    @JsonIgnore
     private String socks5ProxyPassword;
 
-    @JsonIgnore
     public Authentication getAuthentication() {
         if (authentication == null) {
             this.authentication = AuthenticationDisabled.INSTANCE;
@@ -391,7 +424,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         return Objects.nonNull(socks5ProxyUsername) ? socks5ProxyUsername : System.getProperty("socks5Proxy.username");
     }
 
-    @JsonIgnore
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
     }

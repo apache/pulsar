@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-client-libraries-go
+id: client-libraries-go
 title: The Pulsar Go client
-sidebar_label: Go
+sidebar_label: "Go"
 original_id: client-libraries-go
 ---
 
@@ -29,19 +29,25 @@ You can install the `pulsar` library locally using `go get`:
 > from latest master. You need to make sure you have installed the right pulsar cpp client library.
 
 ```bash
+
 $ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
+
 ```
 
 Or you can use [dep](https://github.com/golang/dep) for managing the dependencies.
 
 ```bash
-$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar:version}}
+
+$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v@pulsar:version@
+
 ```
 
 Once installed locally, you can import it into your project:
 
 ```go
+
 import "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+
 ```
 
 ## Connection URLs
@@ -51,27 +57,33 @@ To connect to Pulsar using client libraries, you need to specify a [Pulsar proto
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here's an example for `localhost`:
 
 ```http
+
 pulsar://localhost:6650
+
 ```
 
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
+
 pulsar://pulsar.us-west.example.com:6650
+
 ```
 
 If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
+
 pulsar+ssl://pulsar.us-west.example.com:6651
+
 ```
 
 ## Creating a client
 
 In order to interact with Pulsar, you'll first need a `Client` object. You can create a client object using the `NewClient` function, passing in a `ClientOptions` object (more on configuration [below](#client-configuration)). Here's an example:
 
-
 ```go
+
 import (
     "log"
     "runtime"
@@ -90,6 +102,7 @@ func main() {
         log.Fatalf("Could not instantiate Pulsar client: %v", err)
     }
 }
+
 ```
 
 The following configurable parameters are available for Pulsar clients:
@@ -112,6 +125,7 @@ Parameter | Description | Default
 Pulsar producers publish messages to Pulsar topics. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
 
 ```go
+
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
     Topic: "my-topic",
 })
@@ -129,6 +143,7 @@ msg := pulsar.ProducerMessage{
 if err := producer.Send(msg); err != nil {
     log.Fatalf("Producer could not send message: %v", err)
 }
+
 ```
 
 > **Blocking operation**  
@@ -150,6 +165,7 @@ Method | Description | Return type
 Here's a more involved example usage of a producer:
 
 ```go
+
 import (
     "context"
     "fmt"
@@ -200,6 +216,7 @@ func main() {
         })
     }
 }
+
 ```
 
 ### Producer configuration
@@ -222,6 +239,7 @@ Parameter | Description | Default
 Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Go consumers using a `ConsumerOptions` object. Here's a basic example that uses channels:
 
 ```go
+
 msgChannel := make(chan pulsar.ConsumerMessage)
 
 consumerOpts := pulsar.ConsumerOptions{
@@ -247,6 +265,7 @@ for cm := range channel {
 
     consumer.Ack(msg)
 }
+
 ```
 
 > **Blocking operation**  
@@ -274,6 +293,7 @@ Method | Description | Return type
 Here's an example usage of a Go consumer that uses the `Receive()` method to process incoming messages:
 
 ```go
+
 import (
     "context"
     "log"
@@ -312,6 +332,7 @@ func main() {
         consumer.Ack(msg)
     }
 }
+
 ```
 
 ### Consumer configuration
@@ -332,10 +353,12 @@ Parameter | Description | Default
 Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Go readers using a `ReaderOptions` object. Here's an example:
 
 ```go
+
 reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic: "my-golang-topic",
     StartMessageId: pulsar.LatestMessage,
 })
+
 ```
 
 > **Blocking operation**  
@@ -357,6 +380,7 @@ Method | Description | Return type
 Here's an example usage of a Go reader that uses the `Next()` method to process incoming messages:
 
 ```go
+
 import (
     "context"
     "log"
@@ -392,17 +416,20 @@ func main() {
         // Process the message
     }
 }
+
 ```
 
 In the example above, the reader begins reading from the earliest available message (specified by `pulsar.EarliestMessage`). The reader can also begin reading from the latest message (`pulsar.LatestMessage`) or some other message ID specified by bytes using the `DeserializeMessageID` function, which takes a byte array and returns a `MessageID` object. Here's an example:
 
 ```go
+
 lastSavedId := // Read last saved message id from external store as byte[]
 
 reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic:          "my-golang-topic",
     StartMessageID: DeserializeMessageID(lastSavedId),
 })
+
 ```
 
 ### Reader configuration
@@ -421,6 +448,7 @@ Parameter | Description | Default
 The Pulsar Go client provides a `ProducerMessage` interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:
 
 ```go
+
 msg := pulsar.ProducerMessage{
     Payload: []byte("Here is some message data"),
     Key: "message-key",
@@ -434,6 +462,7 @@ msg := pulsar.ProducerMessage{
 if err := producer.send(msg); err != nil {
     log.Fatalf("Could not publish message due to: %v", err)
 }
+
 ```
 
 The following methods parameters are available for `ProducerMessage` objects:
@@ -457,9 +486,12 @@ In order to use [TLS encryption](security-tls-transport.md), you'll need to conf
 Here's an example:
 
 ```go
+
 opts := pulsar.ClientOptions{
     URL: "pulsar+ssl://my-cluster.com:6651",
     TLSTrustCertsFilePath: "/path/to/certs/my-cert.csr",
     Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
 }
+
 ```
+

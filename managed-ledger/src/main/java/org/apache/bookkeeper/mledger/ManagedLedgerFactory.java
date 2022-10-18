@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -26,7 +27,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
-import org.apache.bookkeeper.mledger.impl.EntryCacheManager;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -197,4 +198,8 @@ public interface ManagedLedgerFactory {
      * */
     long getCacheEvictionTimeThreshold();
 
+    /**
+     * @return properties of this managedLedger.
+     */
+    CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
 }

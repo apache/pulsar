@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * PersistentDispatcherFailoverConsumerTest with {@link StreamingDispatcher}
  */
-@Test(groups = "broker")
+@Test(groups = "quarantine")
 public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends PersistentDispatcherFailoverConsumerTest {
 
     @BeforeMethod(alwaysRun = true)

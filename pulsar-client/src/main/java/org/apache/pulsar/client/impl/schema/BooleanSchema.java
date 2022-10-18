@@ -32,10 +32,10 @@ public class BooleanSchema extends AbstractSchema<Boolean> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfoImpl()
-                .setName("Boolean")
-                .setType(SchemaType.BOOLEAN)
-                .setSchema(new byte[0]);
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("Boolean")
+                .type(SchemaType.BOOLEAN)
+                .schema(new byte[0]).build();
         INSTANCE = new BooleanSchema();
     }
 
