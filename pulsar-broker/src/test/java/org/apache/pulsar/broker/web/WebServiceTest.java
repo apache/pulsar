@@ -72,6 +72,8 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.Response;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.ContentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -357,12 +359,11 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
 
-        @Cleanup
-        AsyncHttpClient metricsClient = new DefaultAsyncHttpClient();
-        Response metricsRes = metricsClient.prepareGet(metricsUrl).execute().get();
-        assertEquals(metricsRes.getStatusCode(), 200);
-        assertEquals(metricsRes.getHeader("Vary"), "Accept-Encoding");
-        assertEquals(metricsRes.getHeader("Transfer-Encoding"), "chunked");
+        HttpClient client = new HttpClient();
+        client.start();
+        ContentResponse response = client.GET(metricsUrl);
+        assertEquals(response.getStatus(), 200);
+        assertEquals(response.getHeaders().get("Content-Encoding"), "gzip");
     }
 
     @Test
@@ -372,12 +373,11 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
 
-        @Cleanup
-        AsyncHttpClient metricsClient = new DefaultAsyncHttpClient();
-        Response metricsRes = metricsClient.prepareGet(metricsUrl).execute().get();
-        assertEquals(metricsRes.getStatusCode(), 200);
-        assertEquals(metricsRes.getHeader("Vary"), null);
-        assertEquals(metricsRes.getHeader("Transfer-Encoding"), null);
+        HttpClient client = new HttpClient();
+        client.start();
+        ContentResponse response = client.GET(metricsUrl);
+        assertEquals(response.getStatus(), 200);
+        assertEquals(response.getHeaders().get("Content-Encoding"), "");
     }
 
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
@@ -449,6 +449,7 @@ public class WebServiceTest {
         config.setHttpMaxRequestSize(10 * 1024);
         if (compressOutputMetricsInPrometheus) {
             config.setCompressOutputMetricsInPrometheus(true);
+            config.setMinGzipSize(32);
         }
         config.setDisableHttpDebugMethods(disableTrace);
         if (rateLimit > 0) {

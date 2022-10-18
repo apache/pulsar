@@ -333,6 +333,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean compressOutputMetricsInPrometheus = false;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Set the minimum response size to trigger dynamic compression"
+    )
+    private int minGzipSize = 32;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 

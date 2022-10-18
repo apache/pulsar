@@ -942,7 +942,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add metrics servlet
         webService.addServlet("/metrics",
                 new ServletHolder(metricsServlet),
-                config.isAuthenticateMetricsEndpoint(), attributeMap);
+                config.isAuthenticateMetricsEndpoint(), attributeMap,
+                config.isCompressOutputMetricsInPrometheus());
 
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);
@@ -980,7 +981,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     ((AdditionalServletWithPulsarService) additionalServlet).setPulsarService(this);
                 }
                 webService.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
-                        config.isAuthenticationEnabled(), attributeMap);
+                        config.isAuthenticationEnabled(), attributeMap, false);
                 LOG.info("Broker add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
             }
         }
@@ -998,27 +999,27 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
             webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new ServletHolder(producerWebSocketServlet), true, attributeMap);
+                    new ServletHolder(producerWebSocketServlet), true, attributeMap, false);
             webService.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(producerWebSocketServlet), true, attributeMap);
+                    new ServletHolder(producerWebSocketServlet), true, attributeMap, false);
 
             final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
             webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(consumerWebSocketServlet), true, attributeMap);
+                    new ServletHolder(consumerWebSocketServlet), true, attributeMap, false);
             webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(consumerWebSocketServlet), true, attributeMap);
+                    new ServletHolder(consumerWebSocketServlet), true, attributeMap, false);
 
             final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
             webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                    new ServletHolder(readerWebSocketServlet), true, attributeMap);
+                    new ServletHolder(readerWebSocketServlet), true, attributeMap, false);
             webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                    new ServletHolder(readerWebSocketServlet), true, attributeMap);
+                    new ServletHolder(readerWebSocketServlet), true, attributeMap, false);
 
             final WebSocketServlet pingPongWebSocketServlet = new WebSocketPingPongServlet(webSocketService);
             webService.addServlet(WebSocketPingPongServlet.SERVLET_PATH,
-                    new ServletHolder(pingPongWebSocketServlet), true, attributeMap);
+                    new ServletHolder(pingPongWebSocketServlet), true, attributeMap, false);
             webService.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
-                    new ServletHolder(pingPongWebSocketServlet), true, attributeMap);
+                    new ServletHolder(pingPongWebSocketServlet), true, attributeMap, false);
         }
     }
 

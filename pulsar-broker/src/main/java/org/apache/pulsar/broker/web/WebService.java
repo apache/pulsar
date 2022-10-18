@@ -192,7 +192,7 @@ public class WebService implements AutoCloseable {
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
+        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap, false);
     }
 
     private static class FilterInitializer {
@@ -253,7 +253,7 @@ public class WebService implements AutoCloseable {
     }
 
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
-                           Map<String, Object> attributeMap) {
+                           Map<String, Object> attributeMap, boolean isCompress) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
         context.setContextPath(path);
@@ -265,8 +265,9 @@ public class WebService implements AutoCloseable {
         }
         filterInitializer.addFilters(context, requiresAuthentication);
         // Enable compress on /metrics endpoint
-        if (path.equals("/metrics") && pulsar.getConfiguration().isCompressOutputMetricsInPrometheus()) {
+        if (isCompress) {
             GzipHandler gzipHandler = new GzipHandler();
+            gzipHandler.setMinGzipSize(pulsar.getConfiguration().getMinGzipSize());
             gzipHandler.setHandler(context);
             handlers.add(gzipHandler);
         } else {
