@@ -120,7 +120,9 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
         SchemaInfo si = Schema.BOOL.getSchemaInfo();
         assertThrows(PulsarAdminException.class, () -> adminWithConsumePermission.schemas().getSchemaInfo(topicName));
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().createSchema(topicName, si));
         adminWithProducePermission.schemas().createSchema(topicName, si);
+        adminWithAdminPermission.schemas().createSchema(topicName, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));
         SchemaInfo readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName);
