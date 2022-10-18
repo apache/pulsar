@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -465,6 +466,32 @@ public class WebServiceTest {
         } finally {
             pulsarAdmin.close();
         }
+    }
+
+    /**
+     * Using TRACE method to visit admin server, the response should be 403 forbidden
+     */
+    @Test
+    public void traceServer() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false, -1, false);
+        String url = pulsar.getWebServiceAddress();
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestMethod("TRACE");
+        conn.connect();
+        assertEquals(HttpURLConnection.HTTP_FORBIDDEN, conn.getResponseCode());
+
+
+        url = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
+        conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestMethod("TRACE");
+        conn.connect();
+        assertEquals(HttpURLConnection.HTTP_FORBIDDEN, conn.getResponseCode());
+
+        url = pulsar.getWebServiceAddress() + "/metrics";
+        conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestMethod("TRACE");
+        conn.connect();
+        assertEquals(HttpURLConnection.HTTP_FORBIDDEN, conn.getResponseCode());
     }
 
     @AfterMethod(alwaysRun = true)
