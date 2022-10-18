@@ -196,8 +196,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
            if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
                break;
            }
-           Value value = entries.remove(entry.getKey());
-           if (value == null) {
+           Value value = entry.getValue();
+           boolean removeHits = entries.remove(entry.getKey(), value);
+           if (!removeHits) {
                break;
            }
 
