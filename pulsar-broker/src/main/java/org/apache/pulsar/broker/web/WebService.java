@@ -42,6 +42,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -262,7 +263,14 @@ public class WebService implements AutoCloseable {
             });
         }
         filterInitializer.addFilters(context, requiresAuthentication);
-        handlers.add(context);
+        // Enable compress on /metrics endpoint
+        if (path.equals("/metrics") && pulsar.getConfiguration().isCompressOutputMetricsInPrometheus()) {
+            GzipHandler gzipHandler = new GzipHandler();
+            gzipHandler.setHandler(context);
+            handlers.add(gzipHandler);
+        } else {
+            handlers.add(context);
+        }
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
