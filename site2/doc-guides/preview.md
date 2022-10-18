@@ -27,7 +27,7 @@ It is **required** to preview your changes locally and attach the preview screen
 
 * You can test your writings 
 
-    It’s a way to check whether you use the correct [Pulsar Documentation Writing Syntax](https://docs.google.com/document/d/12De2btkDHQVaqUlHjTqERmroMLKGhHdiC7rEttFTyqc/edit#heading=h.y4c4051ki429) and debug issues. You **must ensure** docs can be compiled and published correctly.
+    It’s a way to check whether you use the correct [Pulsar Documentation Writing Syntax](./syntax.md) and debug issues. You **must ensure** docs can be compiled and published correctly.
 
 * You can get your PR merged more quickly.
 

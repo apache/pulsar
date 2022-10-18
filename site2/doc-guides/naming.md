@@ -74,14 +74,10 @@ For more examples with correct formats, see [Full examples](#full-examples).
 
 Vague ❌|Clear ✅
 |---|---
-Producer getting producer busy is removing existing producer from list|
-[fix][broker] ​​Active producers with the same name are no longer removed from the topic map
-Forbid to read other topic's data in managedLedger layer|
-[improve][broker] Consumers are not allowed to read data on topics to which they are not subscribed 
-Fix kinesis sink backoff class not found|
-[improve][connector] xx connectors can now use the Kinesis Backoff class
-K8s Function Name Length Check Allows Invalid StatefulSet |
-[improve][function] Function name length cannot exceed 52 characters when using Kubernetes runtime 
+Producer getting producer busy is removing existing producer from list|[fix][broker] ​​Active producers with the same name are no longer removed from the topic map
+Forbid to read other topic's data in managedLedger layer|[improve][broker] Consumers are not allowed to read data on topics to which they are not subscribed 
+Fix kinesis sink backoff class not found|[improve][connector] xx connectors can now use the Kinesis Backoff class
+K8s Function Name Length Check Allows Invalid StatefulSet |[improve][function] Function name length cannot exceed 52 characters when using Kubernetes runtime 
 
 > 💡 **Steps**
 >
@@ -101,11 +97,10 @@ It must be one of the following.
 
 type|Pulsar PR label|What actions do you take? 
 |---|---|---
-cleanup| [type/cleanup](https://github.com/apache/pulsar/labels/type%2Fcleanup)Remove unused code or doc.
+cleanup| [type/cleanup](https://github.com/apache/pulsar/labels/type%2Fcleanup)|Remove unused code or doc.
 improve|[type/improvement](https://github.com/apache/pulsar/labels/type%2Fimprovement)|Submit enhancements that are neither new features nor bug fixes.
 feat|[type/feature](https://github.com/apache/pulsar/labels/type%2Ffeature)|Submit new features.
-fix|[type/fix](https://github.com/apache/pulsar/labels/type%2Ffix)
-Submit bug fixes.
+fix|[type/fix](https://github.com/apache/pulsar/labels/type%2Ffix)|Submit bug fixes.
 refactor|[type/refactor](https://github.com/apache/pulsar/labels/type%2Frefactor)|Restructure existing code while preserving its external behavior. 
 revert|To be created|Revert changes
 
@@ -132,11 +127,10 @@ Pulsar and clients have separate release notes, so they have different scopes.
 scope |Pulsar PR label|Where do you make changes?
 |---|---|---
 admin|- scope/admin <br>- scope/topic-policy | - pulsar-admin <br> - REST API <br> - Java admin API
-broker | - scope/broker | It’s difficult to maintain an exhaustive list since many changes belong to brokers. <br><br> Here just lists some frequently updated areas, it includes but not limited to: - key_shared <br> - replication <br> - metadata <br> - compaction
-cli|- scope/tool| Pulsar CLI tools. It includes: - pulsar <br> - pulsar-client <br> - pulsar-daemon <br> - pulsar-perf <br> - bookkeeper<br> - broker-tool
+broker | - scope/broker | It’s difficult to maintain an exhaustive list since many changes belong to brokers. <br><br> Here just lists some frequently updated areas, it includes but not limited to:<br>  - key_shared <br> - replication <br> - metadata <br> - compaction
+cli|- scope/tool| Pulsar CLI tools. <br> It includes: <br> - pulsar <br> - pulsar-client <br> - pulsar-daemon <br> - pulsar-perf <br> - bookkeeper<br> - broker-tool
 io<br>(connector)|- scope/connector <br> - scope/connect <br> - scope/kafka|Connector
 fn<br>(function)| - scope/function|Function
-dependency - scope/dependency|Dependencies that used to run Pulsar.<br><br>It includes but not limited to: <br> - Netty <br> - Log4J
 meta<br>(metadata)|- scope/zookeepeer|Metadata
 monitor|- scope/metrics - scope/stats|Monitoring
 proxy| - scope/proxy| Proxy
@@ -146,12 +140,12 @@ sql|- scope/sql|Pulsar SQL
 storage| - scope/bookkeeper storage|Managed ledge
 offload<br>(tiered storage)|- scope/tieredstorage|Tiered storage
 txn| - scope/transaction<br> - scope/transaction-coordinator|Transaction
-test|- scope/test|Code tests.
-ci|scope/ci|CI workflow changes or debugging
-build|scope/build| - Dependency (Maven) <br> - Docker <br> - Build or release script
+test|- scope/test|Code tests
+ci|- scope/ci|CI workflow changes or debugging
+build|- scope/build| - Dependency (Maven) <br> - Docker <br> - Build or release script
 misc|- scope/misc| Changes that do not belong to any scopes above.
-doc|doc|Documentation
-site<br>(=website)|website|Website
+doc|- doc|Documentation
+site<br>(website)|- website|Website
 
 #### Client
 
@@ -160,7 +154,8 @@ The following changes are shown on the client release notes.
 `scope` and PR label must be one of the following.
 
 scope | Pulsar PR label | Where do you make changes?
-client<br>(= Java client)|scope/client-java|Java client
+|---|---|---
+client<br>(Java client)|scope/client-java|Java client
 ws<br>(WebSocket)|scope/client-websocket|[WebSocket API](https://pulsar.apache.org/docs/next/client-libraries-websocket/)
 
 ### `Summary`

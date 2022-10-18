@@ -65,7 +65,7 @@ The new Pulsar website is launched on 2022/5/11. It is upgraded to Docusaurus V2
 
 * Use **closing** tags.
 
-    &lt;li>&lt;/li> and &lt;br>&lt;/br> are especially useful for constructing complex tables, such as _creating a list_ and _adding a blank line_.
+   `<li></li>` and `<br></br>` are especially useful for constructing complex tables, such as _creating a list_ and _adding a blank line_.
 
     🙌 **Examples**
   
