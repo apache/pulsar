@@ -191,11 +191,14 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         if (setFilter) {
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
+            Field hasFilterField = EntryFilterSupport.class.getDeclaredField("hasFilter");
+            hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
                     spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
             field.set(dispatcher, List.of(loader1));
+            hasFilterField.set(dispatcher, true);
         }
 
         for (int i = 0; i < 100; i++) {

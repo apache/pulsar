@@ -35,7 +35,8 @@ public class EntryFilterSupport {
      * Entry filters in Broker.
      * Not set to final, for the convenience of testing mock.
      */
-    protected List<EntryFilterWithClassLoader> entryFilters;
+    protected final List<EntryFilterWithClassLoader> entryFilters;
+    protected final boolean hasFilter;
     protected final FilterContext filterContext;
     protected final Subscription subscription;
 
@@ -62,11 +63,12 @@ public class EntryFilterSupport {
             this.entryFilters = Collections.emptyList();
             this.filterContext = FilterContext.FILTER_CONTEXT_DISABLED;
         }
+        hasFilter = CollectionUtils.isNotEmpty(entryFilters);
     }
 
     public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
                                                        Consumer consumer) {
-        if (CollectionUtils.isNotEmpty(entryFilters)) {
+        if (hasFilter) {
             fillContext(filterContext, msgMetadata, subscription, consumer);
             return getFilterResult(filterContext, entry, entryFilters);
         } else {
