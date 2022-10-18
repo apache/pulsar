@@ -34,7 +34,6 @@ import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
-import org.apache.bookkeeper.bookie.SortedLedgerStorage;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -340,9 +339,6 @@ public class BKCluster implements AutoCloseable {
         confReturn.setDiskUsageThreshold(0.999F);
         confReturn.setDiskUsageWarnThreshold(0.99F);
         confReturn.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
-        confReturn.setProperty("dbStorage_writeCacheMaxSizeMb", 4);
-        confReturn.setProperty("dbStorage_readAheadCacheMaxSizeMb", 4);
-        confReturn.setLedgerStorageClass(SortedLedgerStorage.class.getName());
         setLoopbackInterfaceAndAllowLoopback(confReturn);
         return confReturn;
     }
