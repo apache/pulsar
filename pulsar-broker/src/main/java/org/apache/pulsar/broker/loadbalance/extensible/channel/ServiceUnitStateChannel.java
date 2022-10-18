@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensible.channel;
 
+import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensible.models.Split;
@@ -28,13 +29,20 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 /**
  * Defines the ServiceUnitStateChannel interface.
  */
-public interface ServiceUnitStateChannel {
+public interface ServiceUnitStateChannel extends Closeable {
 
     /**
      * Starts the ServiceUnitStateChannel.
      * @throws PulsarServerException if it fails to start the channel.
      */
     void start() throws PulsarServerException;
+
+    /**
+     * Closes the ServiceUnitStateChannel.
+     * @throws PulsarServerException if it fails to close the channel.
+     */
+    @Override
+    void close() throws PulsarServerException;
 
     /**
      * Schedules the periodic compaction for the system topic in this channel.
@@ -49,13 +57,13 @@ public interface ServiceUnitStateChannel {
      * ServiceUnitStateChannel elects the separate leader as the owner broker of the system topic in this channel.
      * If there is no leader at the moment, it will throw a runtime exception.
      */
-    String getChannelOwnerBroker();
+    String getChannelOwner();
 
     /**
      * Checks if the current broker is the owner broker of the system topic in this channel.
      * @return True if the current broker is the owner. Otherwise, false.
      */
-    boolean isChannelOwnerBroker();
+    boolean isChannelOwner();
 
     /**
      * Handles the metadata session events to track
