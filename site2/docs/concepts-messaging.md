@@ -437,8 +437,7 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 :::note
 
 *  Currently, retry letter topic is enabled in Shared subscription types.
-*  Compared with negativ![pub-sub-border](https://user-images.githubusercontent.com/94193423/192618897-460a10de-db92-4d43-b38c-59faffaa8044.svg)
-e acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
+*  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
 
 :::
 
@@ -552,7 +551,7 @@ When a subscription has no consumers, its subscription type is undefined. The ty
 
 In the *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs. Note that if the topic is partitioned, all partitions will be consumed by the single consumer allowed to be connected to the subscription.
 
-In the diagram below, only **Consumer A-0** is allowed to consume messages.
+In the diagram below, only **Consumer A** is allowed to consume messages.
 
 :::tip
 
@@ -571,7 +570,7 @@ In the *Failover* type, multiple consumers can attach to the same subscription. 
 
 For example, a partitioned topic has 3 partitions, and 15 consumers. Each partition will have 1 active consumer and 4 stand-by consumers.
 
-In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
+In the diagram below, **Consumer A** is the master consumer while **Consumer B** would be the next consumer in line to receive messages if **Consumer B** is disconnected.
 
 ![Failover subscriptions](/assets/pulsar-failover-subscriptions.svg)
 
@@ -579,7 +578,7 @@ In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B
 
 In *shared* or *round robin* type, multiple consumers can attach to the same subscription. Messages are delivered in a round-robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
 
-In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscribe to the topic, but **Consumer-C-3** and others could as well.
+In the diagram below, **Consumer A**, **Consumer B** and **Consumer C** are all able to subscribe to the topic.
 
 :::note
 
@@ -598,7 +597,12 @@ In the *Key_Shared* type, multiple consumers can attach to the same subscription
 
 ![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.svg)
 
-Note that when the consumers are using the Key_Shared subscription type, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for the Key_Shared subscription type:
+:::note
+
+When the consumers are using the Key_Shared subscription type, you need to **disable batching** or **use key-based batching** for the producers. 
+:::
+
+There are two reasons why the key-based batching is necessary for the Key_Shared subscription type:
 1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch.
 2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch is considered as the key to all messages in this batch, thereby leading to context errors.
 
@@ -933,8 +937,7 @@ All message retention and expiry are managed at the [namespace](#namespaces) lev
 
 ![Message retention and expiry](/assets/retention-expiry.svg)
 
-With message retention, shown at the top, a <span style={{color: " #89b557"}}>retention policy</span> applied to all topics in a namespace dictates that some messages are durably stored in Pulsar even thoug![batching](https://user-images.githubusercontent.com/94193423/192618946-306d7d9c-a88f-45bd-8106-c5f2ca602ca6.svg)
-h they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style={{color: " #bb3b3e"}}>deleted</span>. Without a retention policy, *all* of the <span style={{color: " #19967d"}}>acknowledged messages</span> would be deleted.
+With message retention, shown at the top, a <span style={{color: " #89b557"}}>retention policy</span> applied to all topics in a namespace dictates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style={{color: " #bb3b3e"}}>deleted</span>. Without a retention policy, all of the <span style={{color: " #19967d"}}>acknowledged messages</span> would be deleted.
 
 With message expiry, shown at the bottom, some messages are <span style={{color: " #bb3b3e"}}>deleted</span>, even though they <span style={{color: " #337db6"}}>haven't been acknowledged</span>, because they've expired according to the <span style={{color: " #e39441"}}>TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
 
