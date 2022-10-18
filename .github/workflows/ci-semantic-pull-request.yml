@@ -49,16 +49,18 @@ jobs:
             revert
           # Scope abbreviation comments:
           # cli     -> command line interface
-          # fn      -> Pulasr Functions
+          # fn      -> Pulsar Functions
           # io      -> Pulsar Connectors
           # offload -> tiered storage
           # sec     -> security
           # sql     -> Pulsar Trino Plugin
           # txn     -> transaction
           # ws      -> websocket
+          # ml      -> managed ledger
           scopes: |
             admin
             broker
+            ml
             build
             ci
             cli
