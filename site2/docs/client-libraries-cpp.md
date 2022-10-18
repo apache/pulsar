@@ -25,6 +25,31 @@ Use [Homebrew](http://brew.sh/) to install the latest tagged version with the li
 brew install libpulsar
 ```
 
+Get the installation path of libpulsar
+
+```shell
+brew info libpulsar
+```
+
+Set the variable `PULSAR_CPP_DIR` with the `pulsar-client-cpp` path in a mac command tool.
+
+```shell
+# for example
+## Intel x86_64
+export PULSAR_CPP_DIR=/usr/local/Cellar/libpulsar/2.9.1_1
+
+## Apple Silicon and Homebrew since 3.0.0
+## cf. https://brew.sh/2021/02/05/homebrew-3.0.0/
+export PULSAR_CPP_DIR=/opt/homebrew/Cellar/libpulsar/2.9.1_1
+```
+
+Set the variable `LIBRARY_PATH` with `lib` of the `pulsar-client-cpp` path.
+
+```shell
+# for example
+export LIBRARY_PATH=/opt/homebrew/Cellar/libpulsar/2.9.1_1/lib
+```
+
 ### Deb
 
 1. Download any one of the Deb packages:
