@@ -23,12 +23,12 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -137,7 +138,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
-        List<String> publishedMessages = Lists.newArrayList();
+        List<String> publishedMessages = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
             String message = createMessagePayload(i * 100);
             publishedMessages.add(message);
@@ -145,8 +146,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
-        List<MessageId> msgIds = Lists.newArrayList();
+        Set<String> messageSet = new HashSet<>();
+        List<MessageId> msgIds = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -227,7 +228,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
-        List<String> publishedMessages = Lists.newArrayList();
+        List<String> publishedMessages = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
             String message = createMessagePayload(i * 100);
             publishedMessages.add(message);
@@ -235,7 +236,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < totalMessages; i++) {
             msg = reader.readNext(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -328,7 +329,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         Producer<byte[]>[] producers = new Producer[totalProducers];
         int totalPublishedMessages = totalProducers;
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < totalProducers; i++) {
             producers[i] = producerBuilder.enableChunking(true).enableBatching(false).create();
             int index = i;
@@ -341,7 +342,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
             if (msg == null) {
@@ -501,7 +502,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        List<MessageId> msgIds = Lists.newArrayList();
+        List<MessageId> msgIds = new ArrayList<>();
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer1.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -570,6 +571,55 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             } else {
                 assertEquals(messageId.getClass(), ChunkMessageIdImpl.class);
             }
+        }
+    }
+
+    @Test
+    public void testBlockIfQueueFullWhenChunking() throws Exception {
+        this.conf.setMaxMessageSize(50);
+
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("my-property/my-ns/test-chunk-size")
+                .enableChunking(true)
+                .enableBatching(false)
+                .blockIfQueueFull(true)
+                .maxPendingMessages(3)
+                .create();
+
+        // Test sending large message (totalChunks > maxPendingMessages) should not cause deadlock
+        // We need to use a separate thread to send the message instead of using the sendAsync, because the deadlock
+        // might happen before publishing messages to the broker.
+        CompletableFuture<Void> sendMsg = CompletableFuture.runAsync(() -> {
+            try {
+                producer.send(createMessagePayload(200));
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        try {
+            sendMsg.get(5, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            Assert.fail("Deadlock detected when sending large message.");
+        }
+
+        // Test sending multiple large messages (For every message, totalChunks < maxPendingMessages) concurrently
+        // should not cause the deadlock.
+        List<CompletableFuture<Void>> sendMsgFutures = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            sendMsgFutures.add(CompletableFuture.runAsync(() -> {
+                try {
+                    producer.send(createMessagePayload(100));
+                } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        }
+
+        try {
+            FutureUtil.waitForAll(sendMsgFutures).get(5, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            Assert.fail("Deadlock detected when sending multiple large messages concurrently.");
         }
     }
 

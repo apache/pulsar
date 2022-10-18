@@ -1754,14 +1754,14 @@ public class SinkApiV3ResourceTest {
             ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
             ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
             ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mockedClassLoader);
-
         });
 
         ConnectorsManager mockedConnManager = mock(ConnectorsManager.class);
         Connector connector = Connector.builder()
-                .classLoader(mockedClassLoader)
-                .build();
+            .classLoader(mockedClassLoader)
+            .build();
         when(mockedConnManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedConnManager.getSinkArchive(any())).thenReturn(getPulsarIOCassandraNar().toPath());
         when(mockedWorkerService.getConnectorsManager()).thenReturn(mockedConnManager);
 
         when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);

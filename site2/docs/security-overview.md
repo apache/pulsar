@@ -7,13 +7,13 @@ sidebar_label: "Overview"
 As the central message bus for a business, Apache Pulsar is frequently used for storing mission-critical data. Therefore, enabling security features in Pulsar is crucial. This chapter describes the main security controls that Pulsar uses to help protect your data.
 
 Pulsar security is based on the following core pillars.
-* [Encryption](#encryption)
-* [Authentication](#authentication)
-* [Authorization](#authorization)
+- [Encryption](#encryption)
+- [Authentication](#authentication)
+- [Authorization](#authorization)
 
 By default, Pulsar configures no encryption, authentication, or authorization. Any clients can communicate to Pulsar via plain text service URLs. So you must ensure that Pulsar accessing via these plain text service URLs is restricted to trusted clients only. In such cases, you can use network segmentation and/or authorization ACLs to restrict access to trusted IPs. If you use neither, the state of the cluster is wide open and anyone can access the cluster.
 
-Apache Pulsar uses an [Authentication Provider](#authentication) or an [Authentication Provider Chain](security-extending.md/#proxybroker-authentication-plugin) to establish the identity of a client and then assign a *role token* (a string like `admin` or `app1`)to that client. This role token can represent a single client or multiple clients and is then used for [Authorization](security-authorization.md) to determine what the client is authorized to do. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
+Apache Pulsar uses an [Authentication Provider](#authentication) or an [Authentication Provider Chain](security-extending.md/#proxybroker-authentication-plugin) to establish the identity of a client and then assign a *role token* (a string like `admin` or `app1`) to that client. This role token can represent a single client or multiple clients and is then used for [Authorization](security-authorization.md) to determine what the client is authorized to do. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
 
 ## Encryption
 

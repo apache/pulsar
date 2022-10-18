@@ -42,7 +42,7 @@ jobs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Detect changed files
         id: changes
@@ -54,7 +54,7 @@ jobs:
       - name: Check changed files
         id: check_changes
         run: |
-          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+          echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
 
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -75,7 +75,7 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm

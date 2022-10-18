@@ -121,7 +121,7 @@ flexible messaging model and an intuitive client API.</description>
     <bookkeeper.version>4.15.1</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
-    <commons-text.version>1.9</commons-text.version>
+    <commons-text.version>1.10.0</commons-text.version>
     <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
@@ -139,7 +139,7 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.13.3</jackson.version>
+    <jackson.version>2.13.4</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
@@ -177,7 +177,6 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
-    <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.9.5.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -248,6 +247,7 @@ flexible messaging model and an intuitive client API.</description>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.2.0</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
+    <jettison.version>1.5.1</jettison.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -798,6 +798,13 @@ flexible messaging model and an intuitive client API.</description>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
+      <dependency>
+        <groupId>org.codehaus.jettison</groupId>
+        <artifactId>jettison</artifactId>
+        <version>${jettison.version}</version>
+      </dependency>
+
 
       <dependency>
         <groupId>org.hdrhistogram</groupId>
@@ -1925,7 +1932,9 @@ flexible messaging model and an intuitive client API.</description>
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                  <outputDirectory>target/report</outputDirectory>
+                  <excludes>
+                    <exclude>META-INF/**</exclude>
+                  </excludes>
                 </configuration>
               </execution>
             </executions>

@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.awaitility.Awaitility.await;
 import com.google.common.collect.Sets;
-
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -37,8 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.awaitility.Awaitility.await;
 
 @Test(groups = "flaky")
 public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchThrottlingTest {
@@ -243,6 +240,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
+        long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
 
         final int numProducedMessages = 30;
@@ -302,6 +300,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         consumer.close();
         producer.close();
+
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
+
         admin.topics().delete(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
     }
@@ -417,6 +418,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
+        long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
 
         final int numProducedMessages = 30;
@@ -480,6 +482,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         consumer.close();
         producer.close();
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
         admin.topics().delete(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
     }
@@ -532,6 +535,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + namespace2 + "/throttlingAll");
         final String subName = "my-subscriber-name-" + subscription;
 
+        long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         final int byteRate = 1000;
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate);
         admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
@@ -591,6 +595,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer2.close();
         producer1.close();
         producer2.close();
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -739,7 +744,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         consumer.close();
         producer.close();
-        pulsar.getConfiguration().setDispatchThrottlingRatePerSubscriptionInMsg(initValue);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
+                Integer.toString(initValue));
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -855,11 +862,12 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         producer.close();
         producer2.close();
-
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
+                Integer.toString(initValue));
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "subscriptions", timeOut = 10000)
+    @Test(dataProvider = "subscriptions", timeOut = 11000)
     public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 

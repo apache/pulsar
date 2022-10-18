@@ -46,6 +46,7 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -187,7 +188,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -314,7 +315,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -392,7 +393,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg, "Message should not be null");
@@ -506,11 +507,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         con.connect();
         log.info("connected url: {} ", con.getURL());
         // assert connect-url: broker2-https
-        assertEquals(new Integer(con.getURL().getPort()), conf2.getWebServicePortTls().get());
+        assertEquals(Integer.valueOf(con.getURL().getPort()), conf2.getWebServicePortTls().get());
         InputStream is = con.getInputStream();
         // assert redirect-url: broker1-https only
         log.info("redirected url: {}", con.getURL());
-        assertEquals(new Integer(con.getURL().getPort()), conf.getWebServicePortTls().get());
+        assertEquals(Integer.valueOf(con.getURL().getPort()), conf.getWebServicePortTls().get());
         is.close();
 
         loadManager1 = null;
