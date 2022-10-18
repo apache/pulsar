@@ -94,7 +94,7 @@ public class JdbcSinkConfig implements Serializable {
         required = false,
         defaultValue = "200",
         help = "Enable batch mode by number of operations. This value is the max number of operations "
-                + "batched in the same transaction/batch. "
+                + "batched in the same transaction/batch."
     )
     private int batchSize = 200;
 

@@ -29,6 +29,7 @@ The configuration of all JDBC sink connectors has the following properties.
 | `nullValueAction` | enum(FAIL, DELETE) | false    | FAIL               | How to handle records with NULL values. Possible options are `DELETE` or `FAIL`.                                                                                                                                                                                                                                                          |
 | `useTransactions` | boolean | false    | true               | Enable transactions of the database.                                                                                                                                                                                                                                                                                                      
 | `excludeNonDeclaredFields` | boolean | false    | false              | All the table fields are discovered automatically. `excludeNonDeclaredFields` indicates if the table fields not explicitly listed in `nonKey` and `key` must be included in the query. By default all the table fields are included. To leverage of table fields defaults during insertion, it is suggested to set this value to `false`. |
+| `useJdbcBatch`    | boolean | false    | false              | Use the JDBC batch API. This option is suggested to improve writes performances. |
 
 ### Example of ClickHouse
 
