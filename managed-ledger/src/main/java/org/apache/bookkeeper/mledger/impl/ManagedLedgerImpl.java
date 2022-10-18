@@ -2383,11 +2383,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        if (offloadThresholdInBytes < 0 || offloadThresholdInSeconds < 0) {
-            finalPromise.complete(PositionImpl.LATEST);
-            return;
-        }
-
         CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
         unlockingPromise.whenComplete((res, ex) -> {
             offloadMutex.unlock();
@@ -2401,6 +2396,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
                 || config.getLedgerOffloader().getOffloadPolicies() == null) {
             String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
+            finalPromise.completeExceptionally(new IllegalArgumentException(msg));
+            return;
+        }
+
+        if (offloadThresholdInBytes < 0 && offloadThresholdInSeconds < 0) {
+            String msg = String.format("[%s] Nothing to offload due to [managedLedgerOffloadThresholdInBytes] and " +
+                    "[managedLedgerOffloadThresholdInSeconds] less than 0.", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
             return;
         }
@@ -2428,7 +2430,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (alreadyOffloaded) {
                 alreadyOffloadedSize += size;
             } else {
-                if (sizeSummed > offloadThresholdInBytes || now - timestamp >= offloadTimeThresholdMillis) {
+                if ((offloadThresholdInBytes >= 0 && sizeSummed > offloadThresholdInBytes)
+                        || (offloadTimeThresholdMillis >= 0 && now - timestamp >= offloadTimeThresholdMillis)) {
                     toOffloadSize += size;
                     toOffload.addFirst(info);
                 }
