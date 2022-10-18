@@ -155,10 +155,6 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             return Optional.empty();
         }
 
-        Range<Long> span = immutableBuckets.span();
-        if (!span.contains(ledgerId)) {
-            return Optional.empty();
-        }
         return Optional.ofNullable(immutableBuckets.get(ledgerId));
     }
 
@@ -479,7 +475,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                     log.debug("[{}] Load next snapshot segment, bucketState: {}", dispatcher.getName(), bucketState);
                 }
                 // All message of current snapshot segment are scheduled, load next snapshot segment
-                // TODO make it asynchronous
+                // TODO make it asynchronous and not blocking this process
                 try {
                     asyncLoadNextBucketSnapshotEntry(bucketState, false).get(AsyncOperationTimeoutSeconds,
                             TimeUnit.SECONDS);
