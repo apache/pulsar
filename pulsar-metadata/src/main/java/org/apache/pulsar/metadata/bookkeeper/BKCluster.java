@@ -201,7 +201,11 @@ public class BKCluster implements AutoCloseable {
     private ServerConfiguration newServerConfiguration(int index) throws Exception {
         File dataDir;
         if (clusterConf.dataDir != null) {
-            dataDir = new File(clusterConf.dataDir + "/" + index);
+            if (index == 0) {
+                dataDir = new File(clusterConf.dataDir);
+            } else {
+                dataDir = new File(clusterConf.dataDir + "/" + index);
+            }
         } else {
             // Use temp dir and clean it up later
             dataDir = createTempDir("bookie",  "test-" + index);
