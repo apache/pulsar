@@ -66,15 +66,11 @@ If you want to update versioned docs, go to [pulsar/site2/website/versioned_docs
 >
 > If you want to update docs for 2.8.x and later versions, follow the steps below.
 
-1. Update the correct doc set.
+1. Update the correct doc set. 
    
-    Update these docs ✅ | DO NOT update these docs ❌
-    |---|---
-    [version-2.8.x](https://github.com/apache/pulsar/tree/master/site2/website/versioned_docs/version-2.8.x) | - version-2.8.0-deprecated <br><br> - version-2.8.1-deprecated <br><br> - version-2.8.2-deprecated <br><br> - version-2.8.3-deprecated
-    [version-2.9.x](https://github.com/apache/pulsar/tree/master/site2/website/versioned_docs/version-2.9.x) | - version-2.9.0-deprecated <br><br> - version-2.9.1-deprecated <br><br> - version-2.9.2-deprecated <br><br> - version-2.9.3-deprecated 
-    [version-2.10.x](https://github.com/apache/pulsar/tree/master/site2/website/versioned_docs/version-2.10.x) |- version-2.10.0-deprecated <br><br> - version-2.10.1-deprecated
-
-    For why and how we make this change, see [PIP-190: Simplify documentation release and maintenance strategy](https://github.com/apache/pulsar/issues/16637).
+   For example, [version-2.8.x](https://github.com/apache/pulsar/tree/master/site2/website/versioned_docs/version-2.8.x), [version-2.9.x](https://github.com/apache/pulsar/tree/master/site2/website/versioned_docs/version-2.9.x), or [version-2.10.x](https://github.com/apache/pulsar/tree/master/site2/website/versioned_docs/version-2.10.x).
+   
+   For why and how we make this change, see [PIP-190: Simplify documentation release and maintenance strategy](https://github.com/apache/pulsar/issues/16637).
 
 2. Add specific instructions.
 
