@@ -474,8 +474,8 @@ The Apache Software License, Version 2.0
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-java-3.19.2.jar
-   - protobuf-java-util-3.19.2.jar
+   - protobuf-java-3.19.6.jar
+   - protobuf-java-util-3.19.6.jar
    - proto-google-common-protos-2.0.1.jar
 
 BSD 3-clause "New" or "Revised" License
