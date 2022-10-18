@@ -421,11 +421,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public CompletableFuture<ReadOnlyManagedLedgerImpl> asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+    public void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+                              AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
                               ManagedLedgerConfig config, Object ctx) {
         CompletableFuture<ReadOnlyManagedLedgerImpl> future = new CompletableFuture<>();
         if (closed) {
-            return FutureUtil.failedFuture(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+            callback.openReadOnlyManagedLedgerFailed(
+                    new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
         }
         ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
                 bookkeeperFactory
@@ -434,13 +436,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 store, config, scheduledExecutor, managedLedgerName);
         roManagedLedger.initialize().thenRun(() -> {
             log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
-            future.complete(roManagedLedger);
+            callback.openReadOnlyManagedLedgerComplete(roManagedLedger, ctx);
+
         }).exceptionally(e -> {
             log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
-            future.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+            callback.openReadOnlyManagedLedgerFailed((ManagedLedgerException) e.getCause(), ctx);
             return null;
         });
-        return future;
     }
 
     @Override
@@ -483,23 +485,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             return;
         }
         checkArgument(startPosition instanceof PositionImpl);
-        asyncOpenReadOnlyManagedLedger(managedLedgerName, config, null).thenAccept(readOnlyManagedLedger ->
+        AsyncCallbacks.OpenReadOnlyManagedLedgerCallback openReadOnlyManagedLedgerCallback =
+                new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
                 callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
-                        createReadOnlyCursor((PositionImpl) startPosition), ctx))
-                .exceptionally(ex -> {
-                    Throwable t = ex;
-                    if (t instanceof CompletionException) {
-                        t = ex.getCause();
-                    }
+                        createReadOnlyCursor((PositionImpl) startPosition), ctx);
+            }
 
-                    if (t instanceof ManagedLedgerException) {
-                        callback.openReadOnlyCursorFailed((ManagedLedgerException) t, ctx);
-                    } else {
-                        callback.openReadOnlyCursorFailed(new ManagedLedgerException(t), ctx);
-                    }
-
-                    return null;
-                });
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                callback.openReadOnlyCursorFailed(exception, ctx);
+            }
+        };
+        asyncOpenReadOnlyManagedLedger(managedLedgerName, openReadOnlyManagedLedgerCallback, config, null);
     }
 
     void close(ManagedLedger ledger) {

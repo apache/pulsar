@@ -102,7 +102,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
 
         @Override
         public void close() throws IOException {
-            this.producer.close();
+            this.producer.closeAsync().join();
             transactionBufferSnapshotBaseSystemTopicClient.removeWriter(this);
         }
 
@@ -161,7 +161,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
 
         @Override
         public void close() throws IOException {
-            this.reader.close();
+            this.reader.closeAsync().join();
             transactionBufferSnapshotBaseSystemTopicClient.removeReader(this);
         }
 
@@ -190,12 +190,11 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
     protected CompletableFuture<Writer<T>> newWriterAsyncInternal() {
         return client.newProducer(Schema.AVRO(schemaType))
                 .topic(topicName.toString())
-                .createAsync().thenCompose(producer -> {
+                .createAsync().thenApply(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new {} writer is created", topicName, schemaType.getName());
                     }
-                    return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotWriter<>(producer, this));
+                    return  new TransactionBufferSnapshotWriter<>(producer, this);
                 });
     }
 
@@ -206,12 +205,11 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
                 .createAsync()
-                .thenCompose(reader -> {
+                .thenApply(reader -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new {} reader is created", topicName, schemaType);
                     }
-                    return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotReader<>(reader, this));
+                    return new TransactionBufferSnapshotReader<>(reader, this);
                 });
     }
 

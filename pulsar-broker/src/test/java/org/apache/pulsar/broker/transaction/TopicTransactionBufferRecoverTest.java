@@ -672,28 +672,38 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(snapshot, buildKey(snapshot));
 
-        //create read-only managed ledger
-        ReadOnlyManagedLedgerImpl readOnlyManagedLedger = pulsarService.getManagedLedgerFactory()
-                .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(),
-                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),null).get();
-
-        //read the entry and decode entry to snapshot
+        //Create read-only managed ledger
+        //And read the entry and decode entry to snapshot
         CompletableFuture<Entry> entryCompletableFuture = new CompletableFuture<>();
-        readOnlyManagedLedger.asyncReadEntry(
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()),
-                new AsyncCallbacks.ReadEntryCallback() {
-                    @Override
-                    public void readEntryComplete(Entry entry, Object ctx) {
-                        entryCompletableFuture.complete(entry);
-                    }
+        AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
+                .OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+                readOnlyManagedLedger.asyncReadEntry(
+                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()),
+                        new AsyncCallbacks.ReadEntryCallback() {
+                            @Override
+                            public void readEntryComplete(Entry entry, Object ctx) {
+                                entryCompletableFuture.complete(entry);
+                            }
 
-                    @Override
-                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                        entryCompletableFuture.completeExceptionally(exception);
-                    }
-                }, null);
+                            @Override
+                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                entryCompletableFuture.completeExceptionally(exception);
+                            }
+                        }, null);
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                //
+            }
+        };
+        pulsarService.getManagedLedgerFactory()
+                .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(), callback,
+                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),null);
+
         Entry entry = entryCompletableFuture.get();
-
         //decode snapshot from entry
         ByteBuf headersAndPayload = entry.getDataBuffer();
         //skip metadata
