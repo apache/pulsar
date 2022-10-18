@@ -90,6 +90,13 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar CI](https://github.com/apache/pulsar-test-infra)
 
+### Archived/Halted
+
+- [Pulsar Connectors](https://github.com/apache/pulsar-connectors)
+- [Pulsar Translation](https://github.com/apache/pulsar-translation)
+- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto)
+- [Ruby Client](https://github.com/apache/pulsar-client-ruby)
+
 ## Pulsar Runtime Java Version Recommendation
 
 - pulsar ver > 2.10 and master branch
