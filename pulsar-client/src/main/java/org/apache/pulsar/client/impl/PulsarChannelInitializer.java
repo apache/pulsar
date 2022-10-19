@@ -123,12 +123,21 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                                 conf.getTlsCiphers(),
                                 conf.getTlsProtocols());
                     } else {
-                        return SecurityUtility.createNettySslContextForClient(
+                        return conf.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath(),
                                 conf.getTlsCertificateFilePath(),
                                 conf.getTlsKeyFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols())
+                                : SecurityUtility.createNettySslContextForClient(
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustStoreStream(),
+                                conf.getTlsCertificates(),
+                                conf.getTlsPrivateKey(),
                                 conf.getTlsCiphers(),
                                 conf.getTlsProtocols());
                     }
