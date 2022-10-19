@@ -19,7 +19,7 @@ Using the language-native interface for Java or Python is **not** able to publis
 
 You can use both built-in metrics and customized metrics to monitor functions.
 - Use the built-in [function metrics](reference-metrics.md#pulsar-functions).
-  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of Java, Python, and Go functions. You can check the metrics by following the [monitoring](deploy-monitoring.md/#function-and-connector-stats) guide. 
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of Java, Python, and Go functions. You can check the metrics by following the [monitoring](deploy-monitoring.md#function-and-connector-stats) guide. 
 - Set your customized metrics.
   In addition to the built-in metrics, Pulsar allows you to customize metrics for Java and Python functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
 

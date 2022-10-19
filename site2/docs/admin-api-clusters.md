@@ -96,8 +96,8 @@ You must initialize cluster metadata *before* starting up any [brokers](admin-ap
 >
 > Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API
 > or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly.
-> Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular
-> the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
+> Instead, you can use the [`pulsar`](reference-cli-tools.md) CLI tool, in particular
+> the [`initialize-cluster-metadata`](reference-cli-tools.md) command.
 
 Here's an example cluster metadata initialization command:
 
