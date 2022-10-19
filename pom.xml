@@ -113,7 +113,6 @@ flexible messaging model and an intuitive client API.</description>
     <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
-    <awaitility.version>4.2.0</awaitility.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.9</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
