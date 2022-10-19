@@ -463,8 +463,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
-                    io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
-                    responseObserver) {
+                io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
+                responseObserver) {
             log.debug("Received health check request...");
             InstanceCommunication.HealthCheckResult healthCheckResult =
                     InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();
