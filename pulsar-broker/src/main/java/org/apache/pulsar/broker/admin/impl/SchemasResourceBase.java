@@ -292,7 +292,7 @@ public class SchemasResourceBase extends AdminResource {
 
     private void validateDestinationAndAdminOperation(boolean authoritative) {
         try {
-            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicOperation(topicName, TopicOperation.PRODUCE);
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
