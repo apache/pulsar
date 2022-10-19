@@ -1192,7 +1192,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     consumers.remove(consumerId, consumerFuture);
                                     ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError,
                                             msg));
-                                    return null;
+                                    return FutureUtil
+                                            .failedFuture(new BrokerServiceException.UnauthorizedException(msg));
                                 }
                             }
 
@@ -1421,7 +1422,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
                         ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError,
                                 msg));
-                        return null;
+                        return FutureUtil
+                                .failedFuture(new BrokerServiceException.UnauthorizedException(msg));
                     }
                 }
 
