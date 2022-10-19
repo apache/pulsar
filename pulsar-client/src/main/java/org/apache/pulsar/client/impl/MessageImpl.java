@@ -306,6 +306,10 @@ public class MessageImpl<T> implements Message<T> {
             entryTimestamp = messageMetadata.getPublishTime();
         }
 
+        if (delayTime == 0) {
+            return isEntryExpired(messageTTLInSeconds, entryTimestamp);
+        }
+
         return messageTTLInSeconds != 0
                 && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 && (delayTime - System.currentTimeMillis() < TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
