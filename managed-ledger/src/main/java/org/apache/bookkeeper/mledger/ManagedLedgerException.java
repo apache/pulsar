@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Set;
+import lombok.Getter;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -189,6 +191,22 @@ public class ManagedLedgerException extends Exception {
 
         public ManagedLedgerFactoryClosedException(Throwable e) {
             super(e);
+        }
+    }
+
+
+    public static class CursorReplyFailedException extends ManagedLedgerException {
+        @Getter
+        private final Set<? extends Position> replyPositions;
+
+        public CursorReplyFailedException(ManagedLedgerException ex, Set<? extends Position> replyPositions) {
+            super(ex);
+            this.replyPositions = replyPositions;
+        }
+
+        @Override
+        public synchronized ManagedLedgerException getCause() {
+            return (ManagedLedgerException) super.getCause();
         }
     }
 

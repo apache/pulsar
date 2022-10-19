@@ -1435,7 +1435,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // and not add it to the list
                     entry.release();
                     if (--pendingCallbacks == 0) {
-                        callback.readEntriesFailed(exception.get(), ctx);
+                        callback.readEntriesFailed(
+                                new ManagedLedgerException.CursorReplyFailedException(exception.get(), positions), ctx);
                     }
                 } else {
                     entries.add(entry);
@@ -1456,7 +1457,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     entries.forEach(Entry::release);
                 }
                 if (--pendingCallbacks == 0) {
-                    callback.readEntriesFailed(exception.get(), ctx);
+                    callback.readEntriesFailed(
+                            new ManagedLedgerException.CursorReplyFailedException(exception.get(), positions), ctx);
                 }
             }
         };

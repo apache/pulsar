@@ -767,10 +767,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+    public synchronized void readEntriesFailed(ManagedLedgerException rawException, Object ctx) {
 
         ReadType readType = (ReadType) ctx;
         long waitTimeMillis = readFailureBackoff.next();
+        final ManagedLedgerException exception;
+
+        // Add failed reply messages back to redelivery messages.
+        if (rawException instanceof ManagedLedgerException.CursorReplyFailedException) {
+            ManagedLedgerException.CursorReplyFailedException cursorReplyFailedException =
+                    (ManagedLedgerException.CursorReplyFailedException) rawException;
+            cursorReplyFailedException.getReplyPositions().forEach(replyPosition ->
+                    redeliveryMessages.add(replyPosition.getLedgerId(), replyPosition.getEntryId()));
+            exception = cursorReplyFailedException;
+        } else {
+            exception = rawException;
+        }
 
         if (exception instanceof NoMoreEntriesToReadException) {
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
@@ -1025,10 +1037,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
         } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-            Set<PositionImpl> messagesAvailableNow =
-                    delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
-            messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
-            return messagesAvailableNow;
+            return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
         } else {
             return Collections.emptySet();
         }
