@@ -266,7 +266,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         synchronized (dispatcher) {
             lastTickRun = clock.millis();
             currentTimeoutTarget = -1;
-            timeout = null;
+            this.timeout = null;
             dispatcher.readMoreEntries();
         }
     }

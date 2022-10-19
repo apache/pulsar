@@ -173,29 +173,36 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // This may happen when consumer closed. See issue #12885 for details.
         if (!allowOutOfOrderDelivery) {
             Set<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
-            if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty() && this.minReplayedPosition != null) {
-                PositionImpl relayPosition = messagesToReplayNow.stream().findFirst().get();
-                // If relayPosition is a new entry wither smaller position is inserted for redelivery during this async
-                // read, it is possible that this relayPosition should dispatch to consumer first. So in order to
-                // preserver order delivery, we need to discard this read result, and try to trigger a replay read,
-                // that containing "relayPosition", by calling readMoreEntries.
-                if (relayPosition.compareTo(minReplayedPosition) < 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, discard this "
-                                + "read and retry with readMoreEntries.",
-                                name, relayPosition, minReplayedPosition, readType);
+            if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty()) {
+                PositionImpl replayPosition = messagesToReplayNow.stream().findFirst().get();
+                // We have received a message potentially from the delayed tracker and, since we're not using it
+                // right now, it needs to be added to the redelivery tracker or we won't attempt anymore to
+                // resend it (until we disconnect consumer).
+                redeliveryMessages.add(replayPosition.getLedgerId(), replayPosition.getEntryId());
+
+                if (this.minReplayedPosition != null) {
+                    // If relayPosition is a new entry wither smaller position is inserted for redelivery during this
+                    // async read, it is possible that this relayPosition should dispatch to consumer first. So in
+                    // order to preserver order delivery, we need to discard this read result, and try to trigger a
+                    // replay read, that containing "relayPosition", by calling readMoreEntries.
+                    if (replayPosition.compareTo(minReplayedPosition) < 0) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, "
+                                            + "discard this read and retry with readMoreEntries.",
+                                    name, replayPosition, minReplayedPosition, readType);
+                        }
+                        if (readType == ReadType.Normal) {
+                            entries.forEach(entry -> {
+                                long stickyKeyHash = getStickyKeyHash(entry);
+                                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                                entry.release();
+                            });
+                        } else if (readType == ReadType.Replay) {
+                            entries.forEach(Entry::release);
+                        }
+                        readMoreEntries();
+                        return;
                     }
-                    if (readType == ReadType.Normal) {
-                        entries.forEach(entry -> {
-                            long stickyKeyHash = getStickyKeyHash(entry);
-                            addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
-                            entry.release();
-                        });
-                    } else if (readType == ReadType.Replay) {
-                        entries.forEach(Entry::release);
-                    }
-                    readMoreEntries();
-                    return;
                 }
             }
         }
