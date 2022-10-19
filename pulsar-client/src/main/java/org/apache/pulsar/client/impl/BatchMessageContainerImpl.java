@@ -102,9 +102,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 this.firstCallback = callback;
                 batchedMessageMetadataAndPayload = allocator.buffer(
                         Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
-
-                reserveBatchAllocatedSizeWhenInit(batchedMessageMetadataAndPayload.capacity());
-
+                updateAndReserveBatchAllocatedSize(batchedMessageMetadataAndPayload.capacity());
                 if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
                     currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
                 }
@@ -248,7 +246,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.clear();
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
-            updateBatchAllocatedSizeWhenLeave(encryptedPayload.capacity());
+            updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
             final OpSendMsg op;
@@ -279,7 +277,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             return op;
         }
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
-        updateBatchAllocatedSizeWhenLeave(encryptedPayload.capacity());
+        updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
@@ -310,14 +308,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return op;
     }
 
-    private void reserveBatchAllocatedSizeWhenInit(int batchAllocatedInitSize) {
-        batchAllocatedSizeBytes = batchAllocatedInitSize;
-        producer.client.getMemoryLimitController().forceReserveMemory(batchAllocatedSizeBytes);
-    }
-
-    private void updateBatchAllocatedSizeWhenLeave(int encryptedCapacity) {
-        int delta = encryptedCapacity - batchAllocatedSizeBytes;
-        batchAllocatedSizeBytes = encryptedCapacity;
+    private void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {
+        int delta = updatedSizeBytes - batchAllocatedSizeBytes;
+        batchAllocatedSizeBytes = updatedSizeBytes;
         if (delta != 0) {
             producer.client.getMemoryLimitController().forceReserveMemory(delta);
         }
