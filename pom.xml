@@ -102,7 +102,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
-
+    <snakeyaml.version>1.31</snakeyaml.version>
     <bookkeeper.version>4.14.5</bookkeeper.version>
     <zookeeper.version>3.6.3</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
@@ -113,6 +113,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
+    <awaitility.version>4.2.0</awaitility.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.9</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -1261,6 +1262,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.roaringbitmap</groupId>
         <artifactId>RoaringBitmap</artifactId>
         <version>${roaringbitmap.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
       </dependency>
 
     </dependencies>
