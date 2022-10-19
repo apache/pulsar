@@ -223,7 +223,7 @@ flexible messaging model and an intuitive client API.</description>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
-    <jettison.version>1.5.1</jettison.version>
+    <awaitility.version>4.0.3</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -797,13 +797,6 @@ flexible messaging model and an intuitive client API.</description>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-
-      <dependency>
-        <groupId>org.codehaus.jettison</groupId>
-        <artifactId>jettison</artifactId>
-        <version>${jettison.version}</version>
-      </dependency>
-
 
       <dependency>
         <groupId>org.hdrhistogram</groupId>
