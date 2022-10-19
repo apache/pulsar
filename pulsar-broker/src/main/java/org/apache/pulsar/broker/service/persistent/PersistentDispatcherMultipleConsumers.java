@@ -779,7 +779,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     (ManagedLedgerException.CursorReplyFailedException) rawException;
             cursorReplyFailedException.getReplyPositions().forEach(replyPosition ->
                     redeliveryMessages.add(replyPosition.getLedgerId(), replyPosition.getEntryId()));
-            exception = cursorReplyFailedException;
+            exception = cursorReplyFailedException.getCause();
         } else {
             exception = rawException;
         }
