@@ -92,8 +92,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "totalAvailablePermits");
     protected volatile int totalAvailablePermits = 0;
     protected volatile int readBatchSize;
-    protected final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS,
-            1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+    protected final Backoff readFailureBackoff;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -130,6 +129,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
+        this.readFailureBackoff = new Backoff(
+                topic.getBrokerService().pulsar().getConfiguration().getDispatcherReadFailureBackoffInitialTimeInMs(),
+                TimeUnit.MILLISECONDS,
+                1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -695,7 +698,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
-                if (!havePendingRead) {
+                // If it's a replay read we need to retry even if there's already
+                // another scheduled read, otherwise we'd be stuck until
+                // more messages are published.
+                if (!havePendingRead || readType == ReadType.Replay) {
                     log.info("[{}] Retrying read operation", name);
                     readMoreEntries();
                 } else {
@@ -900,7 +906,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
         } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-            return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
+            Set<PositionImpl> messagesAvailableNow =
+                    delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
+            messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
+            return messagesAvailableNow;
         } else {
             return Collections.emptySet();
         }
