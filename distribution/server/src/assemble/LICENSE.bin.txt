@@ -449,7 +449,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.48.v20220622.jar
     - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.48.v20220622.jar
     - org.eclipse.jetty-jetty-alpn-server-9.4.48.v20220622.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.30.jar
+ * SnakeYaml -- org.yaml-snakeyaml-1.31.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.16.4.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
