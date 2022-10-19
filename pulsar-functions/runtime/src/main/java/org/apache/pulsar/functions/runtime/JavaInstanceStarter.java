@@ -414,8 +414,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void getAndResetMetrics(com.google.protobuf.Empty request,
-                                       io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
-                                               responseObserver) {
+                   io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
+                   responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
@@ -431,8 +431,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void getMetrics(com.google.protobuf.Empty request,
-                               io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
-                                       responseObserver) {
+                   io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
+                   responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
@@ -463,8 +463,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
-                                io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
-                                        responseObserver) {
+                    io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
+                    responseObserver) {
             log.debug("Received health check request...");
             InstanceCommunication.HealthCheckResult healthCheckResult =
                     InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();
