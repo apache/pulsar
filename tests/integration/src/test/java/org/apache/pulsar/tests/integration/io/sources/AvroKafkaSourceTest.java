@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.Data;
@@ -44,7 +45,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
