@@ -281,14 +281,14 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    @Data
-    public static class EntryMetadata {
-        long publishTime;
-        long delayTime;
+    public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
+        return messageTTLInSeconds != 0
+                && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
     }
 
-    public static EntryMetadata getEntryMetadata(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
-        EntryMetadata entryMetadata = new EntryMetadata();
+    public static boolean isEntryExpired(int messageTTLInSeconds, ByteBuf headersAndPayloadWithBrokerEntryMetadata) {
+        long entryTimestamp = 0;
+        long delayTime = 0;
 
         // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
         BrokerEntryMetadata brokerEntryMetadata =
@@ -296,24 +296,16 @@ public class MessageImpl<T> implements Message<T> {
         MessageMetadata messageMetadata =
                 Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
         if (messageMetadata.hasDeliverAtTime()) {
-            entryMetadata.delayTime = messageMetadata.getDeliverAtTime();
+            delayTime = messageMetadata.getDeliverAtTime();
         }
+
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
-            entryMetadata.publishTime = brokerEntryMetadata.getBrokerTimestamp();
-            return entryMetadata;
+            entryTimestamp = brokerEntryMetadata.getBrokerTimestamp();
+        } else {
+            // otherwise get the publish_time
+            entryTimestamp = messageMetadata.getPublishTime();
         }
 
-        // otherwise get the publish_time
-        entryMetadata.publishTime = messageMetadata.getPublishTime();
-        return entryMetadata;
-    }
-
-    public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
-        return messageTTLInSeconds != 0
-                && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
-    }
-
-    public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp, long delayTime) {
         return messageTTLInSeconds != 0
                 && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 && (delayTime - System.currentTimeMillis() < TimeUnit.SECONDS.toMillis(messageTTLInSeconds));

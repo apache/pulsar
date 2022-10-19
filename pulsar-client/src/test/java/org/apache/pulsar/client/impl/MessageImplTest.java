@@ -497,24 +497,18 @@ public class MessageImplTest {
                     .setProducerName("testProducer")
                     .setPartitionKeyB64Encoded(false)
                     .setPublishTime(1)
-                    .setDeliverAtTime(curTime + 50000);
+                    .setDeliverAtTime(curTime + 50000);// delay 50s
             byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
-
-            MessageImpl.EntryMetadata entryMetadata = MessageImpl.getEntryMetadata(byteBuf);
-            assertEquals(entryMetadata.getDelayTime(), curTime + 50000); // delay 50s
-            assertEquals(entryMetadata.getPublishTime(), 1);
 
             // when we set the delay message time to 50s, then when the TTL policy is 60s, it is greater than the
             // time set for the delayed message, so the delayed message can be expired.
-            assertTrue(MessageImpl.isEntryExpired(60,
-                    entryMetadata.getPublishTime(), entryMetadata.getDelayTime()));
+            assertTrue(MessageImpl.isEntryExpired(60, byteBuf));
 
             // when we set the delay message time to 50s, then when the TTL policy is 40s, it is less than the
             // time set for the delayed message, so the delayed message cannot be expired.
-            assertFalse(MessageImpl.isEntryExpired(40,
-                    entryMetadata.getPublishTime(), entryMetadata.getDelayTime()));
+            assertFalse(MessageImpl.isEntryExpired(40, byteBuf));
         } catch (Exception e) {
-            fail();
+            throw new RuntimeException("test delay message conflict with TTL policy error: ", e);
         }
     }
 
