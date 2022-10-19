@@ -40,6 +40,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -186,6 +187,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     private volatile Future<?> updateRankingHandle;
 
+    private Map<String, String> bundleBrokerAffinityMap;
+
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
         scheduler = Executors.newSingleThreadScheduledExecutor(
@@ -251,6 +254,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     }
                 });
         this.pulsar = pulsar;
+        this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
     }
 
     public SimpleLoadManagerImpl(PulsarService pulsar) {
@@ -1441,6 +1445,17 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             }
             this.setLoadReportForceUpdateFlag();
         }
+    }
+
+    @Override
+    public void setNamespaceBundleAffinity(String bundle, String broker) {
+        broker = broker.replaceFirst("http[s]?://", "");
+        this.bundleBrokerAffinityMap.put(bundle, broker);
+    }
+
+    @Override
+    public String removeNamespaceBundleAffinity(String bundle) {
+        return this.bundleBrokerAffinityMap.remove(bundle);
     }
 
     @Override

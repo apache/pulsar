@@ -56,6 +56,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -878,6 +879,29 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    public void setNamespaceBundleAffinity (String bundleRange, String destinationBroker) {
+        if (destinationBroker != null) {
+            if (!this.isLeaderBroker()) {
+                LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
+                String leaderBrokerUrl = leaderBroker.getServiceUrl();
+                try {
+                    URL redirectUrl = new URL(leaderBrokerUrl);
+                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(redirectUrl.getHost())
+                            .port(redirectUrl.getPort()).replaceQueryParam("authoritative",
+                                    false).build();
+
+                    // Redirect
+                    log.debug("Redirecting the rest call to leader - {}, bundleRange - {}", redirect, bundleRange);
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                } catch (MalformedURLException exception) {
+                    log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
+                    throw new RestException(exception);
+                }
+            }
+            pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
+        }
+    }
+
     public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange, boolean authoritative) {
         return validateSuperUserAccessAsync()
                 .thenAccept(__ -> {
@@ -924,8 +948,9 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                             return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                     authoritative, true)
-                                    .thenCompose(nsBundle ->
-                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
+                                    .thenCompose(nsBundle -> {
+                                        return pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle);
+                                    });
                         }));
     }
 

@@ -65,13 +65,13 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
+        String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(serviceUnit.toString());
+        String affinityBroker = loadManager.removeNamespaceBundleAffinity(bundleRange);
+        if (affinityBroker != null) {
+            return Optional.of(buildBrokerResourceUnit(affinityBroker));
+        }
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
-        return leastLoadedBroker.map(s -> {
-            String webServiceUrl = getBrokerWebServiceUrl(s);
-            String brokerZnodeName = getBrokerZnodeName(s, webServiceUrl);
-            return new SimpleResourceUnit(webServiceUrl,
-                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
-        });
+        return leastLoadedBroker.map(this::buildBrokerResourceUnit);
     }
 
     private String getBrokerWebServiceUrl(String broker) {
@@ -145,5 +145,22 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
         return loadManager.getAvailableBrokersAsync();
+    }
+
+    private SimpleResourceUnit buildBrokerResourceUnit (String broker) {
+        String webServiceUrl = getBrokerWebServiceUrl(broker);
+        String brokerZnodeName = getBrokerZnodeName(broker, webServiceUrl);
+        return new SimpleResourceUnit(webServiceUrl,
+                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+    }
+
+    @Override
+    public void setNamespaceBundleAffinity(String bundle, String broker) {
+        loadManager.setNamespaceBundleAffinity(bundle, broker);
+    }
+
+    @Override
+    public String removeNamespaceBundleAffinity(String bundle) {
+        return loadManager.removeNamespaceBundleAffinity(bundle);
     }
 }
