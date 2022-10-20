@@ -162,12 +162,15 @@ public class FilterEntryTest extends BrokerTestBase {
         Dispatcher dispatcher = subscription.getDispatcher();
         Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
         field.setAccessible(true);
+        Field hasFilterField = EntryFilterSupport.class.getDeclaredField("hasFilter");
+        hasFilterField.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
         EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
         EntryFilter filter2 = new EntryFilter2Test();
         EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
         field.set(dispatcher, List.of(loader1, loader2));
+        hasFilterField.set(dispatcher, true);
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topic).create();
@@ -287,12 +290,15 @@ public class FilterEntryTest extends BrokerTestBase {
             Dispatcher dispatcher = subscription.getDispatcher();
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
+            Field hasFilterField = EntryFilterSupport.class.getDeclaredField("hasFilter");
+            hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
             EntryFilter filter2 = new EntryFilter2Test();
             EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
             field.set(dispatcher, List.of(loader1, loader2));
+            hasFilterField.set(dispatcher, true);
 
             for (int i = 0; i < 10; i++) {
                 producer.send("test");
@@ -360,6 +366,8 @@ public class FilterEntryTest extends BrokerTestBase {
             Dispatcher dispatcher = subscription.getDispatcher();
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
+            Field hasFilterField = EntryFilterSupport.class.getDeclaredField("hasFilter");
+            hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
@@ -368,6 +376,7 @@ public class FilterEntryTest extends BrokerTestBase {
             EntryFilterWithClassLoader loader2 =
                     spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
             field.set(dispatcher, List.of(loader1, loader2));
+            hasFilterField.set(dispatcher, true);
 
             for (int i = 0; i < numMessages; i++) {
                 if (i % 2 == 0) {

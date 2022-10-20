@@ -210,22 +210,28 @@ public class BacklogQuotaManager {
             Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
             ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
             try {
-                for (;;) {
+                for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
+                                slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
+                    }
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {
-                        slowestConsumer.resetCursor(mLedger.getNextValidPosition((PositionImpl) oldestPosition));
+                        PositionImpl nextPosition =
+                                PositionImpl.get(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
+                        slowestConsumer.markDelete(nextPosition);
                         continue;
                     }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
                             && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime() * 1000) {
                         // skip whole ledger for the slowest cursor
-                        PositionImpl nextPosition = mLedger.getNextValidPosition(
-                                PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1));
+                        PositionImpl nextPosition =
+                                PositionImpl.get(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
                         if (!nextPosition.equals(oldestPosition)) {
-                            slowestConsumer.resetCursor(nextPosition);
+                            slowestConsumer.markDelete(nextPosition);
                             continue;
                         }
                     }

@@ -752,52 +752,6 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    @SuppressWarnings("deprecation")
-    protected void internalUnloadNamespace(AsyncResponse asyncResponse) {
-        validateSuperUserAccess();
-        log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        final List<CompletableFuture<Void>> futures = new ArrayList<>();
-        List<String> boundaries = policies.bundles.getBoundaries();
-        for (int i = 0; i < boundaries.size() - 1; i++) {
-            String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
-            try {
-                futures.add(pulsar().getAdminClient().namespaces().unloadNamespaceBundleAsync(namespaceName.toString(),
-                        bundle));
-            } catch (PulsarServerException e) {
-                log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return;
-            }
-        }
-
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, exception);
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
-                } else {
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
-            }
-            log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
-            asyncResponse.resume(Response.noContent().build());
-            return null;
-        });
-    }
-
     protected CompletableFuture<Void> internalUnloadNamespaceAsync() {
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> {
@@ -1158,23 +1112,6 @@ public abstract class NamespacesBase extends AdminResource {
         }));
     }
 
-    protected void internalDeleteTopicDispatchRate() {
-        validateSuperUserAccess();
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
-            log.info("[{}] Successfully delete the dispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete the dispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
     protected CompletableFuture<Void> internalDeleteTopicDispatchRateAsync() {
         return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1267,24 +1204,6 @@ public abstract class NamespacesBase extends AdminResource {
             }
             return policies;
         });
-    }
-
-    protected void internalRemoveBacklogQuota(BacklogQuotaType backlogQuotaType) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
-                : BacklogQuotaType.destination_storage;
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.backlog_quota_map.remove(quotaType);
-                return policies;
-            });
-            log.info("[{}] Successfully removed backlog namespace={}, quota={}", clientAppId(), namespaceName,
-                    backlogQuotaType);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update backlog quota map for namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
     }
 
     protected void internalSetRetention(RetentionPolicies retention) {
