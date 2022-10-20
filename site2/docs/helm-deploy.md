@@ -385,10 +385,10 @@ Although we have done our best to make these charts as seamless as possible, tro
 To uninstall the Pulsar Helm chart, run the following command:
 
 ```bash
-helm delete <pulsar-release-name>
+helm uninstall <pulsar-release-name>
 ```
 
-For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command. It is recommended to *consciously* remove these items, as they affect re-deployment.
+For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by using the `helm uninstall` command. It is recommended to *consciously* remove these items, as they affect re-deployment.
 
 * PVCs for stateful data: remove these items.
   - ZooKeeper: This is your metadata.
