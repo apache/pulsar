@@ -336,6 +336,13 @@ import ssl
 import pathlib
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+client_cert_pem = pathlib.Path(__file__).with_name("client.cert.pem")
+client_key_pem = pathlib.Path(__file__).with_name("client.key.pem")
+ca_cert_pem = pathlib.Path(__file__).with_name("ca.cert.pem")
+ssl_context.load_cert_chain(certfile=client_cert_pem, keyfile=client_key_pem)
+ssl_context.load_verify_locations(ca_cert_pem)
+# websocket producer uri wss, not ws
+uri = "wss://localhost:8080/ws/v2/producer/persistent/public/default/testtopic"
 client_pem = pathlib.Path(__file__).with_name("pulsar_client.pem")
 ssl_context.load_verify_locations(client_pem)
 # websocket producer uri wss, not ws
