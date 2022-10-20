@@ -330,7 +330,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> maxAcknowledgmentGroupSize(int messageNum) {
         checkArgument(messageNum > 0, "acknowledgementsGroupSize needs to be > 0");
-        conf.setAcknowledgementsGroupSize(messageNum);
+        conf.setMaxAcknowledgmentGroupSize(messageNum);
         return this;
     }
 

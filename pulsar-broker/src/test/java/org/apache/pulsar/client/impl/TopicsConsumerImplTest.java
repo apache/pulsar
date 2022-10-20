@@ -169,18 +169,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testMaxAcknowledgmentGroupSizeInvalid() {
-        try {
-            pulsarClient.newConsumer()
-                    .maxAcknowledgmentGroupSize(0);
-            fail("Should throw exception");
-        } catch (IllegalArgumentException e) {
-            // expect exception
-            assertEquals(e.getMessage(), "acknowledgementsGroupSize needs to be > 0");
-        }
-    }
-
-    @Test
     public void testMaxAcknowledgmentGroupSize() throws Exception {
         final String namespace = "use/ns-abc";
         final String topicName = "persistent://" + namespace + "/topic1";
