@@ -113,19 +113,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
             return builder.sendAsync();
         }
 
-        public static String getEventKey(PulsarEvent event) {
-            return TopicName.get(event.getTopicPoliciesEvent().getDomain(),
-                event.getTopicPoliciesEvent().getTenant(),
-                event.getTopicPoliciesEvent().getNamespace(),
-                event.getTopicPoliciesEvent().getTopic()).toString();
-        }
 
-        public static String getEventKey(TopicName topicName) {
-            return TopicName.get(topicName.getDomain().toString(),
-                    topicName.getTenant(),
-                    topicName.getNamespace(),
-                    TopicName.get(topicName.getPartitionedTopicName()).getLocalName()).toString();
-        }
 
         @Override
         public void close() throws IOException {

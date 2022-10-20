@@ -424,7 +424,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     public void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
                               AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
                               ManagedLedgerConfig config, Object ctx) {
-        CompletableFuture<ReadOnlyManagedLedgerImpl> future = new CompletableFuture<>();
         if (closed) {
             callback.openReadOnlyManagedLedgerFailed(
                     new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
