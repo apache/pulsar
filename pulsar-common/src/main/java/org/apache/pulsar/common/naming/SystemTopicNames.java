@@ -40,7 +40,7 @@ public class SystemTopicNames {
     /**
      * Local topic name for the transaction buffer snapshot segment.
      */
-    public static final String TRANSACTION_BUFFER_SNAPSHOT_SEGMENT = "__transaction_buffer_snapshot_segment";
+    public static final String TRANSACTION_BUFFER_SNAPSHOT_SEGMENT = "__transaction_buffer_snapshot_segments";
 
     /**
      * Local topic name for the transaction buffer snapshot indexes.

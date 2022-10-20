@@ -16,49 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.matadata.v2;
+package org.apache.pulsar.broker.transaction.buffer.metadata;
 
 import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.apache.pulsar.client.api.transaction.TxnID;
 
+/**
+ * Transaction buffer snapshot metadata.
+ */
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-@Builder
-public class TransactionBufferSnapshotIndexes {
+public class TransactionBufferSnapshot {
     private String topicName;
-
-    private List<TransactionBufferSnapshotIndex> indexList;
-
-    private TransactionBufferSnapshot snapshot;
-
-    @Builder
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class TransactionBufferSnapshotIndex {
-        public long sequenceID;
-        public long maxReadPositionLedgerID;
-        public long maxReadPositionEntryID;
-        public long persistentPositionLedgerID;
-        public long persistentPositionEntryID;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class TransactionBufferSnapshot {
-        private String topicName;
-        private long sequenceId;
-        private long maxReadPositionLedgerId;
-        private long maxReadPositionEntryId;
-        private List<TxnID> aborts;
-    }
+    private long maxReadPositionLedgerId;
+    private long maxReadPositionEntryId;
+    private List<AbortTxnMetadata> aborts;
 }

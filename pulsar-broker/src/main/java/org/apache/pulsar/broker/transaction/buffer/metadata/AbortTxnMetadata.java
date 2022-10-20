@@ -16,7 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.broker.transaction.buffer.metadata;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 /**
- * The transaction buffer snapshot metadata.
+ * Abort txn metadata.
  */
-package org.apache.pulsar.broker.transaction.buffer.matadata;
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+public class AbortTxnMetadata {
+    long txnIdMostBits;
+    long txnIdLeastBits;
+    long ledgerId;
+    long entryId;
+}

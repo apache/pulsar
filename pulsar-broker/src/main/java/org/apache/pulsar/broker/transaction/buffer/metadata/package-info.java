@@ -16,4 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.matadata.v2;
+/**
+ * The transaction buffer snapshot metadata.
+ */
+package org.apache.pulsar.broker.transaction.buffer.metadata;

@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
 
@@ -28,7 +28,7 @@ public class TransactionBufferSnapshotServiceFactory {
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> txnBufferSnapshotService;
 
-    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+    private SystemTopicTxnBufferSnapshotService<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot>
             txnBufferSnapshotSegmentService;
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> txnBufferSnapshotIndexService;
@@ -36,7 +36,7 @@ public class TransactionBufferSnapshotServiceFactory {
     public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient) {
         this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
-                TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class);
+                org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot.class);
         this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
         this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
@@ -47,7 +47,7 @@ public class TransactionBufferSnapshotServiceFactory {
         return this.txnBufferSnapshotIndexService;
     }
 
-    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+    public SystemTopicTxnBufferSnapshotService<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot>
     getTxnBufferSnapshotSegmentService() {
         return this.txnBufferSnapshotSegmentService;
     }

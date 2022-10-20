@@ -62,8 +62,10 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -598,10 +600,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 transactionBufferSnapshotIndexService.createReader(TopicName.get(SNAPSHOT_INDEX)).get();
 
 
-        List<TransactionBufferSnapshotIndexes.TransactionBufferSnapshotIndex> indexList = new LinkedList<>();
+        List<TransactionBufferSnapshotIndex> indexList = new LinkedList<>();
 
         for (long i = 0; i < 5; i++) {
-            indexList.add(new TransactionBufferSnapshotIndexes.TransactionBufferSnapshotIndex(i, i, i, i, i));
+            indexList.add(new TransactionBufferSnapshotIndex(i, i, i, i, i));
         }
 
         TransactionBufferSnapshotIndexes transactionBufferTransactionBufferSnapshotIndexes =
@@ -616,7 +618,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getIndexList().size(), 5);
         assertNull(transactionBufferTransactionBufferSnapshotIndexes.getSnapshot());
 
-        TransactionBufferSnapshotIndexes.TransactionBufferSnapshotIndex transactionBufferSnapshotIndex =
+        TransactionBufferSnapshotIndex transactionBufferSnapshotIndex =
                 transactionBufferTransactionBufferSnapshotIndexes.getIndexList().get(1);
         assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionLedgerID(), 1L);
         assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionEntryID(), 1L);
@@ -625,7 +627,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(transactionBufferSnapshotIndex.getSequenceID(), 1L);
     }
 
-    public static String buildKey(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot) {
+    public static String buildKey(
+            org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot snapshot) {
         return  "multiple-" + snapshot.getSequenceId() + "-" + snapshot.getTopicName();
     }
 
@@ -636,8 +639,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         TopicName snapshotSegmentTopicName = TopicName.getPartitionedTopicName(snapshotTopic);
 
         //send message to create manager ledger
-        Producer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> producer =
-                pulsarClient.newProducer(Schema.AVRO(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class))
+        Producer<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot> producer =
+                pulsarClient.newProducer(Schema.AVRO(
+                                org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot.class))
                 .topic(snapshotTopic)
                 .create();
 
@@ -646,16 +650,16 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         BrokerService brokerService = pulsarService.getBrokerService();
 
         // create snapshot segment writer
-        SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+        SystemTopicTxnBufferSnapshotService<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot>
                 transactionBufferSnapshotSegmentService =
                 new TransactionBufferSnapshotServiceFactory(pulsarClient).getTxnBufferSnapshotSegmentService();
 
-        SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+        SystemTopicClient.Writer<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot>
                 segmentWriter = transactionBufferSnapshotSegmentService.createWriter(snapshotSegmentTopicName).get();
 
         // write two snapshot to snapshot segment topic
-        TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot =
-                new TransactionBufferSnapshotIndexes.TransactionBufferSnapshot();
+        org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot snapshot =
+                new org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot();
 
         //build and send snapshot
         snapshot.setTopicName(snapshotTopic);
@@ -663,7 +667,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setMaxReadPositionLedgerId(2L);
         snapshot.setMaxReadPositionEntryId(3L);
         snapshot.setAborts(Collections.singletonList(
-                new TxnID(1, 1)));
+                new TxnIDData(1, 1)));
 
         segmentWriter.write(buildKey(snapshot), snapshot);
         snapshot.setSequenceId(2L);
@@ -706,8 +710,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         ByteBuf headersAndPayload = entry.getDataBuffer();
         //skip metadata
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        snapshot = Schema.AVRO(TransactionBufferSnapshotIndexes
-                .TransactionBufferSnapshot.class).decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
+        snapshot = Schema.AVRO(org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot.class).decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
 
         //verify snapshot
         assertEquals(snapshot.getTopicName(), snapshotTopic);
