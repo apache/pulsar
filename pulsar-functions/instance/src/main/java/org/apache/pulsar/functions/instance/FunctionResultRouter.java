@@ -44,7 +44,7 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
             startPtnIdx,
             true,
             1,
-            clock);
+            clock, () -> false);
     }
 
     public static FunctionResultRouter of() {

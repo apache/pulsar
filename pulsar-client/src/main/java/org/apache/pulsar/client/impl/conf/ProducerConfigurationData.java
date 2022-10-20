@@ -203,6 +203,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private boolean lazyStartPartitionedProducers = false;
 
+    private int mayRetryOtherPartitions = 0;
+
+
     private SortedMap<String, String> properties = new TreeMap<>();
 
     @ApiModelProperty(
