@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import lombok.Cleanup;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -88,7 +89,8 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         sendMessagesAsyncAndWait(producer, messageNum);
         List<MessageId> messages = new ArrayList<>();
         for (int i = 0; i < messageNum; i++) {
-            messages.add(consumer.receive().getMessageId());
+            BatchMessageIdImpl messageId = (BatchMessageIdImpl) consumer.receive().getMessageId();
+            messages.add(messageId);
         }
         consumer.acknowledge(messages);
         //Wait ack send.

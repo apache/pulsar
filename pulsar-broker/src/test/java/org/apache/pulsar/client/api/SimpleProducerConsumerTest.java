@@ -1418,35 +1418,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testAcknowledgmentGroupSize() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name")
-                .receiverQueueSize(1)
-                .acknowledgmentGroupTime(10000, TimeUnit.SECONDS)
-                .subscriptionType(SubscriptionType.Shared)
-                .maxAcknowledgmentGroupSize(8);
-
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
-                .create();
-        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (msg != null) {
-                consumer1.acknowledge(msg);
-            } else {
-                break;
-            }
-        }
-    }
-
     /**
      * consume message from consumer1 and send acknowledgement from different consumer subscribed under same
      * subscription-name
