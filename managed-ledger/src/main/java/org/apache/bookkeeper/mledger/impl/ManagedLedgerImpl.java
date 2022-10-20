@@ -2401,8 +2401,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         if (offloadThresholdInBytes < 0 && offloadThresholdInSeconds < 0) {
-            String msg = String.format("[%s] Nothing to offload due to [managedLedgerOffloadThresholdInBytes] and " +
-                    "[managedLedgerOffloadThresholdInSeconds] less than 0.", name);
+            String msg = String.format("[%s] Nothing to offload due to [managedLedgerOffloadThresholdInBytes] and "
+                    + "[managedLedgerOffloadThresholdInSeconds] less than 0.", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
             return;
         }
