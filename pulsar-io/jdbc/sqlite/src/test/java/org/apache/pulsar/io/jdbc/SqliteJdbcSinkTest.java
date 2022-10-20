@@ -25,17 +25,22 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.util.Utf8;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -45,9 +50,7 @@ import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -72,6 +75,8 @@ public class SqliteJdbcSinkTest {
      * A Simple class to test jdbc class
      */
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Foo {
         private String field1;
         private String field2;
@@ -96,22 +101,34 @@ public class SqliteJdbcSinkTest {
         // prepare data for delete sql
         String deleteSql = "insert into " + tableName + " values('ValueOfField5', 'ValueOfField5', 5)";
         sqliteUtils.execute(deleteSql);
-        Map<String, Object> conf;
+        restartSinkWithConfig(null);
+    }
 
+    private void restartSinkWithConfig(Map<String, Object> additional) throws Exception {
+        if (jdbcSink != null) {
+            jdbcSink.close();
+        }
         String jdbcUrl = sqliteUtils.sqliteUri();
 
-        conf = Maps.newHashMap();
+        Map<String, Object> conf = Maps.newHashMap();
         conf.put("jdbcUrl", jdbcUrl);
         conf.put("tableName", tableName);
         conf.put("key", "field3");
         conf.put("nonKey", "field1,field2");
         // change batchSize to 1, to flush on each write.
         conf.put("batchSize", 1);
+        if (additional != null) {
+            conf.putAll(additional);
+        }
+        configure(conf);
 
         jdbcSink = new SqliteJdbcAutoSchemaSink();
 
         // open should succeed
         jdbcSink.open(conf, null);
+    }
+
+    protected void configure(Map<String, Object> configuration) {
     }
 
     @AfterMethod(alwaysRun = true)
@@ -121,7 +138,7 @@ public class SqliteJdbcSinkTest {
     }
 
     private void testOpenAndWriteSinkNullValue(Map<String, String> actionProperties) throws Exception {
-        Message<GenericObject> insertMessage = mock(MessageImpl.class);
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
@@ -129,26 +146,8 @@ public class SqliteJdbcSinkTest {
         // Not setting field2
         // Field1 is the key and field3 is used for selecting records 
         insertObj.setField3(3);
-        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
-
-        byte[] insertBytes = schema.encode(insertObj);
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
-            .message(insertMessage)
-            .topicName("fake_topic_name")
-            .ackFunction(() -> future.complete(null))
-            .build();
-
-        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
-        when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
-        when(insertMessage.getProperties()).thenReturn(actionProperties);
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-                insertObj.toString(),
-                insertMessage.getValue().toString(),
-                insertRecord.getValue().toString());
-
-        // write should success.
-        jdbcSink.write(insertRecord);
+        final Record<GenericObject> record = createMockFooRecord(insertObj, actionProperties, future);
+        jdbcSink.write(record);
         log.info("executed write");
         // sleep to wait backend flush complete
         future.get(1, TimeUnit.SECONDS);
@@ -165,33 +164,16 @@ public class SqliteJdbcSinkTest {
     }
 
     private void testOpenAndWriteSinkJson(Map<String, String> actionProperties) throws Exception {
-        Message<GenericObject> insertMessage = mock(MessageImpl.class);
-        GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
         insertObj.setField1("ValueOfField1");
         insertObj.setField2("ValueOfField2");
         insertObj.setField3(3);
-        JSONSchema<Foo> schema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
-
-        byte[] insertBytes = schema.encode(insertObj);
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
-            .message(insertMessage)
-            .topicName("fake_topic_name")
-            .ackFunction(() -> future.complete(null))
-            .build();
-
-        GenericSchema<GenericRecord> decodeSchema = GenericSchemaImpl.of(schema.getSchemaInfo());
-        when(insertMessage.getValue()).thenReturn(decodeSchema.decode(insertBytes));
-        when(insertMessage.getProperties()).thenReturn(actionProperties);
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-                insertObj.toString(),
-                insertMessage.getValue().toString(),
-                insertRecord.getValue().toString());
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        final Record<GenericObject> record = createMockFooRecord(insertObj, actionProperties, future);
 
         // write should success.
-        jdbcSink.write(insertRecord);
+        jdbcSink.write(record);
         log.info("executed write");
         // sleep to wait backend flush complete
         future.get(1, TimeUnit.SECONDS);
@@ -216,26 +198,11 @@ public class SqliteJdbcSinkTest {
         // Not setting field2
         // Field1 is the key and field3 is used for selecting records 
         insertObj.setField3(3);
-        JSONSchema<Foo> schema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
-
-        byte[] insertBytes = schema.encode(insertObj);
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
-            .message(insertMessage)
-            .topicName("fake_topic_name")
-            .ackFunction(() -> future.complete(null))
-            .build();
-
-        GenericSchema<GenericRecord> decodeSchema = GenericSchemaImpl.of(schema.getSchemaInfo());
-        when(insertMessage.getValue()).thenReturn(decodeSchema.decode(insertBytes));
-        when(insertMessage.getProperties()).thenReturn(actionProperties);
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-                insertObj.toString(),
-                insertMessage.getValue().toString(),
-                insertRecord.getValue().toString());
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        final Record<GenericObject> record = createMockFooRecord(insertObj, actionProperties, future);
 
         // write should success.
-        jdbcSink.write(insertRecord);
+        jdbcSink.write(record);
         log.info("executed write");
         // sleep to wait backend flush complete
         // sleep to wait backend flush complete
@@ -260,26 +227,11 @@ public class SqliteJdbcSinkTest {
         insertObj.setField1("ValueOfField1");
         insertObj.setField2("ValueOfField2");
         insertObj.setField3(3);
-        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-
-        byte[] insertBytes = schema.encode(insertObj);
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
-            .message(insertMessage)
-            .topicName("fake_topic_name")
-            .ackFunction(() -> future.complete(null))
-            .build();
-
-        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
-        when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
-        when(insertMessage.getProperties()).thenReturn(actionProperties);
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-                insertObj.toString(),
-                insertMessage.getValue().toString(),
-                insertRecord.getValue().toString());
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        final Record<GenericObject> record = createMockFooRecord(insertObj, actionProperties, future);
 
         // write should success.
-        jdbcSink.write(insertRecord);
+        jdbcSink.write(record);
         log.info("executed write");
         // sleep to wait backend flush complete
         future.get(1, TimeUnit.SECONDS);
@@ -342,7 +294,7 @@ public class SqliteJdbcSinkTest {
 
         byte[] updateBytes = schema.encode(updateObj);
         Message<GenericObject> updateMessage = mock(MessageImpl.class);
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         Record<GenericObject> updateRecord = PulsarRecord.<GenericObject>builder()
                 .message(updateMessage)
                 .topicName("fake_topic_name")
@@ -383,7 +335,7 @@ public class SqliteJdbcSinkTest {
 
         byte[] deleteBytes = schema.encode(deleteObj);
         Message<GenericObject> deleteMessage = mock(MessageImpl.class);
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         Record<GenericObject> deleteRecord = PulsarRecord.<GenericObject>builder()
                 .message(deleteMessage)
                 .topicName("fake_topic_name")
@@ -408,6 +360,172 @@ public class SqliteJdbcSinkTest {
         String deleteQuerySql = "SELECT * FROM " + tableName + " WHERE field3=5";
         Assert.assertEquals(sqliteUtils.select(deleteQuerySql, (resultSet) -> {}), 0);
     }
+
+    @Test
+    public void testBatchMode() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("batchSize", 3);
+        config.put("timeoutMs", 0);
+        restartSinkWithConfig(config);
+        Foo updateObj = new Foo();
+        updateObj.setField1("f1");
+        updateObj.setField2("f12");
+        updateObj.setField3(1);
+        Map<String, String> updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> futureByEntries1 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries1));
+        Assert.assertThrows(TimeoutException.class, () -> futureByEntries1.get(1, TimeUnit.SECONDS));
+        final CompletableFuture<Boolean> futureByEntries2 = new CompletableFuture<>();
+        updateProperties.put("ACTION", "UPDATE");
+        updateObj.setField2("f13");
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries2));
+        Assert.assertThrows(TimeoutException.class, () -> futureByEntries1.get(1, TimeUnit.SECONDS));
+        Assert.assertThrows(TimeoutException.class, () -> futureByEntries2.get(1, TimeUnit.SECONDS));
+        updateObj.setField2("f14");
+        final CompletableFuture<Boolean> futureByEntries3 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries3));
+        futureByEntries1.get(1, TimeUnit.SECONDS);
+        futureByEntries2.get(1, TimeUnit.SECONDS);
+        futureByEntries3.get(1, TimeUnit.SECONDS);
+
+        config.put("batchSize", 0);
+        config.put("timeoutMs", TimeUnit.SECONDS.toMillis(3));
+        restartSinkWithConfig(config);
+        final CompletableFuture<Boolean> futureByTime = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByTime));
+        Assert.assertThrows(TimeoutException.class, () -> futureByTime.get(1, TimeUnit.SECONDS));
+        futureByTime.get(3, TimeUnit.SECONDS);
+
+    }
+
+    /**
+     * Verify that if the flush is finished but the incoming records list size is equals
+     * or greater than the batch size,
+     * the next flush is immediately triggered (without any other writes).
+     * @throws Exception
+     */
+    @Test
+    public void testBatchModeContinueFlushing() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("batchSize", 1);
+        config.put("timeoutMs", 0);
+        restartSinkWithConfig(config);
+        // block the auto flushing mechanism
+        FieldUtils.writeField(jdbcSink, "isFlushing", new AtomicBoolean(true), true);
+        Foo updateObj = new Foo("f1", "f12", 1);
+        Map<String, String> updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> futureByEntries1 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries1));
+        Assert.assertThrows(TimeoutException.class, () -> futureByEntries1.get(1, TimeUnit.SECONDS));
+
+        FieldUtils.writeField(jdbcSink, "isFlushing", new AtomicBoolean(false), true);
+
+        updateObj = new Foo("f2", "f12", 1);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> futureByEntries2 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(updateObj, updateProperties, futureByEntries2));
+
+        futureByEntries1.get(1, TimeUnit.SECONDS);
+        futureByEntries2.get(1, TimeUnit.SECONDS);
+    }
+
+    @DataProvider(name = "useTransactions")
+    public Object[] useTransactions() {
+        return Arrays.asList(true, false).toArray();
+    }
+
+    @Test(dataProvider = "useTransactions")
+    public void testBatchModeFailures(boolean useTransactions) throws Exception {
+        jdbcSink.close();
+        jdbcSink = null;
+        sqliteUtils.execute("delete from " + tableName);
+        restartSinkWithConfig(null);
+        Foo foo = new Foo("f1", "f2", 1);
+        Map<String, String> updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> future0 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(foo, updateProperties, future0));
+        Assert.assertTrue(future0.get());
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("batchSize", 5);
+        config.put("useTransactions", useTransactions);
+        restartSinkWithConfig(config);
+
+        foo = new Foo("f2", "f2", 2);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> future2 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(foo, updateProperties, future2));
+
+        foo = new Foo("f3", "f2", 3);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> future3 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(foo, updateProperties, future3));
+
+        foo = new Foo("f1", "f21", 11);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "UPDATE");
+        final CompletableFuture<Boolean> future4 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(foo, updateProperties, future4));
+
+        foo = new Foo("f1", "f2no", 9);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "INSERT");
+        final CompletableFuture<Boolean> future5 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(foo, updateProperties, future5));
+
+        foo = new Foo("f1", "f3", 5);
+        updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "UPDATE");
+        final CompletableFuture<Boolean> future6 = new CompletableFuture<>();
+        jdbcSink.write(createMockFooRecord(foo, updateProperties, future6));
+
+
+        if (jdbcSink.jdbcSinkConfig.isUseTransactions()) {
+            if (jdbcSink.jdbcSinkConfig.isUseJdbcBatch()) {
+                Assert.assertTrue(future2.get(1, TimeUnit.SECONDS));
+                Assert.assertTrue(future3.get(1, TimeUnit.SECONDS));
+                Assert.assertTrue(future4.get(1, TimeUnit.SECONDS));
+                Assert.assertFalse(future5.get(1, TimeUnit.SECONDS));
+                Assert.assertFalse(future6.get(1, TimeUnit.SECONDS));
+                final int count = sqliteUtils.select("select field1,field2,field3 from "
+                        + tableName
+                        + " where (field1='f1' and field2='f21') or field1='f2' or field1='f3'", (r) -> {});
+                Assert.assertEquals(count, 2);
+
+            } else {
+                Assert.assertFalse(future2.get(1, TimeUnit.SECONDS));
+                Assert.assertFalse(future3.get(1, TimeUnit.SECONDS));
+                Assert.assertFalse(future4.get(1, TimeUnit.SECONDS));
+                Assert.assertFalse(future5.get(1, TimeUnit.SECONDS));
+                Assert.assertFalse(future6.get(1, TimeUnit.SECONDS));
+                final int count = sqliteUtils.select("select field1,field2,field3 from "
+                        + tableName
+                        + " where (field1='f1' and field2='f2') or field1='f2' or field1='f3'", (r) -> {});
+                Assert.assertEquals(count, 1);
+            }
+        } else {
+            Assert.assertTrue(future2.get(1, TimeUnit.SECONDS));
+            Assert.assertTrue(future3.get(1, TimeUnit.SECONDS));
+            Assert.assertTrue(future4.get(1, TimeUnit.SECONDS));
+            Assert.assertFalse(future5.get(1, TimeUnit.SECONDS));
+            Assert.assertFalse(future6.get(1, TimeUnit.SECONDS));
+            System.out.println("dump:\n" + sqliteUtils.dump("select field1,field2,field3 from " + tableName));
+
+            final int count = sqliteUtils.select("select field1,field2,field3 from "
+                    + tableName
+                    + " where (field1='f1' and field2='f21') or field1='f2' or field1='f3'", (r) -> {
+                log.info("got {};{};{}", r.getString(1), r.getString(2), r.getInt(3));
+            });
+            Assert.assertEquals(count, 2);
+        }
+    }
+
 
     private static class MockKeyValueGenericRecord implements Record<GenericObject> {
 
@@ -716,7 +834,7 @@ public class SqliteJdbcSinkTest {
                     if (key.equals("mykey2")) {
                         Assert.assertEquals(value, "thestring");
                     } else {
-                        throw new IllegalStateException();
+                        throw new IllegalStateException("got unexpected key " + key);
                     }
                 });
                 if (nullValueAction == JdbcSinkConfig.NullValueAction.DELETE) {
@@ -729,6 +847,27 @@ public class SqliteJdbcSinkTest {
             });
 
         }
+    }
+
+    private Record<GenericObject> createMockFooRecord(Foo record, Map<String, String> actionProperties,
+                                                        CompletableFuture<Boolean> future) {
+        Message<GenericObject> insertMessage = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
+        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
+
+        byte[] insertBytes = schema.encode(record);
+
+        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
+                .message(insertMessage)
+                .topicName("fake_topic_name")
+                .ackFunction(() -> future.complete(true))
+                .failFunction(() -> future.complete(false))
+                .build();
+
+        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+        when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
+        when(insertMessage.getProperties()).thenReturn(actionProperties);
+        return insertRecord;
     }
 
 }
