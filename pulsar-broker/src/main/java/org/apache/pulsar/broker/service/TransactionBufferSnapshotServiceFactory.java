@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
 
@@ -28,7 +29,7 @@ public class TransactionBufferSnapshotServiceFactory {
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> txnBufferSnapshotService;
 
-    private SystemTopicTxnBufferSnapshotService<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot>
+    private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment>
             txnBufferSnapshotSegmentService;
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> txnBufferSnapshotIndexService;
@@ -36,7 +37,7 @@ public class TransactionBufferSnapshotServiceFactory {
     public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient) {
         this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
-                org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot.class);
+                TransactionBufferSnapshotSegment.class);
         this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
         this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
@@ -47,7 +48,7 @@ public class TransactionBufferSnapshotServiceFactory {
         return this.txnBufferSnapshotIndexService;
     }
 
-    public SystemTopicTxnBufferSnapshotService<org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshot>
+    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment>
     getTxnBufferSnapshotSegmentService() {
         return this.txnBufferSnapshotSegmentService;
     }

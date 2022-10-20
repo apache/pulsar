@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class TransactionBufferSnapshot {
+public class TransactionBufferSnapshotSegment {
     private String topicName;
     private long sequenceId;
     private long maxReadPositionLedgerId;
