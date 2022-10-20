@@ -935,7 +935,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
+        String topicName = null;
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            // one batch receive request only can receive the same topic partition
+            // messages to ensure cumulative ack is not lost.
+            // only support cumulative ack subscription type.
+            if (isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
+                // get the first message's `topicName` to check if the following message peeked is the same topic message.
+                if (messages.size() == 1) {
+                    topicName = messages.getMessageList().get(0).getTopicName();
+                }
+                // if the peeked message is not the same topic as the first message, return the batch result
+                if (topicName != null && !topicName.equals(msgPeeked.getTopicName())) {
+                    break;
+                }
+            }
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
