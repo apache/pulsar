@@ -89,7 +89,7 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testRecoverByLedgerWithLedgerRecoveryException2Times() throws Exception {
+    public void testRecoverByLedgerWithLedgerReadTimeoutException() throws Exception {
         CursorContext context = createCursorContext(config);
         writeSomeEntries(100, context.ml);
         long ledgerId = context.cursor.getReadPosition().getLedgerId();
@@ -98,48 +98,29 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId);
         deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId + 4);
 
-        // Mock LedgerRecoveryException 2 times, recover will try 3 times and successfully read data in ledger.
-        BookKeeper mockBookkeeper = mockBookKeeperForLedgerRecoveryException(context.cursor, 2);
+        // Mock LedgerRecoveryException 1 times.
+        BookKeeper mockBookkeeper = mockBookKeeperForLedgerReadTimeoutException(context.cursor, 1);
         final ManagedCursorImpl recoverCursor =
                 new ManagedCursorImpl(mockBookkeeper, config, context.cursor.ledger, cursorName);
-        recoverAndWait(recoverCursor);
 
+        // The first recover fail by timeout ex.
+        try {
+            recoverAndWait(recoverCursor);
+            fail("Expect timeout ex");
+        } catch (Exception ex){
+            assertTrue(ex.getCause() instanceof ManagedLedgerException);
+            assertTrue(BKException.getMessage(BKException.Code.TimeoutException).equals(ex.getCause().getMessage()));
+        }
+
+        // The second recover will success and no data lost.
+        recoverAndWait(recoverCursor);
         // verify.
         assertEquals(recoverCursor.markDeletePosition.getEntryId(), firstEntryId);
         assertEquals(recoverCursor.getIndividuallyDeletedMessagesSet().size(), 1);
         Range<PositionImpl> range = recoverCursor.getIndividuallyDeletedMessagesSet().firstRange();
         assertEquals(range.lowerEndpoint().getEntryId(), firstEntryId + 3);
         assertEquals(range.upperEndpoint().getEntryId(), firstEntryId + 4);
-        // cleanup.
-        cleanup(context);
-    }
 
-    @Test
-    public void testRecoverByLedgerWithLedgerRecoveryException3Times() throws Exception {
-        CursorContext context = createCursorContext(config);
-        writeSomeEntries(100, context.ml);
-        long ledgerId = context.cursor.getReadPosition().getLedgerId();
-        long firstEntryId = context.cursor.getReadPosition().getEntryId();
-        // persist to ledger.
-        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId);
-        // persist to ZK.
-        closeCursorLedger(context.cursor);
-        deleteAndWaitCursorPersistentToZk(context.cursor, ledgerId,
-                firstEntryId + 1, firstEntryId + 2, firstEntryId + 4);
-        // new ledger, and persist to ledger.
-        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId,
-                firstEntryId + 5, firstEntryId + 6, firstEntryId + 8);
-
-        // Mock LedgerRecoveryException 3 times, recover will try to read data in ZK after three failed bk-read.
-        BookKeeper mockBookkeeper = mockBookKeeperForLedgerRecoveryException(context.cursor, 3);
-        final ManagedCursorImpl recoverCursor =
-                new ManagedCursorImpl(mockBookkeeper, config, context.cursor.ledger, cursorName);
-        recoverAndWait(recoverCursor);
-
-        // make broken ledger, recover and verify.
-        assertEquals(recoverCursor.getMarkDeletedPosition().getEntryId(), firstEntryId + 2);
-        // Why "individuallyDeletedMessagesSet().size() == 0"? Because it will rewrite to empty when switch ledger.
-        assertEquals(recoverCursor.getIndividuallyDeletedMessagesSet().size(), 0);
         // cleanup.
         cleanup(context);
     }
@@ -223,7 +204,7 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         completableFuture.join();
     }
 
-    private BookKeeper mockBookKeeperForLedgerRecoveryException(ManagedCursorImpl originCursor, int exCount)
+    private BookKeeper mockBookKeeperForLedgerReadTimeoutException(ManagedCursorImpl originCursor, int exCount)
             throws Exception {
         BookKeeper mockBookkeeper = mock(BookKeeper.class);
         Enumeration<LedgerEntry> ledgerEntryEnumeration =
@@ -244,7 +225,7 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
                 AsyncCallback.OpenCallback openCallback = (AsyncCallback.OpenCallback) invocation.getArguments()[3];
                 Object ctx = invocation.getArguments()[4];
                 if (exCounter.decrementAndGet() >= 0){
-                    openCallback.openComplete(BKException.Code.LedgerRecoveryException, mockLedgerHandle, ctx);
+                    openCallback.openComplete(BKException.Code.TimeoutException, mockLedgerHandle, ctx);
                 } else {
                     openCallback.openComplete(BKException.Code.OK, mockLedgerHandle, ctx);
                 }
@@ -254,11 +235,6 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         }).when(mockBookkeeper).asyncOpenLedger(anyLong(), any(BookKeeper.DigestType.class),
                 any(), any(), any());
         return mockBookkeeper;
-    }
-
-    private enum BrokenEntryCase {
-        AllEntryBroken,
-        OnlyLastEntryBroken;
     }
 
     private ArrayList<Position> createPositionList(long ledgerId, long... entryIds) {

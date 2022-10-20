@@ -481,7 +481,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
                     log.info("[{}] Consumer {} meta-data recover from ledger {}", ledger.getName(), name,
                             info.getCursorsLedgerId());
-                    recoverFromLedger(info, callback, 2);
+                    recoverFromLedger(info, callback);
                 }
             }
 
@@ -492,8 +492,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         });
     }
 
-    protected void recoverFromLedger(final ManagedCursorInfo info, final VoidCallback callback,
-                                     int retryTimesWhenLedgerRecovering) {
+    protected void recoverFromLedger(final ManagedCursorInfo info, final VoidCallback callback) {
         // Read the acknowledged position from the metadata ledger, then create
         // a new ledger and write the position into it
         ledger.mbean.startCursorLedgerOpenOp();
@@ -501,15 +500,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         OpenCallback openCallback = (rc, lh, ctx) -> {
             if (log.isInfoEnabled()) {
                 log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
-            }
-            // If ledgerMeta exists, it means ledger is not deleted normally and bookie is trying to recover the data.
-            // We will make several attempts to ensure that do not lose cursor data.
-            if (maybeLedgerRecovering(rc) && retryTimesWhenLedgerRecovering > 0) {
-                log.warn("[{}] Opened ledger {} for consumer {}. rc={}. Ledger maybe is recovering,"
-                        + " try to recover again, at most try {} times", ledger.getName(), ledgerId, name, rc,
-                        retryTimesWhenLedgerRecovering - 1);
-                recoverFromLedger(info, callback, retryTimesWhenLedgerRecovering - 1);
-                return;
             }
             if (isBkErrorNotRecoverable(rc)) {
                 log.error("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
@@ -3150,13 +3140,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
         }, null);
-    }
-
-    /**
-     * return BK error codes that are considered not likely to be recoverable.
-     */
-    public static boolean maybeLedgerRecovering(int rc) {
-        return Code.LedgerRecoveryException == rc;
     }
 
     /**
