@@ -121,8 +121,8 @@ public class JdbcUtils {
         TableDefinition table = TableDefinition.of(
                 tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
 
-        keyList = keyList == null ? Collections.emptyList(): keyList;
-        nonKeyList = nonKeyList == null ? Collections.emptyList(): nonKeyList;
+        keyList = keyList == null ? Collections.emptyList() : keyList;
+        nonKeyList = nonKeyList == null ? Collections.emptyList() : nonKeyList;
 
         try (ResultSet rs = connection.getMetaData().getColumns(
             tableId.getCatalogName(),
