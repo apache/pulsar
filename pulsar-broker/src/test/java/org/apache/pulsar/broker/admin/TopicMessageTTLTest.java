@@ -36,7 +36,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
