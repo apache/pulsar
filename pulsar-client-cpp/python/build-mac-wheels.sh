@@ -30,7 +30,7 @@ PYTHON_VERSIONS=(
 export MACOSX_DEPLOYMENT_TARGET=10.15
 MACOSX_DEPLOYMENT_TARGET_MAJOR=${MACOSX_DEPLOYMENT_TARGET%%.*}
 
-ZLIB_VERSION=1.2.12
+ZLIB_VERSION=1.2.13
 OPENSSL_VERSION=1_1_1n
 BOOST_VERSION=1.78.0
 PROTOBUF_VERSION=3.20.0
@@ -90,7 +90,7 @@ done
 ###############################################################################
 if [ ! -f zlib-${ZLIB_VERSION}/.done ]; then
     echo "Building ZLib"
-    curl -O -L https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+    curl -O -L https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz
     tar xvfz zlib-$ZLIB_VERSION.tar.gz
     pushd zlib-$ZLIB_VERSION
       CFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --prefix=$PREFIX
