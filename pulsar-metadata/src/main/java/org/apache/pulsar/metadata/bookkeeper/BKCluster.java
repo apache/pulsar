@@ -105,7 +105,7 @@ public class BKCluster implements AutoCloseable {
             return this;
         }
 
-        public BKClusterConf bkClusterConf(ServerConfiguration bkServerConf) {
+        public BKClusterConf bkServerConf(ServerConfiguration bkServerConf) {
             this.bkServerConf = Optional.of(bkServerConf);
             return this;
         }
@@ -122,7 +122,8 @@ public class BKCluster implements AutoCloseable {
     private BKCluster(BKClusterConf bkClusterConf) throws Exception {
         this.clusterConf = bkClusterConf;
 
-        this.baseConf = newBaseServerConfiguration();
+        this.baseConf =
+                new ServerConfiguration(this.clusterConf.bkServerConf.orElseGet(this::newBaseServerConfiguration));
         this.baseClientConf = newBaseClientConfiguration();
 
         this.store =

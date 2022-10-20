@@ -451,7 +451,7 @@ public class PulsarStandalone implements AutoCloseable {
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
                 .clearOldData(wipeData)
-                .bkClusterConf(bkServerConf)
+                .bkServerConf(bkServerConf)
                 .build();
         config.setBookkeeperNumberOfChannelsPerBookie(1);
         config.setMetadataStoreUrl(metadataStoreUrl);
