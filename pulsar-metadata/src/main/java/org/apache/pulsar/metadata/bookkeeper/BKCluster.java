@@ -327,8 +327,7 @@ public class BKCluster implements AutoCloseable {
     }
 
     private ServerConfiguration newBaseServerConfiguration() {
-        ServerConfiguration confReturn =
-                new ServerConfiguration(this.clusterConf.bkServerConf.orElseGet(ServerConfiguration::new));
+        ServerConfiguration confReturn = new ServerConfiguration();
         confReturn.setTLSEnabledProtocols("TLSv1.2,TLSv1.1");
         confReturn.setJournalFlushWhenQueueEmpty(true);
         confReturn.setJournalFormatVersionToWrite(5);
@@ -340,6 +339,8 @@ public class BKCluster implements AutoCloseable {
         confReturn.setDiskUsageThreshold(0.999F);
         confReturn.setDiskUsageWarnThreshold(0.99F);
         confReturn.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+        confReturn.setProperty("dbStorage_writeCacheMaxSizeMb", 4);
+        confReturn.setProperty("dbStorage_readAheadCacheMaxSizeMb", 4);
         setLoopbackInterfaceAndAllowLoopback(confReturn);
         return confReturn;
     }
