@@ -776,7 +776,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
-                consumerList.forEach(Consumer::reachedEndOfTopic);
+                checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
             }
         } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
                 || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {

@@ -131,6 +131,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
@@ -561,6 +562,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Void> disconnectProducersFuture;
             if (producers.size() > 0) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
+                // send migration url metadata to producers before disconnecting them
+                if (isMigrated()) {
+                    producers.forEach((__, producer) -> producer.topicMigrated(getMigratedClusterUrl()));
+                }
                 producers.forEach((__, producer) -> futures.add(producer.disconnect()));
                 disconnectProducersFuture = FutureUtil.waitForAll(futures);
             } else {
@@ -585,7 +590,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
             }
 
-            if (exception instanceof ManagedLedgerTerminatedException) {
+            if (exception instanceof ManagedLedgerTerminatedException && !isMigrated()) {
                 // Signal the producer that this topic is no longer available
                 callback.completed(new TopicTerminatedException(exception), -1, -1);
             } else {
@@ -2353,6 +2358,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    public CompletableFuture<Void> checkClusterMigration() {
+        Optional<ClusterUrl> clusterUrl = getMigratedClusterUrl();
+        if (!isMigrated() && clusterUrl.isPresent()) {
+            log.info("{} triggering topic migration", topic);
+            return ledger.asyncMigrate().thenCompose(r -> null);
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    @Override
     public void checkGC() {
         if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
@@ -3316,6 +3332,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     protected boolean isTerminated() {
         return ledger.isTerminated();
+    }
+
+    @Override
+    public boolean isMigrated() {
+        return ledger.isMigrated();
     }
 
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {

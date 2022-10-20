@@ -2515,6 +2515,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
+                + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
+    )
+    private int clusterMigrationCheckDurationSeconds = 0;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"

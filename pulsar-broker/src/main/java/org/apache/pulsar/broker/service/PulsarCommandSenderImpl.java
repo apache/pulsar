@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -217,6 +218,18 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
             log.info("[{}] Notifying consumer that end of topic has been reached", this);
             cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId), cnx.ctx().voidPromise());
         }
+    }
+
+    @Override
+    public boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls) {
+        // Only send notification if the client understand the command
+        if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v20.getValue()) {
+            log.info("[{}] Notifying {} that topic is migrated", type.name(), resourceId);
+            cnx.ctx().writeAndFlush(Commands.newTopicMigrated(type, resourceId, brokerUrl, brokerUrlTls),
+                    cnx.ctx().voidPromise());
+            return true;
+        }
+        return false;
     }
 
     @Override

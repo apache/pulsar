@@ -43,10 +43,12 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -663,6 +665,15 @@ public class Producer {
             });
         }
         return closeFuture;
+    }
+
+    public void topicMigrated(Optional<ClusterUrl> clusterUrl) {
+        if (clusterUrl.isPresent()) {
+            ClusterUrl url = clusterUrl.get();
+            cnx.getCommandSender().sendTopicMigrated(ResourceType.Producer, producerId, url.getBrokerServiceUrl(),
+                    url.getBrokerServiceUrlTls());
+            disconnect();
+        }
     }
 
     public void updateRates() {

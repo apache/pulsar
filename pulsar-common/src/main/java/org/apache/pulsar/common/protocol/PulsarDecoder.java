@@ -76,6 +76,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
@@ -292,6 +293,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             case REACHED_END_OF_TOPIC:
                 checkArgument(cmd.hasReachedEndOfTopic());
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
+                break;
+
+            case TOPIC_MIGRATED:
+                checkArgument(cmd.hasTopicMigrated());
+                handleTopicMigrated(cmd.getTopicMigrated());
                 break;
 
             case GET_LAST_MESSAGE_ID:
@@ -597,6 +603,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTopicMigrated(CommandTopicMigrated commandMigratedTopic) {
         throw new UnsupportedOperationException();
     }
 

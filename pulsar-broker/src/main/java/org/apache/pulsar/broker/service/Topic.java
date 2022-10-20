@@ -197,6 +197,8 @@ public interface Topic {
 
     void checkGC();
 
+    CompletableFuture<Void> checkClusterMigration();
+
     void checkInactiveSubscriptions();
 
     /**
