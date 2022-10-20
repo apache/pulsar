@@ -70,21 +70,21 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
         }
 
         @Override
-        public MessageId write(T t, String key)
+        public MessageId write(String key, T t)
                 throws PulsarClientException {
             return producer.newMessage().key(key)
                     .value(t).send();
         }
 
         @Override
-        public CompletableFuture<MessageId> writeAsync(T t, String key) {
+        public CompletableFuture<MessageId> writeAsync(String key, T t) {
             return producer.newMessage()
                     .key(key)
                     .value(t).sendAsync();
         }
 
         @Override
-        public MessageId delete(T t, String key)
+        public MessageId delete(String key, T t)
                 throws PulsarClientException {
             return producer.newMessage()
                     .key(key)
@@ -93,7 +93,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
         }
 
         @Override
-        public CompletableFuture<MessageId> deleteAsync(T t, String key) {
+        public CompletableFuture<MessageId> deleteAsync(String key, T t) {
             return producer.newMessage()
                     .key(key)
                     .value(null)

@@ -124,8 +124,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             } else {
                 PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
                 CompletableFuture<MessageId> actionFuture =
-                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(event, getEventKey(event))
-                                : writer.writeAsync(event, getEventKey(event));
+                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
+                                : writer.writeAsync(getEventKey(event), event);
                 actionFuture.whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
@@ -457,8 +457,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer
-                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null),
-                                    getEventKey(topicName))
+                            -> writer.deleteAsync(getEventKey(topicName),
+                                    getPulsarEvent(topicName, ActionType.DELETE, null))
                             .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
                                 if (ex != null) {
                                     log.error("close writer failed ", ex);

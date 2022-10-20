@@ -608,7 +608,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 new TransactionBufferSnapshotIndexes(SNAPSHOT_INDEX,
                         indexList, null);
 
-        indexesWriter.write(transactionBufferTransactionBufferSnapshotIndexes, SNAPSHOT_INDEX);
+        indexesWriter.write(SNAPSHOT_INDEX, transactionBufferTransactionBufferSnapshotIndexes);
 
         assertTrue(indexesReader.hasMoreEvents());
         transactionBufferTransactionBufferSnapshotIndexes = indexesReader.readNext().getValue();
@@ -665,10 +665,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setAborts(Collections.singletonList(
                 new TxnID(1, 1)));
 
-        segmentWriter.write(snapshot, buildKey(snapshot));
+        segmentWriter.write(buildKey(snapshot), snapshot);
         snapshot.setSequenceId(2L);
 
-        MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(snapshot, buildKey(snapshot));
+        MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(buildKey(snapshot), snapshot);
 
         //Create read-only managed ledger
         //And read the entry and decode entry to snapshot

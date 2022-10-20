@@ -90,37 +90,39 @@ public interface SystemTopicClient<T> {
 
         /**
          * Write event to the system topic.
-         * @param t pulsar event
          * @param key the key of the event
+         * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        MessageId write(T t, String key) throws PulsarClientException;
+        MessageId write(String key, T t) throws PulsarClientException;
 
         /**
          * Async write event to the system topic.
-         * @param t pulsar event
          * @param key the key of the event
+         * @param t pulsar event
          * @return message id future
          */
-        CompletableFuture<MessageId> writeAsync(T t, String key);
+        CompletableFuture<MessageId> writeAsync(String key, T t);
 
         /**
          * Delete event in the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        default MessageId delete(T t, String key) throws PulsarClientException {
+        default MessageId delete(String key, T t) throws PulsarClientException {
             throw new UnsupportedOperationException("Unsupported operation");
         }
 
         /**
          * Async delete event in the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id future
          */
-        default CompletableFuture<MessageId> deleteAsync(T t, String key) {
+        default CompletableFuture<MessageId> deleteAsync(String key, T t) {
             throw new UnsupportedOperationException("Unsupported operation");
         }
 

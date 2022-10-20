@@ -85,28 +85,28 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         }
 
         @Override
-        public MessageId write(PulsarEvent event, String key) throws PulsarClientException {
+        public MessageId write(String key, PulsarEvent event) throws PulsarClientException {
             TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(event);
             setReplicateCluster(event, builder);
             return builder.send();
         }
 
         @Override
-        public CompletableFuture<MessageId> writeAsync(PulsarEvent event, String key) {
+        public CompletableFuture<MessageId> writeAsync(String key, PulsarEvent event) {
             TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(event);
             setReplicateCluster(event, builder);
             return builder.sendAsync();
         }
 
         @Override
-        public MessageId delete(PulsarEvent event, String key) throws PulsarClientException {
+        public MessageId delete(String key, PulsarEvent event) throws PulsarClientException {
             TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(null);
             setReplicateCluster(event, builder);
             return builder.send();
         }
 
         @Override
-        public CompletableFuture<MessageId> deleteAsync(PulsarEvent event, String key) {
+        public CompletableFuture<MessageId> deleteAsync(String key, PulsarEvent event) {
             validateActionType(event);
             TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(null);
             setReplicateCluster(event, builder);
