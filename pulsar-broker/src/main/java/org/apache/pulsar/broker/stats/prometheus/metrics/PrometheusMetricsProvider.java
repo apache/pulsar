@@ -24,21 +24,24 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.stats.CachingStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
- * A <i>Prometheus</i> based {@link StatsProvider} implementation.
+ * A <i>Prometheus</i> based {@link PrometheusRawMetricsProvider} implementation.
  */
-public class PrometheusMetricsProvider implements StatsProvider {
+public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMetricsProvider {
     private ScheduledExecutorService executor;
 
     public static final String PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = "prometheusStatsLatencyRolloverSeconds";
@@ -46,15 +49,26 @@ public class PrometheusMetricsProvider implements StatsProvider {
     public static final String CLUSTER_NAME = "cluster";
     public static final String DEFAULT_CLUSTER_NAME = "pulsar";
 
-    private String cluster;
+    private Map<String, String> labels;
     private final CachingStatsProvider cachingStatsProvider;
 
     /**
      * These acts a registry of the metrics defined in this provider.
      */
-    public final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
-    public final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
-    public final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
+    // The outside map is used to group the same metrics name,
+    // but with different labels metrics to ensure all the metrics with same metric name are grouped.
+    // `https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/
+    // exposition_formats.md#grouping-and-sorting`
+    public final ConcurrentMap<String,
+        ConcurrentMap<ScopeContext, LongAdderCounter>> counters = new ConcurrentHashMap<>();
+    public final ConcurrentMap<String,
+        ConcurrentMap<ScopeContext, SimpleGauge<? extends Number>>> gauges = new ConcurrentHashMap<>();
+    public final ConcurrentMap<ScopeContext, DataSketchesOpStatsLogger> opStats = new ConcurrentHashMap<>();
+
+    final ConcurrentMap<ScopeContext, ThreadScopedDataSketchesStatsLogger> threadScopedOpStats =
+        new ConcurrentHashMap<>();
+    final ConcurrentMap<ScopeContext, ThreadScopedLongAdderCounter> threadScopedCounters =
+        new ConcurrentHashMap<>();
 
     public PrometheusMetricsProvider() {
         this.cachingStatsProvider = new CachingStatsProvider(new StatsProvider() {
@@ -70,7 +84,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
             @Override
             public StatsLogger getStatsLogger(String scope) {
-                return new PrometheusStatsLogger(PrometheusMetricsProvider.this, scope);
+                return new PrometheusStatsLogger(PrometheusMetricsProvider.this, scope, labels);
             }
 
             @Override
@@ -88,37 +102,41 @@ public class PrometheusMetricsProvider implements StatsProvider {
         });
     }
 
-    @Override
     public void start(Configuration conf) {
         executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("metrics"));
-
         int latencyRolloverSeconds = conf.getInt(PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
                 DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
-        cluster = conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME);
+        labels = Collections.singletonMap(CLUSTER_NAME, conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME));
 
         executor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::rotateLatencyCollection),
-                1, latencyRolloverSeconds, TimeUnit.SECONDS);
+            1, latencyRolloverSeconds, TimeUnit.SECONDS);
+
     }
 
-    @Override
     public void stop() {
-        executor.shutdownNow();
+        executor.shutdown();
     }
 
-    @Override
     public StatsLogger getStatsLogger(String scope) {
-        return this.cachingStatsProvider.getStatsLogger(scope);
+        return cachingStatsProvider.getStatsLogger(scope);
     }
 
     @Override
     public void writeAllMetrics(Writer writer) throws IOException {
-        gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, cluster, gauge));
-        counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, cluster, counter));
-        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster,
-                opStatLogger));
+        throw new UnsupportedOperationException("writeAllMetrics is not support yet");
     }
 
     @Override
+    public void generate(SimpleTextOutputStream writer) {
+        PrometheusTextFormat prometheusTextFormat = new PrometheusTextFormat();
+        gauges.forEach((name, metric) ->
+            metric.forEach((sc, gauge) -> prometheusTextFormat.writeGauge(writer, sc.getScope(), gauge)));
+        counters.forEach((name, metric) ->
+            metric.forEach((sc, counter) -> prometheusTextFormat.writeCounter(writer, sc.getScope(), counter)));
+        opStats.forEach((sc, opStatLogger) ->
+                prometheusTextFormat.writeOpStat(writer, sc.getScope(), opStatLogger));
+    }
+
     public String getStatsName(String... statsComponents) {
         return cachingStatsProvider.getStatsName(statsComponents);
     }

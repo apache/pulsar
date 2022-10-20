@@ -19,26 +19,38 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import java.util.Map;
-import org.apache.bookkeeper.stats.Gauge;
+import java.util.Objects;
 
 /**
- * A {@link Gauge} implementation that forwards on the value supplier.
+ * Holder for a scope and a set of associated labels.
  */
-public class SimpleGauge<T extends Number> {
-
+public class ScopeContext {
+    private final String scope;
     private final Map<String, String> labels;
-    private final Gauge<T> gauge;
 
-    public SimpleGauge(final Gauge<T> gauge, Map<String, String> labels) {
-        this.gauge = gauge;
+    public ScopeContext(String scope, Map<String, String> labels) {
+        this.scope = scope;
         this.labels = labels;
     }
 
-    Number getSample() {
-        return gauge.getSample();
+    public String getScope() {
+        return scope;
     }
 
-    public Map<String, String> getLabels() {
-        return labels;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ScopeContext that = (ScopeContext) o;
+        return Objects.equals(scope, that.scope) && Objects.equals(labels, that.labels);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(scope, labels);
     }
 }
