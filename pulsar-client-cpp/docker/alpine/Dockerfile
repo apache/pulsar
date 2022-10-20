@@ -44,11 +44,11 @@ RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.72.0/source/
 
 # ZLib
 RUN curl -O -L https://zlib.net/fossils/zlib-1.2.13.tar.gz  && \
-    tar xfz zlib-1.2.12.tar.gz && \
-    cd zlib-1.2.12 && \
+    tar xfz zlib-1.2.13.tar.gz && \
+    cd zlib-1.2.13 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make -j4 && make install && \
-    rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
+    rm -rf /zlib-1.2.13.tar.gz /zlib-1.2.13
 
 # Compile OpenSSL
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
