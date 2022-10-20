@@ -582,6 +582,13 @@ public class BrokerService implements Closeable {
                     subscriptionExpiryCheckIntervalInSeconds,
                     subscriptionExpiryCheckIntervalInSeconds, TimeUnit.SECONDS);
         }
+
+        // check cluster migration
+        int interval = pulsar().getConfiguration().getClusterMigrationCheckDurationSeconds();
+        if (interval > 0) {
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkClusterMigration()), interval, interval,
+                    TimeUnit.SECONDS);
+        }
     }
 
     protected void startMessageExpiryMonitor() {
@@ -1849,6 +1856,10 @@ public class BrokerService implements Closeable {
 
     public void checkGC() {
         forEachTopic(Topic::checkGC);
+    }
+
+    public void checkClusterMigration() {
+        forEachTopic(Topic::checkClusterMigration);
     }
 
     public void checkMessageExpiry() {

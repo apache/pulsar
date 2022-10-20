@@ -100,6 +100,16 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicMigratedException extends BrokerServiceException {
+        public TopicMigratedException(String msg) {
+            super(msg);
+        }
+
+        public TopicMigratedException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static class ServerMetadataException extends BrokerServiceException {
         public ServerMetadataException(Throwable t) {
             super(t);

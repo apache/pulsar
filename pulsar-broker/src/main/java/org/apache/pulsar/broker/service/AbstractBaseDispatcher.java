@@ -338,6 +338,19 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return subscription == null ? null : subscription.getName();
     }
 
+    protected void checkAndApplyReachedEndOfTopicOrTopicMigration(List<Consumer> consumers) {
+        PersistentTopic topic = (PersistentTopic) subscription.getTopic();
+        checkAndApplyReachedEndOfTopicOrTopicMigration(topic, consumers);
+    }
+
+    public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
+        if (topic.isMigrated()) {
+            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+        } else {
+            consumers.forEach(Consumer::reachedEndOfTopic);
+        }
+    }
+
     @Override
     public long getFilterProcessedMsgCount() {
         return this.filterProcessedMsgs.longValue();

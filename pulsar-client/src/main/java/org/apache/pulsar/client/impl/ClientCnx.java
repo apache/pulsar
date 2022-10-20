@@ -33,6 +33,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
 import java.util.List;
@@ -87,6 +88,8 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -656,6 +659,26 @@ public class ClientCnx extends PulsarHandler {
         ConsumerImpl<?> consumer = consumers.get(consumerId);
         if (consumer != null) {
             consumer.setTerminated();
+        }
+    }
+
+    @Override
+    protected void handleTopicMigrated(CommandTopicMigrated commandTopicMigrated) {
+        final long resourceId = commandTopicMigrated.getResourceId();
+        final String serviceUrl = commandTopicMigrated.getBrokerServiceUrl();
+        final String serviceUrlTls = commandTopicMigrated.getBrokerServiceUrlTls();
+
+        HandlerState resource = commandTopicMigrated.getResourceType() == ResourceType.Producer
+                ? producers.get(resourceId)
+                : consumers.get(resourceId);
+        log.info("{} is migrated to {}/{}", commandTopicMigrated.getResourceType().name(), serviceUrl, serviceUrlTls);
+        if (resource != null) {
+            try {
+                resource.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
+            } catch (URISyntaxException e) {
+                log.info("[{}] Invalid redirect url {}/{} for {}", remoteAddress, serviceUrl, serviceUrlTls,
+                        resourceId);
+            }
         }
     }
 

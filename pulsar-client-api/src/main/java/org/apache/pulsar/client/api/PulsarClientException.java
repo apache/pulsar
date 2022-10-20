@@ -463,6 +463,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * TopicMigration exception thrown by Pulsar client.
+     */
+    public static class TopicMigrationException extends PulsarClientException {
+        /**
+         * Constructs an {@code TopicMigrationException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public TopicMigrationException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Producer fenced exception thrown by Pulsar client.
      */
     public static class ProducerFencedException extends PulsarClientException {

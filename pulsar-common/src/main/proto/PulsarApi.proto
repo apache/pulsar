@@ -262,6 +262,7 @@ enum ProtocolVersion {
     v17 = 17; // Added support ack receipt
     v18 = 18; // Add client support for broker entry metadata
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
+    v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
 }
 
 message CommandConnect {
@@ -619,6 +620,19 @@ message CommandSeek {
 message CommandReachedEndOfTopic {
     required uint64 consumer_id = 1;
 }
+
+message CommandTopicMigrated {
+	enum ResourceType {
+        Producer = 0;
+        Consumer = 1;
+    }
+    required uint64 resource_id = 1;
+    required ResourceType resource_type = 2;
+    optional string brokerServiceUrl      = 3;
+    optional string brokerServiceUrlTls   = 4;
+    
+}
+
 
 message CommandCloseProducer {
     required uint64 producer_id = 1;
@@ -1025,6 +1039,7 @@ message BaseCommand {
         WATCH_TOPIC_UPDATE = 66;
         WATCH_TOPIC_LIST_CLOSE = 67;
 
+        TOPIC_MIGRATED = 68;
     }
 
 
@@ -1106,4 +1121,6 @@ message BaseCommand {
     optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
     optional CommandWatchTopicUpdate watchTopicUpdate = 66;
     optional CommandWatchTopicListClose watchTopicListClose = 67;
+    
+    optional CommandTopicMigrated topicMigrated = 68;
 }

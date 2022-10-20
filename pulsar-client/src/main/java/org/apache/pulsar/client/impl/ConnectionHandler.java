@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -71,7 +72,11 @@ public class ConnectionHandler {
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
-            if (state.topic == null) {
+            if (state.redirectedClusterURI != null) {
+                InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
+                        state.redirectedClusterURI.getPort());
+                cnxFuture = state.client.getConnection(address, address);
+            } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
                 cnxFuture = state.client.getConnection(state.topic); //
