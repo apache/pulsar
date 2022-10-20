@@ -200,14 +200,11 @@ public class PulsarRegistrationClient implements RegistrationClient {
         final int slash = path.lastIndexOf('/');
         if (slash >= 0) {
             try {
-                BookieId res =  BookieId.parse(path.substring(slash + 1));
-                log.info("stripBookieIdFromPath {} -> {}", path, res);
-                return res;
+                return BookieId.parse(path.substring(slash + 1));
             } catch (IllegalArgumentException e) {
                 log.warn("Cannot decode bookieId from {}", path, e);
             }
         }
-        log.info("stripBookieIdFromPath {} -> null", path);
         return null;
     }
 
