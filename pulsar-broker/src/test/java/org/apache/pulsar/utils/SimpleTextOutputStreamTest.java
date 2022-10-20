@@ -21,6 +21,7 @@ package org.apache.pulsar.utils;
 import static org.testng.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeMethod;
@@ -117,5 +118,12 @@ public class SimpleTextOutputStreamTest {
         String s = buf.toString(StandardCharsets.UTF_8);
         reset();
         return s;
+    }
+
+    @Test
+    public void testWriteString() {
+        String str = "persistence://test/test/test_" + UUID.randomUUID();
+        stream.write(str);
+        assertEquals(str, str());
     }
 }
