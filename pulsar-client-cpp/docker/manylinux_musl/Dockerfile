@@ -48,7 +48,7 @@ RUN curl -O -L https://www.cpan.org/src/5.0/perl-5.10.0.tar.gz && \
 ####################################
 
 # ZLib
-RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz && \
+RUN curl -O -L https://zlib.net/fossils/zlib-1.2.13.tar.gz && \
     tar xvfz zlib-1.2.12.tar.gz && \
     cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
