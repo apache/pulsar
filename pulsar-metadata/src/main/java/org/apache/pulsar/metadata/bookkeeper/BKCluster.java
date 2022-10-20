@@ -71,12 +71,19 @@ public class BKCluster implements AutoCloseable {
     protected final ClientConfiguration baseClientConf;
 
     public static class BKClusterConf {
+
+        private ServerConfiguration baseServerConfiguration;
         private String metadataServiceUri;
         private int numBookies = 1;
         private String dataDir;
         private int bkPort = 0;
 
         private boolean clearOldData;
+
+        public BKClusterConf baseServerConfiguration(ServerConfiguration baseServerConfiguration) {
+            this.baseServerConfiguration = baseServerConfiguration;
+            return this;
+        }
 
         public BKClusterConf metadataServiceUri(String metadataServiceUri) {
             this.metadataServiceUri = metadataServiceUri;
@@ -115,7 +122,8 @@ public class BKCluster implements AutoCloseable {
     private BKCluster(BKClusterConf bkClusterConf) throws Exception {
         this.clusterConf = bkClusterConf;
 
-        this.baseConf = newBaseServerConfiguration();
+        this.baseConf = bkClusterConf.baseServerConfiguration != null
+                ? bkClusterConf.baseServerConfiguration : newBaseServerConfiguration();
         this.baseClientConf = newBaseClientConfiguration();
 
         this.store =
