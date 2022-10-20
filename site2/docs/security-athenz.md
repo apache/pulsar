@@ -103,6 +103,7 @@ You can also set an optional `keyId`. The following is an example.
 
 ```java
 Map<String, String> authParams = new HashMap();
+authParams.put("ztsUrl", "http://localhost:9998");
 authParams.put("tenantDomain", "shopping"); // Tenant domain name
 authParams.put("tenantService", "some_app"); // Tenant service name
 authParams.put("providerDomain", "pulsar"); // Provider domain name
