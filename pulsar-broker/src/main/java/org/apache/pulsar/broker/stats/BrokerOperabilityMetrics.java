@@ -32,8 +32,6 @@ public class BrokerOperabilityMetrics {
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
-    private final DimensionStats zkWriteLatencyStats;
-    private final DimensionStats zkReadLatencyStats;
     private final String brokerName;
     private final LongAdder connectionTotalCreatedCount;
     private final LongAdder connectionCreateSuccessCount;
@@ -45,8 +43,6 @@ public class BrokerOperabilityMetrics {
         this.metricsList = new ArrayList<>();
         this.localCluster = localCluster;
         this.topicLoadStats = new DimensionStats("topic_load_times", 60);
-        this.zkWriteLatencyStats = new DimensionStats("zk_write_latency", 60);
-        this.zkReadLatencyStats = new DimensionStats("zk_read_latency", 60);
         this.brokerName = brokerName;
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionCreateSuccessCount = new LongAdder();
@@ -62,8 +58,6 @@ public class BrokerOperabilityMetrics {
 
     private void generate() {
         metricsList.add(getTopicLoadMetrics());
-        metricsList.add(getZkWriteLatencyMetrics());
-        metricsList.add(getZkReadLatencyMetrics());
         metricsList.add(getConnectionMetrics());
     }
 
@@ -93,14 +87,6 @@ public class BrokerOperabilityMetrics {
         return getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
     }
 
-    Metrics getZkWriteLatencyMetrics() {
-        return getDimensionMetrics("zk_write_latency", "zk_write", zkWriteLatencyStats);
-    }
-
-    Metrics getZkReadLatencyMetrics() {
-        return getDimensionMetrics("zk_read_latency", "zk_read", zkReadLatencyStats);
-    }
-
     Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
         Metrics dMetrics = Metrics.create(getDimensionMap(metricsName));
 
@@ -120,20 +106,10 @@ public class BrokerOperabilityMetrics {
     public void reset() {
         metricsList.clear();
         topicLoadStats.reset();
-        zkWriteLatencyStats.reset();
-        zkReadLatencyStats.reset();
     }
 
     public void recordTopicLoadTimeValue(long topicLoadLatencyMs) {
         topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
-    }
-
-    public void recordZkWriteLatencyTimeValue(long topicLoadLatencyMs) {
-        zkWriteLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
-    }
-
-    public void recordZkReadLatencyTimeValue(long topicLoadLatencyMs) {
-        zkReadLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 
     public void recordConnectionCreate() {

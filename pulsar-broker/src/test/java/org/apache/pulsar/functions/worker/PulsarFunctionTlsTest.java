@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,7 +34,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -44,6 +44,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
@@ -86,8 +87,8 @@ public class PulsarFunctionTlsTest {
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            int brokerPort = PortManager.nextFreePort();
-            int webPort = PortManager.nextFreePort();
+            int brokerPort = nextLockedFreePort();
+            int webPort = nextLockedFreePort();
 
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
@@ -196,6 +197,10 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();
+                    pulsarServices[i].getConfiguration().
+                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i].getConfiguration()
+                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
                 }
             }
             bkEnsemble.stop();

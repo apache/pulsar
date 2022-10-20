@@ -443,6 +443,8 @@ public interface ManagedLedger {
 
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
+    CompletableFuture<Position> asyncMigrate();
+
     /**
      * Terminate the managed ledger and return the last committed entry.
      *
@@ -533,6 +535,11 @@ public interface ManagedLedger {
      * Returns whether the managed ledger was terminated.
      */
     boolean isTerminated();
+
+    /**
+     * Returns whether the managed ledger was migrated.
+     */
+    boolean isMigrated();
 
     /**
      * Returns managed-ledger config.

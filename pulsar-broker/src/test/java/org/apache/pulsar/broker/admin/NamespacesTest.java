@@ -1401,6 +1401,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Set.of(testLocalCluster));
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
+        admin.namespaces().setOffloadDeleteLag(namespace, 10000, TimeUnit.SECONDS);
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
+
         // assert we get the default which indicates it will fall back to default
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // the ledger config should have the expected value

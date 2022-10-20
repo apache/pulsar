@@ -33,7 +33,7 @@ import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 @Slf4j
 public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
 
-    private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
+    protected final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
 
     private final PersistentDispatcherMultipleConsumers dispatcher;
 
@@ -41,7 +41,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     private final Timer timer;
 
     // Current timeout or null if not set
-    private Timeout timeout;
+    protected Timeout timeout;
 
     // Timestamp at which the timeout is currently set
     private long currentTimeoutTarget;
@@ -265,7 +265,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         if (log.isDebugEnabled()) {
             log.debug("[{}] Timer triggered", dispatcher.getName());
         }
-        if (timeout.isCancelled()) {
+        if (timeout == null || timeout.isCancelled()) {
             return;
         }
 
@@ -279,10 +279,11 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public void close() {
-        priorityQueue.close();
         if (timeout != null) {
             timeout.cancel();
+            timeout = null;
         }
+        priorityQueue.close();
     }
 
     @Override

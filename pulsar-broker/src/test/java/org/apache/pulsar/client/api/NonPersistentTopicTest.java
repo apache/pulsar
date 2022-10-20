@@ -27,7 +27,6 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Optional;
@@ -39,7 +38,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -700,15 +698,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setLoadManagerClassName(loadManagerName);
             startBroker();
 
-            Field field = PulsarService.class.getDeclaredField("loadManager");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
-            LoadManager manager = LoadManager.create(pulsar);
-            manager.start();
-            LoadManager oldLoadManager = loadManagerRef.getAndSet(manager);
-            oldLoadManager.stop();
-
             NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
             ResourceUnit broker = null;
@@ -788,15 +777,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setEnablePersistentTopics(false);
             conf.setLoadManagerClassName(loadManagerName);
             startBroker();
-
-            Field field = PulsarService.class.getDeclaredField("loadManager");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
-            LoadManager manager = LoadManager.create(pulsar);
-            manager.start();
-            LoadManager oldLoadManager = loadManagerRef.getAndSet(manager);
-            oldLoadManager.stop();
 
             NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();

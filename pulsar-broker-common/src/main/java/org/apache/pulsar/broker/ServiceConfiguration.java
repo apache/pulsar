@@ -1785,19 +1785,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of bookies to use when creating a ledger"
+        doc = "Ensemble (E) size, Number of bookies to use for storing entries in a ledger.\n"
+            + "Please notice that sticky reads enabled by bookkeeperEnableStickyReads=true aren’t used "
+            + " unless ensemble size (E) equals write quorum (Qw) size."
     )
     private int managedLedgerDefaultEnsembleSize = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of copies to store for each message"
+        doc = "Write quorum (Qw) size, Replication factor for storing entries (messages) in a ledger."
     )
     private int managedLedgerDefaultWriteQuorum = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of guaranteed copies (acks to wait before write is complete)"
+        doc = "Ack quorum (Qa) size, Number of guaranteed copies "
+               + "(acks to wait for before a write is considered completed)"
     )
     private int managedLedgerDefaultAckQuorum = 2;
 
@@ -2515,6 +2518,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "phase one loop exceeds this time, the compaction will not proceed."
     )
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
+                + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
+    )
+    private int clusterMigrationCheckDurationSeconds = 0;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,

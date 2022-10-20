@@ -112,8 +112,10 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         List<String> keyList = getListFromConfig(jdbcSinkConfig.getKey());
         List<String> nonKeyList = getListFromConfig(jdbcSinkConfig.getNonKey());
 
-        tableDefinition = JdbcUtils.getTableDefinition(connection, tableId, keyList, nonKeyList);
+        tableDefinition = JdbcUtils.getTableDefinition(connection, tableId,
+                keyList, nonKeyList, jdbcSinkConfig.isExcludeNonDeclaredFields());
         insertStatement = connection.prepareStatement(generateInsertQueryStatement());
+
         if (jdbcSinkConfig.getInsertMode() == JdbcSinkConfig.InsertMode.UPSERT) {
             if (nonKeyList.isEmpty() || keyList.isEmpty()) {
                 throw new IllegalStateException("UPSERT mode is not configured if 'key' and 'nonKey' "

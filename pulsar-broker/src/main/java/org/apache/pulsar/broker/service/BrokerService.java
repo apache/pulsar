@@ -582,6 +582,13 @@ public class BrokerService implements Closeable {
                     subscriptionExpiryCheckIntervalInSeconds,
                     subscriptionExpiryCheckIntervalInSeconds, TimeUnit.SECONDS);
         }
+
+        // check cluster migration
+        int interval = pulsar().getConfiguration().getClusterMigrationCheckDurationSeconds();
+        if (interval > 0) {
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkClusterMigration()), interval, interval,
+                    TimeUnit.SECONDS);
+        }
     }
 
     protected void startMessageExpiryMonitor() {
@@ -1595,7 +1602,8 @@ public class BrokerService implements Closeable {
                     RetentionPolicies retentionPolicies = null;
                     OffloadPoliciesImpl topicLevelOffloadPolicies = null;
 
-                    if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
+                    if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
+                            && !NamespaceService.isSystemServiceNamespace(namespace.toString())) {
                         try {
                             TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
                             if (topicPolicies != null) {
@@ -1848,6 +1856,10 @@ public class BrokerService implements Closeable {
 
     public void checkGC() {
         forEachTopic(Topic::checkGC);
+    }
+
+    public void checkClusterMigration() {
+        forEachTopic(Topic::checkClusterMigration);
     }
 
     public void checkMessageExpiry() {

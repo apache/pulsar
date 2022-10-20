@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -81,11 +83,27 @@ public class BacklogQuotaManagerTest {
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarService, PulsarAdmin)}
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
      */
     protected void deleteNamespaceGraceFully(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, pulsar, admin);
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
+                                                           PulsarService...pulsars) throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
     }
 
     @DataProvider(name = "backlogQuotaSizeGB")
@@ -512,18 +530,22 @@ public class BacklogQuotaManagerTest {
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 14);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 14);
 
+        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
+        Position slowConsumerReadPos = ml.getSlowestConsumer().getReadPosition();
+
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
         TopicStats stats2 = getTopicStats(topic1);
-        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
         // message in current ledger.
         Awaitility.await().untilAsserted(() -> {
             assertEquals(stats2.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
             assertEquals(stats2.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
         });
+
+        assertEquals(ml.getSlowestConsumer().getReadPosition(), slowConsumerReadPos);
         client.close();
     }
 

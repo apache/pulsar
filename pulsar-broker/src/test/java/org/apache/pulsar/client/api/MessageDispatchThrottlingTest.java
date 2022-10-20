@@ -53,8 +53,9 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -62,7 +63,7 @@ import org.testng.annotations.Test;
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         this.conf.setClusterName("test");
@@ -70,11 +71,34 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
+
+    @AfterMethod(alwaysRun = true)
+    protected void reset() throws Exception {
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
+        for (String tenant : admin.tenants().getTenants()) {
+            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                admin.namespaces().deleteNamespace(namespace, true);
+            }
+            admin.tenants().deleteTenant(tenant, true);
+        }
+
+        for (String cluster : admin.clusters().getClusters()) {
+            admin.clusters().deleteCluster(cluster);
+        }
+
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+
+        super.producerBaseSetup();
+    }
+
 
     @DataProvider(name = "subscriptions")
     public Object[][] subscriptionsProvider() {
@@ -280,6 +304,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
+        long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
                 Integer.toString(messageRate));
@@ -325,7 +350,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
-        pulsar.getConfiguration().setDispatchThrottlingRatePerTopicInMsg(initValue);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(initValue));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes));
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -675,7 +702,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
-        pulsar.getConfiguration().setDispatchThrottlingRatePerTopicInMsg(initValue);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(initValue));
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -981,7 +1009,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         producer.close();
         producer2.close();
-
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(initValue));
         log.info("-- Exiting {} test --", methodName);
     }
 

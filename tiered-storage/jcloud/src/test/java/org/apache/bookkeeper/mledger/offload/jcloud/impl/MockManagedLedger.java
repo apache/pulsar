@@ -380,4 +380,16 @@ public class MockManagedLedger implements ManagedLedger {
     public void checkCursorsToCacheEntries() {
         // no-op
     }
+
+    @Override
+    public CompletableFuture<Position> asyncMigrate() {
+        // no-op
+        return null;
+    }
+
+    @Override
+    public boolean isMigrated() {
+        // no-op
+        return false;
+    }
 }

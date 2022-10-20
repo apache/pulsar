@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
@@ -51,8 +52,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -320,24 +323,103 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
+    public void testAsyncSendOrAckForSingleFuture() throws Exception {
+        String topic = NAMESPACE1 + "/testSingleFuture";
+        int totalMessage = 10;
+        int threadSize = 30;
+        String topicName = "subscription";
+        getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+        ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
+
+        //build producer/consumer
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+        //store the send/ack result  futures
+        CopyOnWriteArrayList<CompletableFuture<MessageId>> sendFutures = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<CompletableFuture<Void>> ackFutures = new CopyOnWriteArrayList<>();
+
+        //send and ack messages with transaction
+        Transaction transaction1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        for (int i = 0; i < totalMessage * threadSize; i++) {
+            producer.newMessage().send();
+        }
+
+        CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        for (int i = 0; i < threadSize; i++) {
+            executorService.submit(() -> {
+                try {
+                    for (int j = 0; j < totalMessage; j++) {
+                        CompletableFuture<MessageId> sendFuture = producer.newMessage(transaction1).sendAsync();
+                        sendFutures.add(sendFuture);
+                        Message<byte[]> message = consumer.receive();
+                        CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(),
+                                transaction1);
+                        ackFutures.add(ackFuture);
+                    }
+                    countDownLatch.countDown();
+                } catch (Exception e) {
+                    log.error("Failed to send/ack messages with transaction.", e);
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        //wait the all send/ack op is executed and store its futures in the arraylist.
+        countDownLatch.await(10, TimeUnit.SECONDS);
+        transaction1.commit().get();
+
+        //verify the final status is right.
+        Field ackCountField = TransactionImpl.class.getDeclaredField("opCount");
+        ackCountField.setAccessible(true);
+        long ackCount = (long) ackCountField.get(transaction1);
+        Assert.assertEquals(ackCount, 0L);
+
+        for (int i = 0; i < totalMessage * threadSize; i++) {
+            Assert.assertTrue(sendFutures.get(i).isDone());
+            Assert.assertTrue(ackFutures.get(i).isDone());
+        }
+
+        //verify opFuture without any operation.
+        Transaction transaction2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Awaitility.await().until(() -> {
+            transaction2.commit().get();
+            return true;
+        });
+    }
+
+    @Test
     public void testGetTxnID() throws Exception {
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 0);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+
         transaction.abort();
         transaction = pulsarClient.newTransaction()
                 .build().get();
-        txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 1);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+        TxnID txnID1 = transaction.getTxnID();
+        Assert.assertEquals(txnID1.getLeastSigBits(), txnID.getLeastSigBits() + 1);
+        Assert.assertEquals(txnID1.getMostSigBits(), 0);
     }
 
     @Test
     public void testSubscriptionRecreateTopic()
             throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
-        String topic = "persistent://pulsar/system/testReCreateTopic";
+        String topic = "persistent://pulsar/system/testSubscriptionRecreateTopic";
         String subName = "sub_testReCreateTopic";
         int retentionSizeInMbSetTo = 5;
         int retentionSizeInMbSetTopic = 6;
@@ -399,11 +481,7 @@ public class TransactionTest extends TransactionTestBase {
                         }
                 );
             });
-
-
         });
-
-
     }
 
     @Test
@@ -700,6 +778,8 @@ public class TransactionTest extends TransactionTestBase {
         Class<PulsarService> pulsarServiceClass = PulsarService.class;
         Field field = pulsarServiceClass.getDeclaredField("transactionPendingAckStoreProvider");
         field.setAccessible(true);
+        TransactionPendingAckStoreProvider originPendingAckStoreProvider =
+                (TransactionPendingAckStoreProvider) field.get(getPulsarServiceList().get(0));
         field.set(getPulsarServiceList().get(0), pendingAckStoreProvider);
 
         PendingAckHandleImpl pendingAckHandle1 = new PendingAckHandleImpl(persistentSubscription);
@@ -729,6 +809,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // cleanup
         transactionTimer.stop();
+        field.set(getPulsarServiceList().get(0), originPendingAckStoreProvider);
     }
 
     @Test
@@ -993,7 +1074,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckMarkDeletePosition() throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(1);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
-        String topic = NAMESPACE1 + "/test1";
+        String topic = NAMESPACE1 + "/testPendingAckMarkDeletePosition";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -1054,7 +1135,7 @@ public class TransactionTest extends TransactionTestBase {
                     .getPendingAckInternalStats(topic, "sub", false)
                     .pendingAckLogStats
                     .managedLedgerInternalStats;
-            String [] markDeletePosition = managedLedgerInternalStats.cursors.get("__pending_ack_state")
+            String [] markDeletePosition = managedLedgerInternalStats.cursors.get(PENDING_ACK_STORE_CURSOR_NAME)
                     .markDeletePosition.split(":");
             String [] lastConfirmedEntry = managedLedgerInternalStats.lastConfirmedEntry.split(":");
             Assert.assertEquals(markDeletePosition[0], lastConfirmedEntry[0]);

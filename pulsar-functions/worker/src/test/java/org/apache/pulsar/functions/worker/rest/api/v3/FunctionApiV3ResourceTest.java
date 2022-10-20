@@ -776,6 +776,7 @@ public class FunctionApiV3ResourceTest {
                 .classLoader(mockedClassLoader)
                 .build();
         when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
 
         when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
 
