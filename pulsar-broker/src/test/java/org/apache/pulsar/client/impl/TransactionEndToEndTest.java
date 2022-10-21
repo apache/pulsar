@@ -89,6 +89,7 @@ import org.testng.annotations.Test;
  * End to end transaction test.
  */
 @Slf4j
+@Test(groups = "broker-impl")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
     protected static final int TOPIC_PARTITION = 3;

@@ -41,6 +41,7 @@ import org.testng.annotations.Test;
  * However it is useful to see which logs are produced when there's an
  * failure or error in authentication.
  */
+@Test(groups = "broker")
 public class AuthLogsTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AuthLogsTest.class);
 

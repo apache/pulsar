@@ -27,6 +27,7 @@ import org.testng.annotations.Test;
  * End to end transaction test.
  */
 @Slf4j
+@Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
     @BeforeClass
