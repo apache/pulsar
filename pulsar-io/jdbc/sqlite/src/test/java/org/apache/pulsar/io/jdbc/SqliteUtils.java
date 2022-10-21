@@ -100,6 +100,23 @@ public final class SqliteUtils {
         return count;
     }
 
+    public String dump(final String query) throws SQLException {
+        StringBuilder builder = new StringBuilder();
+        try (Connection connection = getConnection(true);
+             Statement stmt = connection.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery(query)) {
+                while (rs.next()) {
+                    for (int i = 0; i < rs.getMetaData().getColumnCount(); i++) {
+                        builder.append(rs.getObject(i + 1));
+                        builder.append(";");
+                    }
+                    builder.append(System.lineSeparator());
+                }
+            }
+        }
+        return builder.toString();
+    }
+
     public void execute(String sql) throws SQLException {
         try (Connection connection = getConnection(true);
                 Statement stmt = connection.createStatement()) {

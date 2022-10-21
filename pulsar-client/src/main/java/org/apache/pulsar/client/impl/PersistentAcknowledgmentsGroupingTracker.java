@@ -60,7 +60,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     /**
      * When reaching the max group size, an ack command is sent out immediately.
      */
-    private static final int MAX_ACK_GROUP_SIZE = 1000;
+    private final int maxAckGroupSize;
 
     private final ConsumerImpl<?> consumer;
 
@@ -91,6 +91,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         this.pendingIndividualAcks = new ConcurrentSkipListSet<>();
         this.pendingIndividualBatchIndexAcks = new ConcurrentHashMap<>();
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
+        this.maxAckGroupSize = conf.getMaxAcknowledgmentGroupSize();
         this.batchIndexAckEnabled = conf.isBatchIndexAckEnabled();
         this.ackReceiptEnabled = conf.isAckReceiptEnabled();
         this.currentIndividualAckFuture = new TimedCompletableFuture<>();
@@ -148,13 +149,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     }
                 } finally {
                     this.lock.readLock().unlock();
-                    if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                    if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= maxAckGroupSize) {
                         flush();
                     }
                 }
             } else {
                 addListAcknowledgment(messageIds);
-                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= maxAckGroupSize) {
                     flush();
                 }
                 return CompletableFuture.completedFuture(null);
@@ -265,13 +266,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     return this.currentIndividualAckFuture;
                 } finally {
                     this.lock.readLock().unlock();
-                    if (pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                    if (pendingIndividualAcks.size() >= maxAckGroupSize) {
                         flush();
                     }
                 }
             } else {
                 doIndividualAckAsync(messageId);
-                if (pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                if (pendingIndividualAcks.size() >= maxAckGroupSize) {
                     flush();
                 }
                 return CompletableFuture.completedFuture(null);
@@ -307,13 +308,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return this.currentIndividualAckFuture;
             } finally {
                 this.lock.readLock().unlock();
-                if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                if (pendingIndividualBatchIndexAcks.size() >= maxAckGroupSize) {
                     flush();
                 }
             }
         } else {
             doIndividualBatchAckAsync(batchMessageId);
-            if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
+            if (pendingIndividualBatchIndexAcks.size() >= maxAckGroupSize) {
                 flush();
             }
             return CompletableFuture.completedFuture(null);
