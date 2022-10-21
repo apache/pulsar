@@ -124,8 +124,8 @@
                       <filtering>false</filtering>
                     </resource>
                     <resource>
-                      <directory>${project.basedir}/../latest-version-image/ssl</directory>
-                      <targetPath>ssl</targetPath>
+                      <directory>${project.basedir}/../../certificate-authority</directory>
+                      <targetPath>certificate-authority</targetPath>
                       <filtering>false</filtering>
                     </resource>
                     <resource>

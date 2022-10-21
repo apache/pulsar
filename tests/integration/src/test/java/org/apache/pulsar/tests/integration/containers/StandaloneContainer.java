@@ -66,12 +66,4 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
                 .forPath("/admin/v2/namespaces/public/default")
                 .withStartupTimeout(Duration.of(300, SECONDS));
     }
-
-    public String getPlainTextServiceUrl() {
-        return "pulsar://" + getHost() + ":" + getMappedPort(BROKER_PORT);
-    }
-
-    public String getHttpServiceUrl() {
-        return "http://" + getHost() + ":" + getMappedPort(BROKER_HTTP_PORT);
-    }
 }
