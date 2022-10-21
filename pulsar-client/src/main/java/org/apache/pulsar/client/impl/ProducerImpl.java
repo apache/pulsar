@@ -1416,7 +1416,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback,
+                                int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.msgs = msgs;
@@ -1428,11 +1429,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
+            op.uncompressedSize += batchAllocatedSize;
             return op;
         }
 
         static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
-                                long highestSequenceId,  SendCallback callback) {
+                                long highestSequenceId,  SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.msgs = msgs;
@@ -1445,6 +1447,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
+            op.uncompressedSize += batchAllocatedSize;
             return op;
         }
 
@@ -2053,8 +2056,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         final long currentBatchSize = batchMessageContainer.getCurrentBatchSize();
+        final int batchAllocatedSizeBytes = batchMessageContainer.getBatchAllocatedSizeBytes();
         semaphoreRelease(numMessagesInBatch);
-        client.getMemoryLimitController().releaseMemory(currentBatchSize);
+        client.getMemoryLimitController().releaseMemory(currentBatchSize + batchAllocatedSizeBytes);
         batchMessageContainer.discard(ex);
     }
 
