@@ -102,8 +102,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
 
         @Override
         public void close() throws IOException {
-            this.producer.closeAsync().join();
-            transactionBufferSnapshotBaseSystemTopicClient.removeWriter(this);
+            this.closeAsync().join();
         }
 
         @Override
