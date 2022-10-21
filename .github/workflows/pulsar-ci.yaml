@@ -106,9 +106,12 @@ jobs:
       - name: Check source code license headers
         run: mvn -B -T 8 -ntp initialize apache-rat:check license:check
 
+      - name: Check source code style
+        run: mvn -B -T 8 -ntp initialize checkstyle:check
+
       - name: Build core-modules
         run: |
-          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true
+          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
 
       - name: Check binary licenses
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
