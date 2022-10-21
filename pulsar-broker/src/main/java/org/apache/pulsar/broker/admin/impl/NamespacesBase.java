@@ -267,7 +267,7 @@ public abstract class NamespacesBase extends AdminResource {
                                             return FutureUtil.failedFuture(ex);
                                         }
                                         return admin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
-                                                bundle.getBundleRange());
+                                                bundle.getBundleRange(), force);
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
