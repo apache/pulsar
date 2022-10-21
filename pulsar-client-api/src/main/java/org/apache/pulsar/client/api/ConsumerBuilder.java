@@ -379,6 +379,17 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit);
 
     /**
+     * Group the consumer acknowledgments for the max size.
+     *
+     * <p>By default, the consumer uses at most 1000 messages to send out the acknowledgments to the broker.
+     *
+     * @param messageNum
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> maxAcknowledgmentGroupSize(int messageNum);
+
+    /**
      *
      * @param replicateSubscriptionState
      */

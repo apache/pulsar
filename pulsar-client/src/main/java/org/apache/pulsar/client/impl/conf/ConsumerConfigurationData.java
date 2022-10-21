@@ -138,6 +138,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
     @ApiModelProperty(
+            name = "maxAcknowledgmentGroupSize",
+            value = "Group a consumer acknowledgment for the number of messages."
+    )
+    private int maxAcknowledgmentGroupSize = 1000;
+
+    @ApiModelProperty(
             name = "negativeAckRedeliveryDelayMicros",
             value = "Delay to wait before redelivering messages that failed to be processed.\n"
                     + "\n"
