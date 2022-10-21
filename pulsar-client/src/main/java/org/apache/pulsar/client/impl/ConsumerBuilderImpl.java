@@ -328,6 +328,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> maxAcknowledgmentGroupSize(int messageNum) {
+        checkArgument(messageNum > 0, "acknowledgementsGroupSize needs to be > 0");
+        conf.setMaxAcknowledgmentGroupSize(messageNum);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> consumerName(String consumerName) {
         checkArgument(StringUtils.isNotBlank(consumerName), "consumerName cannot be blank");
         conf.setConsumerName(consumerName);

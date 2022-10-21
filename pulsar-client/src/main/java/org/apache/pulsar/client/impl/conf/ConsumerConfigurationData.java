@@ -31,6 +31,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+
+import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -83,6 +85,19 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
+    @ApiModelProperty(
+            name = "maxAcknowledgmentGroupSize",
+            value = "Group a consumer acknowledgment for the number of messages."
+    )
+    private int maxAcknowledgmentGroupSize = 1000;
+
+    @ApiModelProperty(
+            name = "negativeAckRedeliveryDelayMicros",
+            value = "Delay to wait before redelivering messages that failed to be processed.\n"
+                    + "\n"
+                    + "When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are "
+                    + "redelivered after a fixed timeout."
+    )
     private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
 
     private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
