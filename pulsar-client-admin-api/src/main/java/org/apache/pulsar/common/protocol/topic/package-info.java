@@ -16,27 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
-
 /**
- * Pulsar system event type.
+ * Implementation of topic payload.
  */
-public enum EventType {
-
-    /**
-     * Topic policy events.
-     */
-    TOPIC_POLICY,
-
-    /**
-     * Transaction buffer snapshot events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT,
-
-    /**
-     * Ledger deletion events.
-     */
-    LEDGER_DELETION
-
-
-}
+package org.apache.pulsar.common.protocol.topic;

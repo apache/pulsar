@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -97,6 +98,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Getter
     protected final OrderedScheduler scheduledExecutor;
     private final ScheduledExecutorService cacheEvictionExecutor;
+
+    private LedgerDeletionService ledgerDeletionService = new LedgerDeletionService.LedgerDeletionServiceDisable();
 
     @Getter
     protected final ManagedLedgerFactoryMBeanImpl mbean;
@@ -371,9 +374,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                             config.getBookKeeperEnsemblePlacementPolicyProperties()));
             final ManagedLedgerImpl newledger = config.getShadowSource() == null
-                    ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker)
+                    ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker,
+                    ledgerDeletionService)
                     : new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                    mlOwnershipChecker);
+                    mlOwnershipChecker, ledgerDeletionService);
             PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
             pendingInitializeLedgers.put(name, pendingLedger);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -466,7 +470,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 bookkeeperFactory
                         .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                 config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                store, config, scheduledExecutor, managedLedgerName);
+                store, config, scheduledExecutor, managedLedgerName, ledgerDeletionService);
 
         roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition)
                 .thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx))
@@ -982,6 +986,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public long getCacheEvictionTimeThreshold(){
         return cacheEvictionTimeThresholdNanos;
+    }
+
+    @Override
+    public void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService) {
+        this.ledgerDeletionService = ledgerDeletionService;
     }
 
     public ManagedLedgerFactoryMXBean getCacheStats() {

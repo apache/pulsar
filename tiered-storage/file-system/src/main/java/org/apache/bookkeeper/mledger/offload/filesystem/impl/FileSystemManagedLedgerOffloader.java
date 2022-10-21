@@ -53,6 +53,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
     private static final Logger log = LoggerFactory.getLogger(FileSystemManagedLedgerOffloader.class);
     private static final String STORAGE_BASE_PATH = "storageBasePath";
+    private static final String FILE_SYSTEM_PROFILE_PATH = "fileSystemProfilePath";
+    private static final String FILE_SYSTEM_URI = "fileSystemURI";
     private static final String DRIVER_NAMES = "filesystem";
     private static final String MANAGED_LEDGER_NAME = "ManagedLedgerName";
     static final long METADATA_KEY_INDEX = -1;
@@ -138,8 +140,13 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public Map<String, String> getOffloadDriverMetadata() {
         String path = storageBasePath == null ? "null" : storageBasePath;
+        String fileSystemProfilePath = offloadPolicies.getFileSystemProfilePath() == null ? "null" :
+                offloadPolicies.getFileSystemProfilePath();
+        String fileSystemURI = offloadPolicies.getFileSystemURI() == null ? "null" : offloadPolicies.getFileSystemURI();
         return ImmutableMap.of(
-                STORAGE_BASE_PATH, path
+                STORAGE_BASE_PATH, path,
+                FILE_SYSTEM_PROFILE_PATH, fileSystemProfilePath,
+                FILE_SYSTEM_URI, fileSystemURI
         );
     }
 

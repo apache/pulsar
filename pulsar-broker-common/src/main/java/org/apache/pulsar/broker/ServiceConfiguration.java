@@ -245,7 +245,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
-    private boolean haProxyProtocolEnabled;
+    private boolean haProxyProtocolEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2746,6 +2746,36 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "Disable rollover with value 0 (Default value 0)"
         )
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Using two phase deletion when delete ledger. if true, "
+                    + "LedgerDeletionService will take over ledger deletion. (Default false)"
+    )
+    private boolean topicTwoPhaseDeletionEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Ledger deletion parallelism. Create partitioned system topic with this value when "
+                    + "twoPhaseDeletionEnabled is true. (Default 4)"
+    )
+    private int ledgerDeletionParallelismOfTopicTwoPhaseDeletion = 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When delete ledger of two phase deletion, it will send PendingDeleteLedgerInfo to system topic,"
+                    + " send it delay according this value. (Default 60s)"
+    )
+    private int sendDelayOfTopicTwoPhaseDeletionInSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When delete ledger of two phase deletion, it will start consumer to subscribe system topic,"
+                    + " when consume PendingDeleteLedgerInfo failed, will reconsume later according this value."
+                    + " (Default 600s)"
+    )
+    private int reconsumeLaterOfTopicTwoPhaseDeletionInSeconds = 600;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,

@@ -16,27 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.bookkeeper.mledger.deletion;
 
-/**
- * Pulsar system event type.
- */
-public enum EventType {
+public class PendingDeleteLedgerInvalidException extends RuntimeException {
 
-    /**
-     * Topic policy events.
-     */
-    TOPIC_POLICY,
-
-    /**
-     * Transaction buffer snapshot events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT,
-
-    /**
-     * Ledger deletion events.
-     */
-    LEDGER_DELETION
-
-
+    public PendingDeleteLedgerInvalidException(String message) {
+        super(message);
+    }
 }

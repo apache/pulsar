@@ -56,10 +56,13 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.deletion.LedgerType;
+import org.apache.bookkeeper.mledger.deletion.PendingDeleteLedgerInvalidException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -69,6 +72,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -134,6 +138,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.topic.DeleteLedgerPayload;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1112,6 +1117,111 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    protected void internalDeleteLedger(AsyncResponse asyncResponse, boolean authoritative,
+                                        DeleteLedgerPayload deleteLedgerPayload) {
+        validateTopicOwnership(topicName, authoritative);
+
+        CompletableFuture<Void> ret;
+        if (topicName.isGlobal()) {
+            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            ret = CompletableFuture.completedFuture(null);
+        }
+        ret.thenAccept(__ -> {
+            long ledgerId = deleteLedgerPayload.getLedgerId();
+            log.info("[{}][{}] received delete ledger: {}", clientAppId(), topicName, ledgerId);
+            validateTopicOwnershipAsync(topicName, authoritative)
+                    .thenCompose(ignore ->
+                            //Is need to check delete_ledger operation?
+                            validateTopicOperationAsync(topicName, TopicOperation.DELETE_LEDGER))
+                    .thenCompose(ignore -> getTopicReferenceAsync(topicName))
+                    .thenCompose(topic -> {
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        if (topic == null) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                    getTopicNotFoundErrorMessage(topicName.toString())));
+                            future.complete(null);
+                            return future;
+                        }
+                        ManagedLedger managedLedger = ((PersistentTopic) topic).getManagedLedger();
+                        DeleteLedgerPayload.OffloadContext context = deleteLedgerPayload.getOffloadContext();
+                        LedgerType ledgerType = LedgerType.valueOf(deleteLedgerPayload.getLedgerType());
+                        MLDataFormats.OffloadContext offloadContext = null;
+                        if (LedgerType.OFFLOAD_LEDGER == ledgerType) {
+                            long lsb = context.getLsb();
+                            long msb = context.getMsb();
+                            String driverName = context.getDriverName();
+                            Map<String, String> metadata = context.getMetadata();
+
+                            MLDataFormats.OffloadContext.Builder builder =
+                                    MLDataFormats.OffloadContext.newBuilder().setUidLsb(lsb).setUidMsb(msb);
+                            builder.getDriverMetadataBuilder().setName(driverName);
+                            metadata.forEach((k, v) -> {
+                                builder.getDriverMetadataBuilder().addProperties(
+                                        MLDataFormats.KeyValue.newBuilder().setKey(k).setValue(v).build());
+                            });
+                            offloadContext = builder.build();
+                        }
+                        managedLedger.asyncDeleteLedger(topicName.getPersistenceNamingEncoding(), ledgerId,
+                                ledgerType, offloadContext).whenComplete((res, ex) -> {
+                                    if (ex != null) {
+                                        if (ex instanceof PendingDeleteLedgerInvalidException) {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("[{}][{}] Received invalid pending delete ledger {},"
+                                                                + " invalid reason: {}", clientAppId(), topicName,
+                                                        ledgerId, ex.getMessage());
+                                            }
+                                            future.complete(null);
+                                            return;
+                                        }
+                                        future.completeExceptionally(ex);
+                                        return;
+                                    }
+                                    future.complete(null);
+                                });
+                        return future;
+                    }).thenRun(() -> {
+                        asyncResponse.resume(asyncResponse.resume(Response.ok().build()));
+                    }).exceptionally(ex -> {
+                        // If the exception is not redirect exception we need to log it.
+                        if (!isRedirectException(ex)) {
+                            log.warn("[{}][{}] Failed to delete ledger: {}",
+                                    clientAppId(), topicName, ledgerId, ex.getCause());
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                        return null;
+                    });
+        }).exceptionally(ex -> {
+            // If the exception is not redirect exception we need to log it.
+            if (!isRedirectException(ex)) {
+                log.warn("[{}][{}] Failed to delete ledger: {}",
+                        clientAppId(), topicName, deleteLedgerPayload.getLedgerId(), ex.getCause());
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+            return null;
+        });
+    }
+
+    protected void internalDeleteTopic(boolean authoritative) {
+        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
+        validateTopicOwnership(topicName, authoritative);
+
+        try {
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
+            log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
+        } catch (Exception e) {
+            Throwable t = e.getCause();
+            log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
+            if (t instanceof BrokerServiceException.TopicBusyException) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Topic has active producers/subscriptions");
+            } else if (isManagedLedgerNotFoundException(e)) {
+                throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+            } else {
+                throw new RestException(t);
+            }
+        }
     }
 
     protected CompletableFuture<Void> internalDeleteTopicAsync(boolean authoritative, boolean force) {

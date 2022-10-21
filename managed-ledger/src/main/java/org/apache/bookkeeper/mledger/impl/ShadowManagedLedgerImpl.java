@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -39,8 +40,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     public ShadowManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper,
                                    MetaStore store, ManagedLedgerConfig config,
                                    OrderedScheduler scheduledExecutor,
-                                   String name, final Supplier<Boolean> mlOwnershipChecker) {
-        super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
+                                   String name, final Supplier<Boolean> mlOwnershipChecker,
+                                   LedgerDeletionService ledgerDeletionService) {
+        super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker, ledgerDeletionService);
         this.shadowSource = TopicName.get(config.getShadowSource());
         this.sourceMLName = shadowSource.getPersistenceNamingEncoding();
     }

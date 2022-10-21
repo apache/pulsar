@@ -71,6 +71,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.protocol.topic.DeleteLedgerPayload;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -1150,6 +1151,34 @@ public class PersistentTopics extends PersistentTopicsBase {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/ledger/delete")
+    @ApiOperation(value = "Delete a topic.",
+            notes = "The topic cannot be deleted if delete is not forcefully and there's any active "
+                    + "subscription or producer connected to the it. "
+                    + "Force delete ignores connected clients and deletes topic by explicitly closing them.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic has active producers/subscriptions"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void deleteLedger(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            DeleteLedgerPayload deleteLedgerPayload) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalDeleteLedger(asyncResponse, authoritative, deleteLedgerPayload);
     }
 
     @GET

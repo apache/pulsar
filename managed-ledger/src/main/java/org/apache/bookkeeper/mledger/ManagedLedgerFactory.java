@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 
 /**
@@ -197,6 +198,8 @@ public interface ManagedLedgerFactory {
      * @return time threshold for eviction.
      * */
     long getCacheEvictionTimeThreshold();
+
+    void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService);
 
     /**
      * @return properties of this managedLedger.

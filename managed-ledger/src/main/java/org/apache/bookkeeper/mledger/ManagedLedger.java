@@ -32,7 +32,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.deletion.LedgerType;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -296,6 +298,12 @@ public interface ManagedLedger {
      * @throws InterruptedException
      */
     void deleteCursor(String name) throws InterruptedException, ManagedLedgerException;
+
+    CompletableFuture<Void> asyncDeleteLedger(String topicName, long ledgerId, LedgerType ledgerType,
+                                           MLDataFormats.OffloadContext offloadContext);
+
+    void deleteLedger(String topicName, long ledgerId, LedgerType ledgerType,
+                      MLDataFormats.OffloadContext offloadContext) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Remove a ManagedCursor from this ManagedLedger's waitingCursors.

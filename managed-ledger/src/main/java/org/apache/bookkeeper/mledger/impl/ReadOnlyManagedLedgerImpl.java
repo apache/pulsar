@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -40,9 +41,9 @@ import org.apache.pulsar.metadata.api.Stat;
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-            String name) {
-        super(factory, bookKeeper, store, config, scheduledExecutor, name);
+                                     ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
+                                     String name, LedgerDeletionService ledgerDeletionService) {
+        super(factory, bookKeeper, store, config, scheduledExecutor, name, ledgerDeletionService);
     }
 
     CompletableFuture<ReadOnlyCursor> initializeAndCreateCursor(PositionImpl startPosition) {

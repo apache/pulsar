@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
@@ -99,6 +100,7 @@ import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicBasedLedgerDeletionService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
@@ -234,6 +236,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final WorkerConfig workerConfig;
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
+
+    private LedgerDeletionService ledgerDeletionService;
 
     private final Consumer<Integer> processTerminator;
     protected final EventLoopGroup ioEventLoopGroup;
@@ -505,6 +509,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
+            if (ledgerDeletionService != null)  {
+                ledgerDeletionService.close();
+                ledgerDeletionService = null;
+            }
+
             if (adminClient != null) {
                 adminClient.close();
                 adminClient = null;
@@ -752,10 +761,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
 
-            managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore,
-                    bkClientFactory, ioEventLoopGroup
-            );
+            managedLedgerClientFactory =
+                    ManagedLedgerStorage.create(config, localMetadataStore, bkClientFactory, ioEventLoopGroup);
 
             this.brokerService = newBrokerService(this);
 
@@ -823,9 +830,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
                 this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
             }
-
             this.topicPoliciesService.start();
 
+            if (config.isTopicTwoPhaseDeletionEnabled() && config.isSystemTopicEnabled()) {
+                this.ledgerDeletionService = new SystemTopicBasedLedgerDeletionService(this, config);
+                this.managedLedgerClientFactory.setUpLedgerDeletionService(this.ledgerDeletionService);
+                this.ledgerDeletionService.start();
+            }
             // Start the leader election service
             startLeaderElectionService();
 

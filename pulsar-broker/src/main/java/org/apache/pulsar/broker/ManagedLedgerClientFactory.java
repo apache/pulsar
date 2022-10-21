@@ -29,6 +29,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.NullStatsProvider;
@@ -168,5 +169,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             log.warn(e.getMessage(), e);
             throw new IOException(e);
         }
+    }
+
+    @Override
+    public void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService) {
+        this.managedLedgerFactory.setUpLedgerDeletionService(ledgerDeletionService);
     }
 }
