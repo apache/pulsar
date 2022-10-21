@@ -59,8 +59,8 @@ public class NamespaceEventsSystemTopicFactory {
                     SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
             case TRANSACTION_BUFFER_SNAPSHOT -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-            case TRANSACTION_BUFFER_SNAPSHOT_SEGMENT -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT);
+            case TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
             case TRANSACTION_BUFFER_SNAPSHOT_INDEXES -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
         };

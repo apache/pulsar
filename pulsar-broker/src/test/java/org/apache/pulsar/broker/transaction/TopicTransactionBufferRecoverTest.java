@@ -636,7 +636,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferSegmentSystemTopic() throws Exception {
         // init topic and topicName
-        String snapshotTopic = NAMESPACE1 + "/" + EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT;
+        String snapshotTopic = NAMESPACE1 + "/" + EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
         TopicName snapshotSegmentTopicName = TopicName.getPartitionedTopicName(snapshotTopic);
 
         //send message to create manager ledger

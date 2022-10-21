@@ -38,9 +38,9 @@ public class SystemTopicNames {
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
 
     /**
-     * Local topic name for the transaction buffer snapshot segment.
+     * Local topic name for the transaction buffer snapshot segments.
      */
-    public static final String TRANSACTION_BUFFER_SNAPSHOT_SEGMENT = "__transaction_buffer_snapshot_segments";
+    public static final String TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS = "__transaction_buffer_snapshot_segments";
 
     /**
      * Local topic name for the transaction buffer snapshot indexes.
@@ -56,7 +56,7 @@ public class SystemTopicNames {
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =
             Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT,
-                    TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TRANSACTION_BUFFER_SNAPSHOT_SEGMENT));
+                    TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
 
 
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),

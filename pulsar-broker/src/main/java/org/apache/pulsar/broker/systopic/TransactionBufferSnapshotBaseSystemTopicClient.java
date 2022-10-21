@@ -206,7 +206,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
                 .createAsync()
                 .thenApply(reader -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new {} reader is created", topicName, schemaType);
+                        log.debug("[{}] A new {} reader is created", topicName, schemaType.getName());
                     }
                     return new TransactionBufferSnapshotReader<>(reader, this);
                 });

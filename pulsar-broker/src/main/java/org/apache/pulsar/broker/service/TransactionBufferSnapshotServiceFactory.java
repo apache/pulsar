@@ -36,7 +36,7 @@ public class TransactionBufferSnapshotServiceFactory {
 
     public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient) {
         this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
-                EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
+                EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
                 TransactionBufferSnapshotSegment.class);
         this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);

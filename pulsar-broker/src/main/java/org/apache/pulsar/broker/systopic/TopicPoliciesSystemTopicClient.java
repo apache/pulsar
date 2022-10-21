@@ -74,7 +74,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
                 });
     }
 
-    public static class TopicPolicyWriter implements Writer<PulsarEvent> {
+    private static class TopicPolicyWriter implements Writer<PulsarEvent> {
 
         private final Producer<PulsarEvent> producer;
         private final SystemTopicClient<PulsarEvent> systemTopicClient;

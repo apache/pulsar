@@ -36,7 +36,7 @@ public enum EventType {
     /**
      * Transaction buffer snapshot segment events.
      */
-    TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
+    TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
 
     /**
      * Transaction buffer snapshot indexes events.
