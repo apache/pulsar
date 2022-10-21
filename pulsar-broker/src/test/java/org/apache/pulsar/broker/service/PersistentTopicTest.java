@@ -1258,6 +1258,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDeleteTopic() throws Exception {
+        doReturn(CompletableFuture.completedFuture(null)).when(ledgerMock).asyncTruncate();
+
         // create topic
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 

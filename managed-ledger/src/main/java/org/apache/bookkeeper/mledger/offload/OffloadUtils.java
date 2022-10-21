@@ -24,12 +24,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.common.util.Backoff;
+import org.apache.bookkeeper.common.util.Retries;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.KeyValue;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
@@ -181,4 +187,26 @@ public final class OffloadUtils {
 
         return builder.build();
     }
+
+    public static CompletableFuture<Void> cleanupOffloaded(long ledgerId, UUID uuid, ManagedLedgerConfig mlConfig,
+                                     Map<String, String> offloadDriverMetadata, String cleanupReason,
+                                     String name, org.apache.bookkeeper.common.util.OrderedScheduler executor) {
+        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
+                name, ledgerId, uuid.toString(), cleanupReason);
+        Map<String, String> metadataMap = new HashMap();
+        metadataMap.putAll(offloadDriverMetadata);
+        metadataMap.put("ManagedLedgerName", name);
+
+        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
+                        TimeUnit.SECONDS.toHours(1)).limit(10),
+                Retries.NonFatalPredicate,
+                () -> mlConfig.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
+                executor, name).whenComplete((ignored, exception) -> {
+            if (exception != null) {
+                log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
+                        name, ledgerId, cleanupReason, exception);
+            }
+        });
+    }
+
 }

@@ -31,7 +31,9 @@ import org.testng.annotations.BeforeClass;
 @Slf4j
 public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase {
 
-    protected static final int ENTRIES_PER_LEDGER = 1024;
+    protected int getNumEntriesPerLedger() {
+        return 1024;
+    }
 
     @BeforeClass(alwaysRun = true)
     @Override

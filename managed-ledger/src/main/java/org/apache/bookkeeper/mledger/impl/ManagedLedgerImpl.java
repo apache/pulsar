@@ -252,14 +252,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                       // operation
         CreatingLedger, // Creating a new ledger
         Closed, // ManagedLedger has been closed
-        Fenced, // A managed ledger is fenced when there is some concurrent
+        Fenced {
+            @Override
+            public boolean isFenced() {
+                return true;
+            }
+        }, // A managed ledger is fenced when there is some concurrent
                 // access from a different session/machine. In this state the
                 // managed ledger will throw exception for all operations, since
                 // the new instance will take over
+        FencedForDeletion {
+            @Override
+            public boolean isFenced() {
+                return true;
+            }
+        }, // A managed ledger is fenced for deletion
+        // which allows truncate/delete operation to proceed but the rest
+        // of teh rules from the Fenced state apply.
         Terminated, // Managed ledger was terminated and no more entries
                     // are allowed to be added. Reads are allowed
-        WriteFailed // The state that is transitioned to when a BK write failure happens
+        WriteFailed; // The state that is transitioned to when a BK write failure happens
                     // After handling the BK write failure, managed ledger will get signalled to create a new ledger
+
+        public boolean isFenced() {
+            return false;
+        }
     }
 
     // define boundaries for position based seeks and searches
@@ -778,7 +795,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         final State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced) {
+        if (state.isFenced()) {
             addOperation.failed(new ManagedLedgerFencedException());
             return;
         } else if (state == State.Terminated) {
@@ -1297,7 +1314,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
-        if (state == State.Fenced) {
+        if (state.isFenced()) {
             callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
             return;
         } else if (state == State.Terminated) {
@@ -1427,7 +1444,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public synchronized void asyncClose(final CloseCallback callback, final Object ctx) {
         State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced) {
+        if (state.isFenced()) {
             cancelScheduledTasks();
             factory.close(this);
             callback.closeFailed(new ManagedLedgerFencedException(), ctx);
@@ -1812,7 +1829,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void asyncReadEntries(OpReadEntry opReadEntry) {
         final State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced || state == State.Closed) {
+        if (state.isFenced() || state == State.Closed) {
             opReadEntry.readEntriesFailed(new ManagedLedgerFencedException(), opReadEntry.ctx);
             return;
         }
@@ -2485,7 +2502,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
         if (!factory.isMetadataServiceAvailable()) {
             // Defer trimming of ledger if we cannot connect to metadata service
-            promise.complete(null);
+            promise.completeExceptionally(new MetaStoreException("Metadata service is not available"));
             return;
         }
 
@@ -2513,6 +2530,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 promise.completeExceptionally(new ManagedLedgerAlreadyClosedException("Can't trim closed ledger"));
                 return;
             }
+            // Allow for FencedForDeletion
             if (currentState == State.Fenced) {
                 log.debug("[{}] Ignoring trimming request since the managed ledger was already fenced", name);
                 trimmerMutex.unlock();
@@ -2768,10 +2786,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncDelete(final DeleteLedgerCallback callback, final Object ctx) {
+
         // Delete the managed ledger without closing, since we are not interested in gracefully closing cursors and
         // ledgers
-        setFenced();
+        setFencedForDeletion();
         cancelScheduledTasks();
+
+        // Truncate to ensure the offloaded data is not orphaned.
+        // Also ensures the BK ledgers are deleted and not just scheduled for deletion
+        CompletableFuture<Void> truncateFuture = asyncTruncate();
+        truncateFuture.whenComplete((ignore, exc) -> {
+            if (exc != null) {
+                log.error("[{}] Error truncating ledger for deletion", name, exc);
+                callback.deleteLedgerFailed(exc instanceof ManagedLedgerException
+                        ? (ManagedLedgerException) exc : new ManagedLedgerException(exc),
+                        ctx);
+            } else {
+                asyncDeleteInternal(callback, ctx);
+            }
+        });
+
+    }
+
+    private void asyncDeleteInternal(final DeleteLedgerCallback callback, final Object ctx) {
 
         List<ManagedCursor> cursors = Lists.newArrayList(this.cursors);
         if (cursors.isEmpty()) {
@@ -2830,10 +2867,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (info.getOffloadContext().hasUidMsb()) {
             UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
-            cleanupOffloaded(ledgerId, uuid,
-                    OffloadUtils.getOffloadDriverName(info, config.getLedgerOffloader().getOffloadDriverName()),
+            OffloadUtils.cleanupOffloaded(ledgerId, uuid, config,
                     OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
-                    "Trimming");
+                    "Trimming", name, scheduledExecutor);
         }
     }
 
@@ -2888,7 +2924,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 default:
                     // Handle error
                     log.warn("[{}] Failed to delete ledger {} -- {}", name, ls.getLedgerId(),
-                            BKException.getMessage(rc));
+                            BKException.getMessage(rc) + " code " + rc);
                     int toDelete = ledgersToDelete.get();
                     if (toDelete != -1 && ledgersToDelete.compareAndSet(toDelete, -1)) {
                         // Trigger callback only once
@@ -3039,7 +3075,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     String.format("managed ledger [%s] has already closed", name)));
             return;
         }
-        if (currentState == State.Fenced) {
+        if (currentState.isFenced()) {
             promise.completeExceptionally(new ManagedLedgerFencedException(
                     String.format("managed ledger [%s] is fenced", name)));
             return;
@@ -3077,18 +3113,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             // it is possible to get a BadVersion or other exception after retrying.
                                             // So we don't clean up the data if it has metadata operation exception.
                                             log.error("[{}] Failed to update offloaded metadata for the ledgerId {}, "
-                                                    + "the offloaded data will not be cleaned up",
-                                                name, ledgerId, exception);
-                                            return;
+                                                            + "the offloaded data will not be cleaned up",
+                                                    name, ledgerId, exception);
                                         } else {
                                             log.error("[{}] Failed to offload data for the ledgerId {}, "
-                                                    + "clean up the offloaded data",
-                                                name, ledgerId, exception);
+                                                            + "clean up the offloaded data",
+                                                    name, ledgerId, exception);
                                         }
-                                        cleanupOffloaded(
-                                            ledgerId, uuid,
-                                            driverName, driverMetadata,
-                                            "Metastore failure");
+                                        OffloadUtils.cleanupOffloaded(
+                                            ledgerId, uuid, config,
+                                            driverMetadata,
+                                            "Metastore failure", name, scheduledExecutor);
                                     }
                                 });
                     })
@@ -3207,14 +3242,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                    oldInfo.getOffloadContext().getUidLsb());
                                            log.info("[{}] Found previous offload attempt for ledger {}, uuid {}"
                                                     + ", cleaning up", name, ledgerId, uuid);
-                                           cleanupOffloaded(
+                                           OffloadUtils.cleanupOffloaded(
                                                ledgerId,
                                                oldUuid,
-                                               OffloadUtils.getOffloadDriverName(oldInfo,
-                                                   config.getLedgerOffloader().getOffloadDriverName()),
+                                               config,
                                                OffloadUtils.getOffloadDriverMetadata(oldInfo,
                                                    config.getLedgerOffloader().getOffloadDriverMetadata()),
-                                               "Previous failed offload");
+                                               "Previous failed offload",
+                                               name,
+                                               scheduledExecutor);
                                        }
                                        LedgerInfo.Builder builder = oldInfo.toBuilder();
                                        builder.getOffloadContextBuilder()
@@ -3272,28 +3308,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     } else {
                         log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
                                  name, ledgerId, uuid, exception);
-                    }
-                });
-    }
-
-    private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName, /*
-                                                                                       * TODO: use driver name to
-                                                                                       * identify offloader
-                                                                                       */
-            Map<String, String> offloadDriverMetadata, String cleanupReason) {
-        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
-                name, ledgerId, uuid.toString(), cleanupReason);
-        Map<String, String> metadataMap = new HashMap();
-        metadataMap.putAll(offloadDriverMetadata);
-        metadataMap.put("ManagedLedgerName", name);
-
-        Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
-                Retries.NonFatalPredicate,
-                () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
-                scheduledExecutor, name).whenComplete((ignored, exception) -> {
-                    if (exception != null) {
-                        log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
-                                name, ledgerId, cleanupReason, exception);
                     }
                 });
     }
@@ -3688,7 +3702,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @throws ManagedLedgerException
      */
     private void checkFenced() throws ManagedLedgerException {
-        if (STATE_UPDATER.get(this) == State.Fenced) {
+        if (STATE_UPDATER.get(this).isFenced()) {
             log.error("[{}] Attempted to use a fenced managed ledger", name);
             throw new ManagedLedgerFencedException();
         }
@@ -3703,6 +3717,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     synchronized void setFenced() {
         log.info("{} Moving to Fenced state", name);
         STATE_UPDATER.set(this, State.Fenced);
+    }
+
+    synchronized void setFencedForDeletion() {
+        log.info("{} Moving to FencedForDeletion state", name);
+        STATE_UPDATER.set(this, State.FencedForDeletion);
     }
 
     MetaStore getStore() {
@@ -3814,7 +3833,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
             }
         } else {
-            return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
+            return new ManagedLedgerException(BKException.getMessage(bkErrorCode) + " error code: " + bkErrorCode);
         }
     }
 
@@ -3928,7 +3947,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void checkTimeouts() {
         final State state = STATE_UPDATER.get(this);
         if (state == State.Closed
-                || state == State.Fenced) {
+                || state.isFenced()) {
             return;
         }
         checkAddTimeout();

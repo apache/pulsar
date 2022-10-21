@@ -34,10 +34,14 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
+
+import com.google.common.collect.Sets;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -677,6 +681,63 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().get(0).getLedgerId(), secondLedger);
 
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
+    }
+
+    @Test
+    public void testOffloadDeleteClosedLedger() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(0, TimeUnit.MINUTES);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(100L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(100L);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("foobar");
+
+        for (int i = 0; i < 15; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+
+        assertEquals(ledger.getLedgersInfoAsList().stream()
+                .filter(e -> e.getOffloadContext().getComplete()).count(), 1);
+        assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
+
+        Set<Long> offloadedledgers = Sets.newHashSet(offloader.offloadedLedgers());
+        assertTrue(offloadedledgers.size() > 0);
+
+        Set<Long> bkLedgersInMLedger = Sets.newHashSet(ledger.getLedgersInfo().keySet());
+        assertTrue(bkLedgersInMLedger.size() > 0);
+
+        factory.close(ledger);
+        ledger.close();
+
+        AtomicInteger success = new AtomicInteger(0);
+        factory.asyncDelete("my_test_ledger", CompletableFuture.completedFuture(config),
+                new AsyncCallbacks.DeleteLedgerCallback() {
+            @Override
+            public void deleteLedgerComplete(Object ctx) {
+                success.set(1);
+            }
+
+            @Override
+            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                success.set(-1);
+            }
+        }, null);
+        assertEventuallyTrue(() -> success.get() == 1);
+        Set<Long> deletedledgers = offloader.deletedOffloads();
+        assertEquals(offloadedledgers, deletedledgers);
+
+        for (long ledgerId: bkLedgersInMLedger) {
+            assertFalse(bkc.getLedgers().contains(ledgerId));
+        }
     }
 
     @Test

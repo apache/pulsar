@@ -153,7 +153,27 @@ public interface ManagedLedgerFactory {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
+    void delete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture)
+            throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
     void asyncDelete(String name, DeleteLedgerCallback callback, Object ctx);
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                             DeleteLedgerCallback callback, Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.
