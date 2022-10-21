@@ -160,8 +160,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
 
         @Override
         public void close() throws IOException {
-            this.reader.closeAsync().join();
-            transactionBufferSnapshotBaseSystemTopicClient.removeReader(this);
+            this.closeAsync().join();
         }
 
         @Override
