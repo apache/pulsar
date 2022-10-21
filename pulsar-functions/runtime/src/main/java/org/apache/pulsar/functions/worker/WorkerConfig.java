@@ -165,6 +165,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WORKER,
+            doc = "If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\n"
+                    + " This setting may be necessary if the broker is deployed into an environment that uses http "
+                    + "port\n"
+                    + " scanning and flags web servers allowing the TRACE method as insecure."
+    )
+    private boolean disableHttpDebugMethods = false;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
             required = false,
             deprecated = true,
             doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "

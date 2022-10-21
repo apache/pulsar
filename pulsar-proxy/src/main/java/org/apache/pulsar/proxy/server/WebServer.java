@@ -31,6 +31,7 @@ import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.HttpSecurityProcessor;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
@@ -204,6 +205,11 @@ public class WebServer {
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
+
+        if (config.isDisableHttpDebugMethods()) {
+            HttpSecurityProcessor.disableHttpDebugMethod(context, MATCH_ALL);
+        }
+
         context.addServlet(servletHolder, MATCH_ALL);
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());

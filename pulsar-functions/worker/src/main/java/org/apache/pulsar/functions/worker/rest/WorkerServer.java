@@ -27,6 +27,7 @@ import javax.servlet.DispatcherType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.HttpSecurityProcessor;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
@@ -208,18 +209,18 @@ public class WorkerServer {
         }
     }
 
-    static ServletContextHandler newServletContextHandler(String contextPath,
+    ServletContextHandler newServletContextHandler(String contextPath,
                                                                  ResourceConfig config,
                                                                  WorkerService workerService,
                                                                  FilterInitializer filterInitializer) {
         return newServletContextHandler(contextPath, config, workerService, true, filterInitializer);
     }
 
-    static ServletContextHandler newServletContextHandler(String contextPath,
-                                                                 ResourceConfig config,
-                                                                 WorkerService workerService,
-                                                                 boolean requireAuthentication,
-                                                                 FilterInitializer filterInitializer) {
+    ServletContextHandler newServletContextHandler(String contextPath,
+                                                   ResourceConfig config,
+                                                   WorkerService workerService,
+                                                   boolean requireAuthentication,
+                                                   FilterInitializer filterInitializer) {
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
@@ -230,6 +231,11 @@ public class WorkerServer {
 
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
+
+        if (workerConfig.isDisableHttpDebugMethods()) {
+            HttpSecurityProcessor.disableHttpDebugMethod(contextHandler, MATCH_ALL);
+        }
+
         contextHandler.addServlet(apiServlet, MATCH_ALL);
 
         filterInitializer.addFilters(contextHandler, requireAuthentication);

@@ -31,8 +31,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -49,7 +47,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -229,10 +226,6 @@ public class WebService implements AutoCloseable {
                 authenticationFilterHolder = null;
             }
 
-            if (config.isDisableHttpDebugMethods()) {
-                filterHolders.add(new FilterHolder(new DisableDebugHttpMethodFilter(config)));
-            }
-
             if (config.getHttpMaxRequestSize() > 0) {
                 filterHolders.add(new FilterHolder(
                         new MaxRequestSizeFilter(
@@ -258,7 +251,9 @@ public class WebService implements AutoCloseable {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
         context.setContextPath(path);
-        constrainTraceMethod(context, MATCH_ALL);
+        if (this.pulsar.getConfiguration().isDisableHttpDebugMethods()) {
+            HttpSecurityProcessor.disableHttpDebugMethod(context, MATCH_ALL);
+        }
         context.addServlet(servletHolder, MATCH_ALL);
         if (attributeMap != null) {
             attributeMap.forEach((key, value) -> {
@@ -364,18 +359,6 @@ public class WebService implements AutoCloseable {
         } else {
             return Optional.empty();
         }
-    }
-
-    private void constrainTraceMethod(ServletContextHandler ctxHandler, String path) {
-        Constraint c = new Constraint();
-        c.setAuthenticate(true);
-        ConstraintMapping cmt = new ConstraintMapping();
-        cmt.setConstraint(c);
-        cmt.setMethod("TRACE");
-        cmt.setPathSpec(path);
-        ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
-        securityHandler.setConstraintMappings(new ConstraintMapping[] {cmt});
-        ctxHandler.setSecurityHandler(securityHandler);
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebService.class);

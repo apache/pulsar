@@ -746,6 +746,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private double httpRequestsMaxPerSecond = 100.0;
 
+
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = "If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\n"
+                    + " This setting may be necessary if the broker is deployed into an environment that uses http "
+                    + "port\n"
+                    + " scanning and flags web servers allowing the TRACE method as insecure."
+    )
+    private boolean disableHttpDebugMethods = false;
+
     @PropertiesContext(
         properties = {
             @PropertyContext(
