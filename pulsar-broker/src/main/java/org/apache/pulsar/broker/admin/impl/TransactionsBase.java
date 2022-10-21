@@ -78,24 +78,36 @@ public abstract class TransactionsBase extends AdminResource {
             asyncResponse.resume(new RestException(ex));
             return;
         }
+        Map<Integer, TransactionCoordinatorInfo> result = new HashMap<>();
         admin.lookups()
                 .lookupPartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName())
-                .thenAccept(map -> {
-                    if (map.isEmpty()) {
-                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
-                                "Transaction coordinator not found"));
-                        return;
-                    }
-                    Map<Integer, TransactionCoordinatorInfo> result = new HashMap<>();
+                .thenCompose(map -> {
                     map.forEach((topicPartition, brokerServiceUrl) -> {
                         final int coordinatorId = TopicName.getPartitionIndex(topicPartition);
-                        result.put(coordinatorId, new TransactionCoordinatorInfo(brokerServiceUrl));
+                        result.put(coordinatorId, new TransactionCoordinatorInfo(coordinatorId, brokerServiceUrl));
                     });
-                    asyncResponse.resume(result);
 
+                    return getPulsarResources()
+                            .getTopicResources()
+                            .getExistingPartitions(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
+                })
+                .thenAccept(allPartitions -> {
+                    allPartitions
+                            .stream()
+                            .filter(partition -> SystemTopicNames
+                                    .isTransactionCoordinatorAssign(TopicName.get(partition)))
+                            .forEach(partition -> {
+                                final int coordinatorId = TopicName.getPartitionIndex(partition);
+                                if (!result.containsKey(coordinatorId)) {
+                                    result.put(coordinatorId,
+                                            new TransactionCoordinatorInfo(coordinatorId, null));
+                                }
+                            });
+                    asyncResponse.resume(result.values());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to list transaction coordinators.", clientAppId(), ex);
+                    log.error("[{}] Failed to list transaction coordinators: {}",
+                            clientAppId(), ex.getMessage(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

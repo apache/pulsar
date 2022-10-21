@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -40,14 +41,14 @@ public interface Transactions {
      *
      * @return the transaction coordinators list.
      */
-    Map<Integer, TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException;
+    List<TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException;
 
     /**
      * List transaction coordinators.
      *
      * @return the future of the transaction coordinators list.
      */
-    CompletableFuture<Map<Integer, TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync();
+    CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync();
 
 
     /**

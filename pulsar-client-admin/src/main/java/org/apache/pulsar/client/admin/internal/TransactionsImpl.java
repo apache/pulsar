@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -50,14 +52,14 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public Map<Integer, TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException {
+    public List<TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException {
         return sync(() -> listTransactionCoordinatorsAsync());
     }
 
     @Override
-    public CompletableFuture<Map<Integer, TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync() {
+    public CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync() {
         WebTarget path = adminV3Transactions.path("coordinators");
-        return asyncGetRequest(path, new FutureCallback<Map<Integer, TransactionCoordinatorInfo>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<TransactionCoordinatorInfo>>(){});
     }
 
     @Override
