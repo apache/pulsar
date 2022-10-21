@@ -44,7 +44,7 @@ public class SimpleTextOutputStream {
     }
 
     public SimpleTextOutputStream write(char c) {
-        buffer.writeByte((byte) c);
+        write(String.valueOf(c));
         return this;
     }
 
