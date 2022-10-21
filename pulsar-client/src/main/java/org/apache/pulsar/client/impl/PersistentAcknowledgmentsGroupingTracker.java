@@ -658,6 +658,16 @@ class LastCumulativeAck {
     private boolean flushRequired = false;
 
     public synchronized void update(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
+        if (messageId.equals(this.messageId)) {
+            if (this.bitSetRecyclable != null && bitSetRecyclable != null
+                    && bitSetRecyclable.nextSetBit(0) > this.bitSetRecyclable.nextSetBit(0)) {
+                this.bitSetRecyclable.recycle();
+                set(messageId, bitSetRecyclable);
+                flushRequired = true;
+            }
+            return;
+        }
+
         if (messageId.compareTo(this.messageId) > 0) {
             if (this.bitSetRecyclable != null && this.bitSetRecyclable != bitSetRecyclable) {
                 this.bitSetRecyclable.recycle();

@@ -30,6 +30,28 @@ import org.testng.annotations.Test;
 public class LastCumulativeAckTest {
 
     @Test
+    public void testUpdateBitSetRecyclable() {
+        final LastCumulativeAck lastCumulativeAck = new LastCumulativeAck();
+        final MessageIdImpl messageId1 = new MessageIdImpl(0L, 1L, 10);
+        final BitSetRecyclable bitSetRecyclable1 = BitSetRecyclable.create();
+        bitSetRecyclable1.set(0, 10);
+        bitSetRecyclable1.clear(0, 3);
+        lastCumulativeAck.update(messageId1, bitSetRecyclable1);
+        assertTrue(lastCumulativeAck.isFlushRequired());
+        assertSame(lastCumulativeAck.getMessageId(), messageId1);
+        assertSame(lastCumulativeAck.getBitSetRecyclable(), bitSetRecyclable1);
+
+        // In the same message, the batch index is incremented.
+        final BitSetRecyclable bitSetRecyclable2 = BitSetRecyclable.create();
+        bitSetRecyclable2.set(0, 10);
+        bitSetRecyclable2.clear(0, 6);
+        lastCumulativeAck.update(messageId1, bitSetRecyclable2);
+        assertTrue(lastCumulativeAck.isFlushRequired());
+        assertSame(lastCumulativeAck.getMessageId(), messageId1);
+        assertSame(lastCumulativeAck.getBitSetRecyclable(), bitSetRecyclable2);
+    }
+
+    @Test
     public void testUpdate() {
         final LastCumulativeAck lastCumulativeAck = new LastCumulativeAck();
         assertFalse(lastCumulativeAck.isFlushRequired());
