@@ -1064,7 +1064,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 25; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));
         }
-        offloadRunning.await();
+        offloadRunning.await(5, TimeUnit.SECONDS);
 
         // trigger a bunch more rolls. Eventually there will be 5 ledgers.
         // first 3 should be offloaded, 4th is 100bytes, 5th is 0 bytes.
