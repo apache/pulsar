@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class TestPropertySource implements Source<String> {
 
