@@ -42,7 +42,6 @@ public class DocumentTest extends BrokerTestBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
     }
 

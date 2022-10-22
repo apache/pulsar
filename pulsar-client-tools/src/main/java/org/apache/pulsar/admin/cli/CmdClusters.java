@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
@@ -139,6 +140,28 @@ public class CmdClusters extends CmdBase {
             java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
                     : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
             getAdmin().clusters().updatePeerClusterNames(cluster, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Update cluster migration")
+    private class UpdateClusterMigration extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--migrated", description = "Is cluster migrated", required = true)
+        private boolean migrated;
+
+        @Parameter(names = "--broker-url", description = "New migrated cluster broker service url", required = false)
+        private String brokerServiceUrl;
+
+        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure",
+                required = false)
+        private String brokerServiceUrlTls;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            ClusterUrl clusterUrl = new ClusterUrl(brokerServiceUrl, brokerServiceUrlTls);
+            getAdmin().clusters().updateClusterMigration(cluster, migrated, clusterUrl);
         }
     }
 
@@ -401,6 +424,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
         jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
+        jcommander.addCommand("update-cluster-migration", new UpdateClusterMigration());
         jcommander.addCommand("get-peer-clusters", new GetPeerClusters());
         jcommander.addCommand("get-failure-domain", new GetFailureDomain());
         jcommander.addCommand("create-failure-domain", new CreateFailureDomain());

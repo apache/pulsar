@@ -21,9 +21,9 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -158,14 +158,14 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
-        Set<String> originMessageIds = Sets.newHashSet();
+        Set<String> originMessageIds = new HashSet<>();
         for (int i = 0; i < sendMessages; i++) {
             MessageId msgId = producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
             originMessageIds.add(msgId.toString());
         }
 
         int totalReceived = 0;
-        Set<String> retryMessageIds = Sets.newHashSet();
+        Set<String> retryMessageIds = new HashSet<>();
         do {
             Message<byte[]> message = consumer.receive();
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
@@ -183,7 +183,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertEquals(retryMessageIds, originMessageIds);
 
         int totalInDeadLetter = 0;
-        Set<String> deadLetterMessageIds = Sets.newHashSet();
+        Set<String> deadLetterMessageIds = new HashSet<>();
         do {
             Message message = deadLetterConsumer.receive();
             log.info("dead letter consumer received message : {} {}", message.getMessageId(),

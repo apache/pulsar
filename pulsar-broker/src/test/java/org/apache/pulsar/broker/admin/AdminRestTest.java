@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -103,7 +103,6 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         // Create tenant, namespace, topic
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -118,7 +117,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         // cleanup.
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceGraceFully(namespaceName, false);
         admin.tenants().deleteTenant(tenantName);
         admin.clusters().deleteCluster(clusterName);
         // super cleanup.

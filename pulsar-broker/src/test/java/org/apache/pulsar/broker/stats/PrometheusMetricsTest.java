@@ -96,18 +96,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        cleanup();
         checkPublishRateLimitedTimes(true);
-        cleanup();
         checkPublishRateLimitedTimes(false);
     }
 
     private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
+        cleanup();
         if (preciseRateLimit) {
             conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
             conf.setMaxPublishRatePerTopicInMessages(1);

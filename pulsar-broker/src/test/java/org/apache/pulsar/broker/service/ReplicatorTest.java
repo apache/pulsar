@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
@@ -51,7 +52,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -107,7 +107,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
 /**
  * Starts 3 brokers that are in 3 different clusters
@@ -148,7 +147,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // This test is to verify that the config change on global namespace is successfully applied in broker during
         // runtime.
         // Run a set of producer tasks to create the topics
-        List<Future<Void>> results = Lists.newArrayList();
+        List<Future<Void>> results = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             final TopicName dest = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i));
 
@@ -526,7 +525,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(consumer3.drained());
 
             // Produce a message not replicated to r2
-            producer1.produce(1, producer1.newMessage().replicationClusters(Lists.newArrayList("r1", "r3")));
+            producer1.produce(1, producer1.newMessage().replicationClusters(List.of("r1", "r3")));
             consumer1.receive(1);
             assertTrue(consumer2.drained());
             consumer3.receive(1);
@@ -823,7 +822,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Test(timeOut = 60000, priority = -1)
     public void testResumptionAfterBacklogRelaxed() throws Exception {
-        List<RetentionPolicy> policies = Lists.newArrayList();
+        List<RetentionPolicy> policies = new ArrayList<>();
         policies.add(RetentionPolicy.producer_exception);
         policies.add(RetentionPolicy.producer_request_hold);
 
@@ -1098,7 +1097,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         byte[] value = "test".getBytes();
 
         // publish message local only
-        TypedMessageBuilder<byte[]> msg = producer1.newMessage().replicationClusters(Lists.newArrayList("r1")).value(value);
+        TypedMessageBuilder<byte[]> msg = producer1.newMessage().replicationClusters(List.of("r1")).value(value);
         msg.send();
         assertEquals(consumer1.receive().getValue(), value);
 
@@ -1498,7 +1497,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(topic.getReplicators().containsKey("r2"));
         });
 
-        admin1.topics().setReplicationClusters(dest.toString(), Lists.newArrayList("r1"));
+        admin1.topics().setReplicationClusters(dest.toString(), List.of("r1"));
 
         Awaitility.await().untilAsserted(() -> {
             Set<String> replicationClusters = admin1.topics().getReplicationClusters(dest.toString(), false);

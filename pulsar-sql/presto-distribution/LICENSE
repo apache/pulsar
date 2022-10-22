@@ -207,19 +207,19 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.13.3.jar
-    - jackson-core-2.13.3.jar
-    - jackson-databind-2.13.3.jar
-    - jackson-dataformat-smile-2.13.3.jar
-    - jackson-datatype-guava-2.13.3.jar
-    - jackson-datatype-jdk8-2.13.3.jar
-    - jackson-datatype-joda-2.13.3.jar
-    - jackson-datatype-jsr310-2.13.3.jar
-    - jackson-dataformat-yaml-2.13.3.jar
-    - jackson-jaxrs-base-2.13.3.jar
-    - jackson-jaxrs-json-provider-2.13.3.jar
-    - jackson-module-jaxb-annotations-2.13.3.jar
-    - jackson-module-jsonSchema-2.13.3.jar
+    - jackson-annotations-2.13.4.jar
+    - jackson-core-2.13.4.jar
+    - jackson-databind-2.13.4.jar
+    - jackson-dataformat-smile-2.13.4.jar
+    - jackson-datatype-guava-2.13.4.jar
+    - jackson-datatype-jdk8-2.13.4.jar
+    - jackson-datatype-joda-2.13.4.jar
+    - jackson-datatype-jsr310-2.13.4.jar
+    - jackson-dataformat-yaml-2.13.4.jar
+    - jackson-jaxrs-base-2.13.4.jar
+    - jackson-jaxrs-json-provider-2.13.4.jar
+    - jackson-module-jaxb-annotations-2.13.4.jar
+    - jackson-module-jsonSchema-2.13.4.jar
  * Guava
     - guava-31.0.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
@@ -393,7 +393,7 @@ The Apache Software License, Version 2.0
   * RocksDB JNI
     - rocksdbjni-6.29.4.1.jar
   * SnakeYAML
-    - snakeyaml-1.31.jar
+    - snakeyaml-1.32.jar
   * Bean Validation API
     - validation-api-2.0.1.Final.jar
   * Objectsize
@@ -445,7 +445,7 @@ The Apache Software License, Version 2.0
   * Snappy
     - snappy-java-1.1.8.4.jar
   * Jackson
-    - jackson-module-parameter-names-2.13.3.jar
+    - jackson-module-parameter-names-2.13.4.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Java Native Access
@@ -474,8 +474,8 @@ The Apache Software License, Version 2.0
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-java-3.19.2.jar
-   - protobuf-java-util-3.19.2.jar
+   - protobuf-java-3.19.6.jar
+   - protobuf-java-util-3.19.6.jar
    - proto-google-common-protos-2.0.1.jar
 
 BSD 3-clause "New" or "Revised" License
@@ -505,7 +505,7 @@ MIT License
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.32.jar
  * Checker Qual
-   - checker-qual-3.12.0.jar 
+   - checker-qual-3.12.0.jar
  * Annotations
    - animal-sniffer-annotations-1.19.jar
    - annotations-4.1.1.4.jar

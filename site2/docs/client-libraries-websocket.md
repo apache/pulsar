@@ -44,7 +44,7 @@ clusterName=my-cluster
 
 ### Security settings
 
-To enable TLS encryption on WebSocket service:
+To enable TLS encryption on WebSocket service, configure the following parameters in the `conf/broker.conf` file.
 
 ```properties
 tlsEnabled=true
@@ -368,9 +368,8 @@ Key | Type | Required? | Explanation
 
 #### Acknowledging the message
 
-**In WebSocket**, Reader needs to acknowledge the successful processing of the message to
-have the Pulsar WebSocket service update the number of pending messages.
-If you don't send acknowledgments, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.
+**In WebSocket**, Reader needs to acknowledge the successful processing of the message to have the Pulsar WebSocket service update the number of pending messages.
+If you don't send acknowledgments, Pulsar WebSocket service will stop sending messages after reaching the `pendingMessages` limit.
 
 ```json
 {
@@ -384,7 +383,7 @@ Key | Type | Required? | Explanation
 
 #### Check if reach the end of topic
 
-Consumers can check if it has reached the end of topic by sending the `isEndOfTopic` request.
+Consumers can check if it has reached the end of a topic by sending the `isEndOfTopic` request.
 
 **Request**
 

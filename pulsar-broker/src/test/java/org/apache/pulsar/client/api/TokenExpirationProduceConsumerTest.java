@@ -36,6 +36,8 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -64,6 +66,12 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         // Start Broker
         super.init();
 
+        if (admin != null) {
+            admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
+        }
         admin = getAdmin(ADMIN_TOKEN);
         admin.clusters().createCluster(configClusterName,
                 ClusterData.builder()

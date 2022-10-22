@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see PulsarService
  */
-public class ResourceGroupService {
+public class ResourceGroupService implements AutoCloseable{
     /**
      * Default constructor.
      */
@@ -301,6 +301,21 @@ public class ResourceGroupService {
      */
     public ResourceGroup getNamespaceResourceGroup(NamespaceName namespaceName) {
         return this.namespaceToRGsMap.get(namespaceName);
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (aggregateLocalUsagePeriodicTask != null) {
+            aggregateLocalUsagePeriodicTask.cancel(true);
+        }
+        if (calculateQuotaPeriodicTask != null) {
+            calculateQuotaPeriodicTask.cancel(true);
+        }
+        resourceGroupsMap.clear();
+        tenantToRGsMap.clear();
+        namespaceToRGsMap.clear();
+        topicProduceStats.clear();
+        topicConsumeStats.clear();
     }
 
     /**
@@ -565,17 +580,17 @@ public class ResourceGroupService {
         ServiceConfiguration config = pulsar.getConfiguration();
         long newPeriodInSeconds = config.getResourceUsageTransportPublishIntervalInSecs();
         if (newPeriodInSeconds != this.aggregateLocalUsagePeriodInSeconds) {
-            if (this.aggreagteLocalUsagePeriodicTask == null) {
+            if (this.aggregateLocalUsagePeriodicTask == null) {
                 log.error("aggregateResourceGroupLocalUsages: Unable to find running task to cancel when "
                                 + "publish period changed from {} to {} {}",
                         this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
             } else {
-                boolean cancelStatus = this.aggreagteLocalUsagePeriodicTask.cancel(true);
+                boolean cancelStatus = this.aggregateLocalUsagePeriodicTask.cancel(true);
                 log.info("aggregateResourceGroupLocalUsages: Got status={} in cancel of periodic "
                                 + "when publish period changed from {} to {} {}",
                         cancelStatus, this.aggregateLocalUsagePeriodInSeconds, newPeriodInSeconds, timeUnitScale);
             }
-            this.aggreagteLocalUsagePeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
+            this.aggregateLocalUsagePeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
                     newPeriodInSeconds,
                     newPeriodInSeconds,
@@ -680,7 +695,7 @@ public class ResourceGroupService {
         ServiceConfiguration config = this.pulsar.getConfiguration();
         long periodInSecs = config.getResourceUsageTransportPublishIntervalInSecs();
         this.aggregateLocalUsagePeriodInSeconds = this.resourceUsagePublishPeriodInSeconds = periodInSecs;
-        this.aggreagteLocalUsagePeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
+        this.aggregateLocalUsagePeriodicTask = this.pulsar.getExecutor().scheduleAtFixedRate(
                     catchingAndLoggingThrowables(this::aggregateResourceGroupLocalUsages),
                     periodInSecs,
                     periodInSecs,
@@ -737,7 +752,7 @@ public class ResourceGroupService {
 
 
     // The task that periodically re-calculates the quota budget for local usage.
-    private ScheduledFuture<?> aggreagteLocalUsagePeriodicTask;
+    private ScheduledFuture<?> aggregateLocalUsagePeriodicTask;
     private long aggregateLocalUsagePeriodInSeconds;
 
     // The task that periodically re-calculates the quota budget for local usage.
@@ -839,5 +854,15 @@ public class ResourceGroupService {
     @VisibleForTesting
     ConcurrentHashMap getTopicProduceStats() {
         return this.topicProduceStats;
+    }
+
+    @VisibleForTesting
+    ScheduledFuture<?> getAggregateLocalUsagePeriodicTask() {
+        return this.aggregateLocalUsagePeriodicTask;
+    }
+
+    @VisibleForTesting
+    ScheduledFuture<?> getCalculateQuotaPeriodicTask() {
+        return this.calculateQuotaPeriodicTask;
     }
 }

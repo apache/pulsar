@@ -97,7 +97,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Topic has been terminated and there are no more entries to read
             // Notify the consumer only if all the messages were already acknowledged
-            consumers.forEach(Consumer::reachedEndOfTopic);
+            checkAndApplyReachedEndOfTopicOrTopicMigration(consumers);
         }
     }
 

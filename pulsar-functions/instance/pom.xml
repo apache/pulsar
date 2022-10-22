@@ -238,9 +238,6 @@
                 <echo>building python instance</echo>
                 <mkdir dir="${basedir}/target/python-instance"/>
                 <copydir src="${basedir}/src/main/python" dest="${basedir}/target/python-instance"/>
-                <mkdir dir="${basedir}/target/python-instance/pulsar"/>
-                <copydir src="${basedir}/../../pulsar-client-cpp/python/pulsar"
-                         dest="${basedir}/target/python-instance/pulsar"/>
                 <mkdir dir="${basedir}/target/python-instance/tests"/>
                 <copydir src="${basedir}/src/test/python" dest="${basedir}/target/python-instance/tests"/>
               </target>

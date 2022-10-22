@@ -23,11 +23,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -81,7 +80,7 @@ public class MessageTTLTest extends BrokerTestBase {
                 .enableBatching(false) // this makes the test easier and predictable
                 .create();
 
-        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        List<CompletableFuture<MessageId>> sendFutureList = new ArrayList<>();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
             sendFutureList.add(producer.sendAsync(message));

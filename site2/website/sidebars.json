@@ -263,19 +263,30 @@
       "label": "Security",
       "items": [
         "security-overview",
-        "security-policy-and-supported-versions",
-        "security-tls-transport",
-        "security-tls-authentication",
-        "security-tls-keystore",
-        "security-jwt",
-        "security-athenz",
-        "security-kerberos",
-        "security-oauth2",
-        "security-basic-auth",
+        {
+          "type": "category",
+          "label": "Encryption",
+          "items": [
+            "security-encryption",
+            "security-tls-transport",
+            "security-bouncy-castle"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Authentication",
+          "items": [
+            "security-tls-authentication",
+            "security-jwt",
+            "security-athenz",
+            "security-kerberos",
+            "security-oauth2",
+            "security-basic-auth"
+          ]
+        },
         "security-authorization",
-        "security-encryption",
         "security-extending",
-        "security-bouncy-castle"
+        "security-policy-and-supported-versions"
       ]
     },
     {
@@ -333,7 +344,6 @@
         "cookbooks-deduplication",
         "cookbooks-non-persistent",
         "cookbooks-retention-expiry",
-        "cookbooks-encryption",
         "cookbooks-message-queue",
         "cookbooks-bookkeepermetadata"
       ]
@@ -341,6 +351,10 @@
     {
       "type": "category",
       "label": "Development",
+      "link": {
+        "type": "doc",
+        "id": "developers-landing"
+      },
       "items": [
         "develop-tools",
         "developing-binary-protocol",
@@ -354,7 +368,11 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        "reference-configuration",
+        {
+          "type": "link",
+          "href": "https://pulsar.apache.org/reference",
+          "label": "Pulsar configuration"
+        },
         "reference-metrics",
         "reference-rest-api-overview",
         {

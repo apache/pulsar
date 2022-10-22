@@ -19,13 +19,10 @@
 package org.apache.pulsar.broker.auth;
 
 import java.io.IOException;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

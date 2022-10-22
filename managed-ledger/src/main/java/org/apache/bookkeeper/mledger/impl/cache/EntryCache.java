@@ -39,7 +39,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     /**
      * Insert an entry in the cache.
      *
-     * <p/>If the overall limit have been reached, this will triggered the eviction of other entries, possibly from
+     * <p/>If the overall limit have been reached, this will trigger the eviction of other entries, possibly from
      * other EntryCache instances
      *
      * @param entry
@@ -49,7 +49,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     boolean insert(EntryImpl entry);
 
     /**
-     * Remove from cache all the entries related to a ledger up to lastPosition included.
+     * Remove from cache all the entries related to a ledger up to lastPosition excluded.
      *
      * @param lastPosition
      *            the position of the last entry to be invalidated (non-inclusive)

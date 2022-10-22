@@ -46,6 +46,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.mockito.Mockito.*;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -82,7 +83,7 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         bufferedWriterConfigForWrite.setBatchEnabled(writeWithBatch);
         TransactionCoordinatorID transactionCoordinatorID = TransactionCoordinatorID.get(0);
         MLTransactionLogImpl mlTransactionLogForWrite = new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
-                new ManagedLedgerConfig(), bufferedWriterConfigForWrite, transactionTimer);
+                new ManagedLedgerConfig(), bufferedWriterConfigForWrite, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForWrite.initialize().get(3, TimeUnit.SECONDS);
         Map<Integer, List<CompletableFuture<Position>>> expectedMapping = new HashMap<>();
         /**
@@ -156,8 +157,9 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
         bufferedWriterConfigForRecover.setBatchedWriteMaxDelayInMillis(1000 * 3600);
         bufferedWriterConfigForRecover.setBatchedWriteMaxRecords(3);
         bufferedWriterConfigForRecover.setBatchEnabled(readWithBatch);
-        MLTransactionLogImpl mlTransactionLogForRecover = new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
-                new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer);
+        MLTransactionLogImpl mlTransactionLogForRecover = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
+                factory, new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForRecover.initialize().get(3, TimeUnit.SECONDS);
         // Recover and verify the txnID and position mappings.
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
@@ -234,8 +236,9 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
          * the cursor-batch-indexes is expected.
          */
         // Create another transaction log for recover.
-        MLTransactionLogImpl mlTransactionLogForDelete = new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
-                new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer);
+        MLTransactionLogImpl mlTransactionLogForDelete = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
+                factory, new ManagedLedgerConfig(), bufferedWriterConfigForRecover, transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLogForDelete.initialize().get(3, TimeUnit.SECONDS);
         MLTransactionMetadataStore transactionMetadataStoreForDelete = new MLTransactionMetadataStore(transactionCoordinatorID,
                 mlTransactionLogForDelete, timeoutTracker, sequenceIdGenerator, Integer.MAX_VALUE);

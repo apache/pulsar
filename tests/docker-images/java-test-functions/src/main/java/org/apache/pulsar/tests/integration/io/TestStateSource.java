@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import java.nio.ByteBuffer;
+import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.nio.ByteBuffer;
-import java.util.Map;
-
 public class TestStateSource implements Source<String> {
-
 
     private SourceContext sourceContext;
     private int count;

@@ -124,13 +124,15 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             return new KeyValueKafkaRecord(consumerRecord,
                     new KeyValue<>(key, value),
                     currentKeySchema,
-                    currentValueSchema);
+                    currentValueSchema,
+                    copyKafkaHeaders(consumerRecord));
 
         } else {
             Object value = consumerRecord.value();
             return new KafkaRecord(consumerRecord,
                     extractSimpleValue(value),
-                    getSchemaFromObject(value, valueSchema));
+                    getSchemaFromObject(value, valueSchema),
+                    copyKafkaHeaders(consumerRecord));
 
         }
     }

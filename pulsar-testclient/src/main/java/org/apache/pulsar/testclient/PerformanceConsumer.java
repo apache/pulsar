@@ -315,6 +315,12 @@ public class PerformanceConsumer {
                 totalMessagesReceived.increment();
                 totalBytesReceived.add(msg.size());
 
+                if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+
                 if (limiter != null) {
                     limiter.acquire();
                 }

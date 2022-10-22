@@ -32,10 +32,10 @@ public class TimeSchema extends AbstractSchema<Time> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("Time")
-             .setType(SchemaType.TIME)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("Time")
+             .type(SchemaType.TIME)
+             .schema(new byte[0]).build();
        INSTANCE = new TimeSchema();
    }
 
