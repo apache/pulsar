@@ -24,8 +24,7 @@
 [![docker pull](https://img.shields.io/docker/pulls/apachepulsar/pulsar-all.svg)](https://hub.docker.com/r/apachepulsar/pulsar)
 [![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
 [![last commit](https://img.shields.io/github/last-commit/apache/pulsar)](https://github.com/apache/pulsar/commits/master)
-[![release](https://img.shields.io/github/v/release/apache/pulsar)](https://github.com/apache/pulsar/releases)
-[![release date](https://img.shields.io/github/release-date/apache/pulsar)](https://github.com/apache/pulsar/releases)
+[![release](https://img.shields.io/github/v/release/apache/pulsar?sort=semver)](https://pulsar.apache.org/download/)
 [![downloads](https://img.shields.io/github/downloads/apache/pulsar/total)](https://pulsar.apache.org/download/)
 
 Pulsar is a distributed pub-sub messaging platform with a very
