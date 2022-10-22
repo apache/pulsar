@@ -24,7 +24,6 @@ import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.COMMITTI
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
@@ -52,6 +51,7 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -93,7 +93,7 @@ public class TransactionMetadataStoreService {
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
     private final ThreadFactory threadFactory =
-            new DefaultThreadFactory("transaction-coordinator-thread-factory");
+            new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
 
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,

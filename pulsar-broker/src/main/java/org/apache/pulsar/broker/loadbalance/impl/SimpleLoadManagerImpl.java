@@ -26,7 +26,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,6 +54,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -189,7 +189,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
         scheduler = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-simple-load-manager"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-simple-load-manager"));
         this.sortedRankings.set(new TreeMap<>());
         this.currentLoadReports = new HashMap<>();
         this.resourceUnitRankings = new HashMap<>();
