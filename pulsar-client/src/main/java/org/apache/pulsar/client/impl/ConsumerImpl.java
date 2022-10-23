@@ -972,6 +972,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
             }
+
+            cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages))
+                    .addListener(writeFuture -> {
+                        String msg;
+                        if (!writeFuture.isSuccess()) {
+                            msg = String.format("Consumer {} failed to send {} permits to broker: {}"
+                                    , consumerId, numMessages, writeFuture.cause().getMessage());
+                            increaseAvailablePermits(cnx, numMessages, false);
+                        } else {
+                            msg = String.format("Consumer {} sent {} permits to broker", consumerId, numMessages);
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug(msg);
+                        }
+                    });
+
             if (log.isDebugEnabled()) {
                 cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages))
                         .addListener(writeFuture -> {
@@ -1651,8 +1667,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
+        increaseAvailablePermits(currentCnx, delta, true);
+    }
+
+    protected void increaseAvailablePermits(ClientCnx currentCnx, int delta, boolean sendFlowPermits) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
-        while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
+        while (sendFlowPermits && available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
