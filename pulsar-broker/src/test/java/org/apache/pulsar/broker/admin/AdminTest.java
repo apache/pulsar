@@ -128,18 +128,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         clusters = spy(Clusters.class);
         clusters.setPulsar(pulsar);
-        doReturn("test").when(clusters).clientAppId();
+        doReturn("test").when(clusters).clientRole();
         doNothing().when(clusters).validateSuperUserAccess();
 
         properties = spy(Properties.class);
         properties.setPulsar(pulsar);
-        doReturn("test").when(properties).clientAppId();
+        doReturn("test").when(properties).clientRole();
         doNothing().when(properties).validateSuperUserAccess();
 
         namespaces = spy(Namespaces.class);
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn("test").when(namespaces).clientAppId();
+        doReturn("test").when(namespaces).clientRole();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
         doNothing().when(namespaces).validateAdminAccessForTenant("my-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("other-tenant");
@@ -147,7 +147,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         brokers = spy(Brokers.class);
         brokers.setPulsar(pulsar);
-        doReturn("test").when(brokers).clientAppId();
+        doReturn("test").when(brokers).clientRole();
         doNothing().when(brokers).validateSuperUserAccess();
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -156,7 +156,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
-        doReturn("test").when(persistentTopics).clientAppId();
+        doReturn("test").when(persistentTopics).clientRole();
         doReturn("persistent").when(persistentTopics).domain();
         doReturn(Set.of("use", "usw", "usc")).when(persistentTopics).clusters();
         doNothing().when(persistentTopics).validateAdminAccessForTenant("my-tenant");
@@ -173,7 +173,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
-        doReturn("test").when(persistentTopics).clientAppId();
+        doReturn("test").when(persistentTopics).clientRole();
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
         schemasResource = spy(SchemasResource.class);
@@ -755,7 +755,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Policies policies = new Policies();
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
         doReturn(CompletableFuture.completedFuture(policies)).when(resourceQuotas).getNamespacePoliciesAsync(NamespaceName.get(property, cluster, namespace));
-        doReturn("client-id").when(resourceQuotas).clientAppId();
+        doReturn("client-id").when(resourceQuotas).clientRole();
 
         try {
             asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
@@ -799,7 +799,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void brokerStats() throws Exception {
-        doReturn("client-id").when(brokerStats).clientAppId();
+        doReturn("client-id").when(brokerStats).clientRole();
         Collection<Metrics> metrics = brokerStats.getMetrics();
         assertNotNull(metrics);
         LocalBrokerData loadReport = (LocalBrokerData) brokerStats.getLoadReport();
@@ -830,7 +830,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         final String topic = "ds1";
         Policies policies = new Policies();
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
-        doReturn("client-id").when(resourceQuotas).clientAppId();
+        doReturn("client-id").when(resourceQuotas).clientRole();
         // create policies
         TenantInfo admin = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(cluster))

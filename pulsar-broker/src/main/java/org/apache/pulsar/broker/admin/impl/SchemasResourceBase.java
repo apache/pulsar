@@ -109,7 +109,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
-                            .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
+                            .deleteSchema(schemaId, defaultIfEmpty(clientRole(), ""), force);
                 });
     }
 
@@ -133,7 +133,7 @@ public class SchemasResourceBase extends AdminResource {
                             .putSchemaIfAbsent(getSchemaId(),
                                     SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
-                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .user(defaultIfEmpty(clientRole(), ""))
                                             .props(payload.getProperties())
                                             .build(),
                                     schemaCompatibilityStrategy);
@@ -150,7 +150,7 @@ public class SchemasResourceBase extends AdminResource {
                             SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
-                                    .user(defaultIfEmpty(clientAppId(), ""))
+                                    .user(defaultIfEmpty(clientRole(), ""))
                                     .props(payload.getProperties())
                                     .build(), strategy)
                             .thenApply(v -> Pair.of(v, strategy));
@@ -166,7 +166,7 @@ public class SchemasResourceBase extends AdminResource {
                                     SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
                                             .isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
-                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .user(defaultIfEmpty(clientRole(), ""))
                                             .props(payload.getProperties()).build());
                 });
     }

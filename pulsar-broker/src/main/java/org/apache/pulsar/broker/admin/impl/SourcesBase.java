@@ -142,7 +142,7 @@ public class SourcesBase extends AdminResource {
             )
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {
         sources().registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData());
+            sourcePkgUrl, sourceConfig, clientRole(), clientAuthData());
     }
 
     @PUT
@@ -227,7 +227,7 @@ public class SourcesBase extends AdminResource {
             @ApiParam(value = "Update options for Pulsar Source")
             final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
         sources().updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
+            sourcePkgUrl, sourceConfig, clientRole(), clientAuthData(), updateOptions);
     }
 
 
@@ -250,7 +250,7 @@ public class SourcesBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        sources().deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().deregisterFunction(tenant, namespace, sourceName, clientRole(), clientAuthData());
     }
 
     @GET
@@ -294,7 +294,7 @@ public class SourcesBase extends AdminResource {
                     + " (if instance-id is not provided, the stats of all instances is returned).") final @PathParam(
                     "instanceId") String instanceId) throws IOException {
         return sources().getSourceInstanceStatus(
-            tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+            tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @GET
@@ -316,7 +316,7 @@ public class SourcesBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) throws IOException {
-        return sources().getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(),
+        return sources().getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientRole(),
                 clientAuthData());
     }
 
@@ -339,7 +339,7 @@ public class SourcesBase extends AdminResource {
             final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace) {
-        return sources().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sources().listFunctions(tenant, namespace, clientRole(), clientAuthData());
     }
 
     @POST
@@ -362,7 +362,7 @@ public class SourcesBase extends AdminResource {
                     + " (if instance-id is not provided, the stats of all instances is returned).") final @PathParam(
                     "instanceId") String instanceId) {
         sources().restartFunctionInstance(tenant, namespace, sourceName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @POST
@@ -383,7 +383,7 @@ public class SourcesBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        sources().restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().restartFunctionInstances(tenant, namespace, sourceName, clientRole(), clientAuthData());
     }
 
     @POST
@@ -404,7 +404,7 @@ public class SourcesBase extends AdminResource {
             @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided,"
                     + " the stats of all instances is returned).") final @PathParam("instanceId") String instanceId) {
         sources().stopFunctionInstance(tenant, namespace, sourceName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @POST
@@ -425,7 +425,7 @@ public class SourcesBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        sources().stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().stopFunctionInstances(tenant, namespace, sourceName, clientRole(), clientAuthData());
     }
 
     @POST
@@ -446,7 +446,7 @@ public class SourcesBase extends AdminResource {
             @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided,"
                     + " the stats of all instances is returned).") final @PathParam("instanceId") String instanceId) {
         sources().startFunctionInstance(tenant, namespace, sourceName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @POST
@@ -467,7 +467,7 @@ public class SourcesBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
-        sources().startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
+        sources().startFunctionInstances(tenant, namespace, sourceName, clientRole(), clientAuthData());
     }
 
     @GET
@@ -520,6 +520,6 @@ public class SourcesBase extends AdminResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        sources().reloadConnectors(clientAppId(), clientAuthData());
+        sources().reloadConnectors(clientRole(), clientAuthData());
     }
 }

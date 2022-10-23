@@ -112,7 +112,7 @@ public class HttpTopicLookupv2Test {
         TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
-        doReturn("null").when(destLookup).clientAppId();
+        doReturn("null").when(destLookup).clientRole();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         UriInfo uriInfo = mock(UriInfo.class);
@@ -137,7 +137,7 @@ public class HttpTopicLookupv2Test {
         MockTopicLookup destLookup = spy(MockTopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
-        doReturn("null").when(destLookup).clientAppId();
+        doReturn("null").when(destLookup).clientRole();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         UriInfo uriInfo = mock(UriInfo.class);
@@ -181,7 +181,7 @@ public class HttpTopicLookupv2Test {
         TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
-        doReturn("null").when(destLookup).clientAppId();
+        doReturn("null").when(destLookup).clientRole();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         UriInfo uriInfo = mock(UriInfo.class);
@@ -213,7 +213,7 @@ public class HttpTopicLookupv2Test {
         TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
-        doReturn("null").when(destLookup).clientAppId();
+        doReturn("null").when(destLookup).clientRole();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         UriInfo uriInfo = mock(UriInfo.class);

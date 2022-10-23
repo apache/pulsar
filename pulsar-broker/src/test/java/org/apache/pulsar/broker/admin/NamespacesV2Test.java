@@ -92,7 +92,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(false).when(namespaces).isRequestHttps();
-        doReturn("test").when(namespaces).clientAppId();
+        doReturn("test").when(namespaces).clientRole();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();

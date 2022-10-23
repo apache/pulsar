@@ -74,7 +74,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
-        doReturn("test").when(persistentTopics).clientAppId();
+        doReturn("test").when(persistentTopics).clientRole();
         doReturn("persistent").when(persistentTopics).domain();
         doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();

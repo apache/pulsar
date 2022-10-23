@@ -757,17 +757,18 @@ public class TopicsBase extends PersistentTopicsBase {
     public void validateProducePermission() throws Exception {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
+            String clientRole = clientRole();
+            if (!isClientAuthenticated(clientRole)) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
 
             boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .canProduce(topicName, originalPrincipal() == null ? clientAppId() : originalPrincipal(),
+                    .canProduce(topicName, originalPrincipal() == null ? clientRole : originalPrincipal(),
                             clientAuthData());
             if (!isAuthorized) {
                 throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
                                         + " with clientAppId [%s] and authdata %s", topicName.toString(),
-                        clientAppId(), clientAuthData()));
+                        clientRole, clientAuthData()));
             }
         }
     }

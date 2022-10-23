@@ -133,6 +133,11 @@ public abstract class PulsarWebResource {
      * @return the web service caller identification
      */
     public String clientAppId() {
+        return "clientIP=" + httpRequest.getRemoteAddr() +
+                "clientRole=" + httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
+    }
+
+    public String clientRole() {
         return (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
     }
 
@@ -148,8 +153,8 @@ public abstract class PulsarWebResource {
         return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
 
-    public static boolean isClientAuthenticated(String appId) {
-        return appId != null;
+    public static boolean isClientAuthenticated(String clientRole) {
+        return clientRole != null;
     }
 
     private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
@@ -181,22 +186,22 @@ public abstract class PulsarWebResource {
         if (!config().isAuthenticationEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
-        String appId = clientAppId();
+        String clientRole = clientRole();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
-                    isClientAuthenticated(appId), appId);
+                    isClientAuthenticated(clientRole), clientRole);
         }
         String originalPrincipal = originalPrincipal();
-        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), appId, originalPrincipal);
+        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientRole, originalPrincipal);
 
-        if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
+        if (pulsar.getConfiguration().getProxyRoles().contains(clientRole)) {
             BrokerService brokerService = pulsar.getBrokerService();
-            return brokerService.getAuthorizationService().isSuperUser(appId, clientAuthData())
+            return brokerService.getAuthorizationService().isSuperUser(clientRole, clientAuthData())
                     .thenCompose(proxyAuthorizationSuccess -> {
                         if (!proxyAuthorizationSuccess){
                             throw new RestException(Status.UNAUTHORIZED,
                                     String.format("Proxy not authorized for super-user "
-                                            + "operation (proxy:%s)", appId));
+                                            + "operation (proxy:%s)", clientRole));
                         }
                         return pulsar.getBrokerService()
                                 .getAuthorizationService()
@@ -209,14 +214,14 @@ public abstract class PulsarWebResource {
                         }
                         if (log.isDebugEnabled()) {
                             log.debug("Successfully authorized {} (proxied by {}) as super-user",
-                                    originalPrincipal, appId);
+                                    originalPrincipal, clientRole);
                         }
                     });
         } else {
             if (config().isAuthorizationEnabled()) {
                 return pulsar.getBrokerService()
                         .getAuthorizationService()
-                        .isSuperUser(appId, clientAuthData())
+                        .isSuperUser(clientRole, clientAuthData())
                         .thenAccept(proxyAuthorizationSuccess -> {
                             if (!proxyAuthorizationSuccess) {
                                 throw new RestException(Status.UNAUTHORIZED,
@@ -226,7 +231,7 @@ public abstract class PulsarWebResource {
             }
             if (log.isDebugEnabled()) {
                 log.debug("Successfully authorized {} as super-user",
-                        appId);
+                        clientRole);
             }
             return CompletableFuture.completedFuture(null);
         }
@@ -252,7 +257,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateAdminAccessForTenant(String tenant) {
         try {
-            validateAdminAccessForTenant(pulsar(), clientAppId(), originalPrincipal(), tenant, clientAuthData(),
+            validateAdminAccessForTenant(pulsar(), clientRole(), originalPrincipal(), tenant, clientAuthData(),
                     config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (RestException e) {
             throw e;
@@ -262,12 +267,12 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
+    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientRole,
                                                 String originalPrincipal, String tenant,
                                                 AuthenticationDataSource authenticationData,
                                                 long timeout, TimeUnit unit) {
         try {
-            validateAdminAccessForTenantAsync(pulsar, clientAppId, originalPrincipal, tenant, authenticationData)
+            validateAdminAccessForTenantAsync(pulsar, clientRole, originalPrincipal, tenant, authenticationData)
                     .get(timeout, unit);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             Throwable realCause = FutureUtil.unwrapCompletionException(e);
@@ -285,17 +290,17 @@ public abstract class PulsarWebResource {
      * @param tenant the tenant id
      */
     protected CompletableFuture<Void> validateAdminAccessForTenantAsync(String tenant) {
-        return validateAdminAccessForTenantAsync(pulsar(), clientAppId(), originalPrincipal(), tenant,
+        return validateAdminAccessForTenantAsync(pulsar(), clientRole(), originalPrincipal(), tenant,
                 clientAuthData());
     }
 
     protected static CompletableFuture<Void> validateAdminAccessForTenantAsync(
-            PulsarService pulsar, String clientAppId,
+            PulsarService pulsar, String clientRole,
             String originalPrincipal, String tenant,
             AuthenticationDataSource authenticationData) {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
-                    (isClientAuthenticated(clientAppId)), clientAppId);
+                    (isClientAuthenticated(clientRole)), clientRole);
         }
         return pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenant)
                 .thenCompose(tenantInfoOptional -> {
@@ -305,20 +310,20 @@ public abstract class PulsarWebResource {
                     TenantInfo tenantInfo = tenantInfoOptional.get();
                     if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration()
                             .isAuthorizationEnabled()) {
-                        if (!isClientAuthenticated(clientAppId)) {
+                        if (!isClientAuthenticated(clientRole)) {
                             throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
                         }
-                        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId,
+                        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientRole,
                                 originalPrincipal);
-                        if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                        if (pulsar.getConfiguration().getProxyRoles().contains(clientRole)) {
                             AuthorizationService authorizationService =
                                     pulsar.getBrokerService().getAuthorizationService();
-                            return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
+                            return authorizationService.isTenantAdmin(tenant, clientRole, tenantInfo,
                                             authenticationData)
                                 .thenCompose(isTenantAdmin -> {
                                     String debugMsg = "Successfully authorized {} (proxied by {}) on tenant {}";
                                     if (!isTenantAdmin) {
-                                            return authorizationService.isSuperUser(clientAppId, authenticationData)
+                                            return authorizationService.isSuperUser(clientRole, authenticationData)
                                                 .thenCombine(authorizationService.isSuperUser(originalPrincipal,
                                                              authenticationData),
                                                      (proxyAuthorized, originalPrincipalAuthorized) -> {
@@ -326,10 +331,10 @@ public abstract class PulsarWebResource {
                                                              throw new RestException(Status.UNAUTHORIZED,
                                                                      String.format("Proxy not authorized to access "
                                                                                      + "resource (proxy:%s,original:%s)"
-                                                                             , clientAppId, originalPrincipal));
+                                                                             , clientRole, originalPrincipal));
                                                          } else {
                                                              if (log.isDebugEnabled()) {
-                                                                 log.debug(debugMsg, originalPrincipal, clientAppId,
+                                                                 log.debug(debugMsg, originalPrincipal, clientRole,
                                                                          tenant);
                                                              }
                                                              return null;
@@ -337,7 +342,7 @@ public abstract class PulsarWebResource {
                                                      });
                                     } else {
                                         if (log.isDebugEnabled()) {
-                                            log.debug(debugMsg, originalPrincipal, clientAppId, tenant);
+                                            log.debug(debugMsg, originalPrincipal, clientRole, tenant);
                                         }
                                         return CompletableFuture.completedFuture(null);
                                     }
@@ -345,11 +350,11 @@ public abstract class PulsarWebResource {
                         } else {
                             return pulsar.getBrokerService()
                                     .getAuthorizationService()
-                                    .isSuperUser(clientAppId, authenticationData)
+                                    .isSuperUser(clientRole, authenticationData)
                                     .thenCompose(isSuperUser -> {
                                         if (!isSuperUser) {
                                             return pulsar.getBrokerService().getAuthorizationService()
-                                                    .isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData);
+                                                    .isTenantAdmin(tenant, clientRole, tenantInfo, authenticationData);
                                         } else {
                                             return CompletableFuture.completedFuture(true);
                                         }
@@ -358,7 +363,7 @@ public abstract class PulsarWebResource {
                                             throw new RestException(Status.UNAUTHORIZED,
                                                     "Don't have permission to administrate resources on this tenant");
                                         } else {
-                                            log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
+                                            log.debug("Successfully authorized {} on tenant {}", clientRole, tenant);
                                         }
                                     });
                         }
@@ -457,7 +462,7 @@ public abstract class PulsarWebResource {
     }
 
     protected CompletableFuture<Void> validateClusterOwnershipAsync(String cluster) {
-        return getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId())
+        return getClusterDataIfDifferentCluster(pulsar(), cluster, clientRole())
                 .thenAccept(differentClusterData -> {
                     if (differentClusterData != null) {
                         try {
@@ -503,7 +508,7 @@ public abstract class PulsarWebResource {
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
                                                                                      String cluster,
-                                                                                     String clientAppId) {
+                                                                                     String clientRole) {
         CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
         if (isValidCluster(pulsar, cluster)
                 // this code should only happen with a v1 namespace format prop/cluster/namespaces
@@ -521,7 +526,7 @@ public abstract class PulsarWebResource {
                     if (clusterDataResult.isPresent()) {
                         clusterDataFuture.complete(clusterDataResult.get());
                     } else {
-                        log.warn("[{}] Cluster does not exist: requested={}", clientAppId, cluster);
+                        log.warn("[{}] Cluster does not exist: requested={}", clientRole, cluster);
                         clusterDataFuture.completeExceptionally(new RestException(Status.NOT_FOUND,
                                 "Cluster does not exist: cluster=" + cluster));
                     }
@@ -991,13 +996,13 @@ public abstract class PulsarWebResource {
     public CompletableFuture<Void> validateTenantOperationAsync(String tenant, TenantOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
+            if (!isClientAuthenticated(clientRole())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
             }
 
             return pulsar().getBrokerService().getAuthorizationService()
-                    .allowTenantOperationAsync(tenant, operation, originalPrincipal(), clientAppId(), clientAuthData())
+                    .allowTenantOperationAsync(tenant, operation, originalPrincipal(), clientRole(), clientAuthData())
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.UNAUTHORIZED,
@@ -1020,14 +1025,14 @@ public abstract class PulsarWebResource {
                                                               NamespaceOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
+            if (!isClientAuthenticated(clientRole())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
 
             return pulsar().getBrokerService().getAuthorizationService()
                     .allowNamespaceOperationAsync(namespaceName, operation, originalPrincipal(),
-                             clientAppId(), clientAuthData())
+                             clientRole(), clientAuthData())
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
@@ -1049,14 +1054,14 @@ public abstract class PulsarWebResource {
                                                  PolicyOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
+            if (!isClientAuthenticated(clientRole())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
 
             return pulsar().getBrokerService().getAuthorizationService()
                     .allowNamespacePolicyOperationAsync(namespaceName, policy, operation,
-                            originalPrincipal(), clientAppId(), clientAuthData())
+                            originalPrincipal(), clientRole(), clientAuthData())
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
@@ -1207,12 +1212,12 @@ public abstract class PulsarWebResource {
                                                                      PolicyName policy, PolicyOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
+            if (!isClientAuthenticated(clientRole())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
             return pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(), clientAppId(),
+                    .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(), clientRole(),
                             clientAuthData()).thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
@@ -1241,7 +1246,7 @@ public abstract class PulsarWebResource {
                                                                TopicOperation operation, String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
+            if (!isClientAuthenticated(clientRole())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
             }
@@ -1249,7 +1254,7 @@ public abstract class PulsarWebResource {
             AuthenticationDataSource authData = clientAuthData();
             authData.setSubscription(subscription);
             return pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)
+                    .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientRole(), authData)
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.UNAUTHORIZED, String.format(

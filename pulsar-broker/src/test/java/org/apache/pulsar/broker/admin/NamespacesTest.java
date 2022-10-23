@@ -168,7 +168,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(false).when(namespaces).isRequestHttps();
-        doReturn("test").when(namespaces).clientAppId();
+        doReturn("test").when(namespaces).clientRole();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
@@ -1021,7 +1021,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsar.getConfiguration().setAuthenticationEnabled(true);
             pulsar.getConfiguration().setAuthorizationEnabled(true);
             pulsar.getPulsarResources().getTenantResources().createTenant(tenant,
-                    new TenantInfoImpl(Set.of(namespaces.clientAppId()), Set.of("use")));
+                    new TenantInfoImpl(Set.of(namespaces.clientRole()), Set.of("use")));
 
             namespaces.validateTenantOperation(tenant, null);
         } finally {
@@ -1123,7 +1123,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         topics.setServletContext(new MockServletContext());
         topics.setPulsar(pulsar);
         doReturn(false).when(topics).isRequestHttps();
-        doReturn("test").when(topics).clientAppId();
+        doReturn("test").when(topics).clientRole();
         doReturn(null).when(topics).originalPrincipal();
         doReturn(null).when(topics).clientAuthData();
         mockWebUrl(localWebServiceUrl, testNs);

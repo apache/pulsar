@@ -179,7 +179,7 @@ public class PackagesBase extends AdminResource {
             }
             getAuthorizationService()
                 .allowNamespaceOperationAsync(namespaceName, NamespaceOperation.PACKAGES, originalPrincipal(),
-                    clientAppId(), clientAuthData())
+                    clientRole(), clientAuthData())
                 .whenComplete((hasPermission, throwable) -> {
                     if (throwable != null) {
                         future.completeExceptionally(throwable);
@@ -189,7 +189,7 @@ public class PackagesBase extends AdminResource {
                         future.complete(null);
                     } else {
                         future.completeExceptionally(new RestException(Response.Status.UNAUTHORIZED, String.format(
-                            "Role %s has not the 'package' permission to do the packages operations.", clientAppId())));
+                            "Role %s has not the 'package' permission to do the packages operations.", clientRole())));
                     }
                 });
         } else {

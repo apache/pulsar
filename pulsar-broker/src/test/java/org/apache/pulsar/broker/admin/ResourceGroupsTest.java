@@ -54,7 +54,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         resourcegroups.setServletContext(new MockServletContext());
         resourcegroups.setPulsar(pulsar);
         doReturn(false).when(resourcegroups).isRequestHttps();
-        doReturn("test").when(resourcegroups).clientAppId();
+        doReturn("test").when(resourcegroups).clientRole();
         doReturn(null).when(resourcegroups).originalPrincipal();
         doReturn(null).when(resourcegroups).clientAuthData();
 

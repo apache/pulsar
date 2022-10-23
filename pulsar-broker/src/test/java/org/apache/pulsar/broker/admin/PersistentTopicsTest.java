@@ -128,7 +128,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setPulsar(pulsar);
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
-        doReturn("test").when(persistentTopics).clientAppId();
+        doReturn("test").when(persistentTopics).clientRole();
         doReturn(TopicDomain.persistent.value()).when(persistentTopics).domain();
         doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
@@ -139,7 +139,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         namespaceResources = mock(NamespaceResources.class);
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
         doReturn(null).when(nonPersistentTopic).originalPrincipal();
-        doReturn("test").when(nonPersistentTopic).clientAppId();
+        doReturn("test").when(nonPersistentTopic).clientRole();
         doReturn(TopicDomain.non_persistent.value()).when(nonPersistentTopic).domain();
         doNothing().when(nonPersistentTopic).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(nonPersistentTopic).clientAuthData();

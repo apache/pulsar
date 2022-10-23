@@ -109,7 +109,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics = spy(new Topics());
         topics.setPulsar(pulsar);
         doReturn(TopicDomain.persistent.value()).when(topics).domain();
-        doReturn("test-app").when(topics).clientAppId();
+        doReturn("test-app").when(topics).clientRole();
         doReturn(mock(AuthenticationDataHttps.class)).when(topics).clientAuthData();
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
         admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));

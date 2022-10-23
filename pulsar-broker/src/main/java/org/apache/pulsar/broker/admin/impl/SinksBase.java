@@ -168,7 +168,7 @@ public class SinksBase extends AdminResource {
                              )
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
         sinks().registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData());
+                sinkPkgUrl, sinkConfig, clientRole(), clientAuthData());
     }
 
     @PUT
@@ -271,7 +271,7 @@ public class SinksBase extends AdminResource {
                            @ApiParam(value = "Update options for the Pulsar Sink")
                            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
          sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
+                sinkPkgUrl, sinkConfig, clientRole(), clientAuthData(), updateOptions);
 
     }
 
@@ -295,7 +295,7 @@ public class SinksBase extends AdminResource {
                                final @PathParam("namespace") String namespace,
                                @ApiParam(value = "The name of a Pulsar Sink")
                                final @PathParam("sinkName") String sinkName) {
-        sinks().deregisterFunction(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().deregisterFunction(tenant, namespace, sinkName, clientRole(), clientAuthData());
     }
 
     @GET
@@ -342,7 +342,7 @@ public class SinksBase extends AdminResource {
             @ApiParam(value = "The instanceId of a Pulsar Sink")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return sinks().getSinkInstanceStatus(
-            tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+            tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @GET
@@ -365,7 +365,7 @@ public class SinksBase extends AdminResource {
                                     final @PathParam("namespace") String namespace,
                                     @ApiParam(value = "The name of a Pulsar Sink")
                                     final @PathParam("sinkName") String sinkName) throws IOException {
-        return sinks().getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return sinks().getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @GET
@@ -385,7 +385,7 @@ public class SinksBase extends AdminResource {
                                   final @PathParam("tenant") String tenant,
                                   @ApiParam(value = "The namespace of a Pulsar Sink")
                                   final @PathParam("namespace") String namespace) {
-        return sinks().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sinks().listFunctions(tenant, namespace, clientRole(), clientAuthData());
     }
 
     @POST
@@ -411,7 +411,7 @@ public class SinksBase extends AdminResource {
                             @ApiParam(value = "The instanceId of a Pulsar Sink")
                             final @PathParam("instanceId") String instanceId) {
         sinks().restartFunctionInstance(tenant, namespace, sinkName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @POST
@@ -432,7 +432,7 @@ public class SinksBase extends AdminResource {
                             final @PathParam("namespace") String namespace,
                             @ApiParam(value = "The name of a Pulsar Sink")
                             final @PathParam("sinkName") String sinkName) {
-        sinks().restartFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().restartFunctionInstances(tenant, namespace, sinkName, clientRole(), clientAuthData());
     }
 
     @POST
@@ -456,7 +456,7 @@ public class SinksBase extends AdminResource {
                          @ApiParam(value = "The instanceId of a Pulsar Sink")
                          final @PathParam("instanceId") String instanceId) {
         sinks().stopFunctionInstance(tenant, namespace,
-                sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+                sinkName, instanceId, uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @POST
@@ -477,7 +477,7 @@ public class SinksBase extends AdminResource {
                          final @PathParam("namespace") String namespace,
                          @ApiParam(value = "The name of a Pulsar Sink")
                          final @PathParam("sinkName") String sinkName) {
-        sinks().stopFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().stopFunctionInstances(tenant, namespace, sinkName, clientRole(), clientAuthData());
     }
 
     @POST
@@ -501,7 +501,7 @@ public class SinksBase extends AdminResource {
                           @ApiParam(value = "The instanceId of a Pulsar Sink")
                           final @PathParam("instanceId") String instanceId) {
         sinks().startFunctionInstance(tenant, namespace, sinkName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), clientRole(), clientAuthData());
     }
 
     @POST
@@ -522,7 +522,7 @@ public class SinksBase extends AdminResource {
                           final @PathParam("namespace") String namespace,
                           @ApiParam(value = "The name of a Pulsar Sink")
                           final @PathParam("sinkName") String sinkName) {
-        sinks().startFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().startFunctionInstances(tenant, namespace, sinkName, clientRole(), clientAuthData());
     }
 
     @GET
@@ -571,6 +571,6 @@ public class SinksBase extends AdminResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sinks().reloadConnectors(clientAppId(), clientAuthData());
+        sinks().reloadConnectors(clientRole(), clientAuthData());
     }
 }
