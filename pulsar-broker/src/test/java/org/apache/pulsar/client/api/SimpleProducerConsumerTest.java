@@ -140,6 +140,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                List<String> topics = admin.namespaces().getTopics(namespace);
+                for (String topic : topics) {
+                    admin.topics().delete(topic, true);
+                }
                 deleteNamespaceGraceFully(namespace, true);
             }
             admin.tenants().deleteTenant(tenant, true);
