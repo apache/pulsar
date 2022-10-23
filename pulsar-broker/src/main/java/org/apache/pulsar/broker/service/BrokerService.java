@@ -1046,7 +1046,9 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
+        TopicName topicName = TopicName.get(topic);
         Optional<Topic> optTopic = getTopicReference(topic);
+
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
@@ -1073,9 +1075,8 @@ public class BrokerService implements Closeable {
             return t.delete();
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Topic {} is not loaded, try to delete from metadata", topic);
-        }
+        log.info("Topic {} is not loaded, try to delete from metadata", topic);
+
         // Topic is not loaded, though we still might be able to delete from metadata
         TopicName tn = TopicName.get(topic);
         if (!tn.isPersistent()) {
@@ -1084,27 +1085,28 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-
         CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
         deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
+
         deleteTopicAuthenticationFuture.whenComplete((v, ex) -> {
             if (ex != null) {
                 future.completeExceptionally(ex);
                 return;
             }
-            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
-                @Override
-                public void deleteLedgerComplete(Object ctx) {
-                    future.complete(null);
-                }
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
+            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
+                    mlConfigFuture, new DeleteLedgerCallback() {
+                        @Override
+                        public void deleteLedgerComplete(Object ctx) {
+                            future.complete(null);
+                        }
 
-                @Override
-                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, null);
+                        @Override
+                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    }, null);
         });
-
 
         return future;
     }
