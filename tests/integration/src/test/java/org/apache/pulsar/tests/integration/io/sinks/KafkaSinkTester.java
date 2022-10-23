@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.io.sinks;
 import static org.apache.pulsar.tests.integration.topologies.PulsarTestBase.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -34,7 +35,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /**
  * A tester for testing kafka sink.
