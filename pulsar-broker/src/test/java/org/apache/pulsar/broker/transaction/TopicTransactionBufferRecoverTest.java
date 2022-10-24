@@ -718,7 +718,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(snapshot.getSequenceId(), 2L);
         assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
         assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
-        assertEquals(snapshot.getAborts().get(0), new TxnID(1, 1));
+        assertEquals(snapshot.getAborts().get(0), new TxnIDData(1, 1));
     }
 
 }
