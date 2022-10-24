@@ -62,10 +62,7 @@ import org.roaringbitmap.RoaringBitmap;
 public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker {
 
     protected static final int AsyncOperationTimeoutSeconds = 30;
-
-    public static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
-
-    public static final String DELIMITER = "_";
+    protected static final int MaxRetryTimes = 3;
 
     private final long minIndexCountPerBucket;
 
@@ -194,10 +191,10 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         Objects.requireNonNull(bucketId);
         return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
-                ManagedLedgerException.BadVersionException.class);
+                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
     }
 
-    private CompletableFuture<Long> asyncCreateBucketSnapshot() {
+    private CompletableFuture<Long> createBucketSnapshotAndAsyncPersistent() {
         TripleLongPriorityQueue priorityQueue = super.getPriorityQueue();
         if (priorityQueue.isEmpty()) {
             return CompletableFuture.completedFuture(-1L);
@@ -380,7 +377,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         // Create bucket snapshot
         if (ledgerId > lastMutableBucketState.endLedgerId && !getPriorityQueue().isEmpty()) {
             if (getPriorityQueue().size() >= minIndexCountPerBucket && !existBucket) {
-                asyncCreateBucketSnapshot();
+                createBucketSnapshotAndAsyncPersistent();
                 resetLastMutableBucketRange();
                 if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
                     // TODO merge bucket snapshot (synchronize operate)
@@ -484,6 +481,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                     asyncLoadNextBucketSnapshotEntry(bucketState, false).get(AsyncOperationTimeoutSeconds,
                             TimeUnit.SECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    // TODO make this segment load again
                     throw new RuntimeException(e);
                 }
             }

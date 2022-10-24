@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
-import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELIMITER;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +29,10 @@ import org.roaringbitmap.RoaringBitmap;
 @Data
 @AllArgsConstructor
 public class BucketState {
+
+    public static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
+
+    public static final String DELIMITER = "_";
 
     long startLedgerId;
     long endLedgerId;
