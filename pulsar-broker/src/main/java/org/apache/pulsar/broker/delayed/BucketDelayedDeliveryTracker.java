@@ -300,6 +300,12 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     }
 
 
+    /**
+     * Asynchronous load next bucket snapshot entry.
+     * @param bucketState bucket state
+     * @param isRecover whether used to recover bucket snapshot
+     * @return CompletableFuture
+     */
     private CompletableFuture<Void> asyncLoadNextBucketSnapshotEntry(BucketState bucketState, boolean isRecover) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Load next bucket snapshot data, bucketState: {}", dispatcher.getName(), bucketState);
@@ -309,8 +315,9 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         }
 
         // Wait bucket snapshot create finish
-        CompletableFuture<Long> snapshotCreateFuture =
-                bucketState.getSnapshotCreateFuture().orElseGet(() -> CompletableFuture.completedFuture(-1L));
+        CompletableFuture<Void> snapshotCreateFuture =
+                bucketState.getSnapshotCreateFuture().orElseGet(() -> CompletableFuture.completedFuture(null))
+                        .thenApply(__ -> null);
 
         return snapshotCreateFuture.thenCompose(__ -> {
             final long bucketId = getBucketId(bucketState);
@@ -415,10 +422,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     public synchronized boolean hasMessageAvailable() {
         long cutoffTime = getCutoffTime();
 
-        boolean hasMessageAvailable = !getPriorityQueue().isEmpty() && getPriorityQueue().peekN1() <= cutoffTime;
-
-        hasMessageAvailable = hasMessageAvailable
-                || !sharedBucketPriorityQueue.isEmpty() && sharedBucketPriorityQueue.peekN1() <= cutoffTime;
+        boolean hasMessageAvailable = getNumberOfDelayedMessages() > 0 && nextDeliveryTime() <= cutoffTime;
         if (!hasMessageAvailable) {
             updateTimer();
         }
