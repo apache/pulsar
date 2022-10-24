@@ -423,7 +423,29 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         });
     }
 
+    @Override
+    public void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+                              AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
+                              ManagedLedgerConfig config, Object ctx) {
+        if (closed) {
+            callback.openReadOnlyManagedLedgerFailed(
+                    new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+        }
+        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
+                bookkeeperFactory
+                        .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                                config.getBookKeeperEnsemblePlacementPolicyProperties())),
+                store, config, scheduledExecutor, managedLedgerName);
+        roManagedLedger.initialize().thenRun(() -> {
+            log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
+            callback.openReadOnlyManagedLedgerComplete(roManagedLedger, ctx);
 
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
+            callback.openReadOnlyManagedLedgerFailed((ManagedLedgerException) e.getCause(), ctx);
+            return null;
+        });
+    }
 
     @Override
     public ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition,
@@ -465,28 +487,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             return;
         }
         checkArgument(startPosition instanceof PositionImpl);
-        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
-                bookkeeperFactory
-                        .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                store, config, scheduledExecutor, managedLedgerName);
-
-        roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition)
-                .thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx))
-                .exceptionally(ex -> {
-            Throwable t = ex;
-            if (t instanceof CompletionException) {
-                t = ex.getCause();
+        AsyncCallbacks.OpenReadOnlyManagedLedgerCallback openReadOnlyManagedLedgerCallback =
+                new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+                callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
+                        createReadOnlyCursor((PositionImpl) startPosition), ctx);
             }
 
-            if (t instanceof ManagedLedgerException) {
-                callback.openReadOnlyCursorFailed((ManagedLedgerException) t, ctx);
-            } else {
-                callback.openReadOnlyCursorFailed(new ManagedLedgerException(t), ctx);
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                callback.openReadOnlyCursorFailed(exception, ctx);
             }
-
-            return null;
-        });
+        };
+        asyncOpenReadOnlyManagedLedger(managedLedgerName, openReadOnlyManagedLedgerCallback, config, null);
     }
 
     void close(ManagedLedger ledger) {

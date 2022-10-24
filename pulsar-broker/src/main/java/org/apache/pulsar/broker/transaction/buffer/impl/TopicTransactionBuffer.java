@@ -48,8 +48,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.broker.transaction.buffer.matadata.AbortTxnMetadata;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -117,7 +117,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         super(State.None);
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
-                .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
+                .getTransactionBufferSnapshotServiceFactory()
+                .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
@@ -484,7 +485,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 });
                 snapshot.setAborts(list);
             }
-            return writer.writeAsync(snapshot).thenAccept(messageId-> {
+            return writer.writeAsync(snapshot.getTopicName(), snapshot).thenAccept(messageId-> {
                 this.lastSnapshotTimestamps = System.currentTimeMillis();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "
@@ -532,7 +533,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return this.takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
-            return writer.deleteAsync(snapshot);
+            return writer.deleteAsync(snapshot.getTopicName(), snapshot);
         }).thenCompose(__ -> CompletableFuture.completedFuture(null));
     }
 
@@ -645,8 +646,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             this, topic.getName());
                     return;
                 }
-                topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
-                        .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
+                topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
+                        .getTxnBufferSnapshotService().createReader(TopicName.get(topic.getName()))
+                        .thenAcceptAsync(reader -> {
                             try {
                                 boolean hasSnapshot = false;
                                 while (reader.hasMoreEvents()) {

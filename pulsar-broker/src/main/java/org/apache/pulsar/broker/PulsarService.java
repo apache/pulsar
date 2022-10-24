@@ -98,11 +98,10 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
-import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -260,8 +259,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private MetadataStoreExtended localMetadataStore;
     private PulsarMetadataEventSynchronizer localMetadataSynchronizer;
     private CoordinationService coordinationService;
-    private TransactionBufferSnapshotService transactionBufferSnapshotService;
-
+    private TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory;
     private MetadataStore configurationMetadataStore;
     private PulsarMetadataEventSynchronizer configMetadataSynchronizer;
     private boolean shouldShutdownConfigurationMetadataStore;
@@ -510,9 +508,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 adminClient = null;
             }
 
-            if (transactionBufferSnapshotService != null) {
-                transactionBufferSnapshotService.close();
-                transactionBufferSnapshotService = null;
+            if (transactionBufferSnapshotServiceFactory != null) {
+                transactionBufferSnapshotServiceFactory.close();
+                transactionBufferSnapshotServiceFactory = null;
             }
 
             if (transactionBufferClient != null) {
@@ -837,7 +835,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MLTransactionMetadataStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
                 MLPendingAckStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
 
-                this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
+                this.transactionBufferSnapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(getClient());
+
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
                 transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,

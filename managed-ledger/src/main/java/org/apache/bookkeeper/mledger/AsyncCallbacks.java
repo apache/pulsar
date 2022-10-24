@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 
 /**
  * Definition of all the callbacks used for the ManagedLedger asynchronous API.
@@ -44,6 +45,12 @@ public interface AsyncCallbacks {
         void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx);
 
         void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx);
+    }
+
+    interface OpenReadOnlyManagedLedgerCallback {
+        void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl managedLedger, Object ctx);
+
+        void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx);
     }
 
     interface DeleteLedgerCallback {

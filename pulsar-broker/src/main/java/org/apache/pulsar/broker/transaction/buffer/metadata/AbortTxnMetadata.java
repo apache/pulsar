@@ -16,30 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.pulsar.broker.transaction.buffer.metadata;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
- * Pulsar system event type.
+ * Abort txn metadata.
  */
-public enum EventType {
-
-    /**
-     * Topic policy events.
-     */
-    TOPIC_POLICY,
-
-    /**
-     * Transaction buffer snapshot events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT,
-
-    /**
-     * Transaction buffer snapshot segment events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
-
-    /**
-     * Transaction buffer snapshot indexes events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_INDEXES
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+public class AbortTxnMetadata {
+    long txnIdMostBits;
+    long txnIdLeastBits;
+    long ledgerId;
+    long entryId;
 }

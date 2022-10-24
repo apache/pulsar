@@ -118,6 +118,17 @@ public interface ManagedLedgerFactory {
             OpenReadOnlyCursorCallback callback, Object ctx);
 
     /**
+     * Asynchronous open a Read-only managedLedger.
+     * @param managedLedgerName the unique name that identifies the managed ledger
+     * @param callback
+     * @param config the managed ledger configuration.
+     * @param ctx opaque context
+     */
+    void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+                                AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
+                                ManagedLedgerConfig config, Object ctx);
+
+    /**
      * Get the current metadata info for a managed ledger.
      *
      * @param name

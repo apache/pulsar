@@ -16,24 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.matadata;
-
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-/**
- * Transaction buffer snapshot metadata.
- */
-@AllArgsConstructor
-@NoArgsConstructor
-@Getter
-@Setter
-public class TransactionBufferSnapshot {
-    private String topicName;
-    private long maxReadPositionLedgerId;
-    private long maxReadPositionEntryId;
-    private List<AbortTxnMetadata> aborts;
-}
+package org.apache.pulsar.broker.transaction.buffer.metadata.v2;
