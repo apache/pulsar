@@ -329,7 +329,8 @@ public class WorkerStatsManager {
     stream.write("# TYPE ");
     stream.write(PULSAR_FUNCTION_WORKER_METRICS_PREFIX);
     stream.write(metricName);
-    stream.write(" gauge \n");
+    stream.write(" gauge");
+    stream.write("\n");
 
     stream.write(PULSAR_FUNCTION_WORKER_METRICS_PREFIX);
     stream.write(metricName);
