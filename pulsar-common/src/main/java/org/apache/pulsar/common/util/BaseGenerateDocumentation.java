@@ -151,7 +151,6 @@ public abstract class BaseGenerateDocumentation {
             final Field field = fieldPair.getKey();
             field.setAccessible(true);
 
-
             sb.append("### ").append(field.getName()).append("\n");
             sb.append(fieldContext.doc().replace(">", "\\>")).append("\n\n");
             sb.append("**Type**: `").append(field.getType().getCanonicalName()).append("`\n\n");
@@ -187,12 +186,6 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
-    protected String prefix = "\n"
-            + "!> This page is automatically generated from code files.\n"
-            + "If you find something inaccurate, feel free to update `";
-    protected String suffix = "\n`.\n";
-
-
     protected String generateDocByFieldContext(String className, String type, StringBuilder sb) throws Exception {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
@@ -214,10 +207,7 @@ public abstract class BaseGenerateDocumentation {
         List<Pair<Field, FieldContextWrapper>> deprecatedFields =
                 fieldList.stream().filter(p -> p.getValue().deprecated()).collect(Collectors.toList());
 
-
-        sb.append("# ").append(type).append("\n");
-
-        sb.append(prefix).append(className).append(suffix);
+        sb.append("# ").append(type).append("\n\n");
         sb.append("## Required\n");
         writeDocListByFieldContext(requiredFields, sb, obj);
         sb.append("## Optional\n");
@@ -239,8 +229,7 @@ public abstract class BaseGenerateDocumentation {
         List<Field> requiredFields = fieldList.stream().filter(isRequiredApiModel).collect(Collectors.toList());
         List<Field> optionalFields = fieldList.stream().filter(isOptionalApiModel).collect(Collectors.toList());
 
-        sb.append("# ").append(type).append("\n");
-        sb.append(prefix).append(className).append(suffix);
+        sb.append("# ").append(type).append("\n\n");
         sb.append("## Required\n");
         writeDocListByApiModel(requiredFields, sb, obj);
         sb.append("## Optional\n");
