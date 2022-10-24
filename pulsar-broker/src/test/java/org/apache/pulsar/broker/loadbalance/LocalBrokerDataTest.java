@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class LocalBrokerDataTest {
     /*
-    Ensuming that there no bundleStats field in the json string serialized from LocalBrokerData.
+    Ensuring that there no bundleStats field in the json string serialized from LocalBrokerData.
      */
     @Test
     public void testSerializeLocalBrokerData() throws JsonProcessingException {
