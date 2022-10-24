@@ -59,19 +59,19 @@ Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east
 
    Run the following command on `us-west`.
 
-```shell
-bin/pulsar-admin clusters create \
---broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
---url http://<DNS-OF-US-EAST>:<PORT> \
-us-east
-```
+   ```shell
+   bin/pulsar-admin clusters create \
+   --broker-url pulsar://<DNS-OF-US-EAST>:<PORT> \
+   --url http://<DNS-OF-US-EAST>:<PORT> \
+   us-east
+   ```
 
-   :::tip
+:::tip
 
    - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](/tools/pulsar-admin/).
    - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication.md).
 
-   :::
+:::
 
 2. Configure the connection from `us-west` to `us-cent`.
 
@@ -100,7 +100,7 @@ bin/pulsar-admin tenants create my-tenant \
 
 To update permissions of an existing tenant, use `update` instead of `create`.
 
-### Enable geo-replication 
+### Enable geo-replication
 
 You can enable geo-replication at **namespace** or **topic** level.
 
@@ -199,7 +199,7 @@ Given that geo-replication topics exist in multiple regions, directly deleting a
 In Pulsar, a topic is automatically deleted when the topic meets the following three conditions:
 - no producers or consumers are connected to it;
 - no subscriptions to it;
-- no more messages are kept for retention. 
+- no more messages are kept for retention.
 For geo-replication topics, each region uses a fault-tolerant mechanism to decide when deleting the topic locally is safe.
 
 You can explicitly disable topic garbage collection by setting `brokerDeleteInactiveTopicsEnabled` to `false` in your [broker configuration](reference-configuration.md#broker).
@@ -210,11 +210,11 @@ To delete a geo-replication topic, close all producers and consumers on the topi
 
 Pulsar supports replicated subscriptions, so you can keep the subscription state in sync, within a sub-second timeframe, in the context of a topic that is being asynchronously replicated across multiple geographical regions.
 
-In case of failover, a consumer can restart consuming from the failure point in a different cluster. 
+In case of failover, a consumer can restart consuming from the failure point in a different cluster.
 
 ### Enable replicated subscription
 
-Replicated subscription is disabled by default. You can enable replicated subscriptions when creating a consumer. 
+Replicated subscription is disabled by default. You can enable replicated subscriptions when creating a consumer.
 
 ```java
 Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -226,9 +226,9 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 ### Advantages
 
- * It is easy to implement the logic. 
+ * It is easy to implement the logic.
  * You can choose to enable or disable replicated subscription.
- * When you enable it, the overhead is low, and it is easy to configure. 
+ * When you enable it, the overhead is low, and it is easy to configure.
  * When you disable it, the overhead is zero.
 
 ### Limitations
@@ -269,8 +269,7 @@ Using geo-replication to migrate data between clusters is a special use case of 
 
 :::note
 
-* The replication starts from step 4, which means existing messages in your old cluster are not replicated. 
+* The replication starts from step 4, which means existing messages in your old cluster are not replicated.
 * If you have some older messages to migrate, you can pre-create the replication subscriptions for each topic and set it at the earliest position by using `pulsar-admin topics create-subscription -s pulsar.repl.new-cluster -m earliest <topic>`.
 
 :::
-
