@@ -3620,7 +3620,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test(invocationCount = 300)
+    @Test
     public void testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(1);
