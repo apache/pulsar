@@ -379,7 +379,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
         // Create bucket snapshot
         if (ledgerId > lastMutableBucketState.endLedgerId && !getPriorityQueue().isEmpty()) {
-            if (getPriorityQueue().size() >= minIndexCountPerBucket || existBucket) {
+            if (getPriorityQueue().size() >= minIndexCountPerBucket && !existBucket) {
                 asyncCreateBucketSnapshot();
                 resetLastMutableBucketRange();
                 if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {

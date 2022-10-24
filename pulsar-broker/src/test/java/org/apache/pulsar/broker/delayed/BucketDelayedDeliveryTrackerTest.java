@@ -44,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class BuketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTest {
+public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTest {
 
     private final Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-bucket-delayed-delivery-test"),
             500, TimeUnit.MILLISECONDS);
