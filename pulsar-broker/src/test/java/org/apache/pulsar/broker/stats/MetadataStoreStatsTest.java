@@ -172,7 +172,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Collection<PrometheusMetricsTest.Metric> opsOverflow = metricsMap.get("pulsar_batch_metadata_store_overflow_ops" + "_total");
         Collection<PrometheusMetricsTest.Metric> queueingOps = metricsMap.get("pulsar_batch_metadata_store_queueing_ops");
         Collection<PrometheusMetricsTest.Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
-        Collection<PrometheusMetricsTest.Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_waiting_ms" + "_sum");
+        Collection<PrometheusMetricsTest.Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
 
         Assert.assertTrue(opsOverflow.size() > 0 && opsOverflow.size() % 2 == 0);
         Assert.assertTrue(queueingOps.size() > 0 && queueingOps.size() % 2 == 0);

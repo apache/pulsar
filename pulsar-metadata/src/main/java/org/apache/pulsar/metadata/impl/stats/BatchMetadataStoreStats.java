@@ -47,7 +47,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .labelNames(NAME, TYPE)
             .register();
     private static final Histogram BATCH_OPS_WAITING = Histogram
-            .build("pulsar_batch_metadata_store_waiting", "-")
+            .build("pulsar_batch_metadata_store_queue_wait_time", "-")
             .unit("ms")
             .labelNames(NAME)
             .buckets(BUCKETS)

@@ -128,21 +128,21 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     @Override
     public final CompletableFuture<Optional<GetResult>> storeGet(String path) {
         OpGet op = new OpGet(path);
-        enqueue(readOps, op);
+        enqueue(readOps, op, OpType.READ);
         return op.getFuture();
     }
 
     @Override
     protected final CompletableFuture<List<String>> getChildrenFromStore(String path) {
         OpGetChildren op = new OpGetChildren(path);
-        enqueue(readOps, op);
+        enqueue(readOps, op, OpType.READ);
         return op.getFuture();
     }
 
     @Override
     protected final CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
         OpDelete op = new OpDelete(path, expectedVersion);
-        enqueue(writeOps, op);
+        enqueue(writeOps, op, OpType.WRITE);
         return op.getFuture();
     }
 
@@ -150,7 +150,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
                                                EnumSet<CreateOption> options) {
         OpPut op = new OpPut(path, data, optExpectedVersion, options);
-        enqueue(writeOps, op);
+        enqueue(writeOps, op, OpType.WRITE);
         return op.getFuture();
     }
 
@@ -159,12 +159,12 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         return Optional.ofNullable(synchronizer);
     }
 
-    private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {
+    private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op, OpType opType) {
         if (enabled) {
             if (!queue.offer(op)) {
-                if (queue.equals(this.readOps)) {
+                if (opType.equals(OpType.READ)) {
                     this.batchMetadataStoreStats.recordReadOpOverflow();
-                } else {
+                } else if (opType.equals(OpType.WRITE)) {
                     this.batchMetadataStoreStats.recordWriteOpOverflow();
                 }
                 // Execute individually if we're failing to enqueue
@@ -185,6 +185,11 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             this.batchMetadataStoreStats.recordOpWaiting(now - op.created());
         }
         this.batchOperation(ops);
+    }
+
+    private enum OpType {
+        READ,
+        WRITE
     }
 
     protected abstract void batchOperation(List<MetadataOp> ops);
