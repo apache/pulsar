@@ -1,5 +1,6 @@
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.testng.Assert.assertFalse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,6 @@ public class LocalBrokerDataTest {
     public void testSerializeLocalBrokerData() throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
         LocalBrokerData localBrokerData = new LocalBrokerData();
-        assert !objectMapper.writeValueAsString(localBrokerData).contains("bundleStats");
+        assertFalse(objectMapper.writeValueAsString(localBrokerData).contains("bundleStats"));
     }
 }
