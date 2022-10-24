@@ -31,7 +31,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -3651,6 +3650,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         final LedgerOffloader finalLedgerOffloader = ledgerOffloader;
         Awaitility.await().untilAsserted(() -> {
             verify(finalLedgerOffloader, atLeastOnce()).getOffloadPolicies();
+            // When the ledger close, it will call `trimConsumedLedgersInBackground` async
             verify(finalLedgerOffloader, atMost(2)).getOffloadPolicies();
         });
     }
