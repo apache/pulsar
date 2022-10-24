@@ -73,12 +73,11 @@ public class PrometheusMetricsServlet extends HttpServlet {
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {
                 res.setStatus(HttpStatus.OK_200);
-                res.setContentType("text/plain");
+                res.setContentType("text/plain;charset=utf-8");
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
                         shouldExportProducerMetrics, splitTopicAndPartitionLabel, res.getOutputStream(),
                         metricsProviders);
                 context.complete();
-
             } catch (Exception e) {
                 log.error("Failed to generate prometheus stats", e);
                 res.setStatus(HttpStatus.INTERNAL_SERVER_ERROR_500);
