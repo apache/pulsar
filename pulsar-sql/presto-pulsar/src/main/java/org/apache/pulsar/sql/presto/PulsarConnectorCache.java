@@ -116,7 +116,7 @@ public class PulsarConnectorCache {
     private ManagedLedgerFactory initManagedLedgerFactory(
             PulsarConnectorConfig pulsarConnectorConfig
     ) throws Exception {
-        String metadataServiceUri = METADATA_STORE_SCHEME + pulsarConnectorConfig.getMetadataUrl()
+        String metadataServiceUri = METADATA_STORE_SCHEME + ":" + pulsarConnectorConfig.getMetadataUrl()
                 + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
             .setMetadataServiceUri(metadataServiceUri)
