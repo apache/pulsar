@@ -301,7 +301,9 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 return CompletableFuture.completedFuture(null);
             }
-            log.debug("markPartitionedTopicDeletedAsync {}", tn);
+            if (log.isDebugEnabled()) {
+                log.debug("markPartitionedTopicDeletedAsync {}", tn);
+            }
             return updatePartitionedTopicAsync(tn, md -> {
                 md.deleted = true;
                 return md;
@@ -312,7 +314,9 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 return CompletableFuture.completedFuture(null);
             }
-            log.debug("unmarkPartitionedTopicDeletedAsync {}", tn);
+            if (log.isDebugEnabled()) {
+                log.debug("unmarkPartitionedTopicDeletedAsync {}", tn);
+            }
             return updatePartitionedTopicAsync(tn, md -> {
                 md.deleted = false;
                 return md;
