@@ -18,12 +18,12 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 1. Start a Pulsar standalone cluster:
 
 ```bash
-PULSAR_STANDALONE_USE_ZOOKEEPER=1 ./bin/pulsar standalone
+./bin/pulsar standalone
 ```
 
 :::note
 
-Starting the Pulsar standalone cluster from scratch doesn't enable ZooKeeper by default. However, the Pulsar SQL depends on ZooKeeper. Therefore, you need to set `PULSAR_STANDALONE_USE_ZOOKEEPER=1` to enable ZooKeeper.
+Starting the Pulsar standalone cluster from scratch doesn't enable ZooKeeper by default. However, if you're using version 2.11.x, the Pulsar SQL depends on ZooKeeper. Therefore, you need to set `PULSAR_STANDALONE_USE_ZOOKEEPER=1` to enable ZooKeeper.
 
 :::
 
