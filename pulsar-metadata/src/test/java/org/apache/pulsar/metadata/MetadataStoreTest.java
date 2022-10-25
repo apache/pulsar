@@ -23,11 +23,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -478,5 +480,34 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
         assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
                 ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        List<String> subPaths = store.getChildren("/").get();
+        Set<String> expectedSet = "ZooKeeper".equals(provider) ? Sets.newHashSet("a", "b", "zookeeper") :
+                Sets.newHashSet("a", "b");
+        for (String subPath : subPaths) {
+            assertTrue(expectedSet.contains(subPath));
+        }
+
+        List<String> subPaths2 = store.getChildren("/a").get();
+        Set<String> expectedSet2 = Sets.newHashSet("a-1", "a-2");
+        for (String subPath : subPaths2) {
+            assertTrue(expectedSet2.contains(subPath));
+        }
+
+        List<String> subPaths3 = store.getChildren("/b").get();
+        Set<String> expectedSet3 = Sets.newHashSet("c");
+        for (String subPath : subPaths3) {
+            assertTrue(expectedSet3.contains(subPath));
+        }
     }
 }
