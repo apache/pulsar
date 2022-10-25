@@ -207,7 +207,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 snapshot.setAborts(list);
             }
             return writer.writeAsync(snapshot.getTopicName(), snapshot).thenAccept(messageId -> {
-                //TODO: do record this in TB
                 this.lastSnapshotTimestamps = System.currentTimeMillis();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "
@@ -222,7 +221,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     @Override
     public void run(Timeout timeout) {
-        // TODO: Start to do this after TB and processor ready
         takeSnapshotByTimeout();
     }
 

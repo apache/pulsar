@@ -42,7 +42,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor {
     private final AtomicLong sequenceID = new AtomicLong(0);
 
-    //TODO: recover this at recover processor.
     private final ConcurrentSkipListMap<PositionImpl, List<TxnIDData>> aborts
             = new ConcurrentSkipListMap<>();
     private final ConcurrentSkipListMap<PositionImpl, List<TxnIDData>> snapshotSegmentQueue
@@ -194,7 +193,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public void run(Timeout timeout) {
-        //TODO: Run the processor after transaction buffer ready.
         takeSnapshotByTimeout();
     }
 
@@ -285,7 +283,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 if (transactionBufferSnapshotIndexes != null) {
                                     hasIndex = true;
                                     this.theLatestSnapshotIndexes = transactionBufferSnapshotIndexes;
-                                    //TODO:take a snapshot when create producer
                                     startReadCursorPosition = PositionImpl.get(
                                             transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionLedgerId(),
                                             transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionEntryId());
