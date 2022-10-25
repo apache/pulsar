@@ -46,12 +46,12 @@ RUN curl -O -L https://www.cpan.org/src/5.0/perl-5.10.0.tar.gz && \
 ####################################
 
 # ZLib
-RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz && \
-    tar xvfz zlib-1.2.12.tar.gz && \
-    cd zlib-1.2.12 && \
+RUN curl -O -L https://zlib.net/fossils/zlib-1.2.13.tar.gz && \
+    tar xvfz zlib-1.2.13.tar.gz && \
+    cd zlib-1.2.13 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
-    rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
+    rm -rf /zlib-1.2.13.tar.gz /zlib-1.2.13
 
 # Compile OpenSSL
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz && \
