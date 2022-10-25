@@ -37,6 +37,7 @@ import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.ToStringExclude;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -1828,7 +1829,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
         )
-    @ToString.Exclude
+    @ToStringExclude
     private String managedLedgerPassword = "";
 
     @FieldContext(
@@ -2487,7 +2488,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private List<String> bootstrapNamespaces = new ArrayList<String>();
 
-    @ToString.Exclude
+    @ToStringExclude
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Properties properties = new Properties();
 
@@ -2945,7 +2946,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore password for broker"
     )
-    @ToString.Exclude
+    @ToStringExclude
     private String tlsKeyStorePassword = null;
 
     @FieldContext(
@@ -2964,7 +2965,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore password for broker, null means empty password."
     )
-    @ToString.Exclude
+    @ToStringExclude
     private String tlsTrustStorePassword = null;
 
     /**** --- Config variables used for internal client/admin to auth with other broker. --- ****/
@@ -3033,7 +3034,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "TLS TrustStore password for internal client, "
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
-    @ToString.Exclude
+    @ToStringExclude
     private String brokerClientTlsTrustStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -3052,7 +3053,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "TLS KeyStore password for internal client, "
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
-    @ToString.Exclude
+    @ToStringExclude
     private String brokerClientTlsKeyStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
