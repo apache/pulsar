@@ -627,6 +627,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of namespaces. Default is false."
     )
     private boolean forceDeleteNamespaceAllowed = false;
