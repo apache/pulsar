@@ -250,9 +250,19 @@ public class TopicLookupBase extends PulsarWebResource {
                                     requestId,
                                     false));
                         }).exceptionally(ex -> {
+                            Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+                            if (throwable instanceof RestException restException){
+                                if (restException.getResponse().getStatus()
+                                        == Response.Status.NOT_FOUND.getStatusCode()) {
+                                    validationFuture.complete(
+                                            newLookupErrorResponse(ServerError.TopicNotFound,
+                                                    throwable.getMessage(), requestId));
+                                    return null;
+                                }
+                            }
                             validationFuture.complete(
                                     newLookupErrorResponse(ServerError.MetadataError,
-                                            FutureUtil.unwrapCompletionException(ex).getMessage(), requestId));
+                                            throwable.getMessage(), requestId));
                             return null;
                         });
                     })
