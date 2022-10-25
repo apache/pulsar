@@ -252,7 +252,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
-    <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
+    <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.1.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
@@ -1547,7 +1547,7 @@ flexible messaging model and an intuitive client API.</description>
             </licenseSet>
           </licenseSets>
           <mapping>
-            <java>JAVADOC_STYLE</java>
+            <java>SLASHSTAR_STYLE</java>
             <proto>JAVADOC_STYLE</proto>
             <go>DOUBLESLASH_STYLE</go>
             <conf>SCRIPT_STYLE</conf>
