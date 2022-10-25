@@ -91,7 +91,9 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
@@ -661,11 +663,13 @@ public class TransactionTest extends TransactionTestBase {
         Field field = transactionBufferStateClass.getDeclaredField("state");
         field.setAccessible(true);
         Class<TopicTransactionBuffer> topicTransactionBufferClass = TopicTransactionBuffer.class;
-        Field maxReadPositionField = topicTransactionBufferClass.getDeclaredField("maxReadPosition");
-        maxReadPositionField.setAccessible(true);
+        Field processorField = topicTransactionBufferClass.getDeclaredField("snapshotAbortedTxnProcessor");
+        processorField.setAccessible(true);
+        AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(topicTransactionBuffer);
+
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.Initializing);
         MessageIdImpl messageId5 = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
-        PositionImpl position5 = (PositionImpl) maxReadPositionField.get(topicTransactionBuffer);
+        PositionImpl position5 = abortedTxnProcessor.getMaxReadPosition();
         Assert.assertEquals(position5.getLedgerId(), messageId4.getLedgerId());
         Assert.assertEquals(position5.getEntryId(), messageId4.getEntryId());
     }
@@ -942,9 +946,10 @@ public class TransactionTest extends TransactionTestBase {
         filed1.set(persistentTopic, managedLedger);
 
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) field2.get(persistentTopic);
-        Method method = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
-        method.setAccessible(true);
-        CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) method.invoke(topicTransactionBuffer);
+        Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
+        processorField.setAccessible(true);
+        AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(topicTransactionBuffer);
+        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takesFirstSnapshot();
         completableFuture.get();
 
         doReturn(PositionImpl.LATEST).when(managedLedger).getLastConfirmedEntry();
@@ -1026,9 +1031,15 @@ public class TransactionTest extends TransactionTestBase {
                 .getTopic(NAMESPACE1 + "/changeMaxReadPositionAndAddAbortTimes" + UUID.randomUUID(), true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
-        Field field = TopicTransactionBuffer.class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
-        field.setAccessible(true);
-        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) field.get(buffer);
+        Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
+        processorField.setAccessible(true);
+
+        AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(buffer);
+        Field changeTimeField = SingleSnapshotAbortedTxnProcessorImpl
+                .class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
+        changeTimeField.setAccessible(true);
+        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) changeTimeField.get(abortedTxnProcessor);
+
         Field field1 = TopicTransactionBufferState.class.getDeclaredField("state");
         field1.setAccessible(true);
 

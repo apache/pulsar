@@ -91,6 +91,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
+    public void updateMaxReadPositionNotIncreaseChangeTimes(Position maxReadPosition) {
+        this.maxReadPosition = (PositionImpl) maxReadPosition;
+    }
+
+    @Override
     public void trimExpiredTxnIDDataOrSnapshotSegments() {
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
@@ -133,7 +138,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                         closeReader(reader);
                         if (!hasSnapshot) {
                             callBack.noNeedToRecover();
-                            return null;
+                            return CompletableFuture.completedFuture(startReadCursorPosition);
                         }
                         return CompletableFuture.completedFuture(startReadCursorPosition);
                     } catch (Exception ex) {

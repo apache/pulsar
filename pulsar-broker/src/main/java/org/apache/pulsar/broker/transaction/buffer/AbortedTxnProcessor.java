@@ -38,10 +38,15 @@ public interface AbortedTxnProcessor extends TimerTask {
     /**
      * After the transaction buffer writes a transaction aborted mark to the topic,
      * the transaction buffer will update max read position in AbortedTxnProcessor
-     * @param maxReadPosition  the Max read position after the transaction is aborted.
+     * @param maxReadPosition  the max read position after the transaction is aborted.
      */
     void updateMaxReadPosition(Position maxReadPosition);
 
+    /**
+     * This method is used to updated max read position for the topic which nerver used transaction send message.
+     * @param maxReadPosition the max read position after the transaction is aborted.
+     */
+    void updateMaxReadPositionNotIncreaseChangeTimes(Position maxReadPosition);
 
     /**
      * Pulsar has a configuration for ledger retention time.

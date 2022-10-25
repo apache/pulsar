@@ -73,7 +73,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     private final PersistentTopic topic;
 
-    private CopyOnWriteArrayList<TxnIDData> lastAbortedTxnIDs = new CopyOnWriteArrayList<>();
+    private LinkedList<TxnIDData> lastAbortedTxnIDs = new LinkedList<>();
 
     //When add abort or change max read position, the count will +1. Take snapshot will set 0 into it.
     private final AtomicLong changeMaxReadPositionAndAddAbortTimes = new AtomicLong();
@@ -122,7 +122,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             //Guarantee the order of the segments.
             snapshotSegmentQueue.put(position, lastAbortedTxnIDs);
             takeSnapshotSegment();
-            lastAbortedTxnIDs = new CopyOnWriteArrayList<>();
+            lastAbortedTxnIDs = new LinkedList<>();
         }
     }
 
@@ -161,6 +161,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             updateSnapshotMetadataByChangeTimes();
         }
     }
+    @Override
+    public void updateMaxReadPositionNotIncreaseChangeTimes(Position maxReadPosition) {
+        this.maxReadPosition = (PositionImpl) maxReadPosition;
+    }
+
 
     @Override
     public boolean checkAbortedTransaction(TxnIDData txnID, Position readPosition) {
@@ -309,7 +314,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         closeReader(reader);
                         if (!hasIndex) {
                             callBack.noNeedToRecover();
-                            return null;
+                            return CompletableFuture.completedFuture(startReadCursorPosition);
                         } else {
                             theLatestSnapshotIndexes.getIndexList()
                                     .forEach(transactionBufferSnapshotIndex ->
@@ -317,7 +322,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                     transactionBufferSnapshotIndex.persistentPositionLedgerID,
                                                             transactionBufferSnapshotIndex.persistentPositionEntryID),
                                                     transactionBufferSnapshotIndex));
-                            this.lastAbortedTxnIDs = (CopyOnWriteArrayList<TxnIDData>) theLatestSnapshotIndexes
+                            this.lastAbortedTxnIDs = (LinkedList<TxnIDData>) theLatestSnapshotIndexes
                                     .getSnapshot().getAborts();
                             this.maxReadPosition = new PositionImpl(theLatestSnapshotIndexes
                                     .getSnapshot().getMaxReadPositionLedgerId(),

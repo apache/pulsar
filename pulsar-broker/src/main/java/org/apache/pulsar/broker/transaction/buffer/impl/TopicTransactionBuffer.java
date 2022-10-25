@@ -151,7 +151,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             // completely the normal message have been sent to broker and state is
                             // not NoSnapshot can't sync maxReadPosition
                             snapshotAbortedTxnProcessor
-                                    .updateMaxReadPosition(topic.getManagedLedger().getLastConfirmedEntry());
+                                    .updateMaxReadPositionNotIncreaseChangeTimes(topic.getManagedLedger()
+                                            .getLastConfirmedEntry());
 
                             if (!changeToNoSnapshotState()) {
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
@@ -318,8 +319,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             updateMaxReadPosition(txnID);
                             handleLowWaterMark(txnID, lowWaterMark);
                             snapshotAbortedTxnProcessor.trimExpiredTxnIDDataOrSnapshotSegments();
-                            snapshotAbortedTxnProcessor.appendAbortedTxn(new TxnIDData(txnID.getMostSigBits(),
-                                    txnID.getLeastSigBits()), (PositionImpl) position);
                         }
                         txnCommittedCounter.increment();
                         completableFuture.complete(null);
@@ -473,7 +472,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (checkIfNoSnapshot()) {
                 //TODO:The changes time here should not be changed.
-                snapshotAbortedTxnProcessor.updateMaxReadPosition(position);
+                snapshotAbortedTxnProcessor.updateMaxReadPositionNotIncreaseChangeTimes(position);
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
                     snapshotAbortedTxnProcessor.updateMaxReadPosition(position);

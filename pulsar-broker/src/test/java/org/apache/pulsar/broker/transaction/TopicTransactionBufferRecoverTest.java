@@ -61,6 +61,8 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
@@ -169,7 +171,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
 
-        tnx1.commit();
+        tnx1.commit().get();
 
         // only can receive message 1
         message = consumer.receive(2, TimeUnit.SECONDS);
@@ -390,10 +392,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     field.setAccessible(true);
                     TopicTransactionBuffer topicTransactionBuffer =
                             (TopicTransactionBuffer) field.get(persistentTopic);
-                    field = TopicTransactionBuffer.class.getDeclaredField("aborts");
+                    field = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
                     field.setAccessible(true);
+                    AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) field.get(topicTransactionBuffer);
+                    Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
+                    abortsField.setAccessible(true);
+
                     LinkedMap<TxnID, PositionImpl> linkedMap =
-                            (LinkedMap<TxnID, PositionImpl>) field.get(topicTransactionBuffer);
+                            (LinkedMap<TxnID, PositionImpl>) abortsField.get(abortedTxnProcessor);
                     assertEquals(linkedMap.size(), 1);
                     assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
                             ((MessageIdImpl) message.getMessageId()).getLedgerId());
@@ -426,9 +432,11 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) originalTopic.getTransactionBuffer();
-        Method takeSnapshotMethod = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
-        takeSnapshotMethod.setAccessible(true);
-        takeSnapshotMethod.invoke(topicTransactionBuffer);
+        Field abortedTxnProcessorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
+        abortedTxnProcessorField.setAccessible(true);
+        AbortedTxnProcessor abortedTxnProcessor =
+                (AbortedTxnProcessor) abortedTxnProcessorField.get(topicTransactionBuffer);
+        abortedTxnProcessor.takesFirstSnapshot();
 
         TopicName transactionBufferTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(
