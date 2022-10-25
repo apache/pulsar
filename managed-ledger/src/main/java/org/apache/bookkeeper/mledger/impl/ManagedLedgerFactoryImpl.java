@@ -142,7 +142,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this(metadataStore, bkClientConfiguration, new ManagedLedgerFactoryConfig());
     }
 
-    @SuppressWarnings("deprecation")
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
