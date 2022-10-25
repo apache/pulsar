@@ -1496,4 +1496,16 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
     }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
+        super.internalCleanup();
+        conf.setForceDeleteNamespaceAllowed(false);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteNamespaceAllowed());
+        });
+    }
 }
