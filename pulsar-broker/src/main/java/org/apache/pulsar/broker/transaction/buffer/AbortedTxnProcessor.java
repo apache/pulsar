@@ -66,10 +66,28 @@ public interface AbortedTxnProcessor extends TimerTask {
 
     CompletableFuture<PositionImpl> recoverFromSnapshot(TopicTransactionBufferRecoverCallBack callBack);
 
-    public CompletableFuture<Void> clearSnapshot();
-    public CompletableFuture<Void> takesFirstSnapshot();
-    public PositionImpl getMaxReadPosition();
+    /**
+     * Clear the snapshot/snapshot segment and index for this topic.
+     * @return a completableFuture.
+     */
+    CompletableFuture<Void> clearSnapshot();
 
-    public long getLastSnapshotTimestamps();
+    /**
+     * Take the frist snapshot if the topic has no snapshot before.
+     * @return a completableFuture.
+     */
+    CompletableFuture<Void> takesFirstSnapshot();
+
+    /**
+     * Get the max read position.
+     * @return the maxReadPosition.
+     */
+    PositionImpl getMaxReadPosition();
+
+    /**
+     * Get the lastSnapshotTimestamps.
+     * @return the lastSnapshotTimestamps.
+     */
+    long getLastSnapshotTimestamps();
 
 }
