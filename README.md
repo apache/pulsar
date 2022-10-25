@@ -67,18 +67,15 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 ### Ecosystem
 
 - [Pulsar Adapters](https://github.com/apache/pulsar-adapters)
-- [Pulsar Connectors](https://github.com/apache/pulsar-connectors)
-- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto)
 
 ### Clients
 
-- [C++ Client](https://github.com/apache/pulsar-client-cpp)
-- [Python Client](https://github.com/apache/pulsar-client-python)
 - [.NET/C# Client](https://github.com/apache/pulsar-dotpulsar)
+- [C++ Client](https://github.com/apache/pulsar-client-cpp)
 - [Go Client](https://github.com/apache/pulsar-client-go)
 - [NodeJS Client](https://github.com/apache/pulsar-client-node)
+- [Python Client](https://github.com/apache/pulsar-client-python)
 - [Reactive Java Client](https://github.com/apache/pulsar-client-reactive)
-- [Ruby Client](https://github.com/apache/pulsar-client-ruby)
 
 ### Dashboard & Management Tools
 
@@ -88,13 +85,16 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar Site](https://github.com/apache/pulsar-site)
 
-### Documentation
-
-- [Pulsar Translation](https://github.com/apache/pulsar-translation)
-
 ### CI/CD
 
 - [Pulsar CI](https://github.com/apache/pulsar-test-infra)
+
+### Archived/Halted
+
+- [Pulsar Connectors](https://github.com/apache/pulsar-connectors)
+- [Pulsar Translation](https://github.com/apache/pulsar-translation)
+- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto)
+- [Ruby Client](https://github.com/apache/pulsar-client-ruby)
 
 ## Pulsar Runtime Java Version Recommendation
 

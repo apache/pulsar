@@ -6,7 +6,7 @@ sidebar_label: "Authentication using OAuth 2.0 access tokens"
 
 Pulsar supports authenticating clients using OAuth 2.0 access tokens. You can use OAuth 2.0 access tokens to identify a Pulsar client and associate the Pulsar client with some "principal" (or "role"), which is permitted to do some actions, such as publishing messages to a topic or consuming messages from a topic.
 
-This module is used to support the [Pulsar client authentication plugin](security-extending.md/#client-authentication-plugin) for OAuth 2.0. After communicating with the OAuth 2.0 server, the Pulsar client gets an `access token` from the OAuth 2.0 server, and passes this `access token` to the Pulsar broker to do the authentication. The broker can use the `org.apache.pulsar.broker.authentication.AuthenticationProviderToken`. Or, you can add your own `AuthenticationProvider` to make it with this module.
+This module is used to support the [Pulsar client authentication plugin](security-extending.md#client-authentication-plugin) for OAuth 2.0. After communicating with the OAuth 2.0 server, the Pulsar client gets an `access token` from the OAuth 2.0 server, and passes this `access token` to the Pulsar broker to do the authentication. The broker can use the `org.apache.pulsar.broker.authentication.AuthenticationProviderToken`. Or, you can add your own `AuthenticationProvider` to make it with this module.
 
 ## Authentication provider configuration
 

@@ -118,13 +118,13 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
+`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
 `logs` | Logs that the installation creates
 
-## [Install Built-in Connectors (optional)](/standalone.md#install-built-in-connectors-optional)
+## Install Built-in Connectors (optional)
 
 > Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `built-in` connectors.
 > To enable the `built-in` connectors (optional), you can follow the instructions below.
@@ -155,7 +155,7 @@ pulsar-io-aerospike-@pulsar:version@.nar
 ...
 ```
 
-## [Install Tiered Storage Offloaders (optional)](/standalone.md#install-tiered-storage-offloaders-optional)
+## Install Tiered Storage Offloaders (optional)
 
 > Since Pulsar release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
 > If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
@@ -231,7 +231,7 @@ echo 1 > data/zookeeper/myid
 
 On `zk2.us-west.example.com`, the command is `echo 2 > data/zookeeper/myid` and so on.
 
-Once you add each server to the `zookeeper.conf` configuration and have the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+Once you add each server to the `zookeeper.conf` configuration and have the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start zookeeper
@@ -244,7 +244,7 @@ bin/pulsar-daemon start zookeeper
 
 Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper. You only need to write this data **once**.
 
-You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your Pulsar cluster, so the metadata can be initialized from a ZooKeeper, broker, or bookie machine. The following is an example:
+You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md) command of the [`pulsar`](reference-cli-tools.md) CLI tool. This command can be run on any machine in your Pulsar cluster, so the metadata can be initialized from a ZooKeeper, broker, or bookie machine. The following is an example:
 
 ```shell
 bin/pulsar initialize-cluster-metadata \
@@ -305,7 +305,7 @@ Once you appropriately modify the `zkServers` parameter, you can make any other 
 
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
-To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start bookie
@@ -317,7 +317,7 @@ To start the bookie in the foreground:
 bin/pulsar bookie
 ```
 
-You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md#shell):
+You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md):
 
 ```bash
 bin/bookkeeper shell bookiesanity
@@ -325,7 +325,7 @@ bin/bookkeeper shell bookiesanity
 
 This command creates an ephemeral BookKeeper ledger on the local bookie, writes a few entries, reads them back, and finally deletes the ledger.
 
-After you start all the bookies, you can use `simpletest` command for [BookKeeper shell](reference-cli-tools.md#shell) on any bookie node, to verify all the bookies in the cluster are up running.
+After you start all the bookies, you can use `simpletest` command for [BookKeeper shell](reference-cli-tools.md) on any bookie node, to verify all the bookies in the cluster are up running.
 
 ```bash
 bin/bookkeeper shell simpletest --ensemble <num-bookies> --writeQuorum <num-bookies> --ackQuorum <num-bookies> --numEntries <num-entries>
@@ -398,13 +398,13 @@ If you want to learn more options about deploying the functions worker, check ou
 
 You can then provide any other configuration changes that you want in the [`conf/broker.conf`](reference-configuration.md#broker) file. Once you decide on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, you can start brokers either in the foreground or in the background, using nohup.
 
-You can start a broker in the foreground using the [`pulsar broker`](reference-cli-tools.md#pulsar-broker) command:
+You can start a broker in the foreground using the [`pulsar broker`](reference-cli-tools.md) command:
 
 ```bash
 bin/pulsar broker
 ```
 
-You can start a broker in the background using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+You can start a broker in the background using the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start broker
@@ -414,7 +414,7 @@ Once you successfully start up all the brokers that you intend to use, your Puls
 
 ## Connect to the running cluster
 
-Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provide a simple way to make sure that your cluster runs properly.
+Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provide a simple way to make sure that your cluster runs properly.
 
 To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](reference-configuration.md#client) in your binary package. You need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you assign to your broker/bookie hosts. The following is an example:
 
