@@ -1499,9 +1499,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
-        super.internalCleanup();
+        cleanup();
         conf.setForceDeleteNamespaceAllowed(false);
-        super.baseSetup();
+        setup();
         admin.brokers()
                 .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
         Awaitility.await().untilAsserted(()->{
