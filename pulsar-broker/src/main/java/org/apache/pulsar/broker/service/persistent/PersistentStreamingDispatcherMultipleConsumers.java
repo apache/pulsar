@@ -31,7 +31,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
@@ -142,7 +141,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Topic has been terminated and there are no more entries to read
             // Notify the consumer only if all the messages were already acknowledged
-            consumerList.forEach(Consumer::reachedEndOfTopic);
+            checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
         }
     }
 

@@ -42,6 +42,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected int maxBytesInBatch;
     protected int numMessagesInBatch = 0;
     protected long currentBatchSizeBytes = 0;
+    protected int batchAllocatedSizeBytes = 0;
 
     protected long currentTxnidMostBits = -1L;
     protected long currentTxnidLeastBits = -1L;
@@ -82,6 +83,11 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     @Override
     public long getCurrentBatchSize() {
         return currentBatchSizeBytes;
+    }
+
+    @Override
+    public int getBatchAllocatedSizeBytes() {
+        return batchAllocatedSizeBytes;
     }
 
     int getMaxBatchSize() {

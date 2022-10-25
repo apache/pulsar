@@ -22,8 +22,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.Timeout;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -52,6 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -160,6 +165,60 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
 
         consumer.unsubscribe();
+        consumer.close();
+    }
+
+    @Test
+    public void testMaxAcknowledgmentGroupSize() throws Exception {
+        final String namespace = "use/ns-abc";
+        final String topicName = "persistent://" + namespace + "/topic1";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("use", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        int acknowledgmentGroupSize = 6;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub")
+                .acknowledgmentGroupTime(10000, TimeUnit.SECONDS)
+                .maxAcknowledgmentGroupSize(acknowledgmentGroupSize)
+                .subscribe();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        MessageIdImpl ackMessageId = new MessageIdImpl(-1, -1, -1);
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                MessageId messageId = msg.getMessageId();
+                consumer.acknowledge(msg);
+                // When the acknowledgmentGroupSize message is confirmed, send ack will be triggered
+                if (i == (acknowledgmentGroupSize - 1)) {
+                    ackMessageId = (MessageIdImpl) messageId;
+                }
+            }
+        }
+
+        Awaitility.await().until(() -> cursor.getMarkDeletedPosition().getLedgerId() != -1);
+        Position markDeletedPosition = cursor.getMarkDeletedPosition();
+        long ledgerId = markDeletedPosition.getLedgerId();
+        long entryId = markDeletedPosition.getEntryId();
+
+        assertEquals(ledgerId, ackMessageId.getLedgerId());
+        assertEquals(entryId, ackMessageId.getEntryId());
+
+        producer.close();
         consumer.close();
     }
 

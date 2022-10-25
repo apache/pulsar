@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import com.google.common.collect.Sets;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -32,7 +33,6 @@ import org.apache.pulsar.tests.integration.containers.DebeziumMsSqlContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
-import org.testcontainers.shaded.com.google.common.collect.Sets;
 import org.testng.annotations.Test;
 
 import lombok.Cleanup;

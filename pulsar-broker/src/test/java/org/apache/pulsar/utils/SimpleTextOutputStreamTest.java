@@ -118,4 +118,27 @@ public class SimpleTextOutputStreamTest {
         reset();
         return s;
     }
+
+    @Test
+    public void testWriteString() {
+        String str = "persistence://test/test/test_¬¬¬¬¬¬¬aabbcc";
+        stream.write(str);
+        assertEquals(str, str());
+    }
+
+
+    @Test
+    public void testWriteChar() {
+        String str = "persistence://test/test/test_¬¬¬¬¬¬¬aabbcc\"\n";
+        for (char c : str.toCharArray()) {
+            stream.write(c);
+        }
+        assertEquals(str, str());
+
+        buf.clear();
+
+        stream.write('\n').write('"').write('A').write('Z').write('a').write('z').write(' ').write(',').write('{')
+                .write('}').write('[').write(']').write('¬');
+        assertEquals(str(), "\n\"AZaz ,{}[]¬");
+    }
 }

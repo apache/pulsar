@@ -847,7 +847,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         preconditionFailed.completeExceptionally(new PulsarAdminException.PreconditionFailedException(cee,
                 httpError, statusCode));
         doReturn(preconditionFailed).when(namespacesAdmin)
-                .deleteNamespaceBundleAsync(Mockito.anyString(), Mockito.anyString());
+                .deleteNamespaceBundleAsync(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean());
 
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> captor = ArgumentCaptor.forClass(RestException.class);
@@ -866,7 +866,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(nsBundles.getBundles().get(0), optionsHttps);
         doReturn(true).when(nsSvc).isServiceUnitOwned(nsBundles.getBundles().get(0));
         doReturn(CompletableFuture.completedFuture(null)).when(namespacesAdmin).deleteNamespaceBundleAsync(
-                testTenant + "/" + testLocalCluster + "/" + bundledNsLocal, "0x00000000_0x80000000");
+                testTenant + "/" + testLocalCluster + "/" + bundledNsLocal, "0x00000000_0x80000000",
+                false);
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal,
                 "0x80000000_0xffffffff",  false, false);

@@ -66,7 +66,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {
                 res.setStatus(HTTP_STATUS_OK_200);
-                res.setContentType("text/plain");
+                res.setContentType("text/plain;charset=utf-8");
                 generateMetrics(cluster, res.getOutputStream());
             } catch (Exception e) {
                 long end = System.currentTimeMillis();

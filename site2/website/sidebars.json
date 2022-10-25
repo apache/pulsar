@@ -368,11 +368,7 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        {
-          "type": "link",
-          "href": "https://pulsar.apache.org/reference",
-          "label": "Pulsar configuration"
-        },
+        "reference-configuration",
         "reference-metrics",
         "reference-rest-api-overview",
         {

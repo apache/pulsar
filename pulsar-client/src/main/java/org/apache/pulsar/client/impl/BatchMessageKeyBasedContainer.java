@@ -67,6 +67,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         batches.clear();
         currentTxnidMostBits = -1L;
         currentTxnidLeastBits = -1L;
+        batchAllocatedSizeBytes = 0;
     }
 
     @Override
@@ -83,6 +84,11 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public boolean isMultiBatches() {
         return true;
+    }
+
+    @Override
+    public int getBatchAllocatedSizeBytes() {
+        return batches.values().stream().mapToInt(AbstractBatchMessageContainer::getBatchAllocatedSizeBytes).sum();
     }
 
     @Override

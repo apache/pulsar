@@ -246,12 +246,12 @@ To enable TLS encryption, you need to configure the clients to use `https://` wi
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path of the **trust cert** (recommended) or enable the clients to allow untrusted server certs.
 
-The following examples show how to configure TLS encryption for Java/Python/C++/Node.js/C# clients.
+The following examples show how to configure TLS encryption for Java/Python/C++/Node.js/C#/WebSocket clients.
 
 ````mdx-code-block
 <Tabs groupId="lang-choice"
   defaultValue="Java"
-  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"C#","value":"C#"}]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"C#","value":"C#"},{"label":"WebSocket API","value":"WebSocket API"}]}>
 <TabItem value="Java">
 
 ```java
@@ -323,6 +323,53 @@ var client = PulsarClient.Builder()
 ```
 
 > Note that `VerifyCertificateName` refers to the configuration of hostname verification in the C# client.
+
+</TabItem>
+<TabItem value="WebSocket API">
+
+```python
+import websockets
+import asyncio
+import base64
+import json
+import ssl
+import pathlib
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+client_cert_pem = pathlib.Path(__file__).with_name("client.cert.pem")
+client_key_pem = pathlib.Path(__file__).with_name("client.key.pem")
+ca_cert_pem = pathlib.Path(__file__).with_name("ca.cert.pem")
+ssl_context.load_cert_chain(certfile=client_cert_pem, keyfile=client_key_pem)
+ssl_context.load_verify_locations(ca_cert_pem)
+# websocket producer uri wss, not ws
+uri = "wss://localhost:8080/ws/v2/producer/persistent/public/default/testtopic"
+client_pem = pathlib.Path(__file__).with_name("pulsar_client.pem")
+ssl_context.load_verify_locations(client_pem)
+# websocket producer uri wss, not ws
+uri = "wss://localhost:8080/ws/v2/producer/persistent/public/default/testtopic"
+# encode message
+s = "Hello World"
+firstEncoded = s.encode("UTF-8")
+binaryEncoded = base64.b64encode(firstEncoded)
+payloadString = binaryEncoded.decode('UTF-8')
+async def producer_handler(websocket):
+    await websocket.send(json.dumps({
+            'payload' : payloadString,
+            'properties': {
+                'key1' : 'value1',
+                'key2' : 'value2'
+            },
+            'context' : 5
+        }))
+async def test():
+    async with websockets.connect(uri) as websocket:
+        await producer_handler(websocket)
+        message = await websocket.recv()
+        print(f"< {message}")
+asyncio.run(test())
+```
+
+> Note that in addition to the required configurations in the `conf/client.conf` file, you need to configure more parameters in the `conf/broker.conf` file to enable TLS encryption on WebSocket service. For more details, see [security settings for WebSocket](client-libraries-websocket.md/#security-settings).
 
 </TabItem>
 </Tabs>

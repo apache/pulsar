@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -28,7 +29,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.integration.containers.DebeziumOracleDbContainer;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
-import org.testcontainers.shaded.com.google.common.collect.Sets;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;

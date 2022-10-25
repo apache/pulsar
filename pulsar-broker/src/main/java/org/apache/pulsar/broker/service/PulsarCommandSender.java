@@ -25,6 +25,7 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -76,6 +77,8 @@ public interface PulsarCommandSender {
     void sendError(long requestId, ServerError error, String message);
 
     void sendReachedEndOfTopic(long consumerId);
+
+    boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls);
 
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
                                         int partitionIdx, List<? extends Entry> entries, EntryBatchSizes batchSizes,

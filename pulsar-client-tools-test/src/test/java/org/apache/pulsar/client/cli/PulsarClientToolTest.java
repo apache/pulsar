@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
-
 import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
@@ -28,8 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import com.beust.jcommander.JCommander;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
