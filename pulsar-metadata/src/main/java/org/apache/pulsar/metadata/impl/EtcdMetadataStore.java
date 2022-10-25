@@ -385,11 +385,12 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     case GET_CHILDREN: {
                         OpGetChildren getChildren = op.asGetChildren();
                         GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
-                        String basePath = getChildren.getPath() + "/";
+                        String basePath =
+                                getChildren.getPath().equals("/") ? "/" : getChildren.getPath() + "/";
 
                         Set<String> children = gr.getKvs().stream()
                                 .map(kv -> kv.getKey().toString(StandardCharsets.UTF_8))
-                                .map(p -> p.replace(basePath, ""))
+                                .map(p -> p.replaceFirst(basePath, ""))
                                 // Only return first-level children
                                 .map(k -> k.split("/", 2)[0])
                                 .collect(Collectors.toCollection(TreeSet::new));
