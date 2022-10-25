@@ -431,8 +431,10 @@ public class PulsarCluster {
 
     private PrestoWorkerContainer buildPrestoWorkerContainer(String hostName, boolean isCoordinator,
                                                              String offloadDriver, String offloadProperties) {
-        String resourcePath = isCoordinator ? "presto-coordinator-config.properties"
+        final String trinoConfigPath = isCoordinator
+                ? "presto-coordinator-config.properties"
                 : "presto-follow-worker-config.properties";
+        final String pulsarTrinoConnectorConfigPath = "presto-connector-config.properties";
         PrestoWorkerContainer container = new PrestoWorkerContainer(
                 clusterName, hostName)
                 .withNetwork(network)
@@ -440,12 +442,15 @@ public class PulsarCluster {
                 .withEnv("clusterName", clusterName)
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.metadata-url", "zk:" + ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
                 .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
                 .withClasspathResourceMapping(
-                        resourcePath, "/pulsar/trino/conf/config.properties", BindMode.READ_WRITE);
+                        trinoConfigPath,
+                        "/pulsar/trino/conf/config.properties",
+                        BindMode.READ_WRITE)
+                .withClasspathResourceMapping(
+                        pulsarTrinoConnectorConfigPath,
+                        "/pulsar/trino/conf/catalog/pulsar.properties",
+                        BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
             container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
                     .withEnv("pulsar.bookkeeper-explicit-interval", "10");
@@ -461,7 +466,7 @@ public class PulsarCluster {
             container.withEnv("AWS_SECRET_KEY", "secretkey");
         }
         log.info("[{}] build presto worker container. isCoordinator: {}, resourcePath: {}",
-                container.getContainerName(), isCoordinator, resourcePath);
+                container.getContainerName(), isCoordinator, trinoConfigPath);
         return container;
     }
 
