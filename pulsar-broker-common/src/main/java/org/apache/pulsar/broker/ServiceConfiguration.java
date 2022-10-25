@@ -2330,6 +2330,63 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double loadBalancerBundleUnloadMinThroughputThreshold = 10;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Bundle unload minimum throughput threshold (MB)"
+    )
+    private double loadBalancerBundleUnloadMinThroughputThreshold = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Bundle unload minimum msg threshold (rate/s)"
+    )
+    private double loadBalancerBundleUnloadMinMsgThreshold = 10000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "when using AvgShedder, broker need to be hit 2 times for actually do shedding."
+    )
+    private int loadBalancerAvgShedderHitCountHighThreshold = 2;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "when using AvgShedder, broker need to be hit 4 times for actually do shedding."
+    )
+    private int loadBalancerAvgShedderHitCountLowThreshold = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Low threshold for avgShedder. If maxScore-minScore is greater than threshold for 4 times, " +
+                    "shedding bundles bettwen these two brokers,range of scores:0-100"
+    )
+    private double loadBalancerAvgShedderLowThreshold = 25;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "High threshold for avgShedder. If maxScore-minScore is greater than threshold for 2 times, " +
+                    "shedding bundles bettwen these two brokers,range of scores:0-100"
+    )
+    private double loadBalancerAvgShedderHighThreshold = 50;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the AvgShedder strategy, the maximum unload ratio."
+    )
+    private double loadBalancerMaxUnloadPercentage = 0.5;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the AvgShedder strategy, the remain unload ratio."
+    )
+    private double loadBalancerMaxRemainPercentage = 0.1;
+    @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "Interval to flush dynamic resource quota to ZooKeeper"
     )
