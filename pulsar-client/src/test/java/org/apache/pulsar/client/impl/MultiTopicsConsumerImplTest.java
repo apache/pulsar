@@ -185,6 +185,14 @@ public class MultiTopicsConsumerImplTest {
         assertFalse(consumer.hasPendingBatchReceive());
     }
 
+    @Test(expectedExceptions = {IllegalArgumentException.class})
+    public void testValidTopicNames() {
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setTopicNames(Sets.newHashSet("persistent://public/invalid-topic"));
+        createMultiTopicsConsumer(consumerConfData);
+    }
+
     @Test
     public void testConsumerCleanupOnSubscribeFailure() {
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
