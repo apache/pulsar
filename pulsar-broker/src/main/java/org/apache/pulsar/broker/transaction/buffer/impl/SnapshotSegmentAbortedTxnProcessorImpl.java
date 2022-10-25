@@ -31,7 +31,6 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -243,9 +242,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     snapshotIndexes.setSnapshot(theLatestSnapshotIndexes.getSnapshot());
                     return indexesWriter.writeAsync(snapshotIndexes.getTopicName(), snapshotIndexes);
                 })
-                .thenRun(() -> {
-                    theLatestSnapshotIndexes.setIndexList(snapshotIndexes.getIndexList());
-                })
+                .thenRun(() -> theLatestSnapshotIndexes.setIndexList(snapshotIndexes.getIndexList()))
                 .exceptionally(e -> {
                     log.error("[{}] Failed to update snapshot segment index", snapshotIndexes.getTopicName(), e);
                     return null;
@@ -267,9 +264,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     indexes.setIndexList(theLatestSnapshotIndexes.getIndexList());
                     return indexesWriter.writeAsync(indexes.getTopicName(), indexes);
                 })
-                .thenRun(() -> {
-                    theLatestSnapshotIndexes.setSnapshot(indexes.getSnapshot());
-                })
+                .thenRun(() -> theLatestSnapshotIndexes.setSnapshot(indexes.getSnapshot()))
                 .exceptionally(e -> {
                     log.error("[{}] Failed to update snapshot segment index", indexes.getTopicName(), e);
                     return null;
@@ -282,7 +277,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .getTxnBufferSnapshotIndexService()
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
                     PositionImpl startReadCursorPosition = null;
-                    CompletableFuture<PositionImpl> recoverSnapshotSegmentFuture = new CompletableFuture<>();
                     try {
                         boolean hasIndex = false;
                         //Read Index to recover the sequenceID, indexes, lastAbortedTxns and maxReadPosition.
@@ -305,11 +299,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             callBack.noNeedToRecover();
                             return null;
                         } else {
-                            theLatestSnapshotIndexes.getIndexList().forEach(transactionBufferSnapshotIndex -> {
-                                indexes.put(new PositionImpl(transactionBufferSnapshotIndex.persistentPositionLedgerID,
-                                        transactionBufferSnapshotIndex.persistentPositionEntryID),
-                                        transactionBufferSnapshotIndex);
-                            });
+                            theLatestSnapshotIndexes.getIndexList()
+                                    .forEach(transactionBufferSnapshotIndex ->
+                                            indexes.put(new PositionImpl(
+                                                    transactionBufferSnapshotIndex.persistentPositionLedgerID,
+                                                            transactionBufferSnapshotIndex.persistentPositionEntryID),
+                                                    transactionBufferSnapshotIndex));
                             this.lastAbortedTxnIDs = (CopyOnWriteArrayList<TxnIDData>) theLatestSnapshotIndexes
                                     .getSnapshot().getAborts();
                             this.maxReadPosition = new PositionImpl(theLatestSnapshotIndexes
@@ -391,7 +386,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         //decode snapshot from entry
         ByteBuf headersAndPayload = entry.getDataBuffer();
         //skip metadata
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+        Commands.parseMessageMetadata(headersAndPayload);
         TransactionBufferSnapshotSegment snapshotSegment = Schema.AVRO(TransactionBufferSnapshotSegment.class)
                 .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
         aborts.put(new PositionImpl(snapshotSegment.getMaxReadPositionLedgerId(),
