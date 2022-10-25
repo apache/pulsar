@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 public class LocalBrokerDataTest {
 
@@ -58,5 +61,15 @@ public class LocalBrokerDataTest {
                 data.getMaxResourceUsageWithWeightWithinLimit(
                         weight, weight, weight, weight, weight), 0.02, epsilon);
 
+    }
+
+    /*
+    Ensure that there is no bundleStats field in the json string serialized from LocalBrokerData.
+     */
+    @Test
+    public void testSerializeLocalBrokerData() throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        LocalBrokerData localBrokerData = new LocalBrokerData();
+        assertFalse(objectMapper.writeValueAsString(localBrokerData).contains("bundleStats"));
     }
 }
