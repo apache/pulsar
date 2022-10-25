@@ -52,7 +52,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
@@ -156,7 +155,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private volatile BatchMessageIdImpl startMessageId;
 
     private volatile BatchMessageIdImpl seekMessageId;
-    private final AtomicBoolean duringSeek;
+    private CompletableFuture<Void> seekFuture = null;
 
     private final BatchMessageIdImpl initialStartMessageId;
 
@@ -289,8 +288,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             stats = ConsumerStatsDisabled.INSTANCE;
         }
-
-        duringSeek = new AtomicBoolean(false);
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getAckTimeoutRedeliveryBackoff() != null) {
@@ -787,9 +784,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 topic, subscription, cnx.ctx().channel(), consumerId);
 
         long requestId = client.newRequestId();
-        if (duringSeek.get()) {
-            acknowledgmentsGroupingTracker.flushAndClean();
-        }
 
         SUBSCRIBE_DEADLINE_UPDATER
                 .compareAndSet(this, 0L, System.currentTimeMillis()
@@ -839,6 +833,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // Use the current epoch to subscribe.
                     conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
 
+            boolean duringSeek = isDuringSeek();
+            if (duringSeek) {
+                seekFuture.complete(null);
+            }
+
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
                     if (changeToReadyState()) {
@@ -853,6 +852,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         return;
                     }
                 }
+
+                seekMessageId = null;
 
                 resetBackoff();
 
@@ -932,7 +933,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         incomingMessages.drainTo(currentMessageQueue);
         resetIncomingMessageSize();
 
-        if (duringSeek.compareAndSet(true, false)) {
+        if (seekMessageId != null) {
             return seekMessageId;
         } else if (subscriptionMode == SubscriptionMode.Durable) {
             return startMessageId;
@@ -2142,36 +2143,62 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return Optional.empty();
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
-        final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
+    private void resetSeekFuture(CompletableFuture<Void> doneFuture) {
+        seekFuture = new CompletableFuture<>();
+        seekFuture.whenComplete((__, ex) -> {
+            if (ex != null) {
+                doneFuture.completeExceptionally(ex);
+                return;
+            }
+            acknowledgmentsGroupingTracker.flushAndClean();
+            lastDequeuedMessageId = MessageId.earliest;
+            clearIncomingMessages();
+            doneFuture.complete(null);
+            log.info("[{}][{}] Successfully reset subscription", topic, subscription);
+        });
+    }
+
+    private boolean isDuringSeek() {
+        return seekFuture != null && !seekFuture.isDone();
+    }
+
+    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId,
+                                                                   String seekBy) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        boolean duringSeek = true;
+        if (seekFuture == null || seekFuture.isDone()) {
+            resetSeekFuture(future);
+            duringSeek = false;
+        }
+
+        if (duringSeek) {
+            seekFuture.join();
+            resetSeekFuture(future);
+        }
+
         ClientCnx cnx = cnx();
 
         BatchMessageIdImpl originSeekMessageId = seekMessageId;
         seekMessageId = new BatchMessageIdImpl((MessageIdImpl) seekId);
-        duringSeek.set(true);
         log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
-            log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
-            acknowledgmentsGroupingTracker.flushAndClean();
-
-            lastDequeuedMessageId = MessageId.earliest;
-
-            clearIncomingMessages();
-            seekFuture.complete(null);
+            log.info("[{}][{}] Successfully sent the seek command to reset subscription to {}", topic, subscription,
+                    seekBy);
         }).exceptionally(e -> {
-            // re-set duringSeek and seekMessageId if seek failed
+            // re-set seekMessageId if seek failed
             seekMessageId = originSeekMessageId;
-            duringSeek.set(false);
-            log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
+            log.error("[{}][{}] Failed to send the seek command to reset subscription: {}", topic, subscription,
+                    e.getCause().getMessage());
 
-            seekFuture.completeExceptionally(
-                PulsarClientException.wrap(e.getCause(),
+            seekFuture.completeExceptionally(PulsarClientException.wrap(e.getCause(),
                     String.format("Failed to seek the subscription %s of the topic %s to %s",
-                        subscription, topicName.toString(), seekBy)));
+                            subscription, topicName.toString(), seekBy)));
             return null;
         });
-        return seekFuture;
+
+        return future;
     }
 
     @Override
