@@ -86,7 +86,7 @@ public class LocalMemoryMetadataStoreTest {
             assertEquals((long) event2.getExpectedVersion(), exptectedVersion);
             assertEquals(event2.getType(), NotificationType.Modified);
         }
-        
+
         // (3) delete node
         sync.notifiedEvents.remove(path);
         store1.delete(path, Optional.of(exptectedVersion)).join();
@@ -176,7 +176,7 @@ public class LocalMemoryMetadataStoreTest {
         store1.put(path, value1, Optional.empty()).join();
 
         assertTrue(store1.exists(path).join());
-        
+
         Stat stats = store1.get(path).get().get().getStat();
         MetadataEvent event = new MetadataEvent(path, value2, EMPTY_SET, stats.getVersion(),
                 stats.getModificationTimestamp() + 1, sync.clusterName, NotificationType.Modified);
