@@ -19,7 +19,7 @@ Geo-replication is managed at the namespace level, which means you only need to 
 Complete the following tasks to enable geo-replication for a namespace:
 
 * [Enable a geo-replication namespace](#enable-geo-replication-at-namespace-level)
-* [Configure that namespace to replicate across two or more provisioned clusters](admin-api-namespaces.md/#configure-replication-clusters)
+* [Configure that namespace to replicate across two or more provisioned clusters](admin-api-namespaces.md#configure-replication-clusters)
 
 Any message published on *any* topic in that namespace is replicated to all clusters in the specified set.
 
@@ -238,7 +238,7 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 ## Migrate data between clusters using geo-replication
 
-Using geo-replication to migrate data between clusters is a special use case of the [active-active replication pattern](concepts-replication.md/#active-active-replication) when you don't have a large amount of data.
+Using geo-replication to migrate data between clusters is a special use case of the [active-active replication pattern](concepts-replication.md#active-active-replication) when you don't have a large amount of data.
 
 1. Create your new cluster.
 2. Add the new cluster to your old cluster.
