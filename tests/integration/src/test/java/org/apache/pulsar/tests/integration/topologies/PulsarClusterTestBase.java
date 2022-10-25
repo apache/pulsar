@@ -92,7 +92,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         return pulsarCluster;
     }
 
-    private static Supplier<String> stringSupplier(Supplier<String> supplier) {
+    protected static Supplier<String> stringSupplier(Supplier<String> supplier) {
         return supplier;
     }
 

@@ -290,6 +290,27 @@
               <forkCount>1</forkCount>
             </configuration>
           </plugin>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-pulsar-certificate-authority-resources</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.build.testOutputDirectory}/certificate-authority</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.parent.basedir}/certificate-authority</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
         </plugins>
       </build>
     </profile>

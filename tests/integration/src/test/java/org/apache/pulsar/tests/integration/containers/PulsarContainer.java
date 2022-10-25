@@ -40,10 +40,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int CS_PORT = 2184;
     public static final int BOOKIE_PORT = 3181;
     public static final int BROKER_PORT = 6650;
+    public static final int BROKER_PORT_TLS = 6651;
     public static final int BROKER_HTTP_PORT = 8080;
+    public static final int BROKER_HTTPS_PORT = 8081;
 
     public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/pulsar-test-latest-version:latest");
+    public static final String DEFAULT_HTTP_PATH = "/metrics";
     public static final String PULSAR_2_5_IMAGE_NAME = "apachepulsar/pulsar:2.5.0";
     public static final String PULSAR_2_4_IMAGE_NAME = "apachepulsar/pulsar:2.4.0";
     public static final String PULSAR_2_3_IMAGE_NAME = "apachepulsar/pulsar:2.3.0";
@@ -65,7 +68,9 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     private final String serviceName;
     private final String serviceEntryPoint;
     private final int servicePort;
+    private final int servicePortTls;
     private final int httpPort;
+    private final int httpsPort;
     private final String httpPath;
 
     public PulsarContainer(String clusterName,
@@ -96,12 +101,28 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                            int httpPort,
                            String httpPath,
                            String pulsarImageName) {
+        this(clusterName, hostname, serviceName, serviceEntryPoint, servicePort, 0, httpPort, 0, httpPath,
+                pulsarImageName);
+    }
+
+    public PulsarContainer(String clusterName,
+                           String hostname,
+                           String serviceName,
+                           String serviceEntryPoint,
+                           int servicePort,
+                           int servicePortTls,
+                           int httpPort,
+                           int httpsPort,
+                           String httpPath,
+                           String pulsarImageName) {
         super(clusterName, pulsarImageName);
         this.hostname = hostname;
         this.serviceName = serviceName;
         this.serviceEntryPoint = serviceEntryPoint;
         this.servicePort = servicePort;
+        this.servicePortTls = servicePortTls;
         this.httpPort = httpPort;
+        this.httpsPort = httpsPort;
         this.httpPath = httpPath;
 
         configureLeaveContainerRunning(this);
@@ -151,8 +172,14 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         if (httpPort > 0) {
             addExposedPorts(httpPort);
         }
+        if (httpsPort > 0) {
+            addExposedPorts(httpsPort);
+        }
         if (servicePort > 0) {
             addExposedPort(servicePort);
+        }
+        if (servicePortTls > 0) {
+            addExposedPort(servicePortTls);
         }
     }
 
@@ -199,5 +226,21 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public int hashCode() {
         return 31 * super.hashCode() + Objects.hash(
                 getContainerId());
+    }
+
+    public String getPlainTextServiceUrl() {
+        return "pulsar://" + getHost() + ":" + getMappedPort(servicePort);
+    }
+
+    public String getServiceUrlTls() {
+        return "pulsar+ssl://" + getHost() + ":" + getMappedPort(servicePortTls);
+    }
+
+    public String getHttpServiceUrl() {
+        return "http://" + getHost() + ":" + getMappedPort(httpPort);
+    }
+
+    public String getHttpsServiceUrl() {
+        return "https://" + getHost() + ":" + getMappedPort(httpsPort);
     }
 }
