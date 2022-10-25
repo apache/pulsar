@@ -1,19 +1,21 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
+import io.netty.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 
 
-public interface AbortedTxnProcessor<T> {
+public interface AbortedTxnProcessor extends TimerTask {
 
     /**
      * After the transaction buffer writes a transaction aborted mark to the topic,
      * the transaction buffer will add the aborted transaction ID to AbortedTxnProcessor.
      * @param txnID aborted transaction ID.
      */
-    void appendAbortedTxn(T txnID, PositionImpl position);
+    void appendAbortedTxn(TxnIDData txnID, PositionImpl position);
 
     /**
      * After the transaction buffer writes a transaction aborted mark to the topic,
@@ -37,13 +39,19 @@ public interface AbortedTxnProcessor<T> {
      * @param readPosition the read position of the transaction message, can be used to find the segment.
      * @return a boolean, whether the transaction ID is an aborted transaction ID.
      */
-    boolean checkAbortedTransaction(T  txnID, Position readPosition);
+    boolean checkAbortedTransaction(TxnIDData  txnID, Position readPosition);
 
     /**
      * Recover transaction buffer by transaction buffer snapshot.
      * @return a pair consists of a Boolean if the transaction buffer needs to recover and a Position (startReadCursorPosition) determiner where to start to recover in the original topic.
      */
 
-    CompletableFuture<Object> recoverFromSnapshot(TopicTransactionBufferRecoverCallBack callBack);
+    CompletableFuture<PositionImpl> recoverFromSnapshot(TopicTransactionBufferRecoverCallBack callBack);
+
+    public CompletableFuture<Void> clearSnapshot();
+    public CompletableFuture<Void> takesFirstSnapshot();
+    public PositionImpl getMaxReadPosition();
+
+    public long getLastSnapshotTimestamps();
 
 }

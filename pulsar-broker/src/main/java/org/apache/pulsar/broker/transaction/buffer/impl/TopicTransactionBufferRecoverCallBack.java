@@ -35,13 +35,6 @@ public interface TopicTransactionBufferRecoverCallBack {
     void noNeedToRecover();
 
     /**
-     * Handle transactionBufferSnapshot.
-     *
-     * @param snapshot the transaction buffer snapshot
-     */
-    void handleSnapshot(TransactionBufferSnapshot snapshot);
-
-    /**
      * Handle transaction entry beyond the snapshot.
      *
      * @param entry the transaction message entry
