@@ -43,10 +43,11 @@ import org.apache.pulsar.common.protocol.Commands;
  */
 public class PulsarConnectorConfig implements AutoCloseable {
 
+    private boolean hasMetadataUrl = false;
+
     private String brokerServiceUrl = "http://localhost:8080";
     private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
-    private String zookeeperUri = "localhost:2181";
     private String metadataUrl = "rocksdb://" + Paths.get("data/metadata").toAbsolutePath();
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
@@ -136,14 +137,12 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.maxMessageSize;
     }
 
-    @NotNull
-    public String getZookeeperUri() {
-        return this.zookeeperUri;
-    }
-
     @Config("pulsar.zookeeper-uri")
     public PulsarConnectorConfig setZookeeperUri(String zookeeperUri) {
-        this.zookeeperUri = zookeeperUri;
+        if (hasMetadataUrl) {
+            return this;
+        }
+        this.metadataUrl = "zk:" + zookeeperUri;
         return this;
     }
 
@@ -155,6 +154,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.metadata-url")
     public PulsarConnectorConfig setMetadataUrl(String metadataUrl) {
         this.metadataUrl = metadataUrl;
+        this.hasMetadataUrl = true;
         return this;
     }
 
