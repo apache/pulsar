@@ -439,7 +439,7 @@ public class PulsarStandalone implements AutoCloseable {
             log.info("Starting BK with RocksDb metadata store");
             metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
         } else {
-            log.info("Starting BK with metadata store:", metadataStoreUrl);
+            log.info("Starting BK with metadata store: {}", metadataStoreUrl);
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();

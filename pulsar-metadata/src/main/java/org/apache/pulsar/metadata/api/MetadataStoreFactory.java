@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.api;
 
-import java.io.IOException;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 
@@ -35,8 +34,6 @@ public class MetadataStoreFactory {
      * @param metadataStoreConfig
      *            the configuration object
      * @return a new {@link MetadataStore} instance
-     * @throws IOException
-     *             if the metadata store initialization fails
      */
     public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {

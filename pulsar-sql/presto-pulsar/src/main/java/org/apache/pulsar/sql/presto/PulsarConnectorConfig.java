@@ -21,6 +21,7 @@ package org.apache.pulsar.sql.presto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.configuration.Config;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -46,6 +47,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
     private String zookeeperUri = "localhost:2181";
+    private String metadataUrl = "rocksdb://" + Paths.get("data/metadata").toAbsolutePath();
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
@@ -142,6 +144,17 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.zookeeper-uri")
     public PulsarConnectorConfig setZookeeperUri(String zookeeperUri) {
         this.zookeeperUri = zookeeperUri;
+        return this;
+    }
+
+    @NotNull
+    public String getMetadataUrl() {
+        return this.metadataUrl;
+    }
+
+    @Config("pulsar.metadata-url")
+    public PulsarConnectorConfig setMetadataUrl(String metadataUrl) {
+        this.metadataUrl = metadataUrl;
         return this;
     }
 

@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -63,9 +64,9 @@ public class PulsarConnectorCache {
     private final StatsProvider statsProvider;
     private OrderedScheduler offloaderScheduler;
     private final LedgerOffloaderStats offloaderStats;
-    private OffloadersCache offloadersCache = new OffloadersCache();
-    private LedgerOffloader defaultOffloader;
-    private Map<NamespaceName, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
+    private final OffloadersCache offloadersCache = new OffloadersCache();
+    private final LedgerOffloader defaultOffloader;
+    private final Map<NamespaceName, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
 
     private static final String OFFLOADERS_DIRECTOR = "offloadersDirectory";
     private static final String MANAGED_LEDGER_OFFLOAD_DRIVER = "managedLedgerOffloadDriver";
@@ -73,7 +74,10 @@ public class PulsarConnectorCache {
 
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getZookeeperUri(),
+        String metadataUrl = pulsarConnectorConfig.getMetadataUrl().isBlank()
+                ? pulsarConnectorConfig.getZookeeperUri()
+                : pulsarConnectorConfig.getMetadataUrl();
+        this.metadataStore = MetadataStoreExtended.create(metadataUrl,
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
@@ -109,10 +113,11 @@ public class PulsarConnectorCache {
 
     private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
+        String metadataServiceUri = "metadata-store:" + (pulsarConnectorConfig.getMetadataUrl().isBlank()
+                ? "zk:" + pulsarConnectorConfig.getZookeeperUri()
+                : pulsarConnectorConfig.getMetadataUrl()) + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-            .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-            .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
-                .replace(",", ";") + "/ledgers")
+            .setMetadataServiceUri(metadataServiceUri)
             .setClientTcpNoDelay(false)
             .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
             .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())
