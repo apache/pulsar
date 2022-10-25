@@ -38,7 +38,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
-public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor, TimerTask {
+public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor<TxnIDData>, TimerTask {
     private final AtomicLong sequenceID = new AtomicLong(0);
 
     //TODO: recover this at recover processor.
@@ -136,8 +136,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public void updateMaxReadPosition(Position position) {
-        this.maxReadPosition = (PositionImpl) position;
-        updateSnapshotMetadataByChangeTimes();
+        if (position != this.maxReadPosition) {
+            this.maxReadPosition = (PositionImpl) position;
+            updateSnapshotMetadataByChangeTimes();
+        }
     }
 
     @Override
@@ -151,7 +153,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public void trimSnapshotSegments() {
+    public void trimExpiredTxnIDDataOrSnapshotSegments() {
         //Checking whether there are some segment expired.
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.firstKey().getLedgerId())) {
