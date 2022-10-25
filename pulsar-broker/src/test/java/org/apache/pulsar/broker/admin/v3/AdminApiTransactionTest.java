@@ -115,7 +115,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         initTransaction(4);
         final List<TransactionCoordinatorInfo> result = admin
                 .transactions().listTransactionCoordinatorsAsync().get();
-        System.out.println("result" + result);
         assertEquals(result.size(), 4);
         final String expectedUrl = pulsar.getBrokerServiceUrl();
         for (int i = 0; i < 4; i++) {
