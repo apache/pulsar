@@ -150,6 +150,10 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return getMetadataUrl();
     }
 
+    /**
+     * @deprecated use {@link #setMetadataUrl(String)}
+     */
+    @Deprecated
     @Config("pulsar.zookeeper-uri")
     public PulsarConnectorConfig setZookeeperUri(String zookeeperUri) {
         if (hasMetadataUrl) {
