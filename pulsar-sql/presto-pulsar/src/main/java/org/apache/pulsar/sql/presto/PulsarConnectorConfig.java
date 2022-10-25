@@ -98,25 +98,29 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @NotNull
     public String getBrokerServiceUrl() {
-        if (StringUtils.isEmpty(webServiceUrl)){
+        if (StringUtils.isEmpty(webServiceUrl)) {
             return brokerServiceUrl;
         } else {
             return getWebServiceUrl();
         }
     }
+
     @Config("pulsar.broker-service-url")
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
     }
+
     public String getBrokerBinaryServiceUrl() {
         return this.brokerBinaryServiceUrl;
     }
+
     @Config("pulsar.broker-binary-service-url")
     public PulsarConnectorConfig setBrokerBinaryServiceUrl(String brokerBinaryServiceUrl) {
         this.brokerBinaryServiceUrl = brokerBinaryServiceUrl;
         return this;
     }
+
     @Config("pulsar.web-service-url")
     public PulsarConnectorConfig setWebServiceUrl(String webServiceUrl) {
         this.webServiceUrl = webServiceUrl;
@@ -135,6 +139,15 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     public int getMaxMessageSize() {
         return this.maxMessageSize;
+    }
+
+    /**
+     * @deprecated use {@link #getMetadataUrl()}
+     */
+    @Deprecated
+    @NotNull
+    public String getZookeeperUri() {
+        return getMetadataUrl();
     }
 
     @Config("pulsar.zookeeper-uri")
@@ -280,7 +293,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Config("pulsar.managed-ledger-offload-max-threads")
     public PulsarConnectorConfig setManagedLedgerOffloadMaxThreads(int managedLedgerOffloadMaxThreads)
-        throws IOException {
+            throws IOException {
         this.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
         return this;
     }
@@ -527,14 +540,14 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-       if (StringUtils.isEmpty(webServiceUrl)){
-           return "PulsarConnectorConfig{"
-            + "brokerServiceUrl='" + brokerServiceUrl + '\''
-            + '}';
+        if (StringUtils.isEmpty(webServiceUrl)) {
+            return "PulsarConnectorConfig{"
+                    + "brokerServiceUrl='" + brokerServiceUrl + '\''
+                    + '}';
         } else {
             return "PulsarConnectorConfig{"
-            + "brokerServiceUrl='" + webServiceUrl + '\''
-            + '}';
+                    + "brokerServiceUrl='" + webServiceUrl + '\''
+                    + '}';
         }
     }
 }
