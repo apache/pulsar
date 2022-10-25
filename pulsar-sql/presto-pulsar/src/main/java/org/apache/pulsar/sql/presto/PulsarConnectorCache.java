@@ -19,6 +19,7 @@
 package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -76,7 +77,7 @@ public class PulsarConnectorCache {
 
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        MetadataDrivers.registerClientDriver("metadata-store", PulsarMetadataClientDriver.class);
+        MetadataDrivers.registerClientDriver(METADATA_STORE_SCHEME, PulsarMetadataClientDriver.class);
 
         this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getMetadataUrl(),
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
@@ -115,7 +116,7 @@ public class PulsarConnectorCache {
     private ManagedLedgerFactory initManagedLedgerFactory(
             PulsarConnectorConfig pulsarConnectorConfig
     ) throws Exception {
-        String metadataServiceUri = "metadata-store:" + pulsarConnectorConfig.getMetadataUrl()
+        String metadataServiceUri = METADATA_STORE_SCHEME + pulsarConnectorConfig.getMetadataUrl()
                 + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
             .setMetadataServiceUri(metadataServiceUri)
