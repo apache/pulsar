@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,5 +31,15 @@ public enum EventType {
     /**
      * Transaction buffer snapshot events.
      */
-    TRANSACTION_BUFFER_SNAPSHOT
+    TRANSACTION_BUFFER_SNAPSHOT,
+
+    /**
+     * Transaction buffer snapshot segment events.
+     */
+    TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
+
+    /**
+     * Transaction buffer snapshot indexes events.
+     */
+    TRANSACTION_BUFFER_SNAPSHOT_INDEXES
 }

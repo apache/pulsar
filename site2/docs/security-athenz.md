@@ -20,7 +20,7 @@ On the [tenant](reference-terminology.md#tenant) side, you need to do the follow
 2. Generate a private/public key pair
 3. Create a service, such as `some_app`, on the domain with the public key
 
-Note that you need to specify the private key generated in step 2 when the Pulsar client connects to the [broker](reference-terminology.md#broker) (see client configuration examples for [Java](client-libraries-java.md#tls-authentication) and [C++](client-libraries-cpp.md#tls-authentication)).
+Note that you need to specify the private key generated in step 2 when the Pulsar client connects to the [broker](reference-terminology.md#broker) (see client configuration examples for [Java](client-libraries-java.md) and [C++](client-libraries-cpp.md)).
 
 For more specific steps involving the Athenz UI, refer to [Example Service Access Control Setup](https://github.com/AthenZ/athenz/blob/master/docs/example_service_athenz_setup.md#client-tenant-domain).
 
@@ -67,7 +67,7 @@ brokerClientAuthenticationParameters={"tenantDomain":"shopping","tenantService":
 
 ## Configure Athenz authentication in Pulsar clients
 
-To use Athenz as an authentication provider, you need to [use TLS](#tls-authentication.md) and provide values for four parameters in a hash:
+To use Athenz as an authentication provider, you need to [use TLS](#tls-encryption) and provide values for four parameters in a hash:
 * `tenantDomain`
 * `tenantService`
 * `providerDomain`
@@ -101,7 +101,7 @@ The `privateKey` parameter supports the following three pattern formats:
 
 ## Configure Athenz authentication in CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md), and [`pulsar-client`](reference-cli-tools.md) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following authentication parameters to the `conf/client.conf` config file to use Athenz with CLI tools of Pulsar:
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -81,11 +83,27 @@ public class BacklogQuotaManagerTest {
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarService, PulsarAdmin)}
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
      */
     protected void deleteNamespaceGraceFully(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, pulsar, admin);
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
+                                                           PulsarService...pulsars) throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
     }
 
     @DataProvider(name = "backlogQuotaSizeGB")
@@ -512,20 +530,78 @@ public class BacklogQuotaManagerTest {
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 14);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 14);
 
+        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
+        Position slowConsumerReadPos = ml.getSlowestConsumer().getReadPosition();
+
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
         TopicStats stats2 = getTopicStats(topic1);
-        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
         // message in current ledger.
         Awaitility.await().untilAsserted(() -> {
             assertEquals(stats2.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
             assertEquals(stats2.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
         });
+
+        assertEquals(ml.getSlowestConsumer().getReadPosition(), slowConsumerReadPos);
         client.close();
     }
+
+    @Test(timeOut = 60000)
+    public void testConsumerBacklogEvictionTimeQuotaWithPartEviction() throws Exception {
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
+                new HashMap<>());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitTime(5) // set limit time as 5 seconds
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topic1 = "persistent://prop/ns-quota/topic3" + UUID.randomUUID();
+        final String subName1 = "c1";
+        final String subName2 = "c2";
+        int numMsgs = 5;
+
+        Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic1);
+        byte[] content = new byte[1024];
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+            consumer1.receive();
+            consumer2.receive();
+        }
+
+        TopicStats stats = getTopicStats(topic1);
+        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 5);
+        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 5);
+
+        // Sleep 5000 mills for first 5 messages.
+        Thread.sleep(5000L);
+        numMsgs = 9;
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+            consumer1.receive();
+            consumer2.receive();
+        }
+
+        // The first 5 messages are expired after sleeping 2000 more mills.
+        Thread.sleep(2000L);
+        rolloverStats();
+
+        TopicStats stats2 = getTopicStats(topic1);
+        // The first 5 messages should be expired due to limit time is 5 seconds, and the last 9 message should not.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(stats2.getSubscriptions().get(subName1).getMsgBacklog(), 9);
+            assertEquals(stats2.getSubscriptions().get(subName2).getMsgBacklog(), 9);
+        });
+        client.close();
+    }
+
 
     @Test
     public void testConsumerBacklogEvictionTimeQuotaWithEmptyLedger() throws Exception {

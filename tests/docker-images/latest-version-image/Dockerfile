@@ -66,18 +66,11 @@ RUN rm -rf /var/lib/apt/lists/* && apt update
 
 RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl
 
-RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
+RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
 
 COPY conf/supervisord.conf /etc/supervisord.conf
 COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
      conf/proxy.conf conf/presto_worker.conf conf/websocket.conf /etc/supervisord/conf.d/
-
-COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
-     ssl/admin.key-pk8.pem ssl/admin.cert.pem \
-     ssl/user1.key-pk8.pem ssl/user1.cert.pem \
-     ssl/proxy.key-pk8.pem ssl/proxy.cert.pem \
-     ssl/superproxy.key-pk8.pem ssl/superproxy.cert.pem \
-     /pulsar/ssl/
 
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
@@ -100,6 +93,10 @@ COPY target/java-test-functions.jar /pulsar/examples/
 
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
+
+# TLS certificates
+RUN mkdir -p /pulsar/certificate-authority
+COPY target/certificate-authority /pulsar/certificate-authority/
 
 # copy broker plugins
 COPY target/plugins/ /pulsar/examples/

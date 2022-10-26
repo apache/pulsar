@@ -25,7 +25,7 @@ The following types of metrics are available:
 
 ## ZooKeeper
 
-The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
+The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in `conf/zookeeper.conf`.
 
 ZooKeeper provides a New Metrics System since 3.6.0. For more detailed metrics, refer to the [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
@@ -401,7 +401,7 @@ All the bundleUnloading metrics are labeled with the following labels:
 
 | Name                          | Type    | Description                                                |
 |-------------------------------|---------|------------------------------------------------------------|
-| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
+| pulsar_lb_bundles_split_total | Counter | The total count of bundle split in this leader broker |
 
 #### Bundle metrics
 All the bundle metrics are labeled with the following labels:
