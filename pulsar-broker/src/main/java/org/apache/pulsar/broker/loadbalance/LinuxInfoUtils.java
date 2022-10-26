@@ -110,7 +110,7 @@ public class LinuxInfoUtils {
                 if (totalCpuCount > 0) {
                     return 100 * totalCpuCount;
                 }
-            } catch (IOException e) {
+            } catch (IOException | NumberFormatException | IndexOutOfBoundsException e) {
                 log.warn("[LinuxInfo] Failed to read CPU quotas from cgroups", e);
                 // Fallback to availableProcessors
             }
