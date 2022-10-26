@@ -441,8 +441,8 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
+                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
-                .withEnv("SQL_PREFIX_pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withClasspathResourceMapping(
                         resourcePath, "/pulsar/trino/conf/config.properties", BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
