@@ -149,6 +149,7 @@ class LockManagerImpl<T> implements LockManager<T> {
             if (lock != null) {
                 lock.lockWasInvalidated();
             }
+            cache.invalidate(n.getPath());
         }
     }
 
