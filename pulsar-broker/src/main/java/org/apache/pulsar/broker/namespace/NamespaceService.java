@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -1010,10 +1010,6 @@ public class NamespaceService implements AutoCloseable {
 
     public OwnershipCache getOwnershipCache() {
         return ownershipCache;
-    }
-
-    public int getTotalServiceUnitsLoaded() {
-        return ownershipCache.getOwnedBundles().size() - this.uncountedNamespaces;
     }
 
     public Set<NamespaceBundle> getOwnedServiceUnits() {

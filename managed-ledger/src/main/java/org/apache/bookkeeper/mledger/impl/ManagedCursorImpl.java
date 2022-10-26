@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -1868,7 +1868,27 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
             if (newPosition.ackSet != null) {
-                batchDeletedIndexes.put(newPosition, BitSetRecyclable.create().resetWords(newPosition.ackSet));
+                AtomicReference<BitSetRecyclable> bitSetRecyclable = new AtomicReference<>();
+                BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(newPosition.ackSet);
+                // In order to prevent the batch index recorded in batchDeletedIndexes from rolling back,
+                // only update batchDeletedIndexes when the submitted batch index is greater
+                // than the recorded index.
+                batchDeletedIndexes.compute(newPosition,
+                        (k, v) -> {
+                            if (v == null) {
+                                return givenBitSet;
+                            }
+                            if (givenBitSet.nextSetBit(0) > v.nextSetBit(0)) {
+                                bitSetRecyclable.set(v);
+                                return givenBitSet;
+                            } else {
+                                bitSetRecyclable.set(givenBitSet);
+                                return v;
+                            }
+                        });
+                if (bitSetRecyclable.get() != null) {
+                    bitSetRecyclable.get().recycle();
+                }
                 newPosition = ledger.getPreviousPosition(newPosition);
             }
             Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.EARLIEST, newPosition);
@@ -2188,11 +2208,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                             individualDeletedMessages);
                     }
                 } else if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
-                    BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) ->
-                        BitSetRecyclable.create().resetWords(position.ackSet));
                     BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(position.ackSet);
-                    bitSet.and(givenBitSet);
-                    givenBitSet.recycle();
+                    BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) -> givenBitSet);
+                    if (givenBitSet != bitSet) {
+                        bitSet.and(givenBitSet);
+                        givenBitSet.recycle();
+                    }
                     if (bitSet.isEmpty()) {
                         PositionImpl previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
@@ -2325,8 +2346,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
                         individualDeletedMessages);
             }
-            if (individualDeletedMessages.isEmpty() || individualDeletedMessages.span() == null
-                    || !entriesRange.isConnected(individualDeletedMessages.span())) {
+            Range<PositionImpl> span = individualDeletedMessages.isEmpty() ? null : individualDeletedMessages.span();
+            if (span == null || !entriesRange.isConnected(span)) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);

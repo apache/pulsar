@@ -155,7 +155,7 @@ The proxy uses its own token when connecting to brokers. You need to configure t
 
 ## Configure JWT authentication in CLI Tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md), and [`pulsar-client`](reference-cli-tools.md) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to the `conf/client.conf` config file to use the JWT authentication with CLI tools of Pulsar:
 

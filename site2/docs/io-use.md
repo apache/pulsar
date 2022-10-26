@@ -32,7 +32,7 @@ You can configure the following information:
 
 * [Configure a default storage location for a connector](#configure-a-default-storage-location-for-a-connector)
 
-* [Configure a connector with a YAML file](#configure-a-connector-with-yaml-file)
+* [Configure a connector with a YAML file](#configure-a-connector-with-a-yaml-file)
 
 ### Configure a default storage location for a connector
 

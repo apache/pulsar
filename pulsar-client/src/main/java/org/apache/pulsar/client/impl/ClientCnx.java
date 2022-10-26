@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
 import java.util.List;
@@ -87,6 +88,8 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -141,6 +144,9 @@ public class ClientCnx extends PulsarHandler {
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
+
+    @VisibleForTesting
+    @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
@@ -656,6 +662,26 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    @Override
+    protected void handleTopicMigrated(CommandTopicMigrated commandTopicMigrated) {
+        final long resourceId = commandTopicMigrated.getResourceId();
+        final String serviceUrl = commandTopicMigrated.getBrokerServiceUrl();
+        final String serviceUrlTls = commandTopicMigrated.getBrokerServiceUrlTls();
+
+        HandlerState resource = commandTopicMigrated.getResourceType() == ResourceType.Producer
+                ? producers.get(resourceId)
+                : consumers.get(resourceId);
+        log.info("{} is migrated to {}/{}", commandTopicMigrated.getResourceType().name(), serviceUrl, serviceUrlTls);
+        if (resource != null) {
+            try {
+                resource.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
+            } catch (URISyntaxException e) {
+                log.info("[{}] Invalid redirect url {}/{} for {}", remoteAddress, serviceUrl, serviceUrlTls,
+                        resourceId);
+            }
+        }
+    }
+
     // caller of this method needs to be protected under pendingLookupRequestSemaphore
     private void addPendingLookupRequests(long requestId, TimedCompletableFuture<LookupDataResult> future) {
         pendingRequests.put(requestId, future);
@@ -780,6 +806,11 @@ public class ClientCnx extends PulsarHandler {
         TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
+            future.whenComplete((lookupDataResult, throwable) -> {
+                if (throwable instanceof ConnectException) {
+                    pendingLookupRequestSemaphore.release();
+                }
+            });
             addPendingLookupRequests(requestId, future);
             ctx.writeAndFlush(request).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {

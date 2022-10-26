@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -441,7 +441,11 @@ public class PulsarStandalone implements AutoCloseable {
         } else {
             log.info("Starting BK with metadata store:", metadataStoreUrl);
         }
+
+        ServerConfiguration bkServerConf = new ServerConfiguration();
+        bkServerConf.loadConf(new File(configFile).toURI().toURL());
         bkCluster = BKCluster.builder()
+                .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)
                 .bkPort(bkPort)
                 .numBookies(numOfBk)

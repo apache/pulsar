@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,9 @@ import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
 /**
  * Unit tests of {@link ConsumerBuilderImpl}.
  */
@@ -59,6 +62,17 @@ public class ConsumerBuilderImplTest {
         when(consumerConfigurationData.getTopicsPattern()).thenReturn(Pattern.compile("\\w+"));
         when(consumerConfigurationData.getSubscriptionName()).thenReturn("testSubscriptionName");
         consumerBuilderImpl = new ConsumerBuilderImpl(client, consumerConfigurationData, Schema.BYTES);
+    }
+
+    @Test
+    public void testMaxAcknowledgmentGroupSizeInvalid() {
+        try {
+            consumerBuilderImpl.maxAcknowledgmentGroupSize(0);
+            fail("Should throw exception");
+        } catch (IllegalArgumentException e) {
+            // expect exception
+            assertEquals(e.getMessage(), "acknowledgementsGroupSize needs to be > 0");
+        }
     }
 
     @Test
