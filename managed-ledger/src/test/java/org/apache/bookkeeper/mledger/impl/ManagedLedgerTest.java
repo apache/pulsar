@@ -3627,6 +3627,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         OffloadPoliciesImpl offloadPolicies = mock(OffloadPoliciesImpl.class);
         when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
         when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()).thenReturn(-1L);
+        when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInSeconds()).thenReturn(-1L);
         when(ledgerOffloader.getOffloadDriverName()).thenReturn("s3");
         config.setLedgerOffloader(ledgerOffloader);
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open(
@@ -3647,10 +3648,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(ledgerOffloader);
 
         ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
-        final LedgerOffloader finalLedgerOffloader = ledgerOffloader;
-        Awaitility.await().untilAsserted(() -> {
-            verify(finalLedgerOffloader, times(1)).getOffloadPolicies();
-        });
+        verify(ledgerOffloader, times(1)).getOffloadPolicies();
     }
 
     @Test(timeOut = 30000)
