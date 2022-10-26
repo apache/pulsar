@@ -25,9 +25,11 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -62,6 +64,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     private volatile double receivedMsgsRate;
     private volatile double receivedBytesRate;
+    private Map<String, ConsumerStats> partitionStats = Collections.emptyMap();
 
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
@@ -83,6 +86,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         totalBatchReceiveFailed = new LongAdder();
         totalAcksSent = new LongAdder();
         totalAcksFailed = new LongAdder();
+        partitionStats = new ConcurrentHashMap<>();
     }
 
     public ConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
@@ -218,7 +222,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     @Override
-    public void updateCumulativeStats(ConsumerStats stats) {
+    public void updateCumulativeStats(String partition, ConsumerStats stats) {
         if (stats == null) {
             return;
         }
@@ -234,6 +238,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         totalBatchReceiveFailed.add(stats.getTotaBatchReceivedFailed());
         totalAcksSent.add(stats.getTotalAcksSent());
         totalAcksFailed.add(stats.getTotalAcksFailed());
+        partitionStats.put(partition, stats);
     }
 
     @Override
@@ -324,6 +329,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     @Override
     public double getRateBytesReceived() {
         return receivedBytesRate;
+    }
+
+    @Override
+    public Map<String, ConsumerStats> getPartitionStats() {
+        return partitionStats;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerStatsRecorderImpl.class);

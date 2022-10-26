@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Collections;
+import java.util.Map;
+import org.apache.pulsar.client.api.ProducerStats;
+
 public class ProducerStatsDisabled implements ProducerStatsRecorder {
     private static final long serialVersionUID = 1L;
 
@@ -131,5 +135,10 @@ public class ProducerStatsDisabled implements ProducerStatsRecorder {
     @Override
     public int getPendingQueueSize() {
         return 0;
+    }
+
+    @Override
+    public Map<String, ProducerStats> getPartitionStats() {
+        return Collections.emptyMap();
     }
 }

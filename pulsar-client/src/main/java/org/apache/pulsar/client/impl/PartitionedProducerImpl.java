@@ -353,7 +353,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             return null;
         }
         stats.reset();
-        producers.values().forEach(p -> stats.updateCumulativeStats(p.getStats()));
+        producers.forEach(
+                (partition, producer) -> stats.updateCumulativeStats(producer.getTopic(), producer.getStats()));
         return stats;
     }
 

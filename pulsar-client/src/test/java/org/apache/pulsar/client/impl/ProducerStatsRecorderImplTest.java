@@ -83,7 +83,7 @@ public class ProducerStatsRecorderImplTest {
         ProducerStatsRecorderImpl recorder2 = new ProducerStatsRecorderImpl();
         when(recorder1.getSendMsgsRate()).thenReturn(1000.0);
         when(recorder1.getSendBytesRate()).thenReturn(1000.0);
-        recorder2.updateCumulativeStats(recorder1);
+        recorder2.updateCumulativeStats("test", recorder1);
         assertTrue(recorder2.getSendBytesRate() > 0);
         assertTrue(recorder2.getSendMsgsRate() > 0);
     }

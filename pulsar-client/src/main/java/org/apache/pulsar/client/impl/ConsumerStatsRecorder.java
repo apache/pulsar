@@ -38,5 +38,5 @@ public interface ConsumerStatsRecorder extends ConsumerStats {
 
     void reset();
 
-    void updateCumulativeStats(ConsumerStats stats);
+    void updateCumulativeStats(String partition, ConsumerStats stats);
 }

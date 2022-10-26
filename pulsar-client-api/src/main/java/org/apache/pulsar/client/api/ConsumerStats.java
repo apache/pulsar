@@ -114,4 +114,9 @@ public interface ConsumerStats extends Serializable {
      * @return
      */
     Map<Long, Integer> getMsgNumInSubReceiverQueue();
+
+    /**
+     * @return stats for each partition if topic is partitioned topic
+     */
+    Map<String, ConsumerStats> getPartitionStats();
 }

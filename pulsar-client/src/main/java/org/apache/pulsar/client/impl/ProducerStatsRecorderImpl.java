@@ -26,6 +26,9 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
@@ -58,6 +61,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private final transient DoublesSketch ds;
     private final transient DoublesSketch batchSizeDs;
     private final transient DoublesSketch msgSizeDs;
+    private Map<String, ProducerStats> partitionStats = Collections.emptyMap();
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
@@ -82,6 +86,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         ds = DoublesSketch.builder().build(256);
         batchSizeDs = DoublesSketch.builder().build(256);
         msgSizeDs = DoublesSketch.builder().build(256);
+        partitionStats = new ConcurrentHashMap<>();
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
@@ -250,7 +255,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         partitions = 0;
     }
 
-    void updateCumulativeStats(ProducerStats stats) {
+    void updateCumulativeStats(String partition, ProducerStats stats) {
         if (stats == null) {
             return;
         }
@@ -262,6 +267,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent.add(stats.getTotalBytesSent());
         totalSendFailed.add(stats.getTotalSendFailed());
         totalAcksReceived.add(stats.getTotalAcksReceived());
+        partitionStats.put(partition, stats);
         // update rates
         sendMsgsRateAggregate.add(stats.getSendMsgsRate());
         sendBytesRateAggregate.add(stats.getSendBytesRate());
@@ -347,6 +353,11 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     @Override
     public int getPendingQueueSize() {
         return producer.getPendingQueueSize();
+    }
+
+    @Override
+    public Map<String, ProducerStats> getPartitionStats() {
+        return partitionStats;
     }
 
     public void cancelStatsTimeout() {

@@ -826,7 +826,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         stats.reset();
 
-        consumers.values().stream().forEach(consumer -> stats.updateCumulativeStats(consumer.getStats()));
+        consumers.forEach((partition, consumer) -> stats.updateCumulativeStats(partition, consumer.getStats()));
         return stats;
     }
 

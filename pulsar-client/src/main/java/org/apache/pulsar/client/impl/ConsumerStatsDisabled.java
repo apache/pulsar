@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.Timeout;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -145,7 +146,12 @@ public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     }
 
     @Override
-    public void updateCumulativeStats(ConsumerStats stats) {
+    public void updateCumulativeStats(String partition, ConsumerStats stats) {
         // do nothing
+    }
+
+    @Override
+    public Map<String, ConsumerStats> getPartitionStats() {
+        return Collections.emptyMap();
     }
 }
