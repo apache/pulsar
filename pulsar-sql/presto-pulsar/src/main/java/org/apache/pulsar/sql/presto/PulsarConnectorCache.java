@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 /**
  * Implementation of a cache for the Pulsar connector.
@@ -109,9 +110,10 @@ public class PulsarConnectorCache {
 
     private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
+        PulsarMetadataClientDriver.init();
+
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-            .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getMetadataUrl()
-                .replace(",", ";") + "/ledgers")
+            .setMetadataServiceUri("metadata-store:" + pulsarConnectorConfig.getMetadataUrl())
             .setClientTcpNoDelay(false)
             .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
             .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())
