@@ -1965,6 +1965,32 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalSetOffloadThresholdInSeconds(long newThreshold) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            updatePolicies(namespaceName, policies -> {
+                if (policies.offload_policies == null) {
+                    policies.offload_policies = new OffloadPoliciesImpl();
+                }
+                ((OffloadPoliciesImpl) policies.offload_policies)
+                        .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
+                policies.offload_threshold_in_seconds = newThreshold;
+                return policies;
+            });
+            log.info("[{}] Successfully updated offloadThresholdInSeconds configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, newThreshold);
+
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalSetOffloadDeletionLag(Long newDeletionLagMs) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();

@@ -183,11 +183,13 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                              String credentialId, String credentialSecret,
                                              Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
                                              Long offloadThresholdInBytes,
+                                             Long offloadThresholdInSeconds,
                                              Long offloadDeletionLagInMillis,
                                              OffloadedReadPriority readPriority) {
         OffloadPoliciesImplBuilder builder = builder()
                 .managedLedgerOffloadDriver(driver)
                 .managedLedgerOffloadThresholdInBytes(offloadThresholdInBytes)
+                .managedLedgerOffloadThresholdInSeconds(offloadThresholdInSeconds)
                 .managedLedgerOffloadDeletionLagInMillis(offloadDeletionLagInMillis)
                 .managedLedgerOffloadBucket(bucket)
                 .managedLedgerOffloadRegion(region)

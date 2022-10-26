@@ -50,6 +50,7 @@ public class OffloadPoliciesTest {
         final Integer maxBlockSizeInBytes = 5 * M;
         final Integer readBufferSizeInBytes = 2 * M;
         final Long offloadThresholdInBytes = 10L * M;
+        final Long offloadThresholdInSeconds = 1000L;
         final Long offloadDeletionLagInMillis = 5L * MIN;
 
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
@@ -64,6 +65,7 @@ public class OffloadPoliciesTest {
                 maxBlockSizeInBytes,
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
+                offloadThresholdInSeconds,
                 offloadDeletionLagInMillis,
                 OffloadedReadPriority.TIERED_STORAGE_FIRST
         );
@@ -78,6 +80,7 @@ public class OffloadPoliciesTest {
                 offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
                 Long.valueOf(offloadDeletionLagInMillis));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
     }
 
     @Test
@@ -93,6 +96,7 @@ public class OffloadPoliciesTest {
         final Integer maxBlockSizeInBytes = 5 * M;
         final Integer readBufferSizeInBytes = 2 * M;
         final Long offloadThresholdInBytes = 0L;
+        final Long offloadThresholdInSeconds = 1000L;
         final Long offloadDeletionLagInMillis = 5 * MIN;
         final OffloadedReadPriority readPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
@@ -108,6 +112,7 @@ public class OffloadPoliciesTest {
                 maxBlockSizeInBytes,
                 readBufferSizeInBytes,
                 offloadThresholdInBytes,
+                offloadThresholdInSeconds,
                 offloadDeletionLagInMillis,
                 readPriority
         );
@@ -120,6 +125,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority(), readPriority);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
     }
 
     @Test
