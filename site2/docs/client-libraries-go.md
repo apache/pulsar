@@ -207,7 +207,7 @@ for i := 0; i < 10; i++ {
 #### How to use chunking in producer
 
 ```go
-client, err := NewClient(pulsar.ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: serviceURL,
 })
 
