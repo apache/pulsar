@@ -23,14 +23,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -3630,8 +3629,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()).thenReturn(-1L);
         when(ledgerOffloader.getOffloadDriverName()).thenReturn("s3");
         config.setLedgerOffloader(ledgerOffloader);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open(
-                "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config);
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open(
+                "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config));
+        doNothing().when(ledger).trimConsumedLedgersInBackground(any(CompletableFuture.class));
 
         // Retain the data.
         ledger.openCursor("test-cursor");
@@ -3649,9 +3649,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         final LedgerOffloader finalLedgerOffloader = ledgerOffloader;
         Awaitility.await().untilAsserted(() -> {
-            verify(finalLedgerOffloader, atLeastOnce()).getOffloadPolicies();
-            // When the ledger close, it will call `trimConsumedLedgersInBackground` async
-            verify(finalLedgerOffloader, atMost(2)).getOffloadPolicies();
+            verify(finalLedgerOffloader, times(1)).getOffloadPolicies();
         });
     }
 
