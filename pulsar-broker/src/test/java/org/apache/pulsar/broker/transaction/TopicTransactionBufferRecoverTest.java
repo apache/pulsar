@@ -33,6 +33,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
+import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
@@ -127,6 +129,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         return new Object[] {
                 RECOVER_ABORT,
                 RECOVER_COMMIT
+        };
+    }
+
+    @DataProvider(name = "enableSnapshotSegment")
+    public Object[] testSnapshot() {
+        return new Boolean[] {
+                true,
+                false
         };
     }
 
@@ -244,9 +254,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    @Test
-    private void testTakeSnapshot() throws IOException, ExecutionException, InterruptedException {
-
+    private void testTakeSnapshot() throws Exception {
         @Cleanup
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING)
@@ -316,8 +324,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    @Test
-    private void testTopicTransactionBufferDeleteAbort() throws Exception {
+    @Test(dataProvider = "enableSnapshotSegment")
+    private void testTopicTransactionBufferDeleteAbort(Boolean enableSnapshotSegment) throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(enableSnapshotSegment);
         @Cleanup
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING)
@@ -395,23 +404,31 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     field = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
                     field.setAccessible(true);
                     AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) field.get(topicTransactionBuffer);
-                    Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
-                    abortsField.setAccessible(true);
 
-                    LinkedMap<TxnID, PositionImpl> linkedMap =
-                            (LinkedMap<TxnID, PositionImpl>) abortsField.get(abortedTxnProcessor);
-                    assertEquals(linkedMap.size(), 1);
-                    assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
-                            ((MessageIdImpl) message.getMessageId()).getLedgerId());
-                    exist = true;
+                    if (enableSnapshotSegment) {
+                        //TODO:
+                        exist = true;
+                    } else {
+                        Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
+                        abortsField.setAccessible(true);
+
+                        LinkedMap<TxnID, PositionImpl> linkedMap =
+                                (LinkedMap<TxnID, PositionImpl>) abortsField.get(abortedTxnProcessor);
+                        assertEquals(linkedMap.size(), 1);
+                        assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
+                                ((MessageIdImpl) message.getMessageId()).getLedgerId());
+                        exist = true;
+                    }
+
                 }
             }
         }
         assertTrue(exist);
     }
 
-    @Test
-    public void clearTransactionBufferSnapshotTest() throws Exception {
+    @Test(dataProvider = "enableSnapshotSegment")
+    public void clearTransactionBufferSnapshotTest(Boolean enableSnapshotSegment) throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(enableSnapshotSegment);
         String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
 
         Producer<byte[]> producer = pulsarClient
