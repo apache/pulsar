@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -324,6 +324,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit) {
         checkArgument(delay >= 0, "acknowledgmentGroupTime needs to be >= 0");
         conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> maxAcknowledgmentGroupSize(int messageNum) {
+        checkArgument(messageNum > 0, "acknowledgementsGroupSize needs to be > 0");
+        conf.setMaxAcknowledgmentGroupSize(messageNum);
         return this;
     }
 
