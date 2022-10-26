@@ -207,7 +207,7 @@ public class OwnershipCache {
      *
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
-        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.remove(bundle);
         if (lock == null) {
             // We don't own the specified bundle anymore
             return CompletableFuture.completedFuture(null);
