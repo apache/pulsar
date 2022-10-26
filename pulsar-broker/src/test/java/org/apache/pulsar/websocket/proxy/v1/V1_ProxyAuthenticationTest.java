@@ -197,14 +197,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             Assert.assertTrue(producerFuture.get().isOpen());
 
-            int retry = 0;
-            int maxRetry = 500;
-            while (consumeSocket.getReceivedMessagesCount() < 3) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumeSocket.getReceivedMessagesCount() >= 3));
 
             service.getProxyStats().generate();
 
