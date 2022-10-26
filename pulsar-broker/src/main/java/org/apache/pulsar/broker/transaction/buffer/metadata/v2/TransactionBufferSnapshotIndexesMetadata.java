@@ -20,21 +20,14 @@ package org.apache.pulsar.broker.transaction.buffer.metadata.v2;
 
 import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
-@Builder
-public class TransactionBufferSnapshotIndexes {
-    private String topicName;
-
-    private List<TransactionBufferSnapshotIndex> indexList;
-
-    private TransactionBufferSnapshotIndexesMetadata snapshot;
-
+public class TransactionBufferSnapshotIndexesMetadata {
+    private long maxReadPositionLedgerId;
+    private long maxReadPositionEntryId;
+    private List<TxnIDData> aborts;
 }

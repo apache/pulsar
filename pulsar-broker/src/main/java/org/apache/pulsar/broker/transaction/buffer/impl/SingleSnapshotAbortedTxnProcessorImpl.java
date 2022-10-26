@@ -138,7 +138,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                         closeReader(reader);
                         if (!hasSnapshot) {
                             callBack.noNeedToRecover();
-                            return CompletableFuture.completedFuture(startReadCursorPosition);
+                            return CompletableFuture.completedFuture(null);
                         }
                         return CompletableFuture.completedFuture(startReadCursorPosition);
                     } catch (Exception ex) {
