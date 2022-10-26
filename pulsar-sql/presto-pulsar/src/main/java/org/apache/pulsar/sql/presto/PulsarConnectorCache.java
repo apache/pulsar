@@ -73,7 +73,7 @@ public class PulsarConnectorCache {
 
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getZookeeperUri(),
+        this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getMetadataUrl(),
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
@@ -110,8 +110,7 @@ public class PulsarConnectorCache {
     private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-            .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-            .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
+            .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getMetadataUrl()
                 .replace(",", ";") + "/ledgers")
             .setClientTcpNoDelay(false)
             .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
