@@ -47,7 +47,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String brokerServiceUrl = "http://localhost:8080";
     private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
-    private String metadataUrl = "localhost:2181";
+    private String metadataUrl = "zk:localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
