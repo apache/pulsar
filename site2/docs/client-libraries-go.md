@@ -217,7 +217,7 @@ if err != nil {
 defer client.Close()
 
 // The message chunking feature is OFF by default.
-// By default, producer chunks the large message based on max message size (maxMessageSize) configured at broker (eg: 5MB).
+// By default, a producer chunks the large message based on the max message size (`maxMessageSize`) configured at the broker side (for example, 5MB).
 // Client can also configure max chunked size using producer configuration ChunkMaxMessageSize.
 // Attention, to enable chunking, you need to disable batching (DisableBatching=true) concurrently.
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
