@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.mockito.MockedStatic;
@@ -41,10 +42,14 @@ public class LinuxInfoUtilsTest {
             linuxInfoUtils.when(() -> LinuxInfoUtils.getTotalCpuCount()).thenCallRealMethod();
             assertEquals(LinuxInfoUtils.getTotalCpuCount(), 15);
 
-            //set quota to -1
+            // set quota to -1.
             linuxInfoUtils.when(() -> LinuxInfoUtils.readLongFromFile(any())).thenReturn(-1L);
             linuxInfoUtils.when(() -> LinuxInfoUtils.getTotalCpuLimit(true)).thenCallRealMethod();
             assertEquals(LinuxInfoUtils.getTotalCpuLimit(true), 1500);
+
+            // invalid CGroup CPU settings test.
+            linuxInfoUtils.when(() -> LinuxInfoUtils.readTrimStringFromFile(any())).thenReturn("0-a,1-30");
+            assertThrows(NumberFormatException.class, () -> LinuxInfoUtils.getTotalCpuCount());
         }
     }
 }
