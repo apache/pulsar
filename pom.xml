@@ -291,6 +291,12 @@ flexible messaging model and an intuitive client API.</description>
     <dependencies>
 
       <dependency>
+        <groupId>org.jline</groupId>
+        <artifactId>jline</artifactId>
+        <version>${jline3.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
         <version>${asynchttpclient.version}</version>
