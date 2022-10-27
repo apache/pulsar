@@ -26,7 +26,9 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
@@ -73,5 +75,16 @@ public class ProducerStatsRecorderImplTest {
         recorder.incrementNumAcksReceived(latencyNs);
         recorder.cancelStatsTimeout();
         assertEquals(1000.0, recorder.getSendLatencyMillisMax(), 0.5);
+    }
+
+    @Test
+    public void testPartitionTopicAggegationStats() {
+        ProducerStatsRecorderImpl recorder1 = spy(new ProducerStatsRecorderImpl());
+        ProducerStatsRecorderImpl recorder2 = new ProducerStatsRecorderImpl();
+        when(recorder1.getSendMsgsRate()).thenReturn(1000.0);
+        when(recorder1.getSendBytesRate()).thenReturn(1000.0);
+        recorder2.updateCumulativeStats(recorder1);
+        assertTrue(recorder2.getSendBytesRate() > 0);
+        assertTrue(recorder2.getSendMsgsRate() > 0);
     }
 }
