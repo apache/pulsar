@@ -785,7 +785,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic or subscription or the message position does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription or the message position does not"
+                    + " exist") })
     public void peekNthMessage(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,

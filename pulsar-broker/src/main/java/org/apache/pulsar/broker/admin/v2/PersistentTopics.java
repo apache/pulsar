@@ -1851,7 +1851,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not"
+                    + " exist"),
             @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1933,7 +1934,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic, subscription or the message position does not"
+                    + " exist"),
             @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
