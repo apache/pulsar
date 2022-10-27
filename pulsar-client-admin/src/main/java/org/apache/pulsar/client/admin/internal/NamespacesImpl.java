@@ -1541,7 +1541,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setOffloadThresholdInSeconds(String namespace, long offloadThresholdInSeconds) throws PulsarAdminException {
+    public void setOffloadThresholdInSeconds(String namespace, long offloadThresholdInSeconds)
+            throws PulsarAdminException {
         sync(() -> setOffloadThresholdInSecondsAsync(namespace, offloadThresholdInSeconds));
     }
 

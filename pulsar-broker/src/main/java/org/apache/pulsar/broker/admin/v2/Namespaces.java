@@ -2089,6 +2089,50 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/offloadThresholdInSeconds")
+    @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
+            + " before the broker will start offloading to longterm storage",
+            notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public void getOffloadThresholdInSeconds(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> {
+                    if (policies.offload_policies == null) {
+                        asyncResponse.resume(policies.offload_threshold_in_seconds);
+                    } else {
+                        asyncResponse.resume(policies.offload_policies.getManagedLedgerOffloadThresholdInSeconds());
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get offload threshold on namespace {}", clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/offloadThresholdInSeconds")
+    @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
+            + " before the broker will start offloading to longterm storage",
+            notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
+    public void setOffloadThresholdInSeconds(@PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace,
+                                             long newThreshold) {
+        validateNamespaceName(tenant, namespace);
+        internalSetOffloadThresholdInSeconds(newThreshold);
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/offloadDeletionLagMs")
     @ApiOperation(value = "Number of milliseconds to wait before deleting a ledger segment which has been offloaded"
                           + " from the Pulsar cluster's local storage (i.e. BookKeeper)",
