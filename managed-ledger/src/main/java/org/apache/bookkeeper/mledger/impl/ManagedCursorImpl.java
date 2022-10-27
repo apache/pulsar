@@ -566,7 +566,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
                     recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
                 }
-                if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null
+                if (config.isDeletionAtBatchIndexLevelEnabled()
                     && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
                     recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
                 }
@@ -1227,7 +1227,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, isCompactionCursor()
                             ? getProperties() : Collections.emptyMap(), null, null);
                     individualDeletedMessages.clear();
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         batchDeletedIndexes.values().forEach(BitSetRecyclable::recycle);
                         batchDeletedIndexes.clear();
                         long[] resetWords = newPosition.ackSet;
@@ -1866,7 +1866,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         PositionImpl newPosition = (PositionImpl) position;
 
-        if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+        if (config.isDeletionAtBatchIndexLevelEnabled()) {
             if (newPosition.ackSet != null) {
                 AtomicReference<BitSetRecyclable> bitSetRecyclable = new AtomicReference<>();
                 BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(newPosition.ackSet);
@@ -2049,7 +2049,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 try {
                     individualDeletedMessages.removeAtMost(mdEntry.newPosition.getLedgerId(),
                             mdEntry.newPosition.getEntryId());
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.EARLIEST,
                                 false, PositionImpl.get(mdEntry.newPosition.getLedgerId(),
                                 mdEntry.newPosition.getEntryId()), true);
@@ -2178,7 +2178,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 if (individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())
                     || position.compareTo(markDeletePosition) <= 0) {
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
                             bitSetRecyclable.recycle();
@@ -2190,7 +2190,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     continue;
                 }
                 if (position.ackSet == null) {
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
                             bitSetRecyclable.recycle();
@@ -2207,7 +2207,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.debug("[{}] [{}] Individually deleted messages: {}", ledger.getName(), name,
                             individualDeletedMessages);
                     }
-                } else if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                } else if (config.isDeletionAtBatchIndexLevelEnabled()) {
                     BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(position.ackSet);
                     BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) -> givenBitSet);
                     if (givenBitSet != bitSet) {
@@ -2862,8 +2862,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
         lock.readLock().lock();
         try {
-            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null
-                    || batchDeletedIndexes.isEmpty()) {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
                 return Collections.emptyList();
             }
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
@@ -3314,7 +3313,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
-        if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+        if (config.isDeletionAtBatchIndexLevelEnabled()) {
             BitSetRecyclable bitSet = batchDeletedIndexes.get(position);
             return bitSet == null ? null : bitSet.toLongArray();
         } else {

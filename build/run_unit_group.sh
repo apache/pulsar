@@ -24,7 +24,7 @@ set -e
 set -o pipefail
 set -o errexit
 
-MVN_TEST_OPTIONS='mvn -Pcoverage -B -ntp -DskipSourceReleaseAssembly=true -DskipBuildDistribution=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true'
+MVN_TEST_OPTIONS='mvn -B -ntp -DskipSourceReleaseAssembly=true -DskipBuildDistribution=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true'
 
 function mvn_test() {
   (
@@ -33,7 +33,11 @@ function mvn_test() {
         clean_arg="clean"
         shift
     fi
-    TARGET=verify
+    if echo "${FUNCNAME[@]}" | grep "flaky"; then
+      TARGET="verify"
+    else
+      TARGET="verify -Pcoverage"
+    fi
     if [[ "$1" == "--install" ]]; then
       TARGET="install"
       shift
