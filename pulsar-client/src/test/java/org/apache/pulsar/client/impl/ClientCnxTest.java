@@ -121,6 +121,49 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testPendingLookupRequestSemaphoreServiceNotReady() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10_000);
+        conf.setKeepAliveIntervalSeconds(0);
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        cnx.channelActive(ctx);
+        cnx.state = ClientCnx.State.Ready;
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                Thread.sleep(1_000);
+                CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
+                        cnx.newLookup(null, 123);
+                countDownLatch.countDown();
+                future.get();
+            } catch (Exception e) {
+                completableFuture.complete(e);
+            }
+        }).start();
+        countDownLatch.await();
+        CommandError commandError = new CommandError();
+        commandError.setRequestId(123L);
+        commandError.setError(ServerError.ServiceNotReady);
+        commandError.setMessage("Service not ready");
+        cnx.handleError(commandError);
+        assertTrue(completableFuture.get().getCause() instanceof PulsarClientException.LookupException);
+        // wait for subsequent calls over
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
+        });
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
     public void testPendingWaitingLookupRequestSemaphore() throws Exception {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
