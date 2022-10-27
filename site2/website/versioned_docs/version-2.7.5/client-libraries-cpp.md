@@ -79,7 +79,7 @@ This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
 wget @pulsar:dist_rpm:client-debuginfo@
 ```
 
-This package contains debug symbols for `libpulsar.so`
+This package contains debug symbols for `libpulsar.so`.
 
 </TabItem>
 <TabItem value="client-devel">
