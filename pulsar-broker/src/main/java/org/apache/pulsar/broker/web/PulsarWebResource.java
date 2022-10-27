@@ -826,9 +826,6 @@ public abstract class PulsarWebResource {
             if (throwable instanceof WebApplicationException webApplicationException) {
                 throw webApplicationException;
             }
-            if (throwable instanceof RestException restException){
-                throw restException;
-            }
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
         }
