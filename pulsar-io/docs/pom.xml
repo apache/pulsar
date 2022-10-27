@@ -159,6 +159,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-http</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-kafka</artifactId>
       <version>${project.version}</version>
     </dependency>
