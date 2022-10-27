@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Contains all the data that is maintained locally on each broker.
  */
+@JsonIgnoreProperties(value = {"bundleStats"})
 @JsonDeserialize(as = LocalBrokerData.class)
 public class LocalBrokerData implements LoadManagerReport {
 

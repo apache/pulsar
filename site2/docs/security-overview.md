@@ -21,28 +21,41 @@ Encryption ensures that if an attacker gets access to your data, the attacker ca
 
 **What's next?**
 
-* To configure end-to-end encryption, see [End-to-end encryption](security-encryption.md) for more details.
-* To configure transport layer encryption, see [TLS encryption](security-tls-transport.md) for more details.
+- To configure end-to-end encryption, see [End-to-end encryption](security-encryption.md) for more details.
+- To configure transport layer encryption, see [TLS encryption](security-tls-transport.md) for more details.
 
 ## Authentication
 
-Authentication is the process of verifying the identity of clients. In Pulsar, the authentication provider is responsible for properly identifying clients and associating the clients with role tokens. If you only enable authentication, an authenticated role token can access all resources in the cluster. 
+Authentication is the process of verifying the identity of clients. In Pulsar, the authentication provider is responsible for properly identifying clients and associating them with role tokens. Note that if you only enable authentication, an authenticated role token can access all resources in the cluster. 
 
-Pulsar supports a pluggable authentication mechanism, and Pulsar clients use this mechanism to authenticate with brokers and proxies. 
+**How it works in Pulsar**
 
-Pulsar broker validates the authentication credentials when a connection is established. After the initial connection is authenticated, the "principal" token is stored for authorization though the connection is not re-authenticated. The broker periodically checks the expiration status of every `ServerCnx` object. By default, the `authenticationRefreshCheckSeconds` is set to 60s. When the authentication is expired, the broker re-authenticates the connection. If the re-authentication fails, the broker disconnects the client.
+Pulsar provides a pluggable authentication framework, and Pulsar brokers/proxies use this mechanism to authenticate clients.
 
-Pulsar broker supports learning whether a particular client supports authentication refreshing. If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process. If a client does not support authentication refreshing and the credential is expired, the broker disconnects the client.
+The way how each client passes its authentication data to brokers varies depending on the protocols it uses. Brokers validate the authentication credentials when a connection is established and check whether the authentication data is expired.
+- When using HTTP/HTTPS protocol for cluster management, each client passes the authentication data based on the HTTP/HTTPS request header, and brokers check the data upon request.
+- When using [Pulsar protocol](developing-binary-protocol.md) for productions/consumptions, each client passes the authentication data by sending the `CommandConnect` command when connecting to brokers. Brokers cache the data and periodically check whether the data has expired and learn whether the client supports authentication refreshing. By default, the `authenticationRefreshCheckSeconds` is set to 60s.
+  - If a client supports authentication refreshing and the credential is expired, brokers send the `CommandAuthChallenge` command to exchange the authentication data with the client. If the next check finds that the previous authentication exchange has not been returned, brokers disconnect the client.
+  - If a client does not support authentication refreshing and the credential is expired, brokers disconnect the client.
+
+:::note
+
+When you use proxies between clients and brokers, brokers only authenticate proxies (known as **self-authentication**) by default. To forward the authentication data from clients to brokers for client authentication (known as **original authentication**), you need to:
+1. Set `forwardAuthorizationCredentials` to `true` in the `conf/proxy.conf` file.
+2. Set `authenticateOriginalAuthData` to `true` in the `conf/broker.conf` file, which ensures that brokers recheck the client authentication.
+
+:::
 
 **What's next?**
 
-Pulsar supports the following authentication providers, and you can configure multiple authentication providers.
-- [TLS authentication](security-tls-authentication.md)
-- [Athenz authentication](security-athenz.md)
-- [Kerberos authentication](security-kerberos.md)
-- [JSON Web Token (JWT) authentication](security-jwt.md)
-- [OAuth 2.0 authentication](security-oauth2.md)
-- [HTTP basic authentication](security-basic-auth.md)
+- To configure built-in authentication plugins, read:
+  - [TLS authentication](security-tls-authentication.md)
+  - [Athenz authentication](security-athenz.md)
+  - [Kerberos authentication](security-kerberos.md)
+  - [JSON Web Token (JWT) authentication](security-jwt.md)
+  - [OAuth 2.0 authentication](security-oauth2.md)
+  - [HTTP basic authentication](security-basic-auth.md)
+- To customize an authentication plugin, read [extended authentication](security-extending).
 
 :::note
 
