@@ -9,8 +9,8 @@ Pulsar provides a way to use custom authentication and authorization mechanisms.
 ## Authentication
 
 You can use a custom authentication mechanism by providing the implementation in the form of two plugins.
-* Client authentication plugin
-* Proxy/Broker authentication plugin
+* Client authentication plugin `org.apache.pulsar.client.api.AuthenticationDataProvider` provides the authentication data for broker/proxy.
+* Broker/Proxy authentication plugin `org.apache.pulsar.broker.authentication.AuthenticationProvider` authenticates the authentication data from clients.
 
 ### Client authentication plugin
 
@@ -37,9 +37,9 @@ You can find the following examples for different client authentication plugins:
  * [OAuth 2.0](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth/oauth2/AuthenticationOAuth2.java)
  * [Basic auth](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth/AuthenticationBasic.java)
 
-### Proxy/Broker authentication plugin
+### Broker/Proxy authentication plugin
 
-On the proxy/broker side, you need to configure the corresponding plugin to validate the credentials that the client sends. The proxy and broker can support multiple authentication providers at the same time.
+On the broker/proxy side, you need to configure the corresponding plugin to validate the credentials that the client sends. The proxy and broker can support multiple authentication providers at the same time.
 
 In `conf/broker.conf`, you can choose to specify a list of valid providers:
 
