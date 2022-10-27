@@ -167,11 +167,7 @@ class OpReadEntry implements ReadEntriesCallback {
     public int getNumberOfEntriesToRead() {
         return count - entries.size();
     }
-
-    public boolean isSlowestReader() {
-        return cursor.ledger.getSlowestConsumer() == cursor;
-    }
-
+    
     private final Handle<OpReadEntry> recyclerHandle;
 
     private OpReadEntry(Handle<OpReadEntry> recyclerHandle) {
