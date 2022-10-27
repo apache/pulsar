@@ -765,7 +765,8 @@ public class ClientCnx extends PulsarHandler {
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
             future.whenComplete((lookupDataResult, throwable) -> {
-                if (throwable instanceof ConnectException) {
+                if (throwable instanceof ConnectException
+                        || throwable instanceof PulsarClientException.LookupException) {
                     pendingLookupRequestSemaphore.release();
                 }
             });
