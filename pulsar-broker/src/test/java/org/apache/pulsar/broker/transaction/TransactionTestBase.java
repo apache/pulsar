@@ -45,6 +45,7 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -186,6 +187,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
 
             setupBrokerMocks(pulsar);
             pulsar.start();
+            MockedPulsarServiceBaseTest.insteadOfClientMarkerSystemTopicService(pulsar);
             pulsarServiceList.add(pulsar);
         }
     }
@@ -336,22 +338,14 @@ public abstract class TransactionTestBase extends TestRetrySupport {
      */
     protected void deleteNamespaceGraceFully(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
+        MockedPulsarServiceBaseTest.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
      */
     protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
-    }
-
-    /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
-                                                           Collection<PulsarService> pulsars) throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
+        MockedPulsarServiceBaseTest.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
     }
 }

@@ -183,7 +183,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceGraceFullyByMultiPulsars(namespace, true, admin, pulsar,
+                deleteNamespaceGraceFully(namespace, true, admin, pulsar,
                         mockPulsarSetup.getPulsar());
             }
         }

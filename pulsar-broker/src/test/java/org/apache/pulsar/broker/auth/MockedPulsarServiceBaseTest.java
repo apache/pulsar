@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -42,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -64,6 +66,9 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
+import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
+import org.apache.pulsar.broker.systopic.ClientMarkerNamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -356,6 +361,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         setupBrokerMocks(pulsar);
         beforePulsarStartMocks(pulsar);
         pulsar.start();
+        insteadOfClientMarkerSystemTopicService(pulsar);
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         return pulsar;
@@ -685,11 +691,91 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
-                                                           PulsarService...pulsars) throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
+    public static void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
+            throws Exception {
+        deleteNamespaceGraceFully(ns, force, admin, Arrays.asList(pulsars));
+    }
+
+    public static void insteadOfClientMarkerSystemTopicService(PulsarService pulsar) throws Exception {
+        TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
+        if (!(topicPoliciesService instanceof SystemTopicBasedTopicPoliciesService)) {
+            return;
+        }
+        SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService =
+                (SystemTopicBasedTopicPoliciesService)topicPoliciesService;
+        Field field_namespaceEventsSystemTopicFactory =
+                SystemTopicBasedTopicPoliciesService.class.getDeclaredField("namespaceEventsSystemTopicFactory");
+        field_namespaceEventsSystemTopicFactory.setAccessible(true);
+        field_namespaceEventsSystemTopicFactory.set(systemTopicBasedTopicPoliciesService,
+                new ClientMarkerNamespaceEventsSystemTopicFactory(pulsar.getClient()));
+    }
+
+    /**
+     * Wait until system topic "__change_event" and subscription "__compaction" are created, and then delete the namespace.
+     */
+    public static void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin,
+                                                 Collection<PulsarService> pulsars) throws Exception {
+        // namespace v1 should not wait system topic create.
+        if (ns.split("/").length > 2){
+            admin.namespaces().deleteNamespace(ns, force);
+            return;
+        }
+
+        // If disabled system-topic, should not wait system topic create.
+        boolean allBrokerDisabledSystemTopic = true;
+        for (PulsarService pulsar : pulsars) {
+            if (!pulsar.getConfiguration().isSystemTopicEnabled()) {
+                continue;
+            }
+            TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
+            if (!(topicPoliciesService instanceof SystemTopicBasedTopicPoliciesService)) {
+                continue;
+            }
+            allBrokerDisabledSystemTopic = false;
+        }
+        if (allBrokerDisabledSystemTopic){
+            admin.namespaces().deleteNamespace(ns, force);
+            return;
+        }
+
+        // Stop trigger "onNamespaceBundleOwned".
+        List<CompletableFuture<Void>> runningEventListeners = new ArrayList<>();
+        for (PulsarService pulsar : pulsars) {
+            // Prevents new events from triggering system topic creation.
+            CanPausedNamespaceService canPausedNamespaceService = (CanPausedNamespaceService) pulsar.getNamespaceService();
+            runningEventListeners.addAll(canPausedNamespaceService.pause());
+        }
+        // Wait all client-create tasks.
+        ClientMarkerNamespaceEventsSystemTopicFactory.waitAllClientCreateTaskDone(pulsars, runningEventListeners);
+
+        // Do delete.
+        int retryTimes = 3;
+        while (true) {
+            try {
+                admin.namespaces().deleteNamespace(ns, force);
+                break;
+            } catch (PulsarAdminException ex) {
+                // Do retry only if topic fenced.
+                if (ex.getStatusCode() == 500 && ex.getMessage().contains("TopicFencedException")){
+                    if (--retryTimes > 0){
+                        continue;
+                    } else {
+                        throw ex;
+                    }
+                }
+                throw ex;
+            }
+        }
+
+        // Resume trigger "onNamespaceBundleOwned".
+        for (PulsarService pulsarService : pulsars) {
+            // Prevents new events from triggering system topic creation.
+            CanPausedNamespaceService canPausedNamespaceService =
+                    (CanPausedNamespaceService) pulsarService.getNamespaceService();
+            canPausedNamespaceService.resume();
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
