@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.namespace;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
@@ -207,7 +208,7 @@ public class OwnershipCache {
      *
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
-        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.remove(bundle);
         if (lock == null) {
             // We don't own the specified bundle anymore
             return CompletableFuture.completedFuture(null);
@@ -327,6 +328,12 @@ public class OwnershipCache {
     public void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle) {
         this.ownedBundlesCache.synchronous().invalidate(namespaceBundle);
     }
+
+    @VisibleForTesting
+    public Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> getLocallyAcquiredLocks() {
+        return locallyAcquiredLocks;
+    }
+
 
     public synchronized boolean refreshSelfOwnerInfo() {
         this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
