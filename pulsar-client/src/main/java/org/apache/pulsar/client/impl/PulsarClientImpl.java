@@ -26,7 +26,6 @@ import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;
@@ -1044,7 +1043,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private static ThreadFactory getThreadFactory(String poolName) {
-        return new DefaultThreadFactory(poolName, Thread.currentThread().isDaemon());
+        return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
     void cleanupProducer(ProducerBase<?> producer) {

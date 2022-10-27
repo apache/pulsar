@@ -40,18 +40,21 @@ public class ExecutorProvider {
     private final String poolName;
     private volatile boolean isShutdown;
 
-    protected static class ExtendedThreadFactory extends DefaultThreadFactory {
-
+    public static class ExtendedThreadFactory extends DefaultThreadFactory {
         @Getter
         private volatile Thread thread;
+        public ExtendedThreadFactory(String poolName) {
+            super(poolName, false);
+        }
         public ExtendedThreadFactory(String poolName, boolean daemon) {
             super(poolName, daemon);
         }
 
         @Override
         public Thread newThread(Runnable r) {
-            Thread thread = super.newThread(r);
-            this.thread = thread;
+            thread = super.newThread(r);
+            thread.setUncaughtExceptionHandler((t, e) ->
+                    log.error("Thread {} got uncaught Exception", t.getName(), e));
             return thread;
         }
     }
