@@ -22,6 +22,7 @@ import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Lists;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.List;
 import java.util.Map;
@@ -212,7 +213,7 @@ public class OwnershipCache {
      *
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
-        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.remove(bundle);
         if (lock == null) {
             // We don't own the specified bundle anymore
             return CompletableFuture.completedFuture(null);
@@ -323,6 +324,11 @@ public class OwnershipCache {
 
     public void invalidateLocalOwnerCache() {
         this.ownedBundlesCache.synchronous().invalidateAll();
+    }
+
+    @VisibleForTesting
+    public Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> getLocallyAcquiredLocks() {
+        return locallyAcquiredLocks;
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {
