@@ -315,13 +315,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.config = config;
         this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
+                .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
         this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
         this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
-                new DefaultThreadFactory("pulsar"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar"));
         this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
-                new DefaultThreadFactory("zk-cache-callback"));
+                new ExecutorProvider.ExtendedThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
@@ -615,7 +615,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory(getClass().getSimpleName() + "-shutdown"));
+                new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
         FutureUtil.addTimeoutHandling(future,
                 Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
@@ -1425,7 +1425,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     protected synchronized ScheduledExecutorService getCompactorExecutor() {
         if (this.compactorExecutor == null) {
-            compactorExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("compaction"));
+            compactorExecutor = Executors.newSingleThreadScheduledExecutor(
+                    new ExecutorProvider.ExtendedThreadFactory("compaction"));
         }
         return this.compactorExecutor;
     }

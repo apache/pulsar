@@ -643,6 +643,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
     )
     private boolean forceDeleteTenantAllowed = false;

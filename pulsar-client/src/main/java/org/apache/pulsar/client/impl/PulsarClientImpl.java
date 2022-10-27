@@ -26,7 +26,6 @@ import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;
@@ -756,7 +755,7 @@ public class PulsarClientImpl implements PulsarClient {
         // would happen
         CompletableFuture<Void> combinedFuture = FutureUtil.waitForAll(futures);
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
         FutureUtil.addTimeoutHandling(combinedFuture, Duration.ofSeconds(CLOSE_TIMEOUT_SECONDS),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Closing producers and consumers timed out.",
                         PulsarClientImpl.class, "closeAsync"));
@@ -1087,7 +1086,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private static ThreadFactory getThreadFactory(String poolName) {
-        return new DefaultThreadFactory(poolName, Thread.currentThread().isDaemon());
+        return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
     void cleanupProducer(ProducerBase<?> producer) {

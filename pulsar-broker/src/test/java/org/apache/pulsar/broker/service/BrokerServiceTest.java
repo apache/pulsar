@@ -1508,4 +1508,16 @@ public class BrokerServiceTest extends BrokerTestBase {
             assertTrue(conf.isForceDeleteNamespaceAllowed());
         });
     }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteTenantAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteTenantAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteTenantAllowed());
+        });
+    }
 }
