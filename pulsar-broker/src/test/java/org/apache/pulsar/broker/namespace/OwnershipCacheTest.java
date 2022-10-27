@@ -367,6 +367,7 @@ public class OwnershipCacheTest {
         Awaitility.await().untilAsserted(() -> {
             assertTrue(cache.getOwnedBundles().isEmpty());
             assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+            assertNull(cache.getLocallyAcquiredLocks().get(bundle));
         });
     }
 
