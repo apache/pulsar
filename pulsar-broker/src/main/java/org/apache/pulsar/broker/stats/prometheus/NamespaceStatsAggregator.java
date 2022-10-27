@@ -22,7 +22,6 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +45,14 @@ import org.apache.pulsar.compaction.CompactorMXBean;
 @Slf4j
 public class NamespaceStatsAggregator {
 
+    private static final FastThreadLocal<AggregatedBrokerStats> localBrokerStats =
+            new FastThreadLocal<>() {
+                @Override
+                protected AggregatedBrokerStats initialValue() {
+                    return new AggregatedBrokerStats();
+                }
+            };
+
     private static final FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats =
             new FastThreadLocal<>() {
                 @Override
@@ -65,26 +72,13 @@ public class NamespaceStatsAggregator {
                                 boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
                                 PrometheusMetricStreams stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
+        AggregatedBrokerStats brokerStats = localBrokerStats.get();
+        brokerStats.reset();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats topicStats = localTopicStats.get();
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         Map<String, Long> localNamespaceTopicCount = new HashMap<>();
-
-        LongAdder brokerTopicsCount = new LongAdder();
-        LongAdder brokerSubscriptionsCount = new LongAdder();
-        LongAdder brokerProducersCount = new LongAdder();
-        LongAdder brokerConsumersCount = new LongAdder();
-        DoubleAdder brokerRateIn = new DoubleAdder();
-        DoubleAdder brokerRateOut = new DoubleAdder();
-        DoubleAdder brokerThroughputIn = new DoubleAdder();
-        DoubleAdder brokerThroughputOut = new DoubleAdder();
-        DoubleAdder brokerStorageSize = new DoubleAdder();
-        DoubleAdder brokerStorageLogicalSize = new DoubleAdder();
-        DoubleAdder brokerStorageWriteRate = new DoubleAdder();
-        DoubleAdder brokerStorageReadRate = new DoubleAdder();
-        DoubleAdder brokerMsgBacklog = new DoubleAdder();
-
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
@@ -97,22 +91,10 @@ public class NamespaceStatsAggregator {
                 );
 
                 //Record broker level metrics
-                brokerSubscriptionsCount.add(topicStats.subscriptionsCount);
-                brokerProducersCount.add(topicStats.producersCount);
-                brokerConsumersCount.add(topicStats.consumersCount);
-                brokerRateIn.add(topicStats.rateIn);
-                brokerRateOut.add(topicStats.rateOut);
-                brokerThroughputIn.add(topicStats.throughputIn);
-                brokerThroughputOut.add(topicStats.throughputOut);
-                brokerStorageSize.add(topicStats.managedLedgerStats.storageSize);
-                brokerStorageLogicalSize.add(topicStats.managedLedgerStats.storageLogicalSize);
-                brokerStorageWriteRate.add(topicStats.managedLedgerStats.storageWriteRate);
-                brokerStorageReadRate.add(topicStats.managedLedgerStats.storageReadRate);
-                brokerMsgBacklog.add(topicStats.msgBacklog);
+                brokerStats.updateStats(topicStats);
 
                 if (includeTopicMetrics) {
                     topicsCount.add(1);
-                    brokerTopicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
                             splitTopicAndPartitionIndexLabel);
                 } else {
@@ -133,10 +115,8 @@ public class NamespaceStatsAggregator {
             printTopicsCountStats(stream, localNamespaceTopicCount, cluster);
         }
 
-        printBrokerStats(stream, cluster, brokerTopicsCount, brokerSubscriptionsCount, brokerProducersCount,
-                brokerConsumersCount, brokerRateIn, brokerRateOut, brokerThroughputIn, brokerThroughputOut,
-                brokerStorageSize, brokerStorageLogicalSize, brokerStorageWriteRate, brokerStorageReadRate,
-                brokerMsgBacklog);
+        //Print broker level metrics to prometheus
+        printBrokerStats(stream, cluster, brokerStats);
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
@@ -335,35 +315,22 @@ public class NamespaceStatsAggregator {
                 });
     }
 
-    private static void printBrokerStats(PrometheusMetricStreams stream, String cluster,
-                                         LongAdder brokerTopicsCount,
-                                         LongAdder brokerSubscriptionsCount,
-                                         LongAdder brokerProducersCount,
-                                         LongAdder brokerConsumersCount,
-                                         DoubleAdder brokerRateIn,
-                                         DoubleAdder brokerRateOut,
-                                         DoubleAdder brokerThroughputIn,
-                                         DoubleAdder brokerThroughputOut,
-                                         DoubleAdder brokerStorageSize,
-                                         DoubleAdder brokerStorageLogicalSize,
-                                         DoubleAdder brokerStorageWriteRate,
-                                         DoubleAdder brokerStorageReadRate,
-                                         DoubleAdder brokerMsgBacklog) {
+    private static void printBrokerStats(PrometheusMetricStreams stream, String cluster, AggregatedBrokerStats brokerStats) {
         // Print metrics values. This is necessary to have the available brokers being
         // reported in the brokers dashboard even if they don't have any topic or traffic
-        writeMetric(stream, "pulsar_broker_topics_count", brokerTopicsCount.longValue(), cluster);
-        writeMetric(stream, "pulsar_broker_subscriptions_count", brokerSubscriptionsCount.longValue(), cluster);
-        writeMetric(stream, "pulsar_broker_producers_count", brokerProducersCount.longValue(), cluster);
-        writeMetric(stream, "pulsar_broker_consumers_count", brokerConsumersCount.longValue(), cluster);
-        writeMetric(stream, "pulsar_broker_rate_in", brokerRateIn.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_rate_out", brokerRateOut.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_throughput_in", brokerThroughputIn.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_throughput_out", brokerThroughputOut.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_storage_size", brokerStorageSize.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_storage_logical_size", brokerStorageLogicalSize.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_storage_write_rate", brokerStorageWriteRate.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_storage_read_rate", brokerStorageReadRate.doubleValue(), cluster);
-        writeMetric(stream, "pulsar_broker_msg_backlog", brokerMsgBacklog.doubleValue(), cluster);
+        writeMetric(stream, "pulsar_broker_topics_count", brokerStats.topicsCount, cluster);
+        writeMetric(stream, "pulsar_broker_subscriptions_count", brokerStats.subscriptionsCount, cluster);
+        writeMetric(stream, "pulsar_broker_producers_count", brokerStats.producersCount, cluster);
+        writeMetric(stream, "pulsar_broker_consumers_count", brokerStats.consumersCount, cluster);
+        writeMetric(stream, "pulsar_broker_rate_in", brokerStats.rateIn, cluster);
+        writeMetric(stream, "pulsar_broker_rate_out", brokerStats.rateOut, cluster);
+        writeMetric(stream, "pulsar_broker_throughput_in", brokerStats.throughputIn, cluster);
+        writeMetric(stream, "pulsar_broker_throughput_out", brokerStats.throughputOut, cluster);
+        writeMetric(stream, "pulsar_broker_storage_size", brokerStats.storageSize, cluster);
+        writeMetric(stream, "pulsar_broker_storage_logical_size", brokerStats.storageLogicalSize, cluster);
+        writeMetric(stream, "pulsar_broker_storage_write_rate", brokerStats.storageWriteRate, cluster);
+        writeMetric(stream, "pulsar_broker_storage_read_rate", brokerStats.storageReadRate, cluster);
+        writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,
