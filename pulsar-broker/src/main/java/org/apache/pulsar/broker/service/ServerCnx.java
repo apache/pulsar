@@ -1236,7 +1236,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
         final String initialSubscriptionName =
                 cmdProducer.hasInitialSubscriptionName() ? cmdProducer.getInitialSubscriptionName() : null;
-        final boolean supportsPartialProducer = supportsPartialProducer();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1392,7 +1391,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                                 buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                    producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
+                                    producerAccessMode, topicEpoch, producerFuture);
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
@@ -1464,12 +1463,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
                              boolean userProvidedProducerName, TopicName topicName,
                              ProducerAccessMode producerAccessMode,
-                             Optional<Long> topicEpoch, boolean supportsPartialProducer,
+                             Optional<Long> topicEpoch,
                              CompletableFuture<Producer> producerFuture){
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer);
+                userProvidedProducerName, producerAccessMode, topicEpoch);
 
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
@@ -3014,10 +3013,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     boolean supportBrokerMetadata() {
         return features != null && features.isSupportsBrokerEntryMetadata();
-    }
-
-    boolean supportsPartialProducer() {
-        return features != null && features.isSupportsPartialProducer();
     }
 
     @Override

@@ -54,7 +54,7 @@ public class PublisherStatsTest {
         assertNull(stats.getAddress());
         assertNull(stats.getClientVersion());
         assertNull(stats.getConnectedSince());
-        assertNull(stats.getProducerName());
+        assertEquals(stats.getProducerName(), "null");
         
         stats.setAddress("address");
         assertEquals(stats.getAddress(), "address");
@@ -95,7 +95,7 @@ public class PublisherStatsTest {
         assertEquals(stats.getClientVersion(), "version2");
         
         stats.setProducerName(null);
-        assertNull(stats.getProducerName());
+        assertEquals(stats.getProducerName(), "null");
 
         assertNull(stats.getAddress());
         

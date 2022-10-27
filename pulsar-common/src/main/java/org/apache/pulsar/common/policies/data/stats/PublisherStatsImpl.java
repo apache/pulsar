@@ -49,8 +49,9 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Id of this publisher. */
     public long producerId;
 
-    /** Whether partial producer is supported at client. */
-    public boolean supportsPartialProducer;
+    /** Whether partial producer is supported at client. supportsPartialProducer is true always. */
+    @Deprecated
+    public boolean supportsPartialProducer = true;
 
     /** Producer name. */
     @JsonIgnore
@@ -99,7 +100,7 @@ public class PublisherStatsImpl implements PublisherStats {
     }
 
     public String getProducerName() {
-        return producerNameOffset == -1 ? null
+        return producerNameOffset == -1 ? "null"
                 : stringBuffer.substring(producerNameOffset, producerNameOffset + producerNameLength);
     }
 

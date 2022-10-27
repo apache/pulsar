@@ -187,7 +187,6 @@ public class Commands {
     private static void setFeatureFlags(FeatureFlags flags) {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
-        flags.setSupportsPartialProducer(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,

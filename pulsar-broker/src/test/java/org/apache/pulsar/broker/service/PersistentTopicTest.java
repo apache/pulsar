@@ -438,7 +438,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 1. simple add producer
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, false,
-                ProducerAccessMode.Shared, Optional.empty(), true);
+                ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer, new CompletableFuture<>());
         assertEquals(topic.getProducers().size(), 1);
 
@@ -455,7 +455,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic failTopic = new PersistentTopic(failTopicName, ledgerMock, brokerService);
         Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, false,
-                ProducerAccessMode.Shared, Optional.empty(), true);
+                ProducerAccessMode.Shared, Optional.empty());
         try {
             topic.addProducer(failProducer, new CompletableFuture<>());
             fail("should have failed");
@@ -466,7 +466,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 4. Try to remove with unequal producer
         Producer producerCopy = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, false,
-                ProducerAccessMode.Shared, Optional.empty(), true);
+                ProducerAccessMode.Shared, Optional.empty());
         topic.removeProducer(producerCopy);
         // Expect producer to be in map
         assertEquals(topic.getProducers().size(), 1);
@@ -485,9 +485,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         String role = "appid1";
         Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, true, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 0, true, ProducerAccessMode.Shared, Optional.empty());
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, true, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 0, true, ProducerAccessMode.Shared, Optional.empty());
         try {
             topic.addProducer(producer1, new CompletableFuture<>()).join();
             topic.addProducer(producer2, new CompletableFuture<>()).join();
@@ -500,7 +500,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(topic.getProducers().size(), 1);
 
         Producer producer3 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 1, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 1, false, ProducerAccessMode.Shared, Optional.empty());
 
         try {
             topic.addProducer(producer3, new CompletableFuture<>()).join();
@@ -516,7 +516,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(topic.getProducers().size(), 0);
 
         Producer producer4 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 2, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 2, false, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer3, new CompletableFuture<>());
         topic.addProducer(producer4, new CompletableFuture<>());
@@ -529,13 +529,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(topic.getProducers().size(), 0);
 
         Producer producer5 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 1, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 1, false, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer5, new CompletableFuture<>());
         Assert.assertEquals(topic.getProducers().size(), 1);
 
         Producer producer6 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 2, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 2, false, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer6, new CompletableFuture<>());
         Assert.assertEquals(topic.getProducers().size(), 1);
@@ -543,7 +543,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
 
         Producer producer7 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 3, true, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 3, true, ProducerAccessMode.Shared, Optional.empty());
 
         topic.addProducer(producer7, new CompletableFuture<>());
         Assert.assertEquals(topic.getProducers().size(), 1);
@@ -556,20 +556,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
-                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer, new CompletableFuture<>());
         assertEquals(topic.getProducers().size(), 1);
 
         // 2. add producer2
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role,
-                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer2, new CompletableFuture<>());
         assertEquals(topic.getProducers().size(), 2);
 
         // 3. add producer3 but reached maxProducersPerTopic
         try {
             Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role,
-                    false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                    false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
             topic.addProducer(producer3, new CompletableFuture<>()).join();
             fail("should have failed");
         } catch (Exception e) {
@@ -619,7 +619,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
 
         return new Producer(topic, cnx, producerId, producerNameBase + producerId, role, false, null,
-                SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
     }
 
     @Test
@@ -1292,7 +1292,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 3. delete topic with producer
         topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
         topic.addProducer(producer, new CompletableFuture<>()).join();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -1466,7 +1466,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             String role = "appid1";
             Thread.sleep(10); /* delay to ensure that the delete gets executed first */
             Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                    role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
+                    role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty());
             topic.addProducer(producer, new CompletableFuture<>()).join();
             fail("Should have failed");
         } catch (Exception e) {
@@ -2253,7 +2253,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         String role = "appid1";
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, false,
-                ProducerAccessMode.Shared, Optional.empty(), true);
+                ProducerAccessMode.Shared, Optional.empty());
         assertFalse(producer.isDisconnecting());
         // Disconnect the producer multiple times.
         producer.disconnect();

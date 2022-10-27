@@ -18,18 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import static java.util.Comparator.naturalOrder;
-import static java.util.Comparator.nullsLast;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
@@ -105,14 +100,10 @@ public class TopicStatsImpl implements TopicStats {
     public long abortedTxnCount;
     public long committedTxnCount;
 
-    /** List of connected publishers on this topic w/ their stats. */
+    /** Map of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    private List<PublisherStatsImpl> publishers;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private Map<String, PublisherStatsImpl> publishersMap;
+    private Map<String, PublisherStatsImpl> publishers;
 
     public int waitingPublishers;
 
@@ -145,26 +136,16 @@ public class TopicStatsImpl implements TopicStats {
     public String ownerBroker;
 
     public List<? extends PublisherStats> getPublishers() {
-        return Stream.concat(publishers.stream().sorted(
-                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
-                        publishersMap.values().stream().sorted(
-                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))))
-                .collect(Collectors.toList());
+        return publishers.values().stream().collect(Collectors.toList());
     }
 
     public void setPublishers(List<? extends PublisherStats> statsList) {
         this.publishers.clear();
-        this.publishersMap.clear();
         statsList.forEach(s -> addPublisher((PublisherStatsImpl) s));
     }
 
-    public void addPublisher(PublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
-            publishersMap.put(stats.getProducerName(), stats);
-        } else {
-            stats.setSupportsPartialProducer(false); // setter method with side effect
-            publishers.add(stats);
-        }
+    public void addPublisher(PublisherStats stats) {
+        publishers.put(stats.getProducerName(), (PublisherStatsImpl) stats);
     }
 
     public Map<String, ? extends SubscriptionStats> getSubscriptions() {
@@ -176,8 +157,7 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     public TopicStatsImpl() {
-        this.publishers = new ArrayList<>();
-        this.publishersMap = new ConcurrentHashMap<>();
+        this.publishers = new ConcurrentHashMap<>();
         this.subscriptions = new HashMap<>();
         this.replication = new TreeMap<>();
         this.compaction = new CompactionStatsImpl();
@@ -197,7 +177,6 @@ public class TopicStatsImpl implements TopicStats {
         this.bytesOutCounter = 0;
         this.msgOutCounter = 0;
         this.publishers.clear();
-        this.publishersMap.clear();
         this.subscriptions.clear();
         this.waitingPublishers = 0;
         this.replication.clear();
@@ -243,59 +222,27 @@ public class TopicStatsImpl implements TopicStats {
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;
 
-        stats.getPublishers().forEach(s -> {
-           if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
-               this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
-                   final PublisherStatsImpl newStats = new PublisherStatsImpl();
-                   newStats.setSupportsPartialProducer(true);
-                   newStats.setProducerName(s.getProducerName());
-                   return newStats;
-               }).add((PublisherStatsImpl) s);
-           } else {
-               if (this.publishers.size() != stats.publishers.size()) {
-                   for (int i = 0; i < stats.publishers.size(); i++) {
-                       PublisherStatsImpl newStats = new PublisherStatsImpl();
-                       newStats.setSupportsPartialProducer(false);
-                       this.publishers.add(newStats.add(stats.publishers.get(i)));
-                   }
-               } else {
-                   for (int i = 0; i < stats.publishers.size(); i++) {
-                       this.publishers.get(i).add(stats.publishers.get(i));
-                   }
-               }
-           }
-        });
+        // Aggregate the input publish stats to this.nonPersistentPublishers grouped by producer name
+        stats.publishers.values().forEach(pubStat ->
+                this.publishers.computeIfAbsent(pubStat.getProducerName(), key -> {
+                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
+                    newStats.setProducerName(pubStat.getProducerName());
+                    return newStats;
+                }).add(pubStat)
+        );
 
-        if (this.subscriptions.size() != stats.subscriptions.size()) {
-            for (String subscription : stats.subscriptions.keySet()) {
-                SubscriptionStatsImpl subscriptionStats = new SubscriptionStatsImpl();
-                this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
-            }
-        } else {
-            for (String subscription : stats.subscriptions.keySet()) {
-                if (this.subscriptions.get(subscription) != null) {
-                    this.subscriptions.get(subscription).add(stats.subscriptions.get(subscription));
-                } else {
-                    SubscriptionStatsImpl subscriptionStats = new SubscriptionStatsImpl();
-                    this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
-                }
-            }
-        }
-        if (this.replication.size() != stats.replication.size()) {
-            for (String repl : stats.replication.keySet()) {
-                ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
-                this.replication.put(repl, replStats.add(stats.replication.get(repl)));
-            }
-        } else {
-            for (String repl : stats.replication.keySet()) {
-                if (this.replication.get(repl) != null) {
-                    this.replication.get(repl).add(stats.replication.get(repl));
-                } else {
-                    ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
-                    this.replication.put(repl, replStats.add(stats.replication.get(repl)));
-                }
-            }
-        }
+        // Aggregate the input subscription stats to this.nonPersistentSubscriptions grouped by subscription name
+        stats.subscriptions.entrySet().forEach(subscription ->
+                this.subscriptions.computeIfAbsent(subscription.getKey(), key -> new SubscriptionStatsImpl())
+                        .add(subscription.getValue())
+        );
+
+        // Aggregate the input replicator stats to this.nonPersistentReplicators grouped by replicator name
+        stats.replication.entrySet().forEach(replicator ->
+                this.replication.computeIfAbsent(replicator.getKey(), key -> new ReplicatorStatsImpl())
+                        .add(replicator.getValue())
+        );
+
         return this;
     }
 }

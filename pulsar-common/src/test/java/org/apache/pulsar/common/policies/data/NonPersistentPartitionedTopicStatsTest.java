@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 
 public class NonPersistentPartitionedTopicStatsTest {
 
@@ -62,37 +64,73 @@ public class NonPersistentPartitionedTopicStatsTest {
     public void testPartitionedTopicStatsByNullProducerName() {
         final NonPersistentTopicStatsImpl topicStats1 = new NonPersistentTopicStatsImpl();
         final NonPersistentPublisherStatsImpl publisherStats1 = new NonPersistentPublisherStatsImpl();
-        publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName(null);
         final NonPersistentPublisherStatsImpl publisherStats2 = new NonPersistentPublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(false);
         publisherStats2.setProducerName(null);
         topicStats1.addPublisher(publisherStats1);
         topicStats1.addPublisher(publisherStats2);
 
-        assertEquals(topicStats1.getPublishers().size(), 2);
-        assertFalse(topicStats1.getPublishers().get(0).isSupportsPartialProducer());
-        assertFalse(topicStats1.getPublishers().get(1).isSupportsPartialProducer());
+        assertEquals(topicStats1.getPublishers().size(), 1);
 
         final NonPersistentTopicStatsImpl topicStats2 = new NonPersistentTopicStatsImpl();
         final NonPersistentPublisherStatsImpl publisherStats3 = new NonPersistentPublisherStatsImpl();
-        publisherStats3.setSupportsPartialProducer(true);
         publisherStats3.setProducerName(null);
         final NonPersistentPublisherStatsImpl publisherStats4 = new NonPersistentPublisherStatsImpl();
-        publisherStats4.setSupportsPartialProducer(true);
         publisherStats4.setProducerName(null);
         topicStats2.addPublisher(publisherStats3);
         topicStats2.addPublisher(publisherStats4);
 
-        assertEquals(topicStats2.getPublishers().size(), 2);
-        // when the producerName is null, fall back to false
-        assertFalse(topicStats2.getPublishers().get(0).isSupportsPartialProducer());
-        assertFalse(topicStats2.getPublishers().get(1).isSupportsPartialProducer());
+        assertEquals(topicStats2.getPublishers().size(), 1);
 
         final NonPersistentPartitionedTopicStatsImpl target = new NonPersistentPartitionedTopicStatsImpl();
         target.add(topicStats1);
         target.add(topicStats2);
 
-        assertEquals(target.getPublishers().size(), 2);
+        assertEquals(target.getPublishers().size(), 1);
     }
+
+    @Test
+    public void testNonPersistentTopicStatsByDifferentPublishers() {
+        NonPersistentTopicStatsImpl topicStats = new NonPersistentTopicStatsImpl();
+        NonPersistentTopicStatsImpl s1 = new NonPersistentTopicStatsImpl();
+        NonPersistentTopicStatsImpl s2 = new NonPersistentTopicStatsImpl();
+        NonPersistentPublisherStatsImpl p1 = new NonPersistentPublisherStatsImpl();
+        NonPersistentPublisherStatsImpl p2 = new NonPersistentPublisherStatsImpl();
+        NonPersistentPublisherStatsImpl p3 = new NonPersistentPublisherStatsImpl();
+        p1.setProducerName("p1");
+        p1.setMsgRateIn(1);
+        p2.setProducerName("p2");
+        p2.setMsgRateIn(2);
+        p3.setMsgRateIn(3);
+        s1.addPublisher(p1);
+        s1.addPublisher(p2);
+        s1.addPublisher(p3);
+        s2.addPublisher(p1);
+        s2.addPublisher(p2);
+        topicStats.add(s1);
+        topicStats.add(s2);
+
+        assertEquals(topicStats.getPublishers().size(), 3);
+        assertEquals(topicStats.getPublishers().get(0).getMsgRateIn(), 2);
+        assertEquals(topicStats.getPublishers().get(1).getMsgRateIn(), 4);
+        assertEquals(topicStats.getPublishers().get(2).getMsgRateIn(), 3);
+    }
+
+    @Test
+    public void jsonWriteAndReadTest() throws JsonProcessingException {
+        ObjectMapper mapper = ObjectMapperFactory.create();
+
+        final NonPersistentPublisherStatsImpl publisherStats1 = new NonPersistentPublisherStatsImpl();
+        publisherStats1.setProducerName("p1");
+        final NonPersistentTopicStatsImpl src = new NonPersistentTopicStatsImpl();
+        src.msgDropRate = 1.0;
+        src.addPublisher(publisherStats1);
+
+        String json = mapper.writeValueAsString(src);
+        NonPersistentTopicStatsImpl dst =
+                (NonPersistentTopicStatsImpl) mapper.readValue(json, NonPersistentTopicStats.class);
+        assertEquals(dst.getPublishers().get(0).getProducerName(), "p1");
+        assertEquals(dst.msgDropRate, 1.0);
+    }
+
 }

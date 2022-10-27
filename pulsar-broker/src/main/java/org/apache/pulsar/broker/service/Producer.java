@@ -100,8 +100,7 @@ public class Producer {
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName,
             ProducerAccessMode accessMode,
-            Optional<Long> topicEpoch,
-            boolean supportsPartialProducer) {
+            Optional<Long> topicEpoch) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
 
         this.topic = topic;
@@ -129,15 +128,6 @@ public class Producer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
         stats.producerId = producerId;
-        if (serviceConf.isAggregatePublisherStatsByProducerName() && stats.getProducerName() != null) {
-            // If true and the client supports partial producer,
-            // aggregate publisher stats of PartitionedTopicStats by producerName.
-            // Otherwise, aggregate it by list index.
-            stats.setSupportsPartialProducer(supportsPartialProducer);
-        } else {
-            // aggregate publisher stats of PartitionedTopicStats by list index.
-            stats.setSupportsPartialProducer(false);
-        }
         stats.metadata = this.metadata;
         stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 

@@ -2696,7 +2696,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         cleanup();
         setup();
 
-        conf.setAggregatePublisherStatsByProducerName(true);
         final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name";
         admin.topics().createPartitionedTopic(topic, 10);
 
@@ -2746,12 +2745,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 10);
         assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
         assertEquals(topicStats.getPublishers().size(), 2);
-        topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
 
     @Test(dataProvider = "topicType")
     public void testPartitionedStatsAggregationByProducerNamePerPartition(String topicType) throws Exception {
-        conf.setAggregatePublisherStatsByProducerName(true);
         final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-per-pt";
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -2770,7 +2767,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 2);
         assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
         assertEquals(topicStats.getPublishers().size(), 2);
-        topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
 
     @Test(dataProvider = "topicType")

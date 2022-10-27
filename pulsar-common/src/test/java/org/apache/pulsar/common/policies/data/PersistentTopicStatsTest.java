@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
@@ -87,7 +86,6 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName("name1");
         topicStats1.addPublisher(publisherStats1);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -101,7 +99,6 @@ public class PersistentTopicStatsTest {
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(false);
         publisherStats2.setProducerName("name1");
         topicStats2.addPublisher(publisherStats2);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -132,7 +129,6 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setSupportsPartialProducer(true);
         publisherStats1.setProducerName("name1");
         topicStats1.addPublisher(publisherStats1);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -146,7 +142,6 @@ public class PersistentTopicStatsTest {
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(true);
         publisherStats2.setProducerName("name1");
         topicStats2.addPublisher(publisherStats2);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -178,7 +173,6 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setSupportsPartialProducer(true);
         publisherStats1.msgRateIn = 1;
         publisherStats1.setProducerName("name1");
         topicStats1.addPublisher(publisherStats1);
@@ -193,7 +187,6 @@ public class PersistentTopicStatsTest {
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(true);
         publisherStats2.msgRateIn = 1;
         publisherStats2.setProducerName("name1");
         topicStats2.addPublisher(publisherStats2);
@@ -208,7 +201,6 @@ public class PersistentTopicStatsTest {
         topicStats3.averageMsgSize = 0;
         topicStats3.storageSize = 0;
         final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
-        publisherStats3.setSupportsPartialProducer(true);
         publisherStats3.msgRateIn = 1;
         publisherStats3.setProducerName("name2");
         topicStats3.addPublisher(publisherStats3);
@@ -240,37 +232,55 @@ public class PersistentTopicStatsTest {
     public void testPersistentTopicStatsByNullProducerName() {
         final TopicStatsImpl topicStats1 = new TopicStatsImpl();
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName(null);
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(false);
         publisherStats2.setProducerName(null);
         topicStats1.addPublisher(publisherStats1);
         topicStats1.addPublisher(publisherStats2);
 
-        assertEquals(topicStats1.getPublishers().size(), 2);
-        assertFalse(topicStats1.getPublishers().get(0).isSupportsPartialProducer());
-        assertFalse(topicStats1.getPublishers().get(1).isSupportsPartialProducer());
+        assertEquals(topicStats1.getPublishers().size(), 1);
 
         final TopicStatsImpl topicStats2 = new TopicStatsImpl();
         final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
-        publisherStats3.setSupportsPartialProducer(true);
         publisherStats3.setProducerName(null);
         final PublisherStatsImpl publisherStats4 = new PublisherStatsImpl();
-        publisherStats4.setSupportsPartialProducer(true);
         publisherStats4.setProducerName(null);
         topicStats2.addPublisher(publisherStats3);
         topicStats2.addPublisher(publisherStats4);
 
-        assertEquals(topicStats2.getPublishers().size(), 2);
-        // when the producerName is null, fall back to false
-        assertFalse(topicStats2.getPublishers().get(0).isSupportsPartialProducer());
-        assertFalse(topicStats2.getPublishers().get(1).isSupportsPartialProducer());
-
+        assertEquals(topicStats2.getPublishers().size(), 1);
         final TopicStatsImpl target = new TopicStatsImpl();
         target.add(topicStats1);
         target.add(topicStats2);
 
-        assertEquals(target.getPublishers().size(), 2);
+        assertEquals(target.getPublishers().size(), 1);
+    }
+
+    @Test
+    public void testPersistentTopicStatsByDifferentPublishers() {
+        TopicStatsImpl topicStats = new TopicStatsImpl();
+        TopicStatsImpl s1 = new TopicStatsImpl();
+        TopicStatsImpl s2 = new TopicStatsImpl();
+        PublisherStatsImpl p1 = new PublisherStatsImpl();
+        PublisherStatsImpl p2 = new PublisherStatsImpl();
+        PublisherStatsImpl p3 = new PublisherStatsImpl();
+        p1.setProducerName("p1");
+        p1.setMsgRateIn(1);
+        p2.setProducerName("p2");
+        p2.setMsgRateIn(2);
+        p3.setMsgRateIn(3);
+        s1.addPublisher(p1);
+        s1.addPublisher(p2);
+        s1.addPublisher(p3);
+        s2.addPublisher(p1);
+        s2.addPublisher(p2);
+        topicStats.add(s1);
+        topicStats.add(s2);
+
+        assertEquals(topicStats.getPublishers().size(), 3);
+        assertEquals(topicStats.getPublishers().get(0).getMsgRateIn(), 2);
+        assertEquals(topicStats.getPublishers().get(1).getMsgRateIn(), 4);
+        assertEquals(topicStats.getPublishers().get(2).getMsgRateIn(), 3);
+
     }
 }

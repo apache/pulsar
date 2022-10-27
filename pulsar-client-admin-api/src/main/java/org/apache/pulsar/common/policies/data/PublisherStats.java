@@ -44,6 +44,7 @@ public interface PublisherStats {
     long getProducerId();
 
     /** Whether partial producer is supported at client. */
+    @Deprecated
     boolean isSupportsPartialProducer();
 
     /** Producer name. */

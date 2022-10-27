@@ -20,10 +20,14 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class PartitionedTopicStatsTest {
@@ -55,4 +59,21 @@ public class PartitionedTopicStatsTest {
         assertEquals(partitionedTopicStats.metadata.partitions, 0);
         assertEquals(partitionedTopicStats.partitions.size(), 0);
     }
+
+    @Test
+    public void jsonWriteAndReadTest() throws JsonProcessingException {
+        ObjectMapper mapper = ObjectMapperFactory.create();
+
+        final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
+        publisherStats1.setProducerName("p1");
+        final TopicStatsImpl src = new TopicStatsImpl();
+        src.averageMsgSize = 1.0;
+        src.addPublisher(publisherStats1);
+
+        String json = mapper.writeValueAsString(src);
+        TopicStatsImpl dst = (TopicStatsImpl) mapper.readValue(json, TopicStats.class);
+        assertEquals(dst.getPublishers().get(0).getProducerName(), "p1");
+        assertEquals(dst.averageMsgSize, 1.0);
+    }
+
 }
