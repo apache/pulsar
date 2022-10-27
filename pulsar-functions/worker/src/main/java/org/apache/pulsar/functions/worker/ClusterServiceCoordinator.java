@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -30,6 +29,7 @@ import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 @Slf4j
 public class ClusterServiceCoordinator implements AutoCloseable {
@@ -54,7 +54,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
 
     public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
         this(workerId, leaderService, isLeader, Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build()));
+                new ExecutorProvider.ExtendedThreadFactory("cluster-service-coordinator-timer")));
     }
 
     @VisibleForTesting

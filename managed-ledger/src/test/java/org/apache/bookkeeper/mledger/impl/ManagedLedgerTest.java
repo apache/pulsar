@@ -3626,10 +3626,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         LedgerOffloader ledgerOffloader = mock(NullLedgerOffloader.class);
         OffloadPoliciesImpl offloadPolicies = mock(OffloadPoliciesImpl.class);
         when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
+        when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()).thenReturn(-1L);
+        when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInSeconds()).thenReturn(-1L);
         when(ledgerOffloader.getOffloadDriverName()).thenReturn("s3");
         config.setLedgerOffloader(ledgerOffloader);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open(
-                "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config);
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open(
+                "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config));
+        doNothing().when(ledger).trimConsumedLedgersInBackground(any(CompletableFuture.class));
 
         // Retain the data.
         ledger.openCursor("test-cursor");
