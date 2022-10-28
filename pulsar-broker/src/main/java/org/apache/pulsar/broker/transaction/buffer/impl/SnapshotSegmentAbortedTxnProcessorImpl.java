@@ -163,7 +163,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public void trimExpiredTxnIDDataOrSnapshotSegments() {
+    public void trimExpiredAbortedTxns() {
         //Checking whether there are some segment expired.
         while (!abortTxnSegments.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(abortTxnSegments.firstKey().getLedgerId())) {
@@ -240,7 +240,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
 
     @Override
-    public CompletableFuture<PositionImpl> recoverFromSnapshot(TopicTransactionBufferRecoverCallBack callBack) {
+    public CompletableFuture<PositionImpl> recoverFromSnapshot() {
         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotIndexService()
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
@@ -263,7 +263,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         }
                         closeReader(reader);
                         if (!hasIndex) {
-                            callBack.noNeedToRecover();
                             return CompletableFuture.completedFuture(null);
                         } else {
                             persistentSnapshotIndexes.getIndexList()
@@ -289,8 +288,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             @Override
                             public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
                                 persistentSnapshotIndexes.getIndexList().forEach(index -> {
-                                    CompletableFuture<Void> completableFuture1 = new CompletableFuture<>();
-                                    completableFutures.add(completableFuture1);
+                                    //TODO: read on demand
+                                    CompletableFuture<Void> handleSegmentFuture = new CompletableFuture<>();
+                                    completableFutures.add(handleSegmentFuture);
                                     readOnlyManagedLedger.asyncReadEntry(
                                             new PositionImpl(index.getPersistentPositionLedgerID(),
                                                     index.getPersistentPositionEntryID()),
@@ -302,17 +302,17 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                         indexes.remove(new PositionImpl(
                                                                 index.getMaxReadPositionLedgerID(),
                                                                 index.getMaxReadPositionEntryID()));
-                                                        completableFuture1.complete(null);
+                                                        handleSegmentFuture.complete(null);
                                                         invalidIndex.getAndIncrement();
                                                         return;
                                                     }
                                                     handleSnapshotSegmentEntry(entry);
-                                                    completableFuture1.complete(null);
+                                                    handleSegmentFuture.complete(null);
                                                 }
 
                                                 @Override
                                                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                                                    completableFuture1.completeExceptionally(exception);
+                                                    handleSegmentFuture.completeExceptionally(exception);
                                                 }
                                             }, null);
                                 });
@@ -344,9 +344,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
-                        callBack.recoverExceptionally(ex);
                         closeReader(reader);
-                        return null;
+                        return FutureUtil.failedFuture(ex);
                     }
 
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
@@ -354,7 +353,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public CompletableFuture<Void> clearSnapshot() {
+    public CompletableFuture<Void> clearAndCloseAsync() {
+        timer.stop();
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.Close, () -> {
             ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();

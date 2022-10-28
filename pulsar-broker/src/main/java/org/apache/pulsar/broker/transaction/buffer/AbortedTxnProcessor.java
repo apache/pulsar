@@ -22,7 +22,6 @@ import io.netty.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 
 
@@ -54,7 +53,7 @@ public interface AbortedTxnProcessor extends TimerTask {
      * In the old implementation we clear the invalid aborted txn ID one by one.
      * In the new implementation, we adopt snapshot segments. And then we clear invalid segment by its max read position.
      */
-    void trimExpiredTxnIDDataOrSnapshotSegments();
+    void trimExpiredAbortedTxns();
 
     /**
      * Check whether the transaction ID is an aborted transaction ID.
@@ -69,13 +68,13 @@ public interface AbortedTxnProcessor extends TimerTask {
      * @return a pair consists of a Boolean if the transaction buffer needs to recover and a Position (startReadCursorPosition) determiner where to start to recover in the original topic.
      */
 
-    CompletableFuture<PositionImpl> recoverFromSnapshot(TopicTransactionBufferRecoverCallBack callBack);
+    CompletableFuture<PositionImpl> recoverFromSnapshot();
 
     /**
      * Clear the snapshot/snapshot segment and index for this topic.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> clearSnapshot();
+    CompletableFuture<Void> clearAndCloseAsync();
 
     /**
      * Take the frist snapshot if the topic has no snapshot before.

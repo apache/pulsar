@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSna
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcessor {
@@ -96,7 +97,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public void trimExpiredTxnIDDataOrSnapshotSegments() {
+    public void trimExpiredAbortedTxns() {
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
             if (log.isDebugEnabled()) {
@@ -115,7 +116,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
 
     @Override
-    public CompletableFuture<PositionImpl> recoverFromSnapshot(TopicTransactionBufferRecoverCallBack callBack) {
+    public CompletableFuture<PositionImpl> recoverFromSnapshot() {
         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService()
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
@@ -137,16 +138,14 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                         }
                         closeReader(reader);
                         if (!hasSnapshot) {
-                            callBack.noNeedToRecover();
                             return CompletableFuture.completedFuture(null);
                         }
                         return CompletableFuture.completedFuture(startReadCursorPosition);
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
-                        callBack.recoverExceptionally(ex);
                         closeReader(reader);
-                        return null;
+                        return FutureUtil.failedFuture(ex);
                     }
 
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
@@ -154,7 +153,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> clearSnapshot() {
+    public CompletableFuture<Void> clearAndCloseAsync() {
+        timer.stop();
         return this.takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());

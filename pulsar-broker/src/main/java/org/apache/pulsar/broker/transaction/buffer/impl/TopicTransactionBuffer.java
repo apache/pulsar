@@ -121,7 +121,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void recoverComplete() {
                         synchronized (TopicTransactionBuffer.this) {
-                            // sync maxReadPosition change to LAC when TopicTransaction buffer have not recover
+                            // sync maxReadPosition change to LAC when TopicTransaction buffer have not recovered
                             // completely the normal message have been sent to broker and state is
                             // not Ready can't sync maxReadPosition when no ongoing transactions
                             if (ongoingTxns.isEmpty()) {
@@ -202,8 +202,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         recoverTime.setRecoverEndTime(System.currentTimeMillis());
                         topic.close(true);
                     }
-                }, this.topic,
-                        this, takeSnapshotWriter, snapshotAbortedTxnProcessor));
+                }, this.topic, this, takeSnapshotWriter, snapshotAbortedTxnProcessor));
     }
 
     @Override
@@ -318,7 +317,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         synchronized (TopicTransactionBuffer.this) {
                             updateMaxReadPosition(txnID);
                             handleLowWaterMark(txnID, lowWaterMark);
-                            snapshotAbortedTxnProcessor.trimExpiredTxnIDDataOrSnapshotSegments();
+                            snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                         }
                         txnCommittedCounter.increment();
                         completableFuture.complete(null);
@@ -364,7 +363,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             PositionImpl maxReadPosition = updateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.appendAbortedTxn(new TxnIDData(txnID.getMostSigBits(),
                                             txnID.getLeastSigBits()), maxReadPosition);
-                            snapshotAbortedTxnProcessor.trimExpiredTxnIDDataOrSnapshotSegments();
+                            snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                         }
                         txnAbortedCounter.increment();
                         completableFuture.complete(null);
@@ -450,7 +449,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> clearSnapshot() {
-        return snapshotAbortedTxnProcessor.clearSnapshot();
+        return snapshotAbortedTxnProcessor.clearAndCloseAsync();
 
     }
 
@@ -561,9 +560,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             this, topic.getName());
                     return;
                 }
-                abortedTxnProcessor.recoverFromSnapshot(callBack).thenAcceptAsync(startReadCursorPosition -> {
+                abortedTxnProcessor.recoverFromSnapshot().thenAcceptAsync(startReadCursorPosition -> {
                     //Transaction is not enable for this topic, so just make maxReadPosition as LAC.
                     if (startReadCursorPosition == null) {
+                        callBack.noNeedToRecover();
                         return;
                     } else {
                         this.startReadCursorPosition = startReadCursorPosition;
