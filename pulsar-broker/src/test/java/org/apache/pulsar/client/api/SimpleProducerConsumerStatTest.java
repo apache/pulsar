@@ -491,8 +491,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
 
-        ConsumerStats cStat = consumer.getStats();
-        ProducerStats pStat = producer.getStats();
+        MultiTopicConsumerStats cStat = (MultiTopicConsumerStats) consumer.getStats();
+        PartitionedTopicProducerStats pStat = (PartitionedTopicProducerStats) producer.getStats();
         retryStrategically((test) -> !pStat.getPartitionStats().isEmpty(), 5, 100);
         retryStrategically((test) -> !cStat.getPartitionStats().isEmpty(), 5, 100);
         Map<String, ProducerStats> prodStatsMap = pStat.getPartitionStats();

@@ -16,27 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.api;
 
-import io.netty.util.Timeout;
-import java.util.Optional;
-import org.apache.pulsar.client.api.ConsumerStats;
-import org.apache.pulsar.client.api.Message;
+import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-public interface ConsumerStatsRecorder extends ConsumerStats {
-    void updateNumMsgsReceived(Message<?> message);
+/**
+ * Partitioned topic Producer statistics recorded by client.
+ *
+ * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
+ * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
+ */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface PartitionedTopicProducerStats extends ProducerStats {
 
-    void incrementNumAcksSent(long numAcks);
+    /**
+     * @return stats for each partition if topic is partitioned topic
+     */
+    Map<String, ProducerStats> getPartitionStats();
 
-    void incrementNumAcksFailed();
-
-    void incrementNumReceiveFailed();
-
-    void incrementNumBatchReceiveFailed();
-
-    Optional<Timeout> getStatTimeout();
-
-    void reset();
-
-    void updateCumulativeStats(ConsumerStats stats);
 }

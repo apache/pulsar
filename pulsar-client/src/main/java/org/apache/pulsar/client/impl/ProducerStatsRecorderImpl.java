@@ -26,11 +26,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -54,18 +50,14 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private final LongAdder totalBytesSent;
     private final LongAdder totalSendFailed;
     private final LongAdder totalAcksReceived;
-    private final DoubleAdder sendMsgsRateAggregate;
-    private final DoubleAdder sendBytesRateAggregate;
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
     private final transient DoublesSketch ds;
     private final transient DoublesSketch batchSizeDs;
     private final transient DoublesSketch msgSizeDs;
-    private Map<String, ProducerStats> partitionStats = Collections.emptyMap();
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
-    private int partitions = 0;
     private volatile double[] latencyPctValues = new double[PERCENTILES.length];
     private volatile double[] batchSizePctValues = new double[PERCENTILES.length];
     private volatile double[] msgSizePctValues = new double[PERCENTILES.length];
@@ -81,12 +73,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        sendMsgsRateAggregate = new DoubleAdder();
-        sendBytesRateAggregate = new DoubleAdder();
         ds = DoublesSketch.builder().build(256);
         batchSizeDs = DoublesSketch.builder().build(256);
         msgSizeDs = DoublesSketch.builder().build(256);
-        partitionStats = new ConcurrentHashMap<>();
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
@@ -102,8 +91,6 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        sendMsgsRateAggregate = new DoubleAdder();
-        sendBytesRateAggregate = new DoubleAdder();
         ds = DoublesSketch.builder().build(256);
         batchSizeDs = DoublesSketch.builder().build(256);
         msgSizeDs = DoublesSketch.builder().build(256);
@@ -252,10 +239,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent.reset();
         totalSendFailed.reset();
         totalAcksReceived.reset();
-        partitions = 0;
     }
 
-    void updateCumulativeStats(String partition, ProducerStats stats) {
+    void updateCumulativeStats(ProducerStats stats) {
         if (stats == null) {
             return;
         }
@@ -267,11 +253,6 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent.add(stats.getTotalBytesSent());
         totalSendFailed.add(stats.getTotalSendFailed());
         totalAcksReceived.add(stats.getTotalAcksReceived());
-        partitionStats.put(partition, stats);
-        // update rates
-        sendMsgsRateAggregate.add(stats.getSendMsgsRate());
-        sendBytesRateAggregate.add(stats.getSendBytesRate());
-        partitions++;
     }
 
     @Override
@@ -312,12 +293,12 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     @Override
     public double getSendMsgsRate() {
-        return partitions != 0 ? sendMsgsRateAggregate.doubleValue() / partitions : sendMsgsRate;
+        return sendMsgsRate;
     }
 
     @Override
     public double getSendBytesRate() {
-        return partitions != 0 ? sendBytesRateAggregate.doubleValue() / partitions : sendBytesRate;
+        return sendBytesRate;
     }
 
     @Override
@@ -353,11 +334,6 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     @Override
     public int getPendingQueueSize() {
         return producer.getPendingQueueSize();
-    }
-
-    @Override
-    public Map<String, ProducerStats> getPartitionStats() {
-        return partitionStats;
     }
 
     public void cancelStatsTimeout() {
