@@ -195,16 +195,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public CompletableFuture<Void> takesFirstSnapshot() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        //build first snapshot index
-        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotIndexesMetadata =
-                new TransactionBufferSnapshotIndexesMetadata();
-        transactionBufferSnapshotIndexesMetadata
-                .setAborts(serializationForSegment(unsealedAbortedTxnIdSegment));
-        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-
         persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
-                () -> persistentWorker.updateSnapshotIndex(transactionBufferSnapshotIndexesMetadata, new ArrayList<>())
+                () -> persistentWorker.updateIndexMetadataForTheLastSnapshot()
                         .thenRun(() -> completableFuture.complete(null))
                         .exceptionally(e -> {
                             completableFuture.completeExceptionally(e);
@@ -600,17 +592,23 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             return snapshotIndexWriterFuture
                     .thenCompose((indexesWriter) -> {
                         //Store the latest metadata
-                        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotSegment =
+                        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotIndexesMetadata =
                                 new TransactionBufferSnapshotIndexesMetadata();
-                        transactionBufferSnapshotSegment
+                        transactionBufferSnapshotIndexesMetadata
                                 .setAborts(serializationForSegment(unsealedAbortedTxnIdSegment));
-                        indexes.setSnapshot(transactionBufferSnapshotSegment);
+                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+                        indexes.setSnapshot(transactionBufferSnapshotIndexesMetadata);
                         //Only update the metadata in indexes and keep the index in indexes unchanged.
-                        indexes.setIndexList(persistentSnapshotIndexes.getIndexList());
+                        if (indexes.getIndexList() == null) {
+                            indexes.setIndexList(new ArrayList<>());
+                        } else {
+                            indexes.setIndexList(persistentSnapshotIndexes.getIndexList());
+                        }
                         return indexesWriter.writeAsync(topic.getName(), indexes);
                     })
                     .thenRun(() -> {
-                        persistentSnapshotIndexes.setSnapshot(indexes.getSnapshot());
+                        persistentSnapshotIndexes = indexes;
                         lastSnapshotTimestamps = System.currentTimeMillis();
                     })
                     .exceptionally(e -> {
