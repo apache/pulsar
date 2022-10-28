@@ -168,16 +168,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             int retry = 0;
             int maxRetry = 400;
-            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
-                    || readSocket.getReceivedMessagesCount() < 10) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms",
-                            (maxRetry * 10));
-                    log.warn(msg);
-                    throw new IllegalStateException(msg);
-                }
-            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 10
+                        || consumeSocket2.getReceivedMessagesCount() >= 10);
+                assertTrue(readSocket.getReceivedMessagesCount() >= 10);
+            });
 
             // if the subscription type is exclusive (default), either of the consumer sessions has already been closed
             assertTrue(consumerFuture1.get().isOpen());
@@ -290,9 +286,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // do unsubscribe
             consumeSocket.unsubscribe();
             //wait for delete
-            Thread.sleep(1000);
-            subs = admin.topics().getSubscriptions(topic);
-            assertEquals(subs.size(), 0);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(admin.topics().getSubscriptions(topic).size(), 0);
+            });
         } finally {
             stopWebSocketClient(consumeClient);
         }
@@ -633,16 +629,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             assertTrue(producerFuture.get().isOpen());
 
             // sleep so, proxy can deliver few messages to consumers for stats
-            int retry = 0;
-            int maxRetry = 400;
-            while (consumeSocket1.getReceivedMessagesCount() < 2) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms", (maxRetry * 10));
-                    log.warn(msg);
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 2);
+            });
 
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getSafeWebServiceAddress()
@@ -755,11 +744,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeSocket2.sendPermits(2);
             consumeSocket2.sendPermits(2);
 
-            Thread.sleep(500);
-
-            assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
-            assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
-
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
+                assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
+            });
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
         }
