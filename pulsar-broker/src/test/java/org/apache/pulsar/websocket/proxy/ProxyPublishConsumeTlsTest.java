@@ -38,6 +38,7 @@ import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -123,10 +124,12 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
 
             Assert.assertTrue(producerFuture.get().isOpen());
 
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertTrue(produceSocket.getBuffer().size() > 0);
+                Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+            });
             consumeSocket.awaitClose(1, TimeUnit.SECONDS);
             produceSocket.awaitClose(1, TimeUnit.SECONDS);
-            Assert.assertTrue(produceSocket.getBuffer().size() > 0);
-            Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
         } catch (Throwable t) {
             log.error(t.getMessage());
             Assert.fail(t.getMessage());
