@@ -68,10 +68,10 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // This is the timestamp of the message with the highest delivery time
     // If new added messages are lower than this, it means the delivery is requested
     // to be out-of-order. It gets reset to 0, once the tracker is emptied.
-    protected long highestDeliveryTimeTracked = 0;
+    private long highestDeliveryTimeTracked = 0;
 
     // Track whether we have seen all messages with fixed delay so far.
-    protected boolean messagesHaveFixedDelay = true;
+    private boolean messagesHaveFixedDelay = true;
 
     InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -132,7 +132,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      * Check that new delivery time comes after the current highest, or at
      * least within a single tick time interval of 1 second.
      */
-    protected void checkAndUpdateHighest(long deliverAt) {
+    private void checkAndUpdateHighest(long deliverAt) {
         if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
             messagesHaveFixedDelay = false;
         }

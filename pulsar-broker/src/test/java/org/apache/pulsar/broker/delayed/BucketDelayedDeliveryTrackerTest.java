@@ -75,7 +75,7 @@ public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTes
         return switch (methodName) {
             case "test" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            false, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testWithTimer" -> {
                 Timer timer = mock(Timer.class);
@@ -103,39 +103,35 @@ public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTes
 
                 yield new Object[][]{{
                         new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                                false, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50),
+                                false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50),
                         tasks
                 }};
             }
             case "testAddWithinTickTime" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            false, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testAddMessageWithStrictDelay" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                            true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict", "testRecoverSnapshot" ->
                     new Object[][]{{
                             new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
-                                    true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                                    true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
                     }};
             case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict", "testExistDelayedMessage" ->
                     new Object[][]{{
                             new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
-                                    true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                                    true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
                     }};
-            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" -> new Object[][]{{
-                    new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
-                            true, 100, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
-            }};
             default -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            true, 0, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), 50)
+                            true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), 50)
             }};
         };
     }
@@ -161,6 +157,27 @@ public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTes
 
         assertTrue(tracker.containsMessage(3, 3));
 
+        tracker.close();
+    }
+
+    @Override
+    @Test(dataProvider = "delayedTracker")
+    public void testWithFixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        assertEquals(tracker.getFixedDelayDetectionLookahead(), -1L);
+        tracker.close();
+    }
+
+    @Override
+    @Test(dataProvider = "delayedTracker")
+    public void testWithMixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        assertEquals(tracker.getFixedDelayDetectionLookahead(), -1L);
+        tracker.close();
+    }
+
+    @Override
+    @Test(dataProvider = "delayedTracker")
+    public void testWithNoDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        assertEquals(tracker.getFixedDelayDetectionLookahead(), -1L);
         tracker.close();
     }
 }

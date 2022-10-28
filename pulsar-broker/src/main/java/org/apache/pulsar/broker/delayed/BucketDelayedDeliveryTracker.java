@@ -87,24 +87,21 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                 long fixedDelayDetectionLookahead,
                                  BucketSnapshotStorage bucketSnapshotStorage,
                                  long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
                                  int maxNumBuckets) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
-                fixedDelayDetectionLookahead,
                 bucketSnapshotStorage, minIndexCountPerBucket, timeStepPerBucketSnapshotSegment, maxNumBuckets);
     }
 
     BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis, Clock clock,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                 long fixedDelayDetectionLookahead,
                                  BucketSnapshotStorage bucketSnapshotStorage,
                                  long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
                                  int maxNumBuckets) {
         super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict,
-                fixedDelayDetectionLookahead);
+                -1L);
         this.minIndexCountPerBucket = minIndexCountPerBucket;
         this.timeStepPerBucketSnapshotSegment = timeStepPerBucketSnapshotSegment;
         this.maxNumBuckets = maxNumBuckets;
@@ -363,12 +360,10 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     @Override
     public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
         if (containsMessage(ledgerId, entryId)) {
-            messagesHaveFixedDelay = false;
             return true;
         }
 
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
-            messagesHaveFixedDelay = false;
             return false;
         }
 
@@ -409,8 +404,6 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         }
 
         updateTimer();
-
-        checkAndUpdateHighest(deliverAt);
 
         return true;
     }
@@ -490,15 +483,14 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             --numberDelayedMessages;
         }
 
-        if (numberDelayedMessages <= 0) {
-            // Reset to initial state
-            highestDeliveryTimeTracked = 0;
-            messagesHaveFixedDelay = true;
-        }
-
         updateTimer();
 
         return positions;
+    }
+
+    @Override
+    public boolean shouldPauseAllDeliveries() {
+        return false;
     }
 
     @Override
