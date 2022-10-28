@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -807,7 +807,8 @@ public class ClientCnx extends PulsarHandler {
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
             future.whenComplete((lookupDataResult, throwable) -> {
-                if (throwable instanceof ConnectException) {
+                if (throwable instanceof ConnectException
+                        || throwable instanceof PulsarClientException.LookupException) {
                     pendingLookupRequestSemaphore.release();
                 }
             });

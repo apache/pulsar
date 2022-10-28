@@ -52,7 +52,7 @@ echo 1 > data/zookeeper/myid
 
 On `zk2.us-west.example.com` the command is `echo 2 > data/zookeeper/myid` and so on.
 
-Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```shell
 bin/pulsar-daemon start zookeeper
@@ -68,7 +68,7 @@ If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#deploy-local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -122,7 +122,7 @@ peerType=observer
 
 ##### Start the service
 
-Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
+Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md)
 
 ```shell
 bin/pulsar-daemon start configuration-store
@@ -201,19 +201,19 @@ BookKeeper provides [persistent message storage](concepts-architecture-overview.
 
 You can start a bookie in the foreground or as a background daemon.
 
-To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
+To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/bookkeeper bookie
 ```
 
-To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start bookie
 ```
 
-You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
+You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md):
 
 ```shell
 bin/bookkeeper shell bookiesanity

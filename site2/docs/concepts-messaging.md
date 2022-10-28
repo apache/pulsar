@@ -525,7 +525,7 @@ If no tenant or namespace is specified when a client creates a topic, the topic 
 
 ## Namespaces
 
-A namespace is a logical nomenclature within a tenant. A tenant creates namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
+A namespace is a logical nomenclature within a tenant. A tenant creates namespaces via the [admin API](admin-api-namespaces.md#create-namespaces). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
 ## Subscriptions
 
@@ -712,7 +712,7 @@ After a consumer is created, the default subscription mode of the consumer is `D
 </Tabs>
 ````
 
-For how to create, check, or delete a durable subscription, see [manage subscriptions](admin-api-topics.md/#manage-subscriptions).
+For how to create, check, or delete a durable subscription, see [manage subscriptions](admin-api-topics.md#manage-subscriptions).
 
 ## Multi-topic subscriptions
 
@@ -846,7 +846,7 @@ Non-persistent messaging is usually faster than persistent messaging because bro
 
 Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All the subscription types---[exclusive](#exclusive), [shared](#shared), [key-shared](#key_shared) and [failover](#failover)---are supported for non-persistent topics.
 
-Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
+Here's an example [Java consumer](client-libraries-java.md#consumer) for a non-persistent topic:
 
 ```java
 PulsarClient client = PulsarClient.builder()

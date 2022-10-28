@@ -492,9 +492,9 @@ BSD License
     - asm-tree-6.2.1.jar
     - asm-util-6.2.1.jar
  * JLine
-   - jline-reader-3.17.1.jar
-   - jline-terminal-3.17.1.jar
-   - jline-terminal-jna-3.17.1.jar
+   - jline-reader-3.21.0.jar
+   - jline-terminal-3.21.0.jar
+   - jline-terminal-jna-3.21.0.jar
 
 MIT License
  * PCollections
