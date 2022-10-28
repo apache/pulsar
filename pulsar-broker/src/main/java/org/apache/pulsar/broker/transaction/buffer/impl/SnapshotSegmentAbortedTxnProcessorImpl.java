@@ -117,14 +117,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public void appendAbortedTxn(TxnIDData abortedTxnId, PositionImpl position) {
+    public void appendAbortedTxn(TxnIDData abortedTxnId, PositionImpl maxReadPosition) {
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             changeMaxReadPositionAndAddAbortTimes.set(0);
-            abortTxnSegments.put(position, unsealedAbortedTxnIdSegment);
+            abortTxnSegments.put(maxReadPosition, unsealedAbortedTxnIdSegment);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
-                    persistentWorker.takeSnapshotSegmentAsync(unsealedAbortedTxnIdSegment, position));
+                    persistentWorker.takeSnapshotSegmentAsync(unsealedAbortedTxnIdSegment, maxReadPosition));
             unsealedAbortedTxnIdSegment = new ArrayList<>();
         }
     }
@@ -147,13 +147,18 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         if (readPosition == null) {
             return abortTxnSegments.values().stream()
                     .anyMatch(list -> list.contains(txnID)) || unsealedAbortedTxnIdSegment.contains(txnID);
-        }
-        Map.Entry<PositionImpl, ArrayList<TxnIDData>> ceilingEntry = abortTxnSegments
-                .ceilingEntry((PositionImpl) readPosition);
-        if (ceilingEntry == null) {
-            return unsealedAbortedTxnIdSegment.contains(txnID);
         } else {
-            return ceilingEntry.getValue().contains(txnID);
+            PositionImpl maxReadPosition = abortTxnSegments.ceilingKey((PositionImpl) readPosition);
+            if (maxReadPosition != null) {
+                return abortTxnSegments.keySet().stream()
+                        .filter((position) -> position.compareTo(maxReadPosition) <= 0)
+                        .anyMatch((position -> abortTxnSegments.get(position).contains(txnID)));
+            } else {
+                return abortTxnSegments.keySet().stream()
+                        .filter((position) -> position.compareTo((PositionImpl) readPosition) <= 0)
+                        .anyMatch((position -> abortTxnSegments.get(position).contains(txnID)))
+                        || unsealedAbortedTxnIdSegment.contains(txnID);
+            }
         }
     }
 
