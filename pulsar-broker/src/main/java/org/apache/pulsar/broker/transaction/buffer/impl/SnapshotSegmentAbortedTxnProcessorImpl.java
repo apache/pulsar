@@ -88,12 +88,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final int takeSnapshotIntervalTime;
 
     private final int transactionBufferMaxAbortedTxnsOfSnapshotSegment;
-
-    //Persistent snapshot segment and index at the single thread.
-    private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotSegment>>
-            snapshotSegmentsWriterFuture;
-    private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>>
-            snapshotIndexWriterFuture;
     private final PersistentWorker persistentWorker;
 
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
@@ -106,13 +100,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.transactionBufferMaxAbortedTxnsOfSnapshotSegment =  topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize();
-        snapshotSegmentsWriterFuture =  this.topic.getBrokerService().getPulsar()
-                .getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotSegmentService().createWriter(TopicName.get(topic.getName()));
-        snapshotIndexWriterFuture =  this.topic.getBrokerService().getPulsar()
-                .getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotIndexService().createWriter(TopicName.get(topic.getName()));
-
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
     }
 
@@ -208,8 +195,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public CompletableFuture<Void> takesFirstSnapshot() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        //build first snapshot index
+        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotIndexesMetadata =
+                new TransactionBufferSnapshotIndexesMetadata();
+        transactionBufferSnapshotIndexesMetadata
+                .setAborts(serializationForSegment(unsealedAbortedTxnIdSegment));
+        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+
         persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
-                () -> persistentWorker.writeFirstSnapshot()
+                () -> persistentWorker.updateSnapshotIndex(transactionBufferSnapshotIndexesMetadata, new ArrayList<>())
                         .thenRun(() -> completableFuture.complete(null))
                         .exceptionally(e -> {
                             completableFuture.completeExceptionally(e);
@@ -337,36 +332,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public CompletableFuture<Void> clearAndCloseAsync() {
         timer.stop();
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        persistentWorker.appendTask(PersistentWorker.OperationType.Close, () -> {
-            ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-            //Delete all segment
-            while (!abortTxnSegments.isEmpty()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Topic transaction buffer clear aborted transactions, maxReadPosition : {}",
-                            topic.getName(), abortTxnSegments.firstKey());
-                }
-                PositionImpl positionNeedToDelete = abortTxnSegments.firstKey();
-                completableFutures.add(persistentWorker.deleteSnapshotSegment(positionNeedToDelete));
-            }
-            //Delete index
-            return FutureUtil.waitForAll(completableFutures)
-                    .thenCompose((ignore) -> snapshotIndexWriterFuture
-                            .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
-                    .thenRun(() -> {
-                        log.info("Successes to clear the snapshot segment and indexes for the topic [{}]",
-                                topic.getName());
-                        completableFuture.thenCompose(null);
-                    })
-                    .exceptionally(e -> {
-                        log.error("Failed to clear the snapshot segment and indexes for the topic [{}]",
-                                topic.getName(), e);
-                        completableFuture.completeExceptionally(e);
-                        return null;
-                    });
-        });
+        persistentWorker.appendTask(PersistentWorker.OperationType.Close,
+                () -> persistentWorker.clearSnapshotSegmentAndIndexes()
+                        .thenRun(() -> {
+                            completableFuture.thenCompose(null);
+                        }).exceptionally(e -> {
+                            completableFuture.completeExceptionally(e);
+                            return null;
+                        }));
         return completableFuture;
     }
-
 
     @Override
     public PositionImpl getMaxReadPosition() {
@@ -380,10 +355,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-        completableFutures.add(this.snapshotIndexWriterFuture.thenCompose(SystemTopicClient.Writer::closeAsync));
-        completableFutures.add(this.snapshotSegmentsWriterFuture.thenCompose(SystemTopicClient.Writer::closeAsync));
-        return FutureUtil.waitForAll(completableFutures);
+        return persistentWorker.closeAsync();
     }
 
     private void handleSnapshotSegmentEntry(Entry entry) {
@@ -410,6 +382,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         protected final AtomicLong sequenceID = new AtomicLong(0);
 
         private final PersistentTopic topic;
+
+        //Persistent snapshot segment and index at the single thread.
+        private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotSegment>>
+                snapshotSegmentsWriterFuture;
+        private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>>
+                snapshotIndexWriterFuture;
 
         private enum OperationState {
             None,
@@ -440,6 +418,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         public PersistentWorker(PersistentTopic topic) {
             this.topic = topic;
             this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
+            this.snapshotSegmentsWriterFuture =  this.topic.getBrokerService().getPulsar()
+                    .getTransactionBufferSnapshotServiceFactory()
+                    .getTxnBufferSnapshotSegmentService().createWriter(TopicName.get(topic.getName()));
+            this.snapshotIndexWriterFuture =  this.topic.getBrokerService().getPulsar()
+                    .getTransactionBufferSnapshotServiceFactory()
+                    .getTxnBufferSnapshotIndexService().createWriter(TopicName.get(topic.getName()));
 
         }
 
@@ -589,8 +573,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     });
         }
 
-        //Update the indexes in the transactionBufferSnapshotIndexe.
-        //Concurrency control is performed by snapshotIndexWriterFuture.
+        //Update the indexes with the giving index snapshot and indexlist in the transactionBufferSnapshotIndexe.
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment,
                                                             List<TransactionBufferSnapshotIndex> indexList) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
@@ -612,7 +595,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         //Only update the metadata in the transactionBufferSnapshotIndexes.
-        //Concurrency control is performed by snapshotIndexWriterFuture.
         private CompletableFuture<Void> updateIndexMetadataForTheLastSnapshot() {
             TransactionBufferSnapshotIndexes indexes = new TransactionBufferSnapshotIndexes();
             return snapshotIndexWriterFuture
@@ -637,31 +619,39 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     });
         }
 
-        protected CompletableFuture<Void> writeFirstSnapshot() {
-            TransactionBufferSnapshotIndexes indexes = new TransactionBufferSnapshotIndexes();
-            return snapshotIndexWriterFuture
-                    .thenCompose((indexesWriter) -> {
-                        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotIndexesMetadata =
-                                new TransactionBufferSnapshotIndexesMetadata();
-                        transactionBufferSnapshotIndexesMetadata
-                                .setAborts(serializationForSegment(unsealedAbortedTxnIdSegment));
-                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-                        indexes.setSnapshot(transactionBufferSnapshotIndexesMetadata);
-                        indexes.setIndexList(new ArrayList<>());
-                        indexes.setTopicName(this.topic.getName());
-                        return indexesWriter.writeAsync(topic.getName(), indexes);
-                    })
+        protected CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
+            ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+            //Delete all segment
+            while (!abortTxnSegments.isEmpty()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Topic transaction buffer clear aborted transactions, maxReadPosition : {}",
+                            topic.getName(), abortTxnSegments.firstKey());
+                }
+                PositionImpl positionNeedToDelete = abortTxnSegments.firstKey();
+                completableFutures.add(persistentWorker.deleteSnapshotSegment(positionNeedToDelete));
+            }
+            //Delete index
+            return FutureUtil.waitForAll(completableFutures)
+                    .thenCompose((ignore) -> snapshotIndexWriterFuture
+                            .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
                     .thenRun(() -> {
-                        persistentSnapshotIndexes.setSnapshot(indexes.getSnapshot());
-                        persistentSnapshotIndexes.setIndexList(indexes.getIndexList());
-                        persistentSnapshotIndexes.setTopicName(this.topic.getName());
-                        lastSnapshotTimestamps = System.currentTimeMillis();
+                        log.info("Successes to clear the snapshot segment and indexes for the topic [{}]",
+                                topic.getName());
+
                     })
                     .exceptionally(e -> {
-                        log.error("[{}] Failed to update snapshot segment index", indexes.getTopicName(), e);
+                        log.error("Failed to clear the snapshot segment and indexes for the topic [{}]",
+                                topic.getName(), e);
+
                         return null;
                     });
+        }
+
+
+        CompletableFuture<Void> closeAsync() {
+            return CompletableFuture.allOf(
+                    this.snapshotIndexWriterFuture.thenCompose(SystemTopicClient.Writer::closeAsync),
+                    this.snapshotSegmentsWriterFuture.thenCompose(SystemTopicClient.Writer::closeAsync));
         }
     }
 
