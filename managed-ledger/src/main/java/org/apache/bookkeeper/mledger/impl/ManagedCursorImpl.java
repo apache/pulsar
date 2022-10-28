@@ -1244,8 +1244,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.info("[{}] reset readPosition to {} before current read readPosition {} on cursor {}",
                                 ledger.getName(), newReadPosition, oldReadPosition, name);
                     } else {
-                        log.info("[{}] reset readPosition to {} skipping from current read readPosition {} on cursor {}",
-                                ledger.getName(), newReadPosition, oldReadPosition, name);
+                        log.info("[{}] reset readPosition to {} skipping from current read readPosition {} on "
+                                        + "cursor {}", ledger.getName(), newReadPosition, oldReadPosition, name);
                     }
                     readPosition = newReadPosition;
                     ledger.onCursorReadPositionUpdated(ManagedCursorImpl.this, newReadPosition);
