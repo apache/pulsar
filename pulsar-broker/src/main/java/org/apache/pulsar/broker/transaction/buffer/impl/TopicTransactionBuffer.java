@@ -46,11 +46,9 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -163,8 +161,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                             if (Markers.isTxnMarker(msgMetadata)) {
                                 if (Markers.isTxnAbortMarker(msgMetadata)) {
-                                    snapshotAbortedTxnProcessor.appendAbortedTxn(
-                                            new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()), position);
+                                    snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, position);
                                 }
                                 updateMaxReadPosition(txnID);
                             } else {
@@ -276,7 +273,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
         if (!ongoingTxns.containsKey(txnId) && !this.snapshotAbortedTxnProcessor.checkAbortedTransaction(
-                new TxnIDData(txnId.getMostSigBits(), txnId.getLeastSigBits()), position)) {
+                txnId, position)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
@@ -351,8 +348,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
                             PositionImpl maxReadPosition = updateMaxReadPosition(txnID);
-                            snapshotAbortedTxnProcessor.appendAbortedTxn(new TxnIDData(txnID.getMostSigBits(),
-                                            txnID.getLeastSigBits()), maxReadPosition);
+                            snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, maxReadPosition);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                         }
                         txnAbortedCounter.increment();
@@ -451,8 +447,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
-        return snapshotAbortedTxnProcessor.checkAbortedTransaction(
-                new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()), readPosition);
+        return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID, readPosition);
     }
 
     @Override

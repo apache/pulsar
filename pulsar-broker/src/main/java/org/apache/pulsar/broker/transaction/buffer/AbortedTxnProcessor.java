@@ -22,7 +22,7 @@ import io.netty.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 
 public interface AbortedTxnProcessor extends TimerTask {
@@ -32,7 +32,7 @@ public interface AbortedTxnProcessor extends TimerTask {
      * the transaction buffer will add the aborted transaction ID to AbortedTxnProcessor.
      * @param txnID aborted transaction ID.
      */
-    void appendAbortedTxn(TxnIDData txnID, PositionImpl position);
+    void appendAbortedTxn(TxnID txnID, PositionImpl position);
 
     /**
      * After the transaction buffer writes a transaction aborted mark to the topic,
@@ -61,7 +61,7 @@ public interface AbortedTxnProcessor extends TimerTask {
      * @param readPosition the read position of the transaction message, can be used to find the segment.
      * @return a boolean, whether the transaction ID is an aborted transaction ID.
      */
-    boolean checkAbortedTransaction(TxnIDData  txnID, Position readPosition);
+    boolean checkAbortedTransaction(TxnID txnID, Position readPosition);
 
     /**
      * Recover transaction buffer by transaction buffer snapshot.

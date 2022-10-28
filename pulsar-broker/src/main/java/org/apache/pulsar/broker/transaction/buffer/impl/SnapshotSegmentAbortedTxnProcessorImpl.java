@@ -24,7 +24,6 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +48,7 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBuffer
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -61,10 +61,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     //Store the latest aborted transaction IDs and the latest max read position.
     private PositionImpl maxReadPosition;
-    private ArrayList<TxnIDData> unsealedAbortedTxnIdSegment = new ArrayList<>();
+    private ArrayList<TxnID> unsealedAbortedTxnIdSegment = new ArrayList<>();
 
     //Store the fixed aborted transaction segment
-    private final ConcurrentSkipListMap<PositionImpl, ArrayList<TxnIDData>> abortTxnSegments
+    private final ConcurrentSkipListMap<PositionImpl, ArrayList<TxnID>> abortTxnSegments
             = new ConcurrentSkipListMap<>();
 
     private final ConcurrentSkipListMap<PositionImpl, TransactionBufferSnapshotIndex> indexes
@@ -117,7 +117,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public void appendAbortedTxn(TxnIDData abortedTxnId, PositionImpl maxReadPosition) {
+    public void appendAbortedTxn(TxnID abortedTxnId, PositionImpl maxReadPosition) {
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
@@ -143,7 +143,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public boolean checkAbortedTransaction(TxnIDData txnID, Position readPosition) {
+    public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
         if (readPosition == null) {
             return abortTxnSegments.values().stream()
                     .anyMatch(list -> list.contains(txnID)) || unsealedAbortedTxnIdSegment.contains(txnID);
@@ -208,36 +208,15 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public CompletableFuture<Void> takesFirstSnapshot() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, () -> {
-            TransactionBufferSnapshotIndexes indexes = new TransactionBufferSnapshotIndexes();
-            return snapshotIndexWriterFuture
-                    .thenCompose((indexesWriter) -> {
-                        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotIndexesMetadata =
-                                new TransactionBufferSnapshotIndexesMetadata();
-                        transactionBufferSnapshotIndexesMetadata.setAborts(unsealedAbortedTxnIdSegment);
-                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-                        indexes.setSnapshot(transactionBufferSnapshotIndexesMetadata);
-                        indexes.setIndexList(new ArrayList<>());
-                        indexes.setTopicName(this.topic.getName());
-                        return indexesWriter.writeAsync(topic.getName(), indexes);
-                    })
-                    .thenRun(() -> {
-                        persistentSnapshotIndexes.setSnapshot(indexes.getSnapshot());
-                        persistentSnapshotIndexes.setIndexList(indexes.getIndexList());
-                        persistentSnapshotIndexes.setTopicName(this.topic.getName());
-                        this.lastSnapshotTimestamps = System.currentTimeMillis();
-                        completableFuture.complete(null);
-                    })
-                    .exceptionally(e -> {
-                        log.error("[{}] Failed to update snapshot segment index", indexes.getTopicName(), e);
-                        completableFuture.completeExceptionally(e);
-                        return null;
-                    });
-        });
+        persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+                () -> persistentWorker.writeFirstSnapshot()
+                        .thenRun(() -> completableFuture.complete(null))
+                        .exceptionally(e -> {
+                            completableFuture.completeExceptionally(e);
+                            return null;
+                        }));
         return completableFuture;
     }
-
 
     @Override
     public CompletableFuture<PositionImpl> recoverFromSnapshot() {
@@ -278,8 +257,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                 transactionBufferSnapshotIndex.persistentPositionLedgerID,
                                                         transactionBufferSnapshotIndex.persistentPositionEntryID),
                                                 transactionBufferSnapshotIndex));
-                        this.unsealedAbortedTxnIdSegment = (ArrayList<TxnIDData>) persistentSnapshotIndexes
-                                .getSnapshot().getAborts();
+                        this.unsealedAbortedTxnIdSegment = deserializationFotSnapshotSegment(persistentSnapshotIndexes
+                                .getSnapshot().getAborts());
                         this.maxReadPosition = new PositionImpl(persistentSnapshotIndexes
                                 .getSnapshot().getMaxReadPositionLedgerId(),
                                 persistentSnapshotIndexes.getSnapshot().getMaxReadPositionEntryId());
@@ -415,7 +394,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         TransactionBufferSnapshotSegment snapshotSegment = Schema.AVRO(TransactionBufferSnapshotSegment.class)
                 .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
         abortTxnSegments.put(new PositionImpl(snapshotSegment.getMaxReadPositionLedgerId(),
-                snapshotSegment.getMaxReadPositionEntryId()), (ArrayList<TxnIDData>) snapshotSegment.getAborts());
+                snapshotSegment.getMaxReadPositionEntryId()), deserializationFotSnapshotSegment(
+                snapshotSegment.getAborts()));
 
     }
 
@@ -540,7 +520,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             }
         }
 
-        protected CompletableFuture<Void> takeSnapshotSegmentAsync(ArrayList<TxnIDData> sealedAbortedTxnIdSegment,
+        protected CompletableFuture<Void> takeSnapshotSegmentAsync(ArrayList<TxnID> sealedAbortedTxnIdSegment,
                                                                  PositionImpl maxReadPosition) {
             return writeSnapshotSegmentAsync(sealedAbortedTxnIdSegment, maxReadPosition).thenRun(() -> {
                 if (log.isDebugEnabled()) {
@@ -559,9 +539,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             });
         }
 
-        private CompletableFuture<Void> writeSnapshotSegmentAsync(List<TxnIDData> segment, PositionImpl maxReadPosition) {
+        private CompletableFuture<Void> writeSnapshotSegmentAsync(List<TxnID> segment, PositionImpl maxReadPosition) {
             TransactionBufferSnapshotSegment transactionBufferSnapshotSegment = new TransactionBufferSnapshotSegment();
-            transactionBufferSnapshotSegment.setAborts(segment);
+            transactionBufferSnapshotSegment.setAborts(serializationForSegment(segment));
             transactionBufferSnapshotSegment.setTopicName(this.topic.getName());
             transactionBufferSnapshotSegment.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
             transactionBufferSnapshotSegment.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
@@ -640,7 +620,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         //Store the latest metadata
                         TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotSegment =
                                 new TransactionBufferSnapshotIndexesMetadata();
-                        transactionBufferSnapshotSegment.setAborts(unsealedAbortedTxnIdSegment);
+                        transactionBufferSnapshotSegment
+                                .setAborts(serializationForSegment(unsealedAbortedTxnIdSegment));
                         indexes.setSnapshot(transactionBufferSnapshotSegment);
                         //Only update the metadata in indexes and keep the index in indexes unchanged.
                         indexes.setIndexList(persistentSnapshotIndexes.getIndexList());
@@ -656,6 +637,48 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     });
         }
 
+        protected CompletableFuture<Void> writeFirstSnapshot() {
+            TransactionBufferSnapshotIndexes indexes = new TransactionBufferSnapshotIndexes();
+            return snapshotIndexWriterFuture
+                    .thenCompose((indexesWriter) -> {
+                        TransactionBufferSnapshotIndexesMetadata transactionBufferSnapshotIndexesMetadata =
+                                new TransactionBufferSnapshotIndexesMetadata();
+                        transactionBufferSnapshotIndexesMetadata
+                                .setAborts(serializationForSegment(unsealedAbortedTxnIdSegment));
+                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+                        transactionBufferSnapshotIndexesMetadata.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+                        indexes.setSnapshot(transactionBufferSnapshotIndexesMetadata);
+                        indexes.setIndexList(new ArrayList<>());
+                        indexes.setTopicName(this.topic.getName());
+                        return indexesWriter.writeAsync(topic.getName(), indexes);
+                    })
+                    .thenRun(() -> {
+                        persistentSnapshotIndexes.setSnapshot(indexes.getSnapshot());
+                        persistentSnapshotIndexes.setIndexList(indexes.getIndexList());
+                        persistentSnapshotIndexes.setTopicName(this.topic.getName());
+                        lastSnapshotTimestamps = System.currentTimeMillis();
+                    })
+                    .exceptionally(e -> {
+                        log.error("[{}] Failed to update snapshot segment index", indexes.getTopicName(), e);
+                        return null;
+                    });
+        }
+    }
+
+    ArrayList<TxnID> deserializationFotSnapshotSegment(List<TxnIDData> snapshotSegment) {
+        ArrayList<TxnID> arrayList = new ArrayList<>();
+        snapshotSegment.forEach(txnIDData -> {
+            arrayList.add(new TxnID(txnIDData.getMostSigBits(), txnIDData.getLeastSigBits()));
+        });
+        return arrayList;
+    }
+
+    ArrayList<TxnIDData> serializationForSegment(List<TxnID> segment) {
+        ArrayList<TxnIDData> arrayList = new ArrayList<>();
+        segment.forEach(txnID -> {
+            arrayList.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()));
+        });
+        return arrayList;
     }
 
 }

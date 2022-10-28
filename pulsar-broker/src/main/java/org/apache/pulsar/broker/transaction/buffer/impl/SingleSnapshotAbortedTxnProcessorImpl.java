@@ -35,8 +35,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -52,7 +52,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
      * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
      * position have been deleted.
      */
-    private final LinkedMap<TxnIDData, PositionImpl> aborts = new LinkedMap<>();
+    private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
 
     private volatile long lastSnapshotTimestamps;
     private final int takeSnapshotIntervalNumber;
@@ -79,7 +79,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public void appendAbortedTxn(TxnIDData abortedTxnId, PositionImpl position) {
+    public void appendAbortedTxn(TxnID abortedTxnId, PositionImpl position) {
         aborts.put(abortedTxnId, position);
     }
 
@@ -110,7 +110,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public boolean checkAbortedTransaction(TxnIDData txnID, Position readPosition) {
+    public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
         return aborts.containsKey(txnID);
     }
 
@@ -208,7 +208,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 snapshot.getMaxReadPositionEntryId());
         if (snapshot.getAborts() != null) {
             snapshot.getAborts().forEach(abortTxnMetadata ->
-                    aborts.put(new TxnIDData(abortTxnMetadata.getTxnIdMostBits(),
+                    aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
                                     abortTxnMetadata.getTxnIdLeastBits()),
                             PositionImpl.get(abortTxnMetadata.getLedgerId(),
                                     abortTxnMetadata.getEntryId())));
