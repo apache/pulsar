@@ -25,6 +25,7 @@ import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -38,6 +39,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -402,8 +405,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private volatile OperationState operationState = OperationState.None;
 
-        ConcurrentSkipListMap<OperationType, Supplier<CompletableFuture<Void>>> taskQueue =
-                new ConcurrentSkipListMap<>();
+        ConcurrentLinkedDeque<Pair<OperationType, Supplier<CompletableFuture<Void>>>> taskQueue =
+                new ConcurrentLinkedDeque<>();
         private CompletableFuture<Void> lastOperationFuture;
         private final Timer timer;
 
@@ -436,7 +439,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                 }
                 case WriteSegment, DeleteSegment -> {
-                    taskQueue.put(operationType, task);
+                    taskQueue.add(new MutablePair<>(operationType, task));
                     executeTask();
                 }
                 case Close -> {
@@ -452,12 +455,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private void executeTask() {
-            OperationType operationType = taskQueue.firstKey();
+            OperationType operationType = taskQueue.getFirst().getKey();
             switch (operationType) {
                 case WriteSegment -> {
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.WritingSegment)) {
-                        if (taskQueue.firstKey() == OperationType.WriteSegment) {
-                            lastOperationFuture = taskQueue.firstEntry().getValue().get();
+                        if (taskQueue.getFirst().getKey() == OperationType.WriteSegment) {
+                            lastOperationFuture = taskQueue.getFirst().getValue().get();
                             lastOperationFuture.whenComplete((ignore, throwable) -> {
                                 if (throwable != null) {
                                     if (log.isDebugEnabled()) {
@@ -466,7 +469,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                     timer.newTimeout(timeout -> executeTask(),
                                             takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 } else {
-                                    taskQueue.remove(taskQueue.firstKey());
+                                    taskQueue.removeFirst();
                                 }
                                 STATE_UPDATER.compareAndSet(this, OperationState.WritingSegment, OperationState.None);
                             });
@@ -475,8 +478,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 }
                 case DeleteSegment -> {
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.DeletingSegment)) {
-                        if (taskQueue.firstKey() == OperationType.DeleteSegment) {
-                            lastOperationFuture = taskQueue.firstEntry().getValue().get();
+                        if (taskQueue.getFirst().getKey() == OperationType.DeleteSegment) {
+                            lastOperationFuture = taskQueue.getFirst().getValue().get();
                             lastOperationFuture.whenComplete((ignore, throwable) -> {
                                 if (throwable != null) {
                                     if (log.isDebugEnabled()) {
@@ -485,7 +488,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                     timer.newTimeout(timeout -> executeTask(),
                                             takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 } else {
-                                    taskQueue.remove(taskQueue.firstKey());
+                                    taskQueue.removeFirst();
                                 }
 
                                 STATE_UPDATER.compareAndSet(this, OperationState.DeletingSegment, OperationState.None);

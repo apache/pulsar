@@ -163,7 +163,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 if (Markers.isTxnAbortMarker(msgMetadata)) {
                                     snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, position);
                                 }
-                                updateMaxReadPosition(txnID);
+                                snapshotAbortedTxnProcessor.updateMaxReadPosition(getMaxReadPosition(txnID));
                             } else {
                                 handleTransactionMessage(txnID, position);
                             }
@@ -302,7 +302,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
-                            updateMaxReadPosition(txnID);
+                            snapshotAbortedTxnProcessor.updateMaxReadPosition(getMaxReadPosition(txnID));
                             handleLowWaterMark(txnID, lowWaterMark);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                         }
@@ -347,8 +347,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
-                            PositionImpl maxReadPosition = updateMaxReadPosition(txnID);
+                            PositionImpl maxReadPosition = getMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, maxReadPosition);
+                            snapshotAbortedTxnProcessor.updateMaxReadPosition(maxReadPosition);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                         }
                         txnAbortedCounter.increment();
@@ -414,7 +415,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
-    PositionImpl updateMaxReadPosition(TxnID txnID) {
+    PositionImpl getMaxReadPosition(TxnID txnID) {
         ongoingTxns.remove(txnID);
         PositionImpl maxReadPosition;
         if (!ongoingTxns.isEmpty()) {
@@ -424,7 +425,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         }
-        snapshotAbortedTxnProcessor.updateMaxReadPosition(maxReadPosition);
         return maxReadPosition;
     }
 
