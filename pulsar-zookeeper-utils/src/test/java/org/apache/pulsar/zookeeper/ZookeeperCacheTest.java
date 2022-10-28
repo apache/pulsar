@@ -213,15 +213,10 @@ public class ZookeeperCacheTest {
         zkClient.create("/test", new byte[0], null, CreateMode.PERSISTENT);
         zkClient.create("/test/z1", new byte[0], null, CreateMode.PERSISTENT);
 
-        // Wait for cache to be updated in background
-        Awaitility.await().until(() -> notificationCount.get() >= 1);
-
-
         final int recvNotifications = notificationCount.get();
 
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         assertEquals(cache.get("/test"), new TreeSet<String>(Lists.newArrayList("z1")));
-        assertTrue(recvNotifications == 1 || recvNotifications == 2);
 
         zkClient.delete("/test/z1", -1);
         Awaitility.await().until(() -> notificationCount.get() >= recvNotifications + 1);

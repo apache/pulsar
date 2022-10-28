@@ -116,12 +116,14 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                             } else {
                                 // Z-node does not exist
                                 future.complete(Optional.empty());
+                                // if z-node does not exist discards cache,
+                                // because we can't be received NodeCreated event
+                                metadataCaches.forEach(c -> c.invalidate(path));
                             }
                         }).exceptionally(ex -> {
                             future.completeExceptionally(ex);
                             return null;
                         });
-                        future.complete(Optional.empty());
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
@@ -168,6 +170,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                             } else {
                                 // Z-node does not exist
                                 future.complete(Collections.emptyList());
+                                // if z-node does not exist discards cache,
+                                // because we can't be received NodeCreated event
+                                childrenCache.synchronous().invalidate(path);
                             }
                         }).exceptionally(ex -> {
                             future.completeExceptionally(ex);

@@ -49,8 +49,7 @@ import org.apache.pulsar.metadata.api.Notification;
 @Slf4j
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
-    @VisibleForTesting
-    public static long cacheRefreshTimeMillis = TimeUnit.MINUTES.toMillis(5);
+    private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
     @Getter
     private final MetadataStore store;
@@ -71,7 +70,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         this.serde = serde;
 
         this.objCache = Caffeine.newBuilder()
-                .refreshAfterWrite(cacheRefreshTimeMillis, TimeUnit.MILLISECONDS)
+                .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {

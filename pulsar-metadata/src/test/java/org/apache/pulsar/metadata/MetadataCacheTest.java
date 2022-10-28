@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -51,7 +50,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -103,8 +101,6 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "zk")
     public void crossStoreUpdates(String provider, String url) throws Exception {
-        MetadataCacheImpl.cacheRefreshTimeMillis = TimeUnit.SECONDS.toMillis(5);
-
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
@@ -143,6 +139,11 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MyClass value1 = new MyClass(testName, 1);
 
         addCache.create(key1, value1).join();
+        for (MetadataCache<MyClass> cache : caches) {
+            if (cache != addCache) {
+                cache.invalidate(key1);
+            }
+        }
 
         // all time for changes to propagate to other caches
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {

@@ -109,6 +109,7 @@ public abstract class ZooKeeperCache implements Watcher {
 
         this.dataCache = Caffeine.newBuilder()
                 .recordStats()
+                .expireAfterWrite(cacheExpirySeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -245,7 +246,6 @@ public abstract class ZooKeeperCache implements Watcher {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
-                    // remove watcher if node does not exist
                     removeAllWatches(path);
                     future.complete(false);
                 } else {
@@ -476,6 +476,9 @@ public abstract class ZooKeeperCache implements Watcher {
                             } else {
                                 // Z-node does not exist
                                 future.complete(Collections.emptySet());
+                                // if z-node does not exist discards cache,
+                                // because we can't be received NodeCreated event
+                                invalidateChildren(path);
                             }
                         }).exceptionally(ex -> {
                             future.completeExceptionally(ex);
@@ -578,7 +581,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     private void removeAllWatches(String path) {
-        getZooKeeper().removeAllWatches(path, Watcher.WatcherType.Any, true,
+        getZooKeeper().removeAllWatches(path, WatcherType.Any, true,
                 (rc0, path0, ctx0) -> {
                     Code code0 = Code.get(rc0);
                     if (code0 != Code.OK && code0 != Code.NOWATCHER) {
