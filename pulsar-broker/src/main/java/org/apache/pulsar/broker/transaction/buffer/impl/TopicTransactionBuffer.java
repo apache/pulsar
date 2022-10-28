@@ -113,7 +113,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
-                        synchronized (TopicTransactionBuffer.this) {
+                        synchronized (topic) {
                             if (ongoingTxns.isEmpty()) {
                                 snapshotAbortedTxnProcessor
                                         .updateMaxReadPositionNotIncreaseChangeTimes(
@@ -137,7 +137,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void noNeedToRecover() {
-                        synchronized (TopicTransactionBuffer.this) {
+                        synchronized (topic) {
                             snapshotAbortedTxnProcessor
                                     .updateMaxReadPositionNotIncreaseChangeTimes(topic.getManagedLedger()
                                             .getLastConfirmedEntry());
@@ -256,7 +256,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                synchronized (TopicTransactionBuffer.this) {
+                synchronized (topic) {
                     handleTransactionMessage(txnId, position);
                 }
                 completableFuture.complete(position);
@@ -346,7 +346,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
                     @Override
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                        synchronized (TopicTransactionBuffer.this) {
+                        synchronized (topic) {
                             PositionImpl maxReadPosition = getMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, maxReadPosition);
                             snapshotAbortedTxnProcessor.updateMaxReadPosition(maxReadPosition);
@@ -454,7 +454,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
         // when ongoing transaction is empty, proved that lastAddConfirm is can read max position, because callback
         // thread is the same tread, in this time the lastAddConfirm don't content transaction message.
-        synchronized (TopicTransactionBuffer.this) {
+        synchronized (topic) {
             if (checkIfNoSnapshot()) {
                 //TODO:The changes time here should not be changed.
                 snapshotAbortedTxnProcessor.updateMaxReadPositionNotIncreaseChangeTimes(position);

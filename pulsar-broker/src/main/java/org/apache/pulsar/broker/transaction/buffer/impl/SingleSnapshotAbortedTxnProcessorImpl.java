@@ -219,7 +219,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         changeMaxReadPositionAndAddAbortTimes.set(0);
         return takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-            synchronized (SingleSnapshotAbortedTxnProcessorImpl.this) {
+            synchronized (topic) {
                 snapshot.setTopicName(topic.getName());
                 snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
                 snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
