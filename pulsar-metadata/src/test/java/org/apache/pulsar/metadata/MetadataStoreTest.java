@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +31,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -255,10 +252,13 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store.getChildren(key1).join(), Collections.emptyList());
         assertEquals(stat.getVersion(), 0);
 
-        Notification n = notifications.poll(3, TimeUnit.SECONDS);
-        assertNotNull(n);
-        assertEquals(n.getType(), NotificationType.Created);
-        assertEquals(n.getPath(), key1);
+        Notification n;
+        if (provider.equals("Memory")) {
+            n = notifications.poll(3, TimeUnit.SECONDS);
+            assertNotNull(n);
+            assertEquals(n.getType(), NotificationType.Created);
+            assertEquals(n.getPath(), key1);
+        }
 
         // Trigger modified notification
         stat = store.put(key1, "value-2".getBytes(), Optional.empty()).join();
@@ -274,10 +274,12 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertFalse(store.get(key1Child).join().isPresent());
 
         store.put(key1Child, "value-2".getBytes(), Optional.empty()).join();
-        n = notifications.poll(3, TimeUnit.SECONDS);
-        assertNotNull(n);
-        assertEquals(n.getType(), NotificationType.Created);
-        assertEquals(n.getPath(), key1Child);
+        if (provider.equals("Memory")) {
+            n = notifications.poll(3, TimeUnit.SECONDS);
+            assertNotNull(n);
+            assertEquals(n.getType(), NotificationType.Created);
+            assertEquals(n.getPath(), key1Child);
+        }
 
         n = notifications.poll(3, TimeUnit.SECONDS);
         assertNotNull(n);

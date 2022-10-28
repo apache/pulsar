@@ -246,13 +246,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
                     // remove watcher if node does not exist
-                    zk.removeAllWatches(path, Watcher.WatcherType.Any, true,
-                            (rc0, path0, ctx0) -> {
-                                Code code0 = Code.get(rc0);
-                                if (code0 != Code.OK && code0 != Code.NOWATCHER) {
-                                    log.warn("Remove watcher failed. rc: {}, path: {}", code0, path);
-                                }
-                            }, null);
+                    removeAllWatches(path);
                     future.complete(false);
                 } else {
                     future.completeExceptionally(KeeperException.create(rc));
@@ -568,13 +562,7 @@ public abstract class ZooKeeperCache implements Watcher {
                 return true;
             } else {
                 // remove watcher if node does not exist
-                getZooKeeper().removeAllWatches(regPath, Watcher.WatcherType.Any, true,
-                        (rc0, path0, ctx0) -> {
-                            Code code0 = Code.get(rc0);
-                            if (code0 != Code.OK && code0 != Code.NOWATCHER) {
-                                log.warn("Remove watcher failed. rc: {}, path: {}", code0, regPath);
-                            }
-                        }, null);
+                removeAllWatches(regPath);
                 return false;
             }
         } catch (KeeperException ke) {
@@ -587,6 +575,16 @@ public abstract class ZooKeeperCache implements Watcher {
             throw new IOException("Interrupted checking and wait ephemeral znode "
                 + regPath + " expired", ie);
         }
+    }
+
+    private void removeAllWatches(String path) {
+        getZooKeeper().removeAllWatches(path, Watcher.WatcherType.Any, true,
+                (rc0, path0, ctx0) -> {
+                    Code code0 = Code.get(rc0);
+                    if (code0 != Code.OK && code0 != Code.NOWATCHER) {
+                        log.warn("Remove watcher for non-existing znode failed. rc: {}, path: {}", code0, path);
+                    }
+                }, null);
     }
 
     private static Logger log = LoggerFactory.getLogger(ZooKeeperCache.class);

@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,8 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -52,6 +51,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -103,6 +103,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "zk")
     public void crossStoreUpdates(String provider, String url) throws Exception {
+        MetadataCacheImpl.cacheRefreshTimeMillis = TimeUnit.SECONDS.toMillis(5);
+
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 

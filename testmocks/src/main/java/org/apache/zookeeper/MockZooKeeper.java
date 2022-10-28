@@ -1163,5 +1163,21 @@ public class MockZooKeeper extends ZooKeeper {
         });
     }
 
+    @Override
+    public void removeAllWatches(String path, Watcher.WatcherType watcherType, boolean local, VoidCallback cb,
+                                 Object ctx) {
+        if (stopped) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
+            return;
+        }
+
+        executor.execute(() -> {
+            lock();
+            watchers.removeAll(path);
+            unlockIfLocked();
+            cb.processResult(KeeperException.Code.OK.intValue(), path, ctx);
+        });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MockZooKeeper.class);
 }

@@ -25,10 +25,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -36,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -49,12 +45,12 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.Stat;
 
 @Slf4j
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
-    private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    @VisibleForTesting
+    public static long cacheRefreshTimeMillis = TimeUnit.MINUTES.toMillis(5);
 
     @Getter
     private final MetadataStore store;
@@ -75,7 +71,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         this.serde = serde;
 
         this.objCache = Caffeine.newBuilder()
-                .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
+                .refreshAfterWrite(cacheRefreshTimeMillis, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
