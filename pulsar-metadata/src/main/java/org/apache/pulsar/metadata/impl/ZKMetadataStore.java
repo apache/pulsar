@@ -208,7 +208,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                 (rc0, path0, ctx0) -> {
                                     Code code0 = Code.get(rc0);
                                     if (code0 != Code.OK && code0 != Code.NOWATCHER) {
-                                        log.warn("Remove watcher failed. rc: {}, path: {}", code0, path);
+                                        log.warn("Remove watcher for non-existing znode failed. rc: {}, path: {}", code0, path);
                                     }
                                 }, null);
                         future.complete(false);
