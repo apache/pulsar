@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
  */
 @Getter
 @Setter
+@ToString
 public class ServiceConfiguration implements PulsarConfiguration {
 
     @Category
