@@ -104,6 +104,8 @@ public class HttpTopicLookupv2Test {
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(auth).when(brokerService).getAuthorizationService();
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
+        doReturn(CompletableFuture.completedFuture(false)).when(brokerService)
+                .isAllowAutoTopicCreationAsync(any(TopicName.class));
     }
 
     @Test

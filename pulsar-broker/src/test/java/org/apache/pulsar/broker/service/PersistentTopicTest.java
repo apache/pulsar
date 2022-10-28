@@ -145,6 +145,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -1295,7 +1296,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
         topic.addProducer(producer, new CompletableFuture<>()).join();
 
-        assertTrue(topic.delete().isCompletedExceptionally());
+        CompletableFuture<Void> cf = topic.delete();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> cf.isDone());
+        assertTrue(cf.isCompletedExceptionally());
         assertFalse((boolean) isFencedField.get(topic));
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
         topic.removeProducer(producer);
@@ -1312,7 +1315,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
-        assertTrue(topic.delete().isCompletedExceptionally());
+        CompletableFuture<Void> cf2 = topic.delete();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> cf2.isDone());
+        assertTrue(cf2.isCompletedExceptionally());
         assertFalse((boolean) isFencedField.get(topic));
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
         topic.unsubscribe(successSubName);

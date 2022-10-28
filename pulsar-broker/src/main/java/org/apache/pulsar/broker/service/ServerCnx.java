@@ -1088,9 +1088,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 }
 
-                boolean createTopicIfDoesNotExist = forceTopicCreation
-                        && service.isAllowAutoTopicCreation(topicName.toString());
-
                 final long consumerEpoch;
                 if (subscribe.hasConsumerEpoch()) {
                     consumerEpoch = subscribe.getConsumerEpoch();
@@ -1099,7 +1096,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
                         subscribe.getSubscriptionPropertiesList());
-                service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                service.isAllowAutoTopicCreationAsync(topicName.toString())
+                        .thenApply(isAllowed -> forceTopicCreation && isAllowed)
+                        .thenCompose(createTopicIfDoesNotExist ->
+                                service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
                                 return FutureUtil
