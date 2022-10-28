@@ -619,7 +619,7 @@ public class PersistentTopicsBase extends AdminResource {
             return CompletableFuture.completedFuture(null);
         }
         return validateTopicOwnershipAsync(topicName, authoritative)
-            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PRODUCE))
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.UPDATE_METADATA))
             .thenCompose(__ -> {
                 if (topicName.isPartitioned()) {
                     return internalUpdateNonPartitionedTopicProperties(properties);
