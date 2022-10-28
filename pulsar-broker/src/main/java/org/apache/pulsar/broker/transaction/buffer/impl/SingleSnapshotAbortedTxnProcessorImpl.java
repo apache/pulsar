@@ -177,6 +177,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         return this.lastSnapshotTimestamps;
     }
 
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        return takeSnapshotWriter.thenCompose(SystemTopicClient.Writer::closeAsync);
+    }
+
     private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
         reader.closeAsync().exceptionally(e -> {
             log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);

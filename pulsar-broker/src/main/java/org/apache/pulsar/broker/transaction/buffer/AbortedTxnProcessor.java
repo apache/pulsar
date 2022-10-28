@@ -94,4 +94,6 @@ public interface AbortedTxnProcessor extends TimerTask {
      */
     long getLastSnapshotTimestamps();
 
+    CompletableFuture<Void> closeAsync();
+
 }
