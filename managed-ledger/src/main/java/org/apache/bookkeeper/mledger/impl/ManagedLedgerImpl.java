@@ -2423,6 +2423,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
                               CompletableFuture<PositionImpl> finalPromise) {
+        if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
+                || config.getLedgerOffloader().getOffloadPolicies() == null) {
+            String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
+            finalPromise.completeExceptionally(new IllegalArgumentException(msg));
+            return;
+        }
+
+        if (offloadThresholdInBytes < 0 && offloadThresholdInSeconds < 0) {
+            String msg = String.format("[%s] Nothing to offload due to [managedLedgerOffloadThresholdInBytes] and "
+                    + "[managedLedgerOffloadThresholdInSeconds] less than 0.", name);
+            finalPromise.completeExceptionally(new IllegalArgumentException(msg));
+            return;
+        }
+
         if (!offloadMutex.tryLock()) {
             scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
                     100, TimeUnit.MILLISECONDS);
@@ -2438,20 +2452,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 finalPromise.complete(res);
             }
         });
-
-        if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
-                || config.getLedgerOffloader().getOffloadPolicies() == null) {
-            String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
-            finalPromise.completeExceptionally(new IllegalArgumentException(msg));
-            return;
-        }
-
-        if (offloadThresholdInBytes < 0 && offloadThresholdInSeconds < 0) {
-            String msg = String.format("[%s] Nothing to offload due to [managedLedgerOffloadThresholdInBytes] and "
-                    + "[managedLedgerOffloadThresholdInSeconds] less than 0.", name);
-            finalPromise.completeExceptionally(new IllegalArgumentException(msg));
-            return;
-        }
 
         long sizeSummed = 0;
         long toOffloadSize = 0;
