@@ -197,6 +197,26 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
                     || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
             Assert.assertTrue(m.value >= 0);
         }
+
+        for (PrometheusMetricsTest.Metric m : batchExecuteTime) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+            String metadataStoreName = m.tags.get("name");
+            Assert.assertNotNull(metadataStoreName);
+            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
+            Assert.assertTrue(m.value > 0);
+        }
+
+        for (PrometheusMetricsTest.Metric m : opsPerBatch) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+            String metadataStoreName = m.tags.get("name");
+            Assert.assertNotNull(metadataStoreName);
+            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
+            Assert.assertTrue(m.value > 0);
+        }
     }
 
 }
