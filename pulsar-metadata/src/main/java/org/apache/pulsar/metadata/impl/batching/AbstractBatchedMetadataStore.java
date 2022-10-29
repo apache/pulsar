@@ -180,6 +180,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             this.batchMetadataStoreStats.recordOpWaiting(now - op.created());
         }
         this.batchOperation(ops);
+        this.batchMetadataStoreStats.recordOpsInBatch(ops.size());
+        this.batchMetadataStoreStats.recordBatchExecuteTime(System.currentTimeMillis() - now);
     }
 
     protected abstract void batchOperation(List<MetadataOp> ops);

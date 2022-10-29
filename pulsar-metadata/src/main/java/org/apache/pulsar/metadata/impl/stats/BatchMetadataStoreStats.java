@@ -32,9 +32,20 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .build("pulsar_batch_metadata_store_executor_queue_size", "-")
             .labelNames(NAME)
             .register();
-    private static final Histogram BATCH_OPS_WAITING = Histogram
+    private static final Histogram OPS_WAITING = Histogram
             .build("pulsar_batch_metadata_store_queue_wait_time", "-")
             .unit("ms")
+            .labelNames(NAME)
+            .buckets(BUCKETS)
+            .register();
+    private static final Histogram BATCH_EXECUTE_TIME = Histogram
+            .build("pulsar_batch_metadata_store_batch_execute_time", "-")
+            .unit("ms")
+            .labelNames(NAME)
+            .buckets(BUCKETS)
+            .register();
+    private static final Histogram OPS_PER_BATCH = Histogram
+            .build("pulsar_batch_metadata_store_perbatch_ops", "-")
             .labelNames(NAME)
             .buckets(BUCKETS)
             .register();
@@ -44,6 +55,8 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private final String metadataStoreName;
 
     private final Histogram.Child batchOpsWaitingChild;
+    private final Histogram.Child batchExecuteTimeChild;
+    private final Histogram.Child opsPerBatchChild;
 
     public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor) {
         if (executor instanceof ThreadPoolExecutor tx) {
@@ -61,18 +74,29 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             }
         }, metadataStoreName);
 
-        this.batchOpsWaitingChild = BATCH_OPS_WAITING.labels(metadataStoreName);
+        this.batchOpsWaitingChild = OPS_WAITING.labels(metadataStoreName);
+        this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labels(metadataStoreName);
+        this.opsPerBatchChild = OPS_PER_BATCH.labels(metadataStoreName);
+
     }
 
     public void recordOpWaiting(long millis) {
         this.batchOpsWaitingChild.observe(millis);
     }
 
+    public void recordBatchExecuteTime(long millis) {
+        this.batchExecuteTimeChild.observe(millis);
+    }
+
+    public void recordOpsInBatch(int ops) {
+        this.opsPerBatchChild.observe(ops);
+    }
+
     @Override
     public void close() throws Exception {
         if (closed.compareAndSet(false, true)) {
             EXECUTOR_QUEUE_SIZE.remove(this.metadataStoreName);
-            BATCH_OPS_WAITING.remove(this.metadataStoreName);
+            OPS_WAITING.remove(this.metadataStoreName);
         }
     }
 }
