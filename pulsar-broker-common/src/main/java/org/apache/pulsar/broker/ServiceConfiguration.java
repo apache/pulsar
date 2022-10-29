@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
  */
 @Getter
 @Setter
+@ToString
 public class ServiceConfiguration implements PulsarConfiguration {
 
     @Category
@@ -372,6 +373,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
     private boolean delayedDeliverySharedIndexEnabled = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
+            + "when detecting if all the messages in the topic have a fixed delay. "
+            + "Default is 50,000. Setting the lookahead window to 0 will disable the "
+            + "logic to handle fixed delays in messages in a different way.")
+    private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
@@ -637,12 +644,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
     )
     private boolean forceDeleteTenantAllowed = false;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of namespaces. Default is false."
     )
     private boolean forceDeleteNamespaceAllowed = false;
@@ -1049,6 +1058,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
     )
     private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+
+    @FieldContext(
+        dynamic = false,
+        category = CATEGORY_SERVER,
+        doc = "Whether the broker should count filtered entries in dispatch rate limit calculations. When disabled, "
+            + "only messages sent to a consumer count towards a dispatch rate limit at the broker, topic, and "
+            + "subscription level. When enabled, messages filtered out due to entry filter logic are counted towards "
+            + "each relevant rate limit."
+    )
+    private boolean dispatchThrottlingForFilteredEntriesEnabled = false;
 
     // <-- dispatcher read settings -->
     @FieldContext(
@@ -1769,19 +1788,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of bookies to use when creating a ledger"
+        doc = "Ensemble (E) size, Number of bookies to use for storing entries in a ledger.\n"
+            + "Please notice that sticky reads enabled by bookkeeperEnableStickyReads=true aren’t used "
+            + " unless ensemble size (E) equals write quorum (Qw) size."
     )
     private int managedLedgerDefaultEnsembleSize = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of copies to store for each message"
+        doc = "Write quorum (Qw) size, Replication factor for storing entries (messages) in a ledger."
     )
     private int managedLedgerDefaultWriteQuorum = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of guaranteed copies (acks to wait before write is complete)"
+        doc = "Ack quorum (Qa) size, Number of guaranteed copies "
+               + "(acks to wait for before a write is considered completed)"
     )
     private int managedLedgerDefaultAckQuorum = 2;
 
@@ -1942,6 +1964,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The threshold to triggering automatic offload to long term storage"
+    )
+    private long managedLedgerOffloadThresholdInSeconds = -1L;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
     )
@@ -2090,6 +2117,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "Default is ThresholdShedder since 2.10.0"
     )
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "When [current usage < average usage - threshold], "
+                    + "the broker with the highest load will be triggered to unload"
+    )
+    private boolean lowerBoundarySheddingEnabled = false;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2489,6 +2523,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
+                + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
+    )
+    private int clusterMigrationCheckDurationSeconds = 0;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
@@ -2625,6 +2666,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
     @FieldContext(
+            dynamic = true,
             category = CATEGORY_METRICS,
             doc = "Enable expose the broker bundles metrics."
     )

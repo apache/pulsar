@@ -8,7 +8,7 @@ Triggering a function means that you invoke a function by producing a message to
 
 :::tip
 
-With the [`pulsar-admin`](/tools/pulsar-admin/) CLI, you can send messages to functions without using the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
+With the [`pulsar-admin`](/tools/pulsar-admin/) CLI, you can send messages to functions without using the [`pulsar-client`](reference-cli-tools.md) tool or a language-specific client library.
 
 :::
 
@@ -33,7 +33,7 @@ def process(input):
     --output persistent://public/default/out
   ```
 
-2. Assign a consumer to listen on the output topic for messages from the `myfunc` function with the [`pulsar-client consume`](reference-cli-tools.md#consume) command.
+2. Assign a consumer to listen on the output topic for messages from the `myfunc` function with the [`pulsar-client consume`](reference-cli-tools.md) command.
 
   ```bash
   bin/pulsar-client consume persistent://public/default/out \

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
@@ -32,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -50,10 +50,12 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
@@ -87,9 +89,9 @@ public class Consumer {
     private final LongAdder bytesOutCounter;
     private final Rate messageAckRate;
 
-    private long lastConsumedTimestamp;
-    private long lastAckedTimestamp;
-    private long lastConsumedFlowTimestamp;
+    private volatile long lastConsumedTimestamp;
+    private volatile long lastAckedTimestamp;
+    private volatile long lastConsumedFlowTimestamp;
     private Rate chunkedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
@@ -786,6 +788,16 @@ public class Consumer {
         cnx.getCommandSender().sendReachedEndOfTopic(consumerId);
     }
 
+    public void topicMigrated(Optional<ClusterUrl> clusterUrl) {
+        if (clusterUrl.isPresent()) {
+            ClusterUrl url = clusterUrl.get();
+            cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
+                    url.getBrokerServiceUrlTls());
+            // disconnect consumer after sending migrated cluster url
+            disconnect();
+        }
+    }
+
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
@@ -994,7 +1006,7 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
         int totalRedeliveryMessages = 0;
-        List<PositionImpl> pendingPositions = Lists.newArrayList();
+        List<PositionImpl> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
             LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());

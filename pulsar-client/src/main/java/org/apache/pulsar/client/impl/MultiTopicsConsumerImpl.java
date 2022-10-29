@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -172,8 +173,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return;
         }
 
-        checkArgument(conf.getTopicNames().isEmpty()
-                || topicNamesValid(conf.getTopicNames()), "Topics is empty or invalid.");
+        checkArgument(topicNamesValid(conf.getTopicNames()), "Topics is invalid.");
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream()
                 .map(t -> subscribeAsync(t, createTopicIfDoesNotExist))
@@ -334,14 +334,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    // If message consumer epoch is smaller than consumer epoch present that
-    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
-    // so we should release this message and receive again
-    private boolean isValidConsumerEpoch(Message<T> message) {
-        return isValidConsumerEpoch(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
-                .getMessage()));
-    }
-
     @Override
     public int minReceiverQueueSize() {
         int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
@@ -364,11 +356,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            if (!isValidConsumerEpoch(message)) {
-                resumeReceivingFromPausedConsumersIfNeeded();
-                message.release();
-                return internalReceive();
-            }
             unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -380,8 +367,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
-
-        long callTime = System.nanoTime();
         try {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
@@ -390,16 +375,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (!isValidConsumerEpoch(message)) {
-                    long executionTime = System.nanoTime() - callTime;
-                    long timeoutInNanos = unit.toNanos(timeout);
-                    if (executionTime >= timeoutInNanos) {
-                        return null;
-                    } else {
-                        resumeReceivingFromPausedConsumersIfNeeded();
-                        return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
-                    }
-                }
                 unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -430,22 +405,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
         internalPinnedExecutor.execute(() -> {
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getNewMessagesImpl();
-                Message<T> msgPeeked = incomingMessages.peek();
-                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll();
-                    if (msg != null) {
-                        decreaseIncomingMessageSize(msg);
-                        if (!isValidConsumerEpoch(msg)) {
-                            msgPeeked = incomingMessages.peek();
-                            continue;
-                        }
-                        Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(interceptMsg);
-                    }
-                    msgPeeked = incomingMessages.peek();
-                }
-                result.complete(messages);
+                notifyPendingBatchReceivedCallBack(result);
             } else {
                 expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
@@ -695,17 +655,24 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return internalConsumerConfig;
     }
 
+    @SneakyThrows
     @Override
     public void redeliverUnacknowledgedMessages() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         internalPinnedExecutor.execute(() -> {
             CONSUMER_EPOCH.incrementAndGet(this);
             consumers.values().stream().forEach(consumer -> {
-                consumer.redeliverUnacknowledgedMessages();
+                futures.add(consumer.internalRedeliverUnacknowledgedMessages());
                 consumer.unAckedChunkedMessageIdSequenceMap.clear();
             });
             clearIncomingMessages();
             unAckedMessageTracker.clear();
         });
+        try {
+            FutureUtil.waitForAll(futures).get();
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        }
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
@@ -740,7 +707,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected void completeOpBatchReceive(OpBatchReceive<T> op) {
-        notifyPendingBatchReceivedCallBack(op);
+        notifyPendingBatchReceivedCallBack(op.future);
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 

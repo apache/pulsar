@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import lombok.Getter;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 public class InstanceCache {
 
@@ -33,7 +33,7 @@ public class InstanceCache {
 
     private InstanceCache() {
         ThreadFactory namedThreadFactory =
-                new DefaultThreadFactory("function-timer-thread");
+                new ExecutorProvider.ExtendedThreadFactory("function-timer-thread");
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(namedThreadFactory);
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -590,7 +590,7 @@ public class CLITest extends PulsarTestSuite {
             ContainerExecResult result = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
                     "documents", "generate", moduleNames[i]);
-            Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
+            Assert.assertTrue(result.getStdout().contains("# " + moduleNames[i]));
         }
     }
 

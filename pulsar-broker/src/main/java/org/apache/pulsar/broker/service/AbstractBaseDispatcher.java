@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
@@ -107,7 +106,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
-        final boolean hasFilter = CollectionUtils.isNotEmpty(entryFilters);
+        int filteredMessageCount = 0;
+        int filteredEntryCount = 0;
+        long filteredBytesCount = 0;
         List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
         List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
@@ -135,6 +136,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 // FilterResult will be always `ACCEPTED` when there is No Filter
                 // dont need to judge whether `hasFilter` is true or not.
                 this.filterRejectedMsgs.add(entryMsgCnt);
+                filteredEntryCount++;
+                filteredMessageCount += entryMsgCnt;
+                filteredBytesCount += metadataAndPayload.readableBytes();
                 entry.release();
                 continue;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
@@ -143,6 +147,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 // FilterResult will be always `ACCEPTED` when there is No Filter
                 // dont need to judge whether `hasFilter` is true or not.
                 this.filterRescheduledMsgs.add(entryMsgCnt);
+                filteredEntryCount++;
+                filteredMessageCount += entryMsgCnt;
+                filteredBytesCount += metadataAndPayload.readableBytes();
                 entry.release();
                 continue;
             }
@@ -231,6 +238,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
         }
 
+        if (serviceConfig.isDispatchThrottlingForFilteredEntriesEnabled()) {
+            acquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, filteredEntryCount,
+                    filteredMessageCount, filteredBytesCount);
+        }
+
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
@@ -240,6 +252,19 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
         if (!(subscription instanceof CompactorSubscription)) {
             subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
+        }
+    }
+
+    protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
+                                                      long totalMessagesSent, long totalBytesSent) {
+        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled()
+                || (cursor != null && !cursor.isActive())) {
+            long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
+            topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
+                    rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+            topic.getDispatchRateLimiter().ifPresent(rateLimter ->
+                    rateLimter.tryDispatchPermit(permits, totalBytesSent));
+            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(permits, totalBytesSent));
         }
     }
 
@@ -310,6 +335,19 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected String getSubscriptionName() {
         return subscription == null ? null : subscription.getName();
+    }
+
+    protected void checkAndApplyReachedEndOfTopicOrTopicMigration(List<Consumer> consumers) {
+        PersistentTopic topic = (PersistentTopic) subscription.getTopic();
+        checkAndApplyReachedEndOfTopicOrTopicMigration(topic, consumers);
+    }
+
+    public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
+        if (topic.isMigrated()) {
+            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+        } else {
+            consumers.forEach(Consumer::reachedEndOfTopic);
+        }
     }
 
     @Override

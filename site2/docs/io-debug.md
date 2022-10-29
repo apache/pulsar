@@ -58,7 +58,7 @@ Start the Mongo sink in localrun mode using the `localrun` command.
 
 :::tip
 
-For more information about the `localrun` command, see [`localrun`](reference-connector-admin.md/#localrun-1).
+For more information about the `localrun` command, see [`localrun`](reference-connector-admin.md).
 
 :::
 
@@ -255,7 +255,7 @@ Use the `get` command to get the basic information about the Mongo sink connecto
 
 :::tip
 
-For more information about the `get` command, see [`get`](reference-connector-admin.md/#get-1).
+For more information about the `get` command, see [`get`](reference-connector-admin.md).
 
 :::
 
@@ -291,7 +291,7 @@ Use the `status` command to get the current status about the Mongo sink connecto
 
 :::tip
 
-For more information about the `status` command, see [`status`](reference-connector-admin.md/#stauts-1).
+For more information about the `status` command, see [`status`](reference-connector-admin.md).
 If there are multiple connectors running on a worker, `workerId` can locate the worker on which the specified connector is running.
 
 :::

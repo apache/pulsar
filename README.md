@@ -19,13 +19,12 @@
 
 -->
 
-![logo](site2/website/static/img/pulsar.svg)
+![logo](https://pulsar.apache.org/img/pulsar.svg)
 
 [![docker pull](https://img.shields.io/docker/pulls/apachepulsar/pulsar-all.svg)](https://hub.docker.com/r/apachepulsar/pulsar)
 [![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
 [![last commit](https://img.shields.io/github/last-commit/apache/pulsar)](https://github.com/apache/pulsar/commits/master)
-[![release](https://img.shields.io/github/v/release/apache/pulsar)](https://github.com/apache/pulsar/releases)
-[![release date](https://img.shields.io/github/release-date/apache/pulsar)](https://github.com/apache/pulsar/releases)
+[![release](https://img.shields.io/github/v/release/apache/pulsar?sort=semver)](https://pulsar.apache.org/download/)
 [![downloads](https://img.shields.io/github/downloads/apache/pulsar/total)](https://pulsar.apache.org/download/)
 
 Pulsar is a distributed pub-sub messaging platform with a very
@@ -68,15 +67,15 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 ### Ecosystem
 
 - [Pulsar Adapters](https://github.com/apache/pulsar-adapters)
-- [Pulsar Connectors](https://github.com/apache/pulsar-connectors)
-- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto)
 
 ### Clients
 
 - [.NET/C# Client](https://github.com/apache/pulsar-dotpulsar)
+- [C++ Client](https://github.com/apache/pulsar-client-cpp)
 - [Go Client](https://github.com/apache/pulsar-client-go)
 - [NodeJS Client](https://github.com/apache/pulsar-client-node)
-- [Ruby Client](https://github.com/apache/pulsar-client-ruby)
+- [Python Client](https://github.com/apache/pulsar-client-python)
+- [Reactive Java Client](https://github.com/apache/pulsar-client-reactive)
 
 ### Dashboard & Management Tools
 
@@ -86,13 +85,16 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar Site](https://github.com/apache/pulsar-site)
 
-### Documentation
-
-- [Pulsar Translation](https://github.com/apache/pulsar-translation)
-
 ### CI/CD
 
 - [Pulsar CI](https://github.com/apache/pulsar-test-infra)
+
+### Archived/Halted
+
+- [Pulsar Connectors](https://github.com/apache/pulsar-connectors)
+- [Pulsar Translation](https://github.com/apache/pulsar-translation)
+- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto)
+- [Ruby Client](https://github.com/apache/pulsar-client-ruby)
 
 ## Pulsar Runtime Java Version Recommendation
 
@@ -122,7 +124,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Build Pulsar
 
-Requirements:
+### Requirements
 
 - JDK
 
@@ -138,6 +140,7 @@ Requirements:
 > Note: this project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.
 
+### Build
 Compile and install:
 
 ```bash
@@ -150,7 +153,7 @@ Compile and install individual module
 $ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
 ```
 
-## Minimal build (This skips most of external connectors and tiered storage handlers)
+### Minimal build (This skips most of external connectors and tiered storage handlers)
 
 ```
 mvn install -Pcore-modules,-main -DskipTests

@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 You can use a Pulsar C++ client to create producers, consumers, and readers.
 
-All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the Doxygen-generated [API docs](/api/cpp) for the C++ client
+All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the [API docs](/api/cpp) for the C++ client.
 
 ## Installation
 
@@ -78,7 +78,7 @@ This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
 wget @pulsar:dist_rpm:client-debuginfo@
 ```
 
-This package contains debug symbols for `libpulsar.so`
+This package contains debug symbols for `libpulsar.so`.
 
 </TabItem>
 <TabItem value="client-devel">
@@ -108,7 +108,7 @@ If you get an error like "libpulsar.so: cannot open shared object file: No such 
 
 ### Source
 
-For how to build Pulsar C++ client on different platforms from source code, see [compliation](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp#compilation).
+For how to build Pulsar C++ client on different platforms from source code, see [compliation](https://github.com/apache/pulsar-client-cpp#compilation).
 
 ## Connection URLs
 
@@ -408,12 +408,11 @@ config.setAuth(pulsar::AuthTls::create(
 Client client("pulsar+ssl://my-broker.com:6651", config);
 ```
 
-For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
+For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
 ## Schema
 
-This section describes some examples about schema. For more information about
-schema, see [Pulsar schema](schema-get-started.md).
+This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
 
 ### Avro schema
 

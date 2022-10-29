@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -952,7 +952,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
     public static class TestAuthorizationProviderWithGrantPermission extends TestAuthorizationProvider {
 
-        private Set<String> grantRoles = Sets.newHashSet();
+        private Set<String> grantRoles = new HashSet<>();
         static AuthenticationDataSource authenticationData;
         static String authDataJson;
 

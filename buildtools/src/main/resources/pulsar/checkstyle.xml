@@ -137,7 +137,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
         <module name="IllegalImport">
             <property name="illegalPkgs"
-                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged" />
+                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, org.apache.curator.shaded, org.testcontainers.shaded" />
         </module>
 
         <module name="RedundantModifier">

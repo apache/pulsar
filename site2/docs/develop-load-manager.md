@@ -89,7 +89,7 @@ There are a few different ways to determine which load manager is being used:
    }
    ```
 
-3. The command-line [broker monitor](reference-cli-tools.md#monitor-brokers) will have a different output format depending on which load manager implementation is being used.
+3. The command-line [broker monitor](reference-cli-tools.md) will have a different output format depending on which load manager implementation is being used.
 
    Here is an example from the modular load manager:
 

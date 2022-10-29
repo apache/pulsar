@@ -52,7 +52,7 @@ echo 1 > data/zookeeper/myid
 
 On `zk2.us-west.example.com` the command is `echo 2 > data/zookeeper/myid` and so on.
 
-Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```shell
 bin/pulsar-daemon start zookeeper
@@ -68,7 +68,7 @@ If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#deploy-local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -122,7 +122,7 @@ peerType=observer
 
 ##### Start the service
 
-Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
+Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md)
 
 ```shell
 bin/pulsar-daemon start configuration-store
@@ -201,19 +201,19 @@ BookKeeper provides [persistent message storage](concepts-architecture-overview.
 
 You can start a bookie in the foreground or as a background daemon.
 
-To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
+To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/bookkeeper bookie
 ```
 
-To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start bookie
 ```
 
-You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
+You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md):
 
 ```shell
 bin/bookkeeper shell bookiesanity
@@ -259,9 +259,9 @@ You can run the following command to check if the bookie you have decommissioned
 
 In Pulsar, you can set *persistence policies* at the namespace level, which determines how BookKeeper handles persistent storage of messages. Policies determine four things:
 
-* The number of acks (guaranteed copies) to wait for each ledger entry.
-* The number of bookies to use for a topic.
-* The number of writes to make for each ledger entry.
+* Ensemble (E) size, Number of [bookies](reference-terminology.md#bookie) to use for storing entries in a ledger.
+* Write quorum (Q<sub>w</sub>) size, Replication factor for storing entries (messages) in a ledger.
+* Ack quorum (Q<sub>a</sub>) size, Number of guaranteed copies (acks to wait for before a write is considered completed).
 * The throttling rate for mark-delete operations.
 
 ### Set persistence policies
@@ -272,20 +272,38 @@ You can set persistence policies for BookKeeper at the [namespace](reference-ter
 
 Use the [`set-persistence`](/tools/pulsar-admin/) subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:
 
-Flag | Description | Default
-:----|:------------|:-------
-`-a`, `--bookkeeper-ack-quorum` | The number of acks (guaranteed copies) to wait on for each entry | 0
-`-e`, `--bookkeeper-ensemble` | The number of [bookies](reference-terminology.md#bookie) to use for topics in the namespace | 0
-`-w`, `--bookkeeper-write-quorum` | The number of writes to make for each entry | 0
-`-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle) | 0
+Flag | Description                                                                                                                | Default
+:----|:---------------------------------------------------------------------------------------------------------------------------|:-------
+`-e`, `--bookkeeper-ensemble` | Ensemble (E) size, Number of [bookies](reference-terminology.md#bookie) to use for storing entries in a ledger.| 0
+`-w`, `--bookkeeper-write-quorum` | Write quorum (Q<sub>w</sub>) size, Replication factor for storing entries (messages) in a ledger.                                            | 0
+`-a`, `--bookkeeper-ack-quorum` | Ack quorum (Q<sub>a</sub>) size, Number of guaranteed copies (acks to wait for before a write is considered completed)                          | 0
+`-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle)                                                           | 0
+
+Please notice that sticky reads enabled by `bookkeeperEnableStickyReads=true` aren’t used unless ensemble size (E) equals write quorum (Q<sub>w</sub>) size. Sticky reads improve the efficiency of the Bookkeeper read ahead cache when all reads for a single ledger are sent to a single bookie.
+
+Some rules for choosing the values:
+
+Rule | Description |
+:----|:------------|
+E >= Q<sub>w</sub> >= Q<sub>a</sub>|Ensemble size must be larger or equal than write quorum size, write quorum size must be larger or equal than ack quorum size.
+Max bookie failures = Q<sub>a</sub>-1, |This rule must be fulfilled if data durability is desired in case of bookie failures. To safely tolerate at least one bookie failure at a time in the ensemble, Q<sub>a</sub> must be set to a value at least 2.
+E == Q<sub>w</sub> | Sticky reads enabled by `bookkeeperEnableStickyReads=true` aren't used unless ensemble size (E) equals write quorum (Q<sub>w</sub>) size.
 
 The following is an example:
 
 ```shell
 pulsar-admin namespaces set-persistence my-tenant/my-ns \
---bookkeeper-ack-quorum 3 \
---bookkeeper-ensemble 2
+--bookkeeper-ensemble 3 \
+--bookkeeper-write-quorum 3 \
+--bookkeeper-ack-quorum 3
 ```
+
+Short example:
+
+```shell
+pulsar-admin namespaces set-persistence my-tenant/my-ns -e 3 -w 3 -a 3
+```
+
 
 #### REST API
 
@@ -294,12 +312,14 @@ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 #### Java
 
 ```java
-int bkEnsemble = 2;
-int bkQuorum = 3;
-int bkAckQuorum = 2;
+// The following must be true: bkEnsemble >= bkWriteQuorum >= bkAckQuorum
+// Please notice that sticky reads cannot be used unless bkEnsemble == bkWriteQuorum. 
+int bkEnsemble = 3;
+int bkWriteQuorum = 3;
+int bkAckQuorum = 3;
 double markDeleteRate = 0.7;
 PersistencePolicies policies =
-  new PersistencePolicies(ensemble, quorum, ackQuorum, markDeleteRate);
+  new PersistencePolicies(bkEnsemble, bkWriteQuorum, bkAckQuorum, markDeleteRate);
 admin.namespaces().setPersistence(namespace, policies);
 ```
 

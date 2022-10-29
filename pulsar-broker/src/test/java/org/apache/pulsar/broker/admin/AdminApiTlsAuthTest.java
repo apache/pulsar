@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -459,7 +459,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete("tenant1/ns1/foobar", true);
 
             log.info("Deleting namespace");
-            admin.namespaces().deleteNamespace("tenant1/ns1");
+            deleteNamespaceGraceFully("tenant1/ns1", false, admin);
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
@@ -121,6 +124,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
@@ -141,6 +145,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -569,10 +574,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     } else {
                                         log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
                                                 topicName, ex.getMessage(), ex);
-                                        ServerError error = (ex instanceof RestException)
-                                                && ((RestException) ex).getResponse().getStatus() < 500
-                                                        ? ServerError.MetadataError
-                                                        : ServerError.ServiceNotReady;
+                                        ServerError error = ServerError.ServiceNotReady;
+                                        if (ex instanceof RestException restException){
+                                            int responseCode = restException.getResponse().getStatus();
+                                            if (responseCode == NOT_FOUND.getStatusCode()){
+                                                error = ServerError.TopicNotFound;
+                                            } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
+                                                error = ServerError.MetadataError;
+                                            }
+                                        }
                                         commandSender.sendPartitionMetadataResponse(error, ex.getMessage(), requestId);
                                     }
                                 }
@@ -1078,9 +1088,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 }
 
-                boolean createTopicIfDoesNotExist = forceTopicCreation
-                        && service.isAllowAutoTopicCreation(topicName.toString());
-
                 final long consumerEpoch;
                 if (subscribe.hasConsumerEpoch()) {
                     consumerEpoch = subscribe.getConsumerEpoch();
@@ -1089,7 +1096,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
                         subscribe.getSubscriptionPropertiesList());
-                service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                service.isAllowAutoTopicCreationAsync(topicName.toString())
+                        .thenApply(isAllowed -> forceTopicCreation && isAllowed)
+                        .thenCompose(createTopicIfDoesNotExist ->
+                                service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
                                 return FutureUtil
@@ -1431,7 +1441,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 // Do not print stack traces for expected exceptions
                 if (cause instanceof NoSuchElementException) {
                     cause = new TopicNotFoundException("Topic Not Found.");
-                    log.info("[{}] Failed to load topic {}, producerId={}: Topic not found", remoteAddress, topicName,
+                    log.warn("[{}] Failed to load topic {}, producerId={}: Topic not found", remoteAddress, topicName,
                             producerId);
                 } else if (!Exceptions.areExceptionsPresentInChain(cause,
                         ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
@@ -1497,7 +1507,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             producers.remove(producerId, producerFuture);
         }).exceptionally(ex -> {
-            if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
+            if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
+                Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar());
+                if (clusterURL.isPresent()) {
+                    log.info("[{}] redirect migrated producer to topic {}: producerId={}, {}", remoteAddress, topicName,
+                            producerId, ex.getCause().getMessage());
+                    commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
+                            clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
+                    closeProducer(producer);
+                    return null;
+
+                } else {
+                    log.warn("[{}] failed producer because migration url not configured topic {}: producerId={}, {}",
+                            remoteAddress, topicName, producerId, ex.getCause().getMessage());
+                }
+            } else if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Failed to add producer to topic {}: producerId={}, {}",
                             remoteAddress, topicName, producerId, ex.getCause().getMessage());

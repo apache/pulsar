@@ -20,13 +20,7 @@ Follow [these instructions](client-libraries-cpp.md#compilation) and install the
 
 ### Compatibility
 
-Compatibility between each version of the Node.js client and the C++ client is as follows:
-
-| Node.js client | C++ client     |
-| :------------- | :------------- |
-| 1.0.0          | 2.3.0 or later |
-| 1.1.0          | 2.4.0 or later |
-| 1.2.0          | 2.5.0 or later |
+Compatibility between each version of the Node.js client and the C++ client is listed on [github](https://github.com/apache/pulsar-client-node/blob/master/README.md).
 
 If an incompatible version of the C++ client is installed, you may fail to build or run this library.
 
@@ -451,4 +445,4 @@ The following static methods are available for the message id object:
 
 ## End-to-end encryption
 
-Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [cookbook](cookbooks-encryption.md) for more details.
+Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [Get started](security-encryption.md#get-started) for more details.

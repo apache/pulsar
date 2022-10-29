@@ -266,11 +266,8 @@
         {
           "type": "category",
           "label": "Encryption",
-          "link": {
-            "type": "doc",
-            "id": "security-encryption"
-          },
           "items": [
+            "security-encryption",
             "security-tls-transport",
             "security-bouncy-castle"
           ]
@@ -347,7 +344,6 @@
         "cookbooks-deduplication",
         "cookbooks-non-persistent",
         "cookbooks-retention-expiry",
-        "cookbooks-encryption",
         "cookbooks-message-queue",
         "cookbooks-bookkeepermetadata"
       ]
@@ -355,6 +351,10 @@
     {
       "type": "category",
       "label": "Development",
+      "link": {
+        "type": "doc",
+        "id": "developers-landing"
+      },
       "items": [
         "develop-tools",
         "developing-binary-protocol",
@@ -368,11 +368,7 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        {
-          "type": "link",
-          "href": "https://pulsar.apache.org/reference",
-          "label": "Pulsar configuration"
-        },
+        "reference-configuration",
         "reference-metrics",
         "reference-rest-api-overview",
         {

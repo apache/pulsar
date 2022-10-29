@@ -127,7 +127,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
 `concurrentLookupRequest`|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
 `maxLookupRequest`|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (60 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 `keepAliveIntervalSeconds`|int|Seconds of keeping alive interval for each client broker connection|30
 `connectionTimeoutMs`|int|Duration of waiting for a connection to a broker to be established <br /><br />If the duration passes without a response from a broker, the connection attempt is dropped|10000
 `requestTimeoutMs`|int|Maximum duration for completing a request |60000
@@ -1262,7 +1262,7 @@ Pulsar currently supports the following authentication mechansims:
 * [TLS](security-tls-authentication.md#configure-tls-authentication-in-pulsar-clients)
 * [JWT](security-jwt.md#configure-jwt-authentication-in-pulsar-clients)
 * [Athenz](security-athenz.md#configure-athenz-authentication-in-pulsar-clients)
-* [Kerberos](security-kerberos.md#java-client-and-java-admin-client)
+* [Kerberos](security-kerberos.md#configure-kerberos-authentication-in-pulsar-clients)
 * [OAuth2](security-oauth2.md#configure-oauth2-authentication-in-pulsar-clients)
 * [HTTP basic](security-basic-auth.md#configure-basic-authentication-in-pulsar-clients)
 
