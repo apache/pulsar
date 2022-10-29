@@ -449,7 +449,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         abortedTxnProcessorField.setAccessible(true);
         AbortedTxnProcessor abortedTxnProcessor =
                 (AbortedTxnProcessor) abortedTxnProcessorField.get(topicTransactionBuffer);
-        abortedTxnProcessor.takesFirstSnapshot();
+        abortedTxnProcessor.takeAbortedTxnSnapshot(topicTransactionBuffer.getMaxReadPosition());
 
         TopicName transactionBufferTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(

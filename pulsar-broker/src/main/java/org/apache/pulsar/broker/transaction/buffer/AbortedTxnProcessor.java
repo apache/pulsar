@@ -25,7 +25,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 
-public interface AbortedTxnProcessor extends TimerTask {
+public interface AbortedTxnProcessor {
 
     /**
      * After the transaction buffer writes a transaction aborted mark to the topic,
@@ -33,19 +33,6 @@ public interface AbortedTxnProcessor extends TimerTask {
      * @param txnID aborted transaction ID.
      */
     void appendAbortedTxn(TxnID txnID, PositionImpl position);
-
-    /**
-     * After the transaction buffer writes a transaction aborted mark to the topic,
-     * the transaction buffer will update max read position in AbortedTxnProcessor
-     * @param maxReadPosition  the max read position after the transaction is aborted.
-     */
-    void updateMaxReadPosition(Position maxReadPosition);
-
-    /**
-     * This method is used to updated max read position for the topic which nerver used transaction send message.
-     * @param maxReadPosition the max read position after the transaction is aborted.
-     */
-    void updateMaxReadPositionNotIncreaseChangeTimes(Position maxReadPosition);
 
     /**
      * Pulsar has a configuration for ledger retention time.
@@ -80,13 +67,7 @@ public interface AbortedTxnProcessor extends TimerTask {
      * Take the frist snapshot if the topic has no snapshot before.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> takesFirstSnapshot();
-
-    /**
-     * Get the max read position.
-     * @return the maxReadPosition.
-     */
-    PositionImpl getMaxReadPosition();
+    CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition);
 
     /**
      * Get the lastSnapshotTimestamps.

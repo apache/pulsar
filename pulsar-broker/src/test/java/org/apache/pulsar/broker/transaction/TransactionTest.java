@@ -669,7 +669,7 @@ public class TransactionTest extends TransactionTestBase {
 
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.Initializing);
         MessageIdImpl messageId5 = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
-        PositionImpl position5 = abortedTxnProcessor.getMaxReadPosition();
+        PositionImpl position5 = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position5.getLedgerId(), messageId4.getLedgerId());
         Assert.assertEquals(position5.getEntryId(), messageId4.getEntryId());
     }
@@ -949,7 +949,8 @@ public class TransactionTest extends TransactionTestBase {
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
         processorField.setAccessible(true);
         AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(topicTransactionBuffer);
-        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takesFirstSnapshot();
+        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takeAbortedTxnSnapshot(
+                topicTransactionBuffer.getMaxReadPosition());
         completableFuture.get();
 
         doReturn(PositionImpl.LATEST).when(managedLedger).getLastConfirmedEntry();

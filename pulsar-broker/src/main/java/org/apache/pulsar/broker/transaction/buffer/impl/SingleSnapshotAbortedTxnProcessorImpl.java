@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -81,19 +79,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     @Override
     public void appendAbortedTxn(TxnID abortedTxnId, PositionImpl position) {
         aborts.put(abortedTxnId, position);
-    }
-
-    @Override
-    public void updateMaxReadPosition(Position maxReadPosition) {
-        if (this.maxReadPosition != maxReadPosition) {
-            this.maxReadPosition = (PositionImpl) maxReadPosition;
-            takeSnapshotByChangeTimes();
-        }
-    }
-
-    @Override
-    public void updateMaxReadPositionNotIncreaseChangeTimes(Position maxReadPosition) {
-        this.maxReadPosition = (PositionImpl) maxReadPosition;
     }
 
     @Override
@@ -163,13 +148,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> takesFirstSnapshot() {
-        return takeSnapshot();
-    }
-
-    @Override
-    public PositionImpl getMaxReadPosition() {
-        return maxReadPosition;
+    public CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition) {
+        return takeAbortedTxnSnapshot(maxReadPosition, aborts);
     }
 
     @Override
@@ -189,20 +169,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         });
     }
 
-    private void takeSnapshotByChangeTimes() {
-        if (changeMaxReadPositionAndAddAbortTimes.incrementAndGet() >= takeSnapshotIntervalNumber) {
-            takeSnapshot();
-        }
-    }
-
-    private void takeSnapshotByTimeout() {
-        if (changeMaxReadPositionAndAddAbortTimes.get() > 0) {
-            takeSnapshot();
-        }
-        this.timer.newTimeout(SingleSnapshotAbortedTxnProcessorImpl.this,
-                takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-    }
-
     private void handleSnapshot(TransactionBufferSnapshot snapshot) {
         maxReadPosition = PositionImpl.get(snapshot.getMaxReadPositionLedgerId(),
                 snapshot.getMaxReadPositionEntryId());
@@ -215,7 +181,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         }
     }
 
-    private CompletableFuture<Void> takeSnapshot() {
+    private CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition, LinkedMap<TxnID, PositionImpl> aborts) {
         changeMaxReadPositionAndAddAbortTimes.set(0);
         return takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
@@ -245,11 +211,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 return null;
             });
         });
-    }
-
-    @Override
-    public void run(Timeout timeout) {
-        takeSnapshotByTimeout();
     }
 
 }
