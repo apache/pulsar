@@ -104,26 +104,10 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     if (code == Code.OK) {
                         future.complete(Optional.of(new GetResult(data, getStat(path1, stat))));
                     } else if (code == Code.NONODE) {
-                        // Place a watch on the non-existing node, so we'll get notified
-                        // when it gets created and we can invalidate the negative cache.
-                        existsFromStore(path).thenAccept(exists -> {
-                            if (exists) {
-                                get(path).thenAccept(c -> future.complete(c))
-                                        .exceptionally(ex -> {
-                                            future.completeExceptionally(ex);
-                                            return null;
-                                        });
-                            } else {
-                                // Z-node does not exist
-                                future.complete(Optional.empty());
-                                // if z-node does not exist discards cache,
-                                // because we can't be received NodeCreated event
-                                metadataCaches.forEach(c -> c.invalidate(path));
-                            }
-                        }).exceptionally(ex -> {
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
+                        future.complete(Optional.empty());
+                        // if z-node does not exist then discards cache,
+                        // because we can't be received NodeCreated event
+                        metadataCaches.forEach(c -> c.invalidate(path));
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
@@ -156,28 +140,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                         Collections.sort(children);
                         future.complete(children);
                     } else if (code == Code.NONODE) {
-                        // The node we want may not exist yet, so put a watcher on its existence
-                        // before throwing up the exception. Its possible that the node could have
-                        // been created after the call to getChildren, but before the call to exists().
-                        // If this is the case, exists will return true, and we just call getChildren
-                        // again.
-                        existsFromStore(path).thenAccept(exists -> {
-                            if (exists) {
-                                getChildrenFromStore(path).thenAccept(c -> future.complete(c)).exceptionally(ex -> {
-                                    future.completeExceptionally(ex);
-                                    return null;
-                                });
-                            } else {
-                                // Z-node does not exist
-                                future.complete(Collections.emptyList());
-                                // if z-node does not exist discards cache,
-                                // because we can't be received NodeCreated event
-                                childrenCache.synchronous().invalidate(path);
-                            }
-                        }).exceptionally(ex -> {
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
+                        // Z-node does not exist
+                        future.complete(Collections.emptyList());
+                        // if z-node does not exist then discards cache,
+                        // because we can't be received NodeCreated event
+                        childrenCache.synchronous().invalidate(path);
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
@@ -208,6 +175,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     if (code == Code.OK) {
                         future.complete(true);
                     } else if (code == Code.NONODE) {
+                        future.complete(false);
                         // remove watcher if node does not exist
                         zkc.removeAllWatches(path, Watcher.WatcherType.Any, true,
                                 (rc0, path0, ctx0) -> {
@@ -216,7 +184,6 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                         log.warn("Remove watcher for non-existing znode failed. rc: {}, path: {}", code0, path);
                                     }
                                 }, null);
-                        future.complete(false);
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations

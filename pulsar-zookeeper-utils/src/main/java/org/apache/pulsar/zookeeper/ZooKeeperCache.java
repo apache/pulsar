@@ -246,8 +246,8 @@ public abstract class ZooKeeperCache implements Watcher {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
-                    removeAllWatches(path);
                     future.complete(false);
+                    removeAllWatches(path);
                 } else {
                     future.completeExceptionally(KeeperException.create(rc));
                 }
@@ -476,7 +476,7 @@ public abstract class ZooKeeperCache implements Watcher {
                             } else {
                                 // Z-node does not exist
                                 future.complete(Collections.emptySet());
-                                // if z-node does not exist discards cache,
+                                // if z-node does not exist then discards cache,
                                 // because we can't be received NodeCreated event
                                 invalidateChildren(path);
                             }
