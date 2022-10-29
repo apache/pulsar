@@ -169,57 +169,11 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         String metricsStr = output.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> opsOverflow = metricsMap.get("pulsar_batch_metadata_store_overflow_ops" + "_total");
-        Collection<PrometheusMetricsTest.Metric> queueingOps = metricsMap.get("pulsar_batch_metadata_store_queueing_ops");
         Collection<PrometheusMetricsTest.Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
         Collection<PrometheusMetricsTest.Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
 
-        Assert.assertTrue(opsOverflow.size() > 0 && opsOverflow.size() % 2 == 0);
-        Assert.assertTrue(queueingOps.size() > 0 && queueingOps.size() % 2 == 0);
         Assert.assertTrue(executorQueueSize.size() > 1);
         Assert.assertTrue(opsWaiting.size() > 1);
-
-        int readOpsOverflow = 0;
-        int writeOpsOverflow = 0;
-        for (PrometheusMetricsTest.Metric m : opsOverflow) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            String opType = m.tags.get("type");
-            Assert.assertNotNull(opType);
-            if (opType.equals("read")) {
-                readOpsOverflow++;
-            } else if (opType.equals("write")){
-                writeOpsOverflow++;
-            }
-            Assert.assertTrue(m.value >= 0);
-        }
-        Assert.assertEquals(readOpsOverflow, writeOpsOverflow);
-        Assert.assertTrue(readOpsOverflow > 0);
-
-        int queueingReadOps = 0;
-        int queueingWriteOps = 0;
-        for (PrometheusMetricsTest.Metric m : queueingOps) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            String opType = m.tags.get("type");
-            Assert.assertNotNull(opType);
-            if (opType.equals("read")) {
-                queueingReadOps++;
-            } else if (opType.equals("write")){
-                queueingWriteOps++;
-            }
-            Assert.assertTrue(m.value >= 0);
-        }
-        Assert.assertEquals(queueingReadOps, queueingWriteOps);
-        Assert.assertTrue(queueingReadOps > 0);
 
         for (PrometheusMetricsTest.Metric m : executorQueueSize) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
