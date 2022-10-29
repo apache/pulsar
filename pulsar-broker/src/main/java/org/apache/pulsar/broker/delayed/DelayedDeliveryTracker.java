@@ -31,6 +31,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 public interface DelayedDeliveryTracker extends AutoCloseable {
 
     /**
+     * may consider mark thread safe
+     *
      * Add a message to the tracker.
      *
      * @param ledgerId   the ledgerId
