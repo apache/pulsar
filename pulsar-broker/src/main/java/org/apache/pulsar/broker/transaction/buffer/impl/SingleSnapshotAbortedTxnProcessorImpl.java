@@ -73,7 +73,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
-        this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
     }
 
     @Override
@@ -86,7 +85,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
             if (log.isDebugEnabled()) {
-                aborts.firstKey();
                 log.debug("[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
                         topic.getName(), aborts.firstKey(), aborts.get(aborts.firstKey()));
             }
@@ -107,13 +105,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
                     PositionImpl startReadCursorPosition = null;
                     try {
-                        boolean hasSnapshot = false;
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshot> message = reader.readNext();
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {
-                                    hasSnapshot = true;
                                     handleSnapshot(transactionBufferSnapshot);
                                     startReadCursorPosition = PositionImpl.get(
                                             transactionBufferSnapshot.getMaxReadPositionLedgerId(),
@@ -122,9 +118,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                             }
                         }
                         closeReader(reader);
-                        if (!hasSnapshot) {
-                            return CompletableFuture.completedFuture(null);
-                        }
                         return CompletableFuture.completedFuture(startReadCursorPosition);
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
@@ -144,7 +137,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-        }).thenCompose(__ -> CompletableFuture.completedFuture(null));
+        }).thenRun(this::closeAsync);
     }
 
     @Override

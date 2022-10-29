@@ -242,7 +242,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
-    private void takeSnapshotByTimeout() {
+    private void scheduledTriggerSnapshot() {
         if (changeMaxReadPositionAndAddAbortTimes.get() > 0) {
             changeMaxReadPositionAndAddAbortTimes.set(0);
             this.snapshotAbortedTxnProcessor.takeAbortedTxnSnapshot(maxReadPosition);
@@ -259,7 +259,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
     @Override
     public void run(Timeout timeout) {
-        takeSnapshotByTimeout();
+        scheduledTriggerSnapshot();
     }
     @Override
     public long getOngoingTxnCount() {
