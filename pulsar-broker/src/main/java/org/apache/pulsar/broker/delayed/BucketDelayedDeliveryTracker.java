@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,8 +61,8 @@ import org.roaringbitmap.RoaringBitmap;
 @ThreadSafe
 public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker {
 
-    protected static final int AsyncOperationTimeoutSeconds = 30;
-    protected static final int MaxRetryTimes = 3;
+    private static final int AsyncOperationTimeoutSeconds = 30;
+    private static final int MaxRetryTimes = 3;
 
     private final long minIndexCountPerBucket;
 
@@ -72,7 +72,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
     private final ManagedCursor cursor;
 
-    public final BucketSnapshotStorage bucketSnapshotStorage;
+    private final BucketSnapshotStorage bucketSnapshotStorage;
 
     private long numberDelayedMessages;
 
