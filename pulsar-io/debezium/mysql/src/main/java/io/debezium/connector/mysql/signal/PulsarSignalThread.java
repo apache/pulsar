@@ -18,7 +18,6 @@
  */
 package io.debezium.connector.mysql.signal;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -95,7 +94,6 @@ public class PulsarSignalThread<T extends DataCollectionId> {
     private final String connectorName;
     private final MySqlReadOnlyIncrementalSnapshotChangeEventSource<T> eventSource;
     private final Consumer<String> signalsConsumer;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public PulsarSignalThread(Class<? extends SourceConnector> connectorType, CommonConnectorConfig connectorConfig,
                               MySqlReadOnlyIncrementalSnapshotChangeEventSource<T> eventSource) {

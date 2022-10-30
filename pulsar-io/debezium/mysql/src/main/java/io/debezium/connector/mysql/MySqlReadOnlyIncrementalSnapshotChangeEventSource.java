@@ -18,7 +18,6 @@
  */
 package io.debezium.connector.mysql;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.debezium.DebeziumException;
 import io.debezium.connector.mysql.signal.ExecuteSnapshotPulsarSignal;
 import io.debezium.connector.mysql.signal.PulsarSignalThread;
@@ -94,7 +93,6 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
     private final String showMasterStmt = "SHOW MASTER STATUS";
     private final PulsarSignalThread<T> pulsarSignal;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MySqlReadOnlyIncrementalSnapshotChangeEventSource(RelationalDatabaseConnectorConfig config,
                                                              JdbcConnection jdbcConnection,
