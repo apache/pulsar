@@ -60,8 +60,7 @@ public class PulsarResources {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
-            namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore,
-                    operationTimeoutSec);
+            namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         } else {
             tenantResources = null;
