@@ -22,7 +22,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Timer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -57,14 +59,15 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 @Slf4j
 public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor {
 
-    private ArrayList<TxnID> unsealedAbortedTxnIdSegment = new ArrayList<>();
+    private ConcurrentOpenHashSet<TxnID> unsealedAbortedTxnIdSegment = new ConcurrentOpenHashSet<>();
 
     //Store the fixed aborted transaction segment
-    private final ConcurrentSkipListMap<PositionImpl, ArrayList<TxnID>> abortTxnSegments
+    private final ConcurrentSkipListMap<PositionImpl, ConcurrentOpenHashSet<TxnID>> abortTxnSegments
             = new ConcurrentSkipListMap<>();
 
     private final ConcurrentSkipListMap<PositionImpl, TransactionBufferSnapshotIndex> indexes
@@ -92,14 +95,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public void appendAbortedTxn(TxnID abortedTxnId, PositionImpl maxReadPosition) {
+    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl maxReadPosition) {
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             abortTxnSegments.put(maxReadPosition, unsealedAbortedTxnIdSegment);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
                     persistentWorker.takeSnapshotSegmentAsync(unsealedAbortedTxnIdSegment, maxReadPosition));
-            unsealedAbortedTxnIdSegment = new ArrayList<>();
+            unsealedAbortedTxnIdSegment = new ConcurrentOpenHashSet<>();
         }
     }
 
@@ -123,6 +126,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
     }
 
+    //In this implementation, we adopt snapshot segments. And then we clear invalid segment by its max read position.
     @Override
     public void trimExpiredAbortedTxns() {
         //Checking whether there are some segment expired.
@@ -144,10 +148,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition) {
-        return takeAbortedTxnSnapshot(maxReadPosition, unsealedAbortedTxnIdSegment);
-    }
-
-    private CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition, ArrayList<TxnID> aborts) {
+        ConcurrentOpenHashSet<TxnID> aborts = unsealedAbortedTxnIdSegment;
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
                 () -> persistentWorker
@@ -214,7 +215,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         @Override
                         public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
                             persistentSnapshotIndexes.getIndexList().forEach(index -> {
-                                //TODO: read on demand
                                 CompletableFuture<Void> handleSegmentFuture = new CompletableFuture<>();
                                 completableFutures.add(handleSegmentFuture);
                                 readOnlyManagedLedger.asyncReadEntry(
@@ -283,7 +283,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public CompletableFuture<Void> clearAndCloseAsync() {
+    public CompletableFuture<Void> deleteAbortedTxnSnapshot() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.Close,
                 () -> persistentWorker.clearSnapshotSegmentAndIndexes()
@@ -452,7 +452,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             }
         }
 
-        private CompletableFuture<Void> takeSnapshotSegmentAsync(ArrayList<TxnID> sealedAbortedTxnIdSegment,
+        private CompletableFuture<Void> takeSnapshotSegmentAsync(ConcurrentOpenHashSet<TxnID> sealedAbortedTxnIdSegment,
                                                                  PositionImpl maxReadPosition) {
             return writeSnapshotSegmentAsync(sealedAbortedTxnIdSegment, maxReadPosition).thenRun(() -> {
                 if (log.isDebugEnabled()) {
@@ -471,7 +471,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             });
         }
 
-        private CompletableFuture<Void> writeSnapshotSegmentAsync(List<TxnID> segment, PositionImpl maxReadPosition) {
+        private CompletableFuture<Void> writeSnapshotSegmentAsync(ConcurrentOpenHashSet<TxnID> segment,
+                                                                  PositionImpl maxReadPosition) {
             TransactionBufferSnapshotSegment transactionBufferSnapshotSegment = new TransactionBufferSnapshotSegment();
             transactionBufferSnapshotSegment.setAborts(serializationForSegment(segment));
             transactionBufferSnapshotSegment.setTopicName(this.topic.getName());
@@ -493,7 +494,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 indexes.put(maxReadPosition, index);
                 //update snapshot segment index.
                 return updateSnapshotIndex(new TransactionBufferSnapshotIndexesMetadata(
-                        maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), new ArrayList<>()),
+                        maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), new HashSet<>()),
                         indexes.values().stream().toList());
             });
         }
@@ -543,7 +544,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         //Only update the metadata in the transactionBufferSnapshotIndexes.
         private CompletableFuture<Void> updateIndexMetadataForTheLastSnapshot(PositionImpl maxReadPosition,
-                                                                              ArrayList<TxnID> abortedTxns) {
+                                                                              ConcurrentOpenHashSet<TxnID> abortedTxns) {
             TransactionBufferSnapshotIndexesMetadata metadata = new TransactionBufferSnapshotIndexesMetadata(
                     maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), serializationForSegment(abortedTxns));
 
@@ -586,20 +587,20 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
     }
 
-    private ArrayList<TxnID> deserializationFotSnapshotSegment(List<TxnIDData> snapshotSegment) {
-        ArrayList<TxnID> arrayList = new ArrayList<>();
+    private ConcurrentOpenHashSet<TxnID> deserializationFotSnapshotSegment(Set<TxnIDData> snapshotSegment) {
+        ConcurrentOpenHashSet<TxnID> set = new ConcurrentOpenHashSet<>();
         snapshotSegment.forEach(txnIDData -> {
-            arrayList.add(new TxnID(txnIDData.getMostSigBits(), txnIDData.getLeastSigBits()));
+            set.add(new TxnID(txnIDData.getMostSigBits(), txnIDData.getLeastSigBits()));
         });
-        return arrayList;
+        return set;
     }
 
-    private ArrayList<TxnIDData> serializationForSegment(List<TxnID> segment) {
-        ArrayList<TxnIDData> arrayList = new ArrayList<>();
+    private Set<TxnIDData> serializationForSegment(ConcurrentOpenHashSet<TxnID> segment) {
+        Set<TxnIDData> set = new HashSet<>();
         segment.forEach(txnID -> {
-            arrayList.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()));
+            set.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         });
-        return arrayList;
+        return set;
     }
 
 }

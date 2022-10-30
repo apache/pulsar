@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import io.netty.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -28,17 +27,15 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 public interface AbortedTxnProcessor {
 
     /**
-     * After the transaction buffer writes a transaction aborted mark to the topic,
-     * the transaction buffer will add the aborted transaction ID to AbortedTxnProcessor.
+     * After the transaction buffer writes a transaction aborted marker to the topic,
+     * the transaction buffer will put the aborted txnID and the aborted marker position to AbortedTxnProcessor.
      * @param txnID aborted transaction ID.
+     * @param position the position of the abort txnID
      */
-    void appendAbortedTxn(TxnID txnID, PositionImpl position);
+    void putAbortedTxnAndPosition(TxnID txnID, PositionImpl position);
 
     /**
-     * Pulsar has a configuration for ledger retention time.
-     * If the transaction aborted mark position has been deleted, the transaction is valid and can be clear.
-     * In the old implementation we clear the invalid aborted txn ID one by one.
-     * In the new implementation, we adopt snapshot segments. And then we clear invalid segment by its max read position.
+     * Clean up invalid aborted transactions.
      */
     void trimExpiredAbortedTxns();
 
@@ -52,16 +49,16 @@ public interface AbortedTxnProcessor {
 
     /**
      * Recover transaction buffer by transaction buffer snapshot.
-     * @return a pair consists of a Boolean if the transaction buffer needs to recover and a Position (startReadCursorPosition) determiner where to start to recover in the original topic.
+     * @return a Position (startReadCursorPosition) determiner where to start to recover in the original topic.
      */
 
     CompletableFuture<PositionImpl> recoverFromSnapshot();
 
     /**
-     * Clear the snapshot/snapshot segment and index for this topic.
+     * Delete the transaction buffer aborted transaction snapshot.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> clearAndCloseAsync();
+    CompletableFuture<Void> deleteAbortedTxnSnapshot();
 
     /**
      * Take the frist snapshot if the topic has no snapshot before.

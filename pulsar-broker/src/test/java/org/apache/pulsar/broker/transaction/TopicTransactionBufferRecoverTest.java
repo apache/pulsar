@@ -32,11 +32,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -688,8 +690,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setSequenceId(1L);
         snapshot.setMaxReadPositionLedgerId(2L);
         snapshot.setMaxReadPositionEntryId(3L);
-        snapshot.setAborts(Collections.singletonList(
-                new TxnIDData(1, 1)));
+        HashSet<TxnIDData> txnIDSet = new HashSet<>();
+        txnIDSet.add(new TxnIDData(1, 1));
+        snapshot.setAborts(txnIDSet );
 
         segmentWriter.write(buildKey(snapshot), snapshot);
         snapshot.setSequenceId(2L);
@@ -739,7 +742,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(snapshot.getSequenceId(), 2L);
         assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
         assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
-        assertEquals(snapshot.getAborts().get(0), new TxnIDData(1, 1));
+        assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
     }
 
     @Test

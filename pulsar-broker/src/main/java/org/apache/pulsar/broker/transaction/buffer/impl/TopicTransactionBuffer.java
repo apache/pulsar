@@ -168,7 +168,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                             if (Markers.isTxnMarker(msgMetadata)) {
                                 if (Markers.isTxnAbortMarker(msgMetadata)) {
-                                    snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, position);
+                                    snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, position);
                                 }
                                 updateMaxReadPosition(getMaxReadPosition(txnID), true);
                             } else {
@@ -381,7 +381,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (topic) {
                             PositionImpl maxReadPosition = getMaxReadPosition(txnID);
-                            snapshotAbortedTxnProcessor.appendAbortedTxn(txnID, maxReadPosition);
+                            snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, maxReadPosition);
                             updateMaxReadPosition(maxReadPosition, true);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                         }
@@ -468,7 +468,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> clearSnapshot() {
-        return snapshotAbortedTxnProcessor.clearAndCloseAsync();
+        return snapshotAbortedTxnProcessor.deleteAbortedTxnSnapshot();
 
     }
 

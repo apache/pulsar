@@ -42,7 +42,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcessor {
     private final PersistentTopic topic;
     private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter;
-    private volatile PositionImpl maxReadPosition;
     /**
      * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
      * position have been deleted.
@@ -54,14 +53,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     private final int takeSnapshotIntervalTime;
 
-
-    // when add abort or change max read position, the count will +1. Take snapshot will set 0 into it.
-    private final AtomicLong changeMaxReadPositionAndAddAbortTimes = new AtomicLong();
-
-
     public SingleSnapshotAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
-        this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
@@ -72,10 +65,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public void appendAbortedTxn(TxnID abortedTxnId, PositionImpl position) {
+    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl position) {
         aborts.put(abortedTxnId, position);
     }
 
+    //In this implementation we clear the invalid aborted txn ID one by one.
     @Override
     public void trimExpiredAbortedTxns() {
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
@@ -127,7 +121,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> clearAndCloseAsync() {
+    public CompletableFuture<Void> deleteAbortedTxnSnapshot() {
         return this.takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
@@ -137,7 +131,32 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     @Override
     public CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition) {
-        return takeAbortedTxnSnapshot(maxReadPosition, aborts);
+        return takeSnapshotWriter.thenCompose(writer -> {
+            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+            snapshot.setTopicName(topic.getName());
+            snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+            snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+            List<AbortTxnMetadata> list = new ArrayList<>();
+            aborts.forEach((k, v) -> {
+                AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
+                abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
+                abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
+                abortTxnMetadata.setLedgerId(v.getLedgerId());
+                abortTxnMetadata.setEntryId(v.getEntryId());
+                list.add(abortTxnMetadata);
+            });
+            snapshot.setAborts(list);
+            return writer.writeAsync(snapshot.getTopicName(), snapshot).thenAccept(messageId -> {
+                this.lastSnapshotTimestamps = System.currentTimeMillis();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}]Transaction buffer take snapshot success! "
+                            + "messageId : {}", topic.getName(), messageId);
+                }
+            }).exceptionally(e -> {
+                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e.getCause());
+                return null;
+            });
+        });
     }
 
     @Override
@@ -158,8 +177,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     private void handleSnapshot(TransactionBufferSnapshot snapshot) {
-        maxReadPosition = PositionImpl.get(snapshot.getMaxReadPositionLedgerId(),
-                snapshot.getMaxReadPositionEntryId());
         if (snapshot.getAborts() != null) {
             snapshot.getAborts().forEach(abortTxnMetadata ->
                     aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
@@ -167,38 +184,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                             PositionImpl.get(abortTxnMetadata.getLedgerId(),
                                     abortTxnMetadata.getEntryId())));
         }
-    }
-
-    private CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition, LinkedMap<TxnID, PositionImpl> aborts) {
-        changeMaxReadPositionAndAddAbortTimes.set(0);
-        return takeSnapshotWriter.thenCompose(writer -> {
-            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-            synchronized (topic) {
-                snapshot.setTopicName(topic.getName());
-                snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-                snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-                List<AbortTxnMetadata> list = new ArrayList<>();
-                aborts.forEach((k, v) -> {
-                    AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
-                    abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
-                    abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
-                    abortTxnMetadata.setLedgerId(v.getLedgerId());
-                    abortTxnMetadata.setEntryId(v.getEntryId());
-                    list.add(abortTxnMetadata);
-                });
-                snapshot.setAborts(list);
-            }
-            return writer.writeAsync(snapshot.getTopicName(), snapshot).thenAccept(messageId -> {
-                this.lastSnapshotTimestamps = System.currentTimeMillis();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}]Transaction buffer take snapshot success! "
-                            + "messageId : {}", topic.getName(), messageId);
-                }
-            }).exceptionally(e -> {
-                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
-                return null;
-            });
-        });
     }
 
 }
