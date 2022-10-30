@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,8 +73,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     // indexes.
     private TransactionBufferSnapshotIndexes persistentSnapshotIndexes = new TransactionBufferSnapshotIndexes();
 
-    private final Timer timer;
-
     private final PersistentTopic topic;
 
     private volatile long lastSnapshotTimestamps;
@@ -92,7 +89,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.transactionBufferMaxAbortedTxnsOfSnapshotSegment =  topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize();
-        this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
     }
 
     @Override
@@ -189,10 +185,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
-                        closeReader(reader);
                         return FutureUtil.failedFuture(ex);
+                    } finally {
+                        closeReader(reader);
                     }
-                    closeReader(reader);
                     PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
                     if (!hasIndex) {
                         return CompletableFuture.completedFuture(null);
@@ -211,6 +207,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                     //Read snapshot segment to recover aborts.
                     ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+                    CompletableFuture<Void> openManagedLedgerFuture = new CompletableFuture<>();
                     AtomicLong invalidIndex = new AtomicLong(0);
                     AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
                             .OpenReadOnlyManagedLedgerCallback() {
@@ -245,11 +242,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             }
                                         }, null);
                             });
+                            openManagedLedgerFuture.complete(null);
                         }
 
                             @Override
                             public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                //
+                                log.error("[{}] Failed to open readOnly managed ledger", topic, exception);
+                                openManagedLedgerFuture.completeExceptionally(exception);
                             }
                         };
 
@@ -263,14 +262,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                         null);
                         //Wait the processor recover completely and the allow TB to recover the messages
                         // after the startReadCursorPosition.
-                        return FutureUtil.waitForAll(completableFutures).thenCompose((ignore) -> {
-                            if (invalidIndex.get() != 0 ) {
-                                persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
-                                        -> persistentWorker.updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
-                                        indexes.values().stream().toList()));
-                            }
-                            return CompletableFuture.completedFuture(finalStartReadCursorPosition);
+
+                        return openManagedLedgerFuture.thenCompose((ignore) -> {
+                            return FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
+                                if (invalidIndex.get() != 0 ) {
+                                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
+                                            -> persistentWorker.updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
+                                            indexes.values().stream().toList()));
+                                }
+                                return CompletableFuture.completedFuture(finalStartReadCursorPosition);
+                            });
+                        }).exceptionally(ex -> {
+                           log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
+                           return null;
                         });
+
 
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                         .getExecutor(this));
@@ -278,7 +284,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public CompletableFuture<Void> clearAndCloseAsync() {
-        timer.stop();
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.Close,
                 () -> persistentWorker.clearSnapshotSegmentAndIndexes()
@@ -447,7 +452,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             }
         }
 
-        protected CompletableFuture<Void> takeSnapshotSegmentAsync(ArrayList<TxnID> sealedAbortedTxnIdSegment,
+        private CompletableFuture<Void> takeSnapshotSegmentAsync(ArrayList<TxnID> sealedAbortedTxnIdSegment,
                                                                  PositionImpl maxReadPosition) {
             return writeSnapshotSegmentAsync(sealedAbortedTxnIdSegment, maxReadPosition).thenRun(() -> {
                 if (log.isDebugEnabled()) {
@@ -545,7 +550,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             return updateSnapshotIndex(metadata, persistentSnapshotIndexes.getIndexList());
         }
 
-        protected CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
+        private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
             ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
             //Delete all segment
             while (!abortTxnSegments.isEmpty()) {
@@ -581,7 +586,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
     }
 
-    ArrayList<TxnID> deserializationFotSnapshotSegment(List<TxnIDData> snapshotSegment) {
+    private ArrayList<TxnID> deserializationFotSnapshotSegment(List<TxnIDData> snapshotSegment) {
         ArrayList<TxnID> arrayList = new ArrayList<>();
         snapshotSegment.forEach(txnIDData -> {
             arrayList.add(new TxnID(txnIDData.getMostSigBits(), txnIDData.getLeastSigBits()));
@@ -589,7 +594,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         return arrayList;
     }
 
-    ArrayList<TxnIDData> serializationForSegment(List<TxnID> segment) {
+    private ArrayList<TxnIDData> serializationForSegment(List<TxnID> segment) {
         ArrayList<TxnIDData> arrayList = new ArrayList<>();
         segment.forEach(txnID -> {
             arrayList.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()));

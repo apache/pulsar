@@ -43,9 +43,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     private final PersistentTopic topic;
     private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter;
     private volatile PositionImpl maxReadPosition;
-
-    private final Timer timer;
-
     /**
      * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
      * position have been deleted.
@@ -68,7 +65,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
-        this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
@@ -132,7 +128,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     @Override
     public CompletableFuture<Void> clearAndCloseAsync() {
-        timer.stop();
         return this.takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());

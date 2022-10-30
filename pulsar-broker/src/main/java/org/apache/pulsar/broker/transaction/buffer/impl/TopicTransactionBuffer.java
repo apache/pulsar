@@ -474,6 +474,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> closeAsync() {
+        this.timer.stop();
         changeToCloseState();
         return this.snapshotAbortedTxnProcessor.closeAsync();
     }
