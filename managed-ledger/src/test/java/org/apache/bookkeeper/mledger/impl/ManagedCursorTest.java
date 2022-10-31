@@ -92,6 +92,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -666,7 +667,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         assertTrue(moveStatus.get());
         PositionImpl earliestPos = new PositionImpl(actualEarliest.getLedgerId(), -1);
-        assertEquals(earliestPos, cursor.getReadPosition());
+        assertEquals(cursor.getReadPosition(), earliestPos);
         moveStatus.set(false);
 
         // reset to one after last entry in a ledger should point to the first entry in the next ledger
@@ -3273,6 +3274,126 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         });
     }
 
+    @Test(timeOut = 20000)
+    public void testRecoverCursorAfterResetToLatestForNewEntry() throws Exception {
+        ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForNewEntry");
+        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
+
+        // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
+        assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);
+        assertEquals(c.getReadPosition().getEntryId(), 0);
+        assertEquals(ml.getLastConfirmedEntry().getEntryId(), -1);
+
+        c.resetCursor(PositionImpl.LATEST);
+
+        // A reset cursor starts out with these values. The rest of the test assumes this, so we assert it here.
+        assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);
+        assertEquals(c.getReadPosition().getEntryId(), 0);
+        assertEquals(ml.getLastConfirmedEntry().getEntryId(), -1);
+
+        final Position markDeleteBeforeRecover = c.getMarkDeletedPosition();
+        final Position readPositionBeforeRecover = c.getReadPosition();
+
+        // Trigger the lastConfirmedEntry to move forward
+        ml.addEntry(new byte[1]);
+
+        ManagedCursorInfo info = ManagedCursorInfo.newBuilder()
+                .setCursorsLedgerId(c.getCursorLedger())
+                .setMarkDeleteLedgerId(markDeleteBeforeRecover.getLedgerId())
+                .setMarkDeleteEntryId(markDeleteBeforeRecover.getEntryId())
+                .setLastActive(0L)
+                .build();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        c.recoverFromLedger(info, new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                failed.set(true);
+                latch.countDown();
+            }
+        });
+
+        latch.await();
+        if (failed.get()) {
+            fail("Cursor recovery should not fail");
+        }
+        assertEquals(c.getMarkDeletedPosition(), markDeleteBeforeRecover);
+        assertEquals(c.getReadPosition(), readPositionBeforeRecover);
+        assertEquals(c.getNumberOfEntries(), 1L);
+    }
+
+    @Test(timeOut = 20000)
+    public void testRecoverCursorAfterResetToLatestForMultipleEntries() throws Exception {
+        ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForMultipleEntries");
+        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
+
+        // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
+        assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);
+        assertEquals(c.getReadPosition().getEntryId(), 0);
+        assertEquals(ml.getLastConfirmedEntry().getEntryId(), -1);
+
+        c.resetCursor(PositionImpl.LATEST);
+
+        // A reset cursor starts out with these values. The rest of the test assumes this, so we assert it here.
+        assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);
+        assertEquals(c.getReadPosition().getEntryId(), 0);
+        assertEquals(ml.getLastConfirmedEntry().getEntryId(), -1);
+
+        // Trigger the lastConfirmedEntry to move forward
+        ml.addEntry(new byte[1]);
+        ml.addEntry(new byte[1]);
+        ml.addEntry(new byte[1]);
+        ml.addEntry(new byte[1]);
+
+        c.resetCursor(PositionImpl.LATEST);
+
+        assertEquals(c.getMarkDeletedPosition().getEntryId(), 3);
+        assertEquals(c.getReadPosition().getEntryId(), 4);
+        assertEquals(ml.getLastConfirmedEntry().getEntryId(), 3);
+
+        // Publish messages to move the lastConfirmedEntry field forward
+        ml.addEntry(new byte[1]);
+        ml.addEntry(new byte[1]);
+
+        final Position markDeleteBeforeRecover = c.getMarkDeletedPosition();
+        final Position readPositionBeforeRecover = c.getReadPosition();
+
+        ManagedCursorInfo info = ManagedCursorInfo.newBuilder()
+                .setCursorsLedgerId(c.getCursorLedger())
+                .setMarkDeleteLedgerId(markDeleteBeforeRecover.getLedgerId())
+                .setMarkDeleteEntryId(markDeleteBeforeRecover.getEntryId())
+                .setLastActive(0L)
+                .build();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        c.recoverFromLedger(info, new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                failed.set(true);
+                latch.countDown();
+            }
+        });
+
+        latch.await();
+        if (failed.get()) {
+            fail("Cursor recovery should not fail");
+        }
+        assertEquals(c.getMarkDeletedPosition(), markDeleteBeforeRecover);
+        assertEquals(c.getReadPosition(), readPositionBeforeRecover);
+        assertEquals(c.getNumberOfEntries(), 2L);
+    }
     @Test
     void testAlwaysInactive() throws Exception {
         ManagedLedger ml = factory.open("testAlwaysInactive");
