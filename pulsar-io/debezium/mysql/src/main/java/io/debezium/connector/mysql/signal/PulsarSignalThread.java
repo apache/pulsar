@@ -79,15 +79,6 @@ public class PulsarSignalThread<T extends DataCollectionId> {
             .withImportance(ConfigDef.Importance.HIGH)
             .withDescription("Pulsar client builder")
             .withValidation(Field::isOptional);
-    public static final Field READER_CONFIG = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.reader.config")
-            .withDisplayName("Extra configs of the reader")
-            .withType(ConfigDef.Type.STRING)
-            .withWidth(ConfigDef.Width.LONG)
-            .withImportance(ConfigDef.Importance.HIGH)
-            .withDescription("The configs of the reader for the database schema history topic, "
-                    + "in the form of a JSON string with key-value pairs")
-            .withDefault((String) null)
-            .withValidation(Field::isOptional);
     private static final Logger LOGGER = LoggerFactory.getLogger(PulsarSignalThread.class);
     private final ExecutorService signalTopicListenerExecutor;
     private final String topicName;
