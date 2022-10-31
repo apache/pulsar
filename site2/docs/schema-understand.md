@@ -496,7 +496,7 @@ This diagram illustrates how does schema work on the Producer side.
 
 `isAllowAutoUpdateSchema` can be set via **Pulsar admin API** or **REST API.** 
 
-For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](schema-manage.md/#manage-autoupdate-strategy). 
+For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](schema-manage.md#manage-autoupdate-strategy). 
 
 :::
 

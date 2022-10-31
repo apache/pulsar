@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -439,7 +439,7 @@ public class PulsarStandalone implements AutoCloseable {
             log.info("Starting BK with RocksDb metadata store");
             metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
         } else {
-            log.info("Starting BK with metadata store:", metadataStoreUrl);
+            log.info("Starting BK with metadata store: {}", metadataStoreUrl);
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();

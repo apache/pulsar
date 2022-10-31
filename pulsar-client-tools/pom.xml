@@ -126,7 +126,6 @@
     <dependency>
       <groupId>org.jline</groupId>
       <artifactId>jline</artifactId>
-      <version>${jline3.version}</version>
     </dependency>
     <dependency>
       <groupId>net.java.dev.jna</groupId>
