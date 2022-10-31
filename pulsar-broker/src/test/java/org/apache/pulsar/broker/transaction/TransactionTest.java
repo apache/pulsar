@@ -946,7 +946,7 @@ public class TransactionTest extends TransactionTestBase {
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
         processorField.setAccessible(true);
         AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(topicTransactionBuffer);
-        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takeAbortedTxnSnapshot(
+        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takeAbortedTxnsSnapshot(
                 topicTransactionBuffer.getMaxReadPosition());
         completableFuture.get();
 

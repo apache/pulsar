@@ -61,10 +61,10 @@ public interface AbortedTxnProcessor {
     CompletableFuture<Void> deleteAbortedTxnSnapshot();
 
     /**
-     * Take the frist snapshot if the topic has no snapshot before.
+     * Take aborted transactions snapshot.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition);
+    CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition);
 
     /**
      * Get the lastSnapshotTimestamps.

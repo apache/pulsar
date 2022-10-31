@@ -31,14 +31,12 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +75,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -451,7 +448,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         abortedTxnProcessorField.setAccessible(true);
         AbortedTxnProcessor abortedTxnProcessor =
                 (AbortedTxnProcessor) abortedTxnProcessorField.get(topicTransactionBuffer);
-        abortedTxnProcessor.takeAbortedTxnSnapshot(topicTransactionBuffer.getMaxReadPosition());
+        abortedTxnProcessor.takeAbortedTxnsSnapshot(topicTransactionBuffer.getMaxReadPosition());
 
         TopicName transactionBufferTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(

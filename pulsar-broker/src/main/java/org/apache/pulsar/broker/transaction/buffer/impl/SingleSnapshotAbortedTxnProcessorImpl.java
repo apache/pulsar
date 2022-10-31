@@ -125,7 +125,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> takeAbortedTxnSnapshot(PositionImpl maxReadPosition) {
+    public CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition) {
         return takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());

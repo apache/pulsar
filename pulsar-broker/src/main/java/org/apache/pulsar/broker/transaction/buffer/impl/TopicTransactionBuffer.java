@@ -208,7 +208,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             transactionBufferFuture.thenRun(() -> {
                 if (checkIfNoSnapshot()) {
-                    snapshotAbortedTxnProcessor.takeAbortedTxnSnapshot(maxReadPosition).thenRun(() -> {
+                    snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
                         if (changeToReadyStateFromNoSnapshot()) {
                             timer.newTimeout(TopicTransactionBuffer.this,
                                     takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
@@ -421,14 +421,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionAndAddAbortTimes.get() >= takeSnapshotIntervalNumber) {
             this.changeMaxReadPositionAndAddAbortTimes.set(0);
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnSnapshot(this.maxReadPosition);
+            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
     }
 
     private void takeSnapshotByTimeout() {
         if (changeMaxReadPositionAndAddAbortTimes.get() > 0) {
             this.changeMaxReadPositionAndAddAbortTimes.set(0);
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnSnapshot(this.maxReadPosition);
+            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
         this.timer.newTimeout(TopicTransactionBuffer.this,
                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
