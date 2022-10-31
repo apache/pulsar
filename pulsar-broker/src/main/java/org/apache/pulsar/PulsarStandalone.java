@@ -440,7 +440,8 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
-    private void startBookieWithMetadataStore() throws Exception {
+    @VisibleForTesting
+    void startBookieWithMetadataStore() throws Exception {
         if (StringUtils.isBlank(metadataStoreUrl)){
             log.info("Starting BK with RocksDb metadata store");
             metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
