@@ -139,7 +139,7 @@ public class ServerCnxAuthorizationTest {
             doReturn(pulsarResources).when(pulsar).getPulsarResources();
         });
         NamespaceResources namespaceResources =
-                spyWithClassAndConstructorArgsRecordingInvocations(NamespaceResources.class, store, store, 30);
+                spyWithClassAndConstructorArgsRecordingInvocations(NamespaceResources.class, store, 30);
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
 
         TenantResources tenantResources = spyWithClassAndConstructorArgsRecordingInvocations(TenantResources.class, store, 30);

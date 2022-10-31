@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORD
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import io.netty.util.internal.PlatformDependent;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -267,6 +268,11 @@ public class PulsarStandalone implements AutoCloseable {
 
     private boolean usingNewDefaultsPIP117;
 
+    private final String writeCacheMaxSizeMb = "dbStorage_writeCacheMaxSizeMb";
+
+    private final String readAheadCacheMaxSizeMb = "dbStorage_readAheadCacheMaxSizeMb";
+
+
     public void start() throws Exception {
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
 
@@ -444,6 +450,16 @@ public class PulsarStandalone implements AutoCloseable {
 
         ServerConfiguration bkServerConf = new ServerConfiguration();
         bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        Object writeCache = bkServerConf.getProperty(writeCacheMaxSizeMb);
+        Object readCache = bkServerConf.getProperty(readAheadCacheMaxSizeMb);
+        // we need add one broker to calculate the default cache
+        long defaultCacheMB = PlatformDependent.maxDirectMemory() / (1024 * 1024) / (1 + numOfBk) / 4;
+        if (writeCache == null || writeCache.equals("")) {
+            bkServerConf.setProperty(writeCacheMaxSizeMb, defaultCacheMB);
+        }
+        if (readCache == null || readCache.equals("")) {
+            bkServerConf.setProperty(readAheadCacheMaxSizeMb, defaultCacheMB);
+        }
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)

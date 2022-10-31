@@ -16,32 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.metadata.v2;
 
-import org.apache.bookkeeper.mledger.Entry;
+import java.util.Set;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public interface TopicTransactionBufferRecoverCallBack {
-
-    /**
-     * Topic transaction buffer recover complete.
-     */
-    void recoverComplete();
-
-    /**
-     * No message with transaction has ever been sent.
-     * Skip recovery procedure
-     */
-    void noNeedToRecover();
-
-    /**
-     * Handle transaction entry beyond the snapshot.
-     *
-     * @param entry the transaction message entry
-     */
-    void handleTxnEntry(Entry entry);
-
-    /**
-     * Topic transaction buffer recover exceptionally.
-     */
-    void recoverExceptionally(Throwable e);
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class TransactionBufferSnapshotIndexesMetadata {
+    private long maxReadPositionLedgerId;
+    private long maxReadPositionEntryId;
+    private Set<TxnIDData> aborts;
 }
