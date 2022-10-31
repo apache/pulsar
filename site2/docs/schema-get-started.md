@@ -206,6 +206,168 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 </Tabs>
 ````
 
+### Avro schema using Java
+
+Suppose you have a `SensorReading` class as follows, and you'd like to transmit it over a Pulsar topic.
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+Create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like this:
+
+```java
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-readings")
+        .create();
+```
+
+The following schema formats are currently available for Java:
+
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
+      .topic("some-raw-bytes-topic")
+      .create();
+  ```
+
+  Or, equivalently:
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer()
+      .topic("some-raw-bytes-topic")
+      .create();
+  ```
+
+* `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
+
+  ```java
+  Producer<String> stringProducer = client.newProducer(Schema.STRING)
+      .topic("some-string-topic")
+      .create();
+  ```
+
+* Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
+
+  ```java
+  Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
+      .topic("some-pojo-topic")
+      .create();
+  ```
+
+* Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
+
+  ```java
+  Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
+      .topic("some-protobuf-topic")
+      .create();
+  ```
+
+* Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
+
+  ```java
+  Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
+      .topic("some-avro-topic")
+      .create();
+  ```
+
+
+### Avro schema using C++
+
+- The following example shows how to create a producer with an Avro schema.
+
+  ```cpp
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  Producer producer;
+  ProducerConfiguration producerConf;
+  producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.createProducer("topic-avro", producerConf, producer);
+  ```
+
+- The following example shows how to create a consumer with an Avro schema.
+
+  ```cpp
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  ConsumerConfiguration consumerConf;
+  Consumer consumer;
+  consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+  ```
+
+### ProtobufNative schema using C++
+
+The following example shows how to create a producer and a consumer with a ProtobufNative schema.
+
+1. Generate the `User` class using Protobuf3 or later versions.
+
+   ```protobuf
+   syntax = "proto3";
+
+   message User {
+       string name = 1;
+       int32 age = 2;
+   }
+   ```
+
+2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
+
+   ```cpp
+   #include <pulsar/ProtobufNativeSchema.h>
+   ```
+
+3. Create a producer to send a `User` instance.
+
+   ```cpp
+   ProducerConfiguration producerConf;
+   producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
+   Producer producer;
+   client.createProducer("topic-protobuf", producerConf, producer);
+   User user;
+   user.set_name("my-name");
+   user.set_age(10);
+   std::string content;
+   user.SerializeToString(&content);
+   producer.send(MessageBuilder().setContent(content).build());
+   ```
+
+4. Create a consumer to receive a `User` instance.
+
+   ```cpp
+   ConsumerConfiguration consumerConf;
+   consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
+   consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
+   Consumer consumer;
+   client.subscribe("topic-protobuf", "my-sub", consumerConf, consumer);
+   Message msg;
+   consumer.receive(msg);
+   User user2;
+   user2.ParseFromArray(msg.getData(), msg.getLength());
+   ```
+
+
 ## Construct an AUTO_PRODUCE schema
 
 Suppose you have a Pulsar topic _P_, a producer processing messages from a Kafka topic _K_, an application reading the messages from _K_ and writing the messages to _P_.
