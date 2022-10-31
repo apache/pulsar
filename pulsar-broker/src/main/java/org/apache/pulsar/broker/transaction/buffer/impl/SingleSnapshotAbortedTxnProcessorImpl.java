@@ -49,19 +49,12 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
 
     private volatile long lastSnapshotTimestamps;
-    private final int takeSnapshotIntervalNumber;
-
-    private final int takeSnapshotIntervalTime;
 
     public SingleSnapshotAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
-        this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
-        this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
     }
 
     @Override
@@ -126,7 +119,9 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-        }).thenRun(this::closeAsync);
+        }).thenRun(() -> {
+            log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic);
+        });
     }
 
     @Override
