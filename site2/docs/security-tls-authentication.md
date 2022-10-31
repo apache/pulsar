@@ -102,12 +102,12 @@ brokerClientAuthenticationParameters=tlsCertFile:/path/to/proxy.cert.pem,tlsKeyF
 
 ## Configure TLS authentication in Pulsar clients
 
-When you use TLS authentication, client connects via TLS transport. You need to configure the client to use `https://` and 8443 port for the web service URL, `pulsar+ssl://` and 6651 port for the broker service URL.
+When using TLS authentication, clients connect via TLS transport. You need to configure clients to use `https://` and the `8443` port for the web service URL, use `pulsar+ssl://` and the `6651` port for the broker service URL.
 
 ````mdx-code-block
 <Tabs groupId="lang-choice"
   defaultValue="Java"
-  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"C#","value":"C#"}]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"Go","value":"Go"},{"label":"C#","value":"C#"}]}>
 <TabItem value="Java">
 
 ```java
@@ -173,6 +173,17 @@ const Pulsar = require('pulsar-client');
 ```
 
 </TabItem>
+<TabItem value="Go">
+
+```go
+client, err := pulsar.NewClient(ClientOptions{
+		URL:                   "pulsar+ssl://broker.example.com:6651/",
+		TLSTrustCertsFilePath: "/path/to/ca.cert.pem",
+		Authentication:        pulsar.NewAuthenticationTLS("/path/to/my-role.cert.pem", "/path/to/my-role.key-pk8.pem"),
+	})
+```
+
+</TabItem>
 <TabItem value="C#">
 
 ```csharp
@@ -188,7 +199,7 @@ var client = PulsarClient.Builder()
 
 ## Configure TLS authentication in CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md), and [`pulsar-client`](reference-cli-tools.md) use the `conf/client.conf` config file in a Pulsar installation.
 
 To use TLS authentication with the CLI tools of Pulsar, you need to add the following parameters to the `conf/client.conf` file, alongside [the configuration to enable TLS encryption](security-tls-transport.md#configure-tls-encryption-in-cli-tools):
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,7 @@ public class OffloadPoliciesTest {
     private final Integer managedLedgerOffloadMaxThreads = 10;
     private final Integer managedLedgerOffloadPrefetchRounds = 5;
     private final Long offloadThresholdInBytes = 0L;
+    private final Long offloadThresholdInSeconds = 100L;
     private final Long offloadDeletionLagInMillis = 5 * MIN;
 
     @Test
@@ -150,6 +151,7 @@ public class OffloadPoliciesTest {
         properties.setProperty("managedLedgerOffloadMaxThreads", "" + managedLedgerOffloadMaxThreads);
         properties.setProperty("managedLedgerOffloadPrefetchRounds", "" + managedLedgerOffloadPrefetchRounds);
         properties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + offloadThresholdInBytes);
+        properties.setProperty("managedLedgerOffloadThresholdInSeconds", "" + offloadThresholdInSeconds);
         properties.setProperty("managedLedgerOffloadDeletionLagMs", "" + offloadDeletionLagInMillis);
 
         properties.setProperty("s3ManagedLedgerOffloadRegion", s3ManagedLedgerOffloadRegion);
@@ -184,6 +186,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
 
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), s3ManagedLedgerOffloadRegion);

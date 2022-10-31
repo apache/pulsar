@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -121,8 +120,8 @@ public class JdbcUtils {
         TableDefinition table = TableDefinition.of(
                 tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
 
-        keyList = keyList == null ? Collections.emptyList(): keyList;
-        nonKeyList = nonKeyList == null ? Collections.emptyList(): nonKeyList;
+        keyList = keyList == null ? Collections.emptyList() : keyList;
+        nonKeyList = nonKeyList == null ? Collections.emptyList() : nonKeyList;
 
         try (ResultSet rs = connection.getMetaData().getColumns(
             tableId.getCatalogName(),

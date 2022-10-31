@@ -43,7 +43,7 @@ Pulsar provides a great degree of flexibility for customizing your replication s
 
 ### Full-mesh replication
 
-Using full-mesh replication and applying the [selective message replication](administration-geo.md/#selective-replication), you can customize your replication strategies and topologies between any number of data centers.
+Using full-mesh replication and applying the [selective message replication](administration-geo.md#selective-replication), you can customize your replication strategies and topologies between any number of data centers.
 
 ![An example of a full-mesh replication pattern](/assets/full-mesh-replication.svg)
 
@@ -53,7 +53,7 @@ Active-active replication is a variation of full-mesh replication, with only two
 
 ![An example of an active-active replication pattern](/assets/active-active-replication.svg)
 
-For how to use active-active replication to migrate data between clusters, refer to [here](administration-geo.md/#migrate-data-between-clusters-using-geo-replication).
+For how to use active-active replication to migrate data between clusters, refer to [here](administration-geo.md#migrate-data-between-clusters-using-geo-replication).
 
 ### Aggregation replication
 

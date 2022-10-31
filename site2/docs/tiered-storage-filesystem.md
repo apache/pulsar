@@ -22,7 +22,7 @@ This section describes how to install the filesystem offloader.
 
 ### Steps
 
-1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+1. [Download the Pulsar tarball](getting-started-standalone.md#download-pulsar-distribution).
 2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
@@ -301,7 +301,7 @@ Execute the following commands in the repository where you download Pulsar tarba
    bin/pulsar standalone -a 127.0.0.1
    ```
 
-2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](cookbooks-retention-expiry.md/#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
+2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](cookbooks-retention-expiry.md#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
 
    ```shell
    bin/pulsar-admin namespaces set-retention public/default --size 100M --time 2d
