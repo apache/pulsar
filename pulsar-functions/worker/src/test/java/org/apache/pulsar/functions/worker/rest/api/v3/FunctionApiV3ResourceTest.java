@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -776,6 +776,7 @@ public class FunctionApiV3ResourceTest {
                 .classLoader(mockedClassLoader)
                 .build();
         when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
 
         when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
 

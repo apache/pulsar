@@ -33,7 +33,11 @@ function mvn_test() {
         clean_arg="clean"
         shift
     fi
-    TARGET=verify
+    if echo "${FUNCNAME[@]}" | grep "flaky"; then
+      TARGET="verify"
+    else
+      TARGET="verify -Pcoverage"
+    fi
     if [[ "$1" == "--install" ]]; then
       TARGET="install"
       shift
@@ -129,7 +133,7 @@ function test_group_proxy() {
 
 function test_group_other() {
   mvn_test --clean --install \
-           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution' \
+           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-all-docker-image' \
            -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DdisableSqlMainProfile=true -DskipIntegrationTests \
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java

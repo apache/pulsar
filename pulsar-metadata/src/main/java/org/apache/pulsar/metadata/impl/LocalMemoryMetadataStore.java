@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -129,7 +129,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
             Set<String> children = new TreeSet<>();
             map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-                String relativePath = key.replace(firstKey, "");
+                String relativePath = key.replaceFirst(firstKey, "");
 
                 // Only return first-level children
                 String child = relativePath.split("/", 2)[0];

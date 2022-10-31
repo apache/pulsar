@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -87,37 +87,42 @@ public interface SystemTopicClient<T> {
      * Writer for system topic.
      */
     interface Writer<T> {
+
         /**
          * Write event to the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        MessageId write(T t) throws PulsarClientException;
+        MessageId write(String key, T t) throws PulsarClientException;
 
         /**
          * Async write event to the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id future
          */
-        CompletableFuture<MessageId> writeAsync(T t);
+        CompletableFuture<MessageId> writeAsync(String key, T t);
 
         /**
          * Delete event in the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        default MessageId delete(T t) throws PulsarClientException {
+        default MessageId delete(String key, T t) throws PulsarClientException {
             throw new UnsupportedOperationException("Unsupported operation");
         }
 
         /**
          * Async delete event in the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id future
          */
-        default CompletableFuture<MessageId> deleteAsync(T t) {
+        default CompletableFuture<MessageId> deleteAsync(String key, T t) {
             throw new UnsupportedOperationException("Unsupported operation");
         }
 

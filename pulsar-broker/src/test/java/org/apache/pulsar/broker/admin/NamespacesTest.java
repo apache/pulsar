@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -846,7 +847,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         preconditionFailed.completeExceptionally(new PulsarAdminException.PreconditionFailedException(cee,
                 httpError, statusCode));
         doReturn(preconditionFailed).when(namespacesAdmin)
-                .deleteNamespaceBundleAsync(Mockito.anyString(), Mockito.anyString());
+                .deleteNamespaceBundleAsync(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean());
 
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> captor = ArgumentCaptor.forClass(RestException.class);
@@ -865,7 +866,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(nsBundles.getBundles().get(0), optionsHttps);
         doReturn(true).when(nsSvc).isServiceUnitOwned(nsBundles.getBundles().get(0));
         doReturn(CompletableFuture.completedFuture(null)).when(namespacesAdmin).deleteNamespaceBundleAsync(
-                testTenant + "/" + testLocalCluster + "/" + bundledNsLocal, "0x00000000_0x80000000");
+                testTenant + "/" + testLocalCluster + "/" + bundledNsLocal, "0x00000000_0x80000000",
+                false);
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal,
                 "0x80000000_0xffffffff",  false, false);
@@ -1289,6 +1291,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.updateServiceUrl(lookupUrl.toString());
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
         pulsar.getConfiguration().setAuthorizationEnabled(true);
+        consumer.close();
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
         admin.tenants().deleteTenant("my-tenants");
@@ -1399,6 +1402,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // create the namespace
         admin.namespaces().createNamespace(namespace, Set.of(testLocalCluster));
         admin.topics().createNonPartitionedTopic(topicName.toString());
+
+        admin.namespaces().setOffloadDeleteLag(namespace, 10000, TimeUnit.SECONDS);
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
 
         // assert we get the default which indicates it will fall back to default
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
@@ -1852,7 +1858,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSplitBundleForMultiTimes() throws Exception{
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
-        BundlesData data = BundlesData.builder().numBundles(4).build();
+        int initBundleCount = 4;
+        BundlesData data = BundlesData.builder().numBundles(initBundleCount).build();
         admin.namespaces().createNamespace(namespace, data);
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         final NamespaceName testNs = NamespaceName.get(namespace);
@@ -1861,6 +1868,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             final BundlesData bundles = admin.namespaces().getBundles(namespace);
             final String bundle = bundles.getBoundaries().get(0) + "_" + bundles.getBoundaries().get(1);
             admin.namespaces().splitNamespaceBundle(namespace, bundle, true, null);
+            final int loop = i + 1;
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                BundlesData currentBundles = admin.namespaces().getBundles(namespace);
+                assertEquals(currentBundles.getNumBundles(), initBundleCount + loop);
+            });
         }
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         assertEquals(bundles.getNumBundles(), 14);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -145,6 +145,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -218,7 +219,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
         // Mock pulsarResources.
         PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
-        NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
+        NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, 30);
         TopicResources tsr = spyWithClassAndConstructorArgs(TopicResources.class, store);
         doReturn(nsr).when(pulsarResources).getNamespaceResources();
         doReturn(tsr).when(pulsarResources).getTopicResources();
@@ -1258,6 +1259,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDeleteTopic() throws Exception {
+        doReturn(CompletableFuture.completedFuture(null)).when(ledgerMock).asyncTruncate();
+
         // create topic
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 
@@ -1293,7 +1296,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 role, false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
         topic.addProducer(producer, new CompletableFuture<>()).join();
 
-        assertTrue(topic.delete().isCompletedExceptionally());
+        CompletableFuture<Void> cf = topic.delete();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> cf.isDone());
+        assertTrue(cf.isCompletedExceptionally());
         assertFalse((boolean) isFencedField.get(topic));
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
         topic.removeProducer(producer);
@@ -1310,7 +1315,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
-        assertTrue(topic.delete().isCompletedExceptionally());
+        CompletableFuture<Void> cf2 = topic.delete();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> cf2.isDone());
+        assertTrue(cf2.isCompletedExceptionally());
         assertFalse((boolean) isFencedField.get(topic));
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
         topic.unsubscribe(successSubName);
@@ -2323,7 +2330,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), Collections.emptyList());
 
         PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
-        NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
+        NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, 30);
         doReturn(nsr).when(pulsarResources).getNamespaceResources();
         PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
             doReturn(pulsarResources).when(pulsar).getPulsarResources();

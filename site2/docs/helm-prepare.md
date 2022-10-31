@@ -22,7 +22,6 @@ Helm is the package manager for Kubernetes. The Apache Pulsar Helm Chart is supp
 
 You can get the Helm from the project's [releases page](https://github.com/helm/helm/releases), or follow other options under the official documentation of [installing Helm](https://helm.sh/docs/intro/install/).
 
-
 ## Create Kubernetes cluster
 
 A Kubernetes cluster version 1.18 or higher is required for continuing the deployment. For details about how to create a Kubernetes cluster, see [Kubernetes documentation](https://kubernetes.io/docs/setup/production-environment/tools/).

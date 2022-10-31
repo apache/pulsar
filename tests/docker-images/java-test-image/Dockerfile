@@ -61,12 +61,13 @@ RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
-    && mkdir -p /pulsar/ssl
+    && mkdir -p /pulsar/certificate-authority
 
 COPY target/conf /etc/supervisord/conf.d/
 RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 
-COPY target/ssl /pulsar/ssl/
+# TLS certificates
+COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
 

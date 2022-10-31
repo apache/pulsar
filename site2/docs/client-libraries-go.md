@@ -65,7 +65,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## Create a client
 
-To interact with Pulsar, you need a [`Client`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Client) object first. You can create a client object using the [`NewClient`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#NewClient) function, passing in a [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions) object (more on configuration [below](#client-configuration)). Here's an example:
+To interact with Pulsar, you need a [`Client`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Client) object first. You can create a client object using the [`NewClient`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#NewClient) function, passing in a [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions) object. Here's an example:
 
 ```go
 import (
@@ -202,6 +202,34 @@ for i := 0; i < 10; i++ {
     fmt.Printf("Received message msgId: %#v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
     consumer.Ack(msg)
 }
+```
+
+#### How to use chunking in producer
+
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+	URL: serviceURL,
+})
+
+if err != nil {
+	log.Fatal(err)
+}
+defer client.Close()
+
+// The message chunking feature is OFF by default.
+// By default, a producer chunks the large message based on the max message size (`maxMessageSize`) configured at the broker side (for example, 5MB).
+// Client can also configure the max chunked size using the producer configuration `ChunkMaxMessageSize`.
+// Note: to enable chunking, you need to disable batching (`DisableBatching=true`) concurrently.
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+  Topic:               "my-topic",
+  DisableBatching:     true,
+  EnableChunking:      true,
+})
+
+if err != nil {
+	log.Fatal(err)
+}
+defer producer.Close()
 ```
 
 #### How to use schema interface in producer

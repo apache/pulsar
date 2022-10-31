@@ -19,7 +19,7 @@ Bookie isolation is controlled by BookKeeper clients. For Pulsar, there are two 
    * The bookie replication worker writes ledger replicas to target bookies according to the configured isolation policy.
 
 To isolate bookies, you need to complete the following tasks.
-1. Select a [data isolation policy](#understand-bookie-data-isolation-policies) based on your requirements.
+1. Select a [data isolation policy](#understand-bookie-data-isolation-policy) based on your requirements.
 2. [Enable the policy on BookKeeper clients](#enable-bookie-data-placement-policy).
 3. [Configure the policy on bookie instances](#configure-data-placement-policy-on-bookie-instances).
 
