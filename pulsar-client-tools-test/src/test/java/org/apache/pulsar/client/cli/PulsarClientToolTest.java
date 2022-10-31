@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -293,6 +293,28 @@ public class PulsarClientToolTest extends BrokerTestBase {
         assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
         assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+    }
+
+    @Test
+    public void testSendMultipleMessage() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("test-multiple-msg");
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(properties);
+        String[] args1 = {"produce", "-m", "msg0", "-m", "msg1,msg2", topicName};
+        Assert.assertEquals(pulsarClientTool.run(args1), 0);
+
+        for (int i = 0; i < 3; i++) {
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg);
+            Assert.assertEquals(new String(msg.getData()), "msg" + i);
+        }
     }
     
     private static String getTopicWithRandomSuffix(String localNameBase) {

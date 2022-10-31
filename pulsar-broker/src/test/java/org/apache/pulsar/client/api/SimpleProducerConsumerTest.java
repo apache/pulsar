@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -3377,6 +3377,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         defaultConsumer.close();
         latestConsumer.close();
         earliestConsumer.close();
+        producer.close();
+
+        admin.topics().delete(topicName, true);
 
         log.info("-- Exiting {} test --", methodName);
     }

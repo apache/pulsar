@@ -46,7 +46,7 @@ The following directories are created:
 
 | Directory     | Description                                                                                         |
 | ------------- | --------------------------------------------------------------------------------------------------- |
-| **bin**       | The [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools |
+| **bin**       | The [`pulsar`](reference-cli-tools.md) entry point script, and many other command-line tools |
 | **conf**      | Configuration files, including `broker.conf`                                                        |
 | **lib**       | JARs used by Pulsar                                                                                 |
 | **examples**  | [Pulsar Functions](functions-overview.md) examples                                                  |
@@ -69,7 +69,7 @@ When the Pulsar cluster starts, the following directories are created:
 
 :::tip
 
-* To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](reference-cli-tools.md#pulsar-daemon).
+* To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](reference-cli-tools.md).
 * The `public/default` namespace is created when you start a Pulsar cluster. This namespace is for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Namespaces](concepts-messaging.md#namespaces) and [Topics](concepts-messaging.md#topics).
 
 :::

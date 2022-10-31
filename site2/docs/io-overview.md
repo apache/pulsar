@@ -85,7 +85,7 @@ bin/pulsar-admin sources create \
 # Other source configs
 ```
 
-For more information about the options of `pulsar-admin sources create`, see [here](reference-connector-admin.md#create).
+For more information about the options of `pulsar-admin sources create`, see [here](reference-connector-admin.md).
 
 </TabItem>
 <TabItem value="Sink">
@@ -96,7 +96,7 @@ bin/pulsar-admin sinks create \
 # Other sink configs
 ```
 
-For more information about the options of `pulsar-admin sinks create`, see [here](reference-connector-admin.md#create-1).
+For more information about the options of `pulsar-admin sinks create`, see [here](reference-connector-admin.md).
 
 </TabItem>
 
@@ -128,7 +128,7 @@ bin/pulsar-admin sources update \
 # Other source configs
 ```
 
-For more information about the options of `pulsar-admin sources update`, see [here](reference-connector-admin.md#update).
+For more information about the options of `pulsar-admin sources update`, see [here](reference-connector-admin.md).
 
 </TabItem>
 <TabItem value="Sink">
@@ -139,7 +139,7 @@ bin/pulsar-admin sinks update \
 # Other sink configs
 ```
 
-For more information about the options of `pulsar-admin sinks update`, see [here](reference-connector-admin.md#update-1).
+For more information about the options of `pulsar-admin sinks update`, see [here](reference-connector-admin.md).
 
 </TabItem>
 

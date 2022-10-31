@@ -55,6 +55,6 @@ For how to set namespace isolation policy using Java admin API, see [code](https
 
 :::tip
 
-To guarantee all the data that belongs to a namespace is stored in desired bookies, you can isolate the data of the namespace into user-defined groups of bookies. See [configure bookie affinity groups](#configure-bookie-affinity-groups) for more details.
+To guarantee all the data that belongs to a namespace is stored in desired bookies, you can isolate the data of the namespace into user-defined groups of bookies. See [configure bookie affinity groups](administration-isolation-bookie.md#configure-bookie-affinity-groups) for more details.
 
 :::
