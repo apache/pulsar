@@ -12,7 +12,7 @@ import TabItem from '@theme/TabItem';
 
 This section explains the basic concepts of Pulsar schema and provides additional reference.
 
-## Definition
+## Schema definition
 
 Pulsar schema is defined in a data structure called `SchemaInfo`. It is stored and enforced on a per-topic basis and cannot be stored at the namespace or tenant level.
 
@@ -117,7 +117,7 @@ When migrating or ingesting event or message data from external systems (such as
 
 Hence, we provide `Schema.NATIVE_AVRO` to wrap a native Avro schema of type `org.apache.avro.Schema`. The result is a schema instance of Pulsar that accepts a serialized Avro payload without validating it against the wrapped Avro schema. See for more details.
 
-## Schema version
+## Schema versioning
 
 Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
 
@@ -150,36 +150,6 @@ The table below lists the possible scenarios when this connection attempt occurs
 | --- | --- |
 |  <li>No schema exists for the topic. </li> |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
 |  <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
-
-## Schema Registry
-
-Type safety is extremely important in any application built around a message bus like Pulsar. 
-
-Producers and consumers need some kind of mechanism for coordinating types at the topic level to avoid various potential problems arising. For example, serialization and deserialization issues. 
-
-Applications typically adopt one of the following approaches to guarantee type safety in messaging. Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
-
-:::note
-
-Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [Go client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
-
-:::
-
-### Client-side approach
-
-Producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also "knowing" which types are being transmitted via which topics. 
-
-If a producer is sending temperature sensor data on the topic `topic-1`, consumers of that topic will run into trouble if they attempt to parse that data as moisture sensor readings.
-
-Producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an "out-of-band" basis.
-
-### Server-side approach 
-
-Producers and consumers inform the system which data types can be transmitted via the topic. 
-
-With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.
-
-Pulsar has a built-in **schema registry** that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.
 
 ## Schema AutoUpdate
 
