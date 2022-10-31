@@ -687,7 +687,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setSequenceId(1L);
         snapshot.setMaxReadPositionLedgerId(2L);
         snapshot.setMaxReadPositionEntryId(3L);
-        HashSet<TxnIDData> txnIDSet = new HashSet<>();
+        LinkedList<TxnIDData> txnIDSet = new LinkedList<>();
         txnIDSet.add(new TxnIDData(1, 1));
         snapshot.setAborts(txnIDSet );
 
