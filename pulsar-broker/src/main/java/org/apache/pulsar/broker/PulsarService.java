@@ -902,9 +902,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
                     + (StringUtils.isNotEmpty(brokerServiceUrl) ? ", broker url= " + brokerServiceUrl : "")
                     + (StringUtils.isNotEmpty(brokerServiceUrlTls) ? ", broker tls url= " + brokerServiceUrlTls : "");
-            LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
-            LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
-                    config.getClusterName(), config);
+            LOG.info("messaging service is ready, bootstrap_seconds={}, {}, cluster={}, configs={}",
+                    bootstrapTimeSeconds, bootstrapMessage, config.getClusterName(), config);
 
             state = State.Started;
         } catch (Exception e) {
