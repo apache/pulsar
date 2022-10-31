@@ -62,7 +62,7 @@ cryptoKeyReaderFactoryClassName=org.apache.pulsar.MyCryptoKeyReaderFactoryClassI
 
 ### Starting the broker
 
-When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) tool:
+When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md) tool:
 
 ```shell
 bin/pulsar-daemon start websocket

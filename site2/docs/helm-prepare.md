@@ -29,7 +29,7 @@ The script can:
 2. Allow the cluster to modify DNS (Domain Name Server) records.
 3. Set up `kubectl`, and connect it to the cluster.
 
-Google Cloud SDK is a dependency of this script, so ensure it is [set up correctly](helm-tools.md#connect-to-a-gke-cluster) for the script to work.
+Google Cloud SDK is a dependency of this script, so ensure it is [set up correctly](helm-tools.md) for the script to work.
 
 The script reads various parameters from environment variables and an argument `up` or `down` for bootstrap and clean-up respectively.
 
