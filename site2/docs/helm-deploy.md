@@ -52,7 +52,7 @@ volumes:
   local_storage: false
 ```
 
-To use local persistent volumes as the persistent storage for Helm release, you can install the [storage provisioner](#install-storage-provisioner) and include the following option in the `helm install` command. 
+To use local persistent volumes as the persistent storage for Helm release, you can install the [local storage provisioner](#install-local-storage-provisioner) and include the following option in the `helm install` command. 
 
 ```bash
 --set volumes.local_storage=true
@@ -297,14 +297,14 @@ Once you have all of your configuration options collected, you can install depen
 
 #### Install storage provisioner
 
-To use [persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) as the persistent storage, you need to install a storage provisioner.
+To use [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) as the persistent storage, you need to install a local storage provisioner.
 
-One of the easiest ways to get started is to use the storage provisioner provided along with the Pulsar Helm Chart.
+One of the easiest ways to get started is to use the local storage provisioner provided along with the Pulsar Helm Chart.
 
 ```bash
 helm repo add streamnative https://charts.streamnative.io
 helm repo update
-helm install pulsar-storage-provisioner streamnative/storage-provisioner
+helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
 ```
 
 Alternatively, you can create a [storage class](https://kubernetes.io/docs/concepts/storage/storage-classes/) for your Kubernetes cluster and configure the [storage class name](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml#L361).
