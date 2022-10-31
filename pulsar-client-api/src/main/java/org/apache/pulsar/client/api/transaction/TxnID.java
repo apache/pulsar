@@ -20,7 +20,11 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.Serializable;
 import java.util.Objects;
+
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -48,17 +52,22 @@ public class TxnID implements Serializable {
      */
     private final long leastSigBits;
 
+    @Getter(AccessLevel.NONE)
     private transient final int hashCode;
+
+    @Getter(AccessLevel.NONE)
+    private transient final String txnStr;
 
     public TxnID(long mostSigBits, long leastSigBits) {
         this.mostSigBits = mostSigBits;
         this.leastSigBits = leastSigBits;
         this.hashCode = Objects.hash(mostSigBits, leastSigBits);
+        this.txnStr = "(" + mostSigBits + "," + leastSigBits + ")";
     }
 
     @Override
     public String toString() {
-        return "(" + mostSigBits + "," + leastSigBits + ")";
+        return txnStr;
     }
 
     @Override
