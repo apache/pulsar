@@ -17,6 +17,13 @@ The configuration of the Kafka source connector has the following properties.
 | Name | Type| Required | Default | Description 
 |------|----------|---------|-------------|-------------|
 |  `bootstrapServers` |String| true | " " (empty string) | A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster. |
+|  `securityProtocol` |String| false | " " (empty string) | The protocol used to communicate with Kafka brokers. |
+|  `saslMechanism` |String| false | " " (empty string) | The SASL mechanism used for Kafka client connections. |
+|  `saslJaasConfig` |String| false | " " (empty string) | The JAAS login context parameters for SASL connections in the format used by JAAS configuration files. |
+|  `sslEnabledProtocols` |String| false | " " (empty string) | The list of protocols enabled for SSL connections. |
+|  `sslEndpointIdentificationAlgorithm` |String| false | " " (empty string) | The endpoint identification algorithm to validate server hostnames using a server certificate. |
+|  `sslTruststoreLocation` |String| false | " " (empty string) | The location of the trust store file. |
+|  `sslTruststorePassword` |String| false | " " (empty string) | The password of the trust store file. |
 | `groupId` |String| true | " " (empty string) | A unique string that identifies the group of consumer processes to which this consumer belongs. |
 | `fetchMinBytes` | long|false | 1 | The minimum byte expected for each fetch response. |
 | `autoCommitEnabled` | boolean |false | true | If set to true, the consumer's offset is periodically committed in the background.<br /><br /> This committed offset is used when the process fails as the position from which a new consumer begins. |
@@ -100,9 +107,8 @@ This example describes how to use the Kafka source connector to feed data from K
 
 #### Steps
 
-1. Download and start the Confluent Platform.
-
-For details, see the [documentation](https://docs.confluent.io/platform/current/quickstart/ce-docker-quickstart.html#step-1-download-and-start-cp) to install the Kafka service locally.
+1. Download and start the Confluent Platform. 
+   For details, see the [documentation](https://docs.confluent.io/platform/current/quickstart/ce-docker-quickstart.html#step-1-download-and-start-cp) to install the Kafka service locally.
 
 2. Pull a Pulsar image and start Pulsar in standalone mode.
 

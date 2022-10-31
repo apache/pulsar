@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
@@ -140,7 +139,7 @@ public class ServerCnxAuthorizationTest {
             doReturn(pulsarResources).when(pulsar).getPulsarResources();
         });
         NamespaceResources namespaceResources =
-                spyWithClassAndConstructorArgsRecordingInvocations(NamespaceResources.class, store, store, 30);
+                spyWithClassAndConstructorArgsRecordingInvocations(NamespaceResources.class, store, 30);
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
 
         TenantResources tenantResources = spyWithClassAndConstructorArgsRecordingInvocations(TenantResources.class, store, 30);
