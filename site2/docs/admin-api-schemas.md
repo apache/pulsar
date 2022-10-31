@@ -102,7 +102,7 @@ The `schema-definition-file` includes the following fields:
 | Field |  Description | 
 | --- | --- |
 |  `type`  |   The schema type. | 
-|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
+|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
 |  `properties`  |  The additional properties associated with the schema. | 
 
 Here are examples of the `schema-definition-file` for a JSON schema.
@@ -149,7 +149,7 @@ The post payload includes the following fields:
 | Field |  Description | 
 | --- | --- |
 |  `type`  |   The schema type. | 
-|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
+|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
 |  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
@@ -164,7 +164,7 @@ The `PostSchemaPayload` includes the following fields:
 | Field |  Description | 
 | --- | --- |
 |  `type`  |   The schema type. | 
-|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
+|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
 |  `properties`  |  The additional properties associated with the schema. | 
 
 Here is an example of `PostSchemaPayload`:
@@ -236,7 +236,7 @@ The response includes the following fields:
 |  `version`  |   The schema version, which is a long number. | 
 |  `type`  |   The schema type. | 
 |  `timestamp`  |   The timestamp of creating this version of schema. | 
-|  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
+|  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
 |  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
@@ -252,7 +252,7 @@ The `SchemaInfo` includes the following fields:
 | --- | --- |
 |  `name`  |   The schema name. | 
 |  `type`  |   The schema type. | 
-|  `schema`  |   A byte array of the schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this byte array should be empty. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition converted to a byte array. </li> | 
+|  `schema`  |   A byte array of the schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this byte array should be empty. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition converted to a byte array. </li> | 
 |  `properties`  |  The additional properties associated with the schema. | 
 
 Here is an example of `SchemaInfo`:
@@ -309,7 +309,7 @@ The response includes the following fields:
 |  `version`  |   The schema version, which is a long number. | 
 |  `type`  |   The schema type. | 
 |  `timestamp`  |   The timestamp of creating this version of schema. | 
-|  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
+|  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
 |  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
@@ -325,7 +325,7 @@ The `SchemaInfo` includes the following fields:
 | --- | --- |
 |  `name`  |  The schema name. | 
 |  `type`  |  The schema type. | 
-|  `schema`  |   A byte array of the schema definition data, which is encoded in UTF 8. <li>If the schema is a </li>**primitive**<li>schema, this byte array should be empty. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition converted to a byte array. </li> | 
+|  `schema`  |   A byte array of the schema definition data, which is encoded in UTF 8. <li>If the schema is a **primitive** schema, this byte array should be empty. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition converted to a byte array. </li> | 
 |  `properties`  |  The additional properties associated with the schema. | 
 
 Here is an example of `SchemaInfo`:

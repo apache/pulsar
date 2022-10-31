@@ -98,10 +98,12 @@ You can choose the encoding type when constructing the key/value schema.：
 `AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports  `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br /><br />This allows Pulsar:<br />- to use the same tools to manage schema definitions<br />- to use different serialization or deserialization methods to handle data|
 `ProtobufNativeSchema`|`ProtobufNativeSchema` is based on protobuf native Descriptor. <br /><br />This allows Pulsar:<br />- to use native protobuf-v3 to serialize or deserialize data<br />- to use `AutoConsume` to deserialize data.
 
-Pulsar provides the following methods to [use the `struct` schema](schema-get-started.md#construct-a-struct-schema):
+Pulsar provides the following methods to use the `struct` schema. 
 * `static`
 * `generic`
 * `SchemaDefinition`
+
+For more examples, see [Construct a struct schema](schema-get-started.md#construct-a-struct-schema).
 
 ### Auto Schema
 
