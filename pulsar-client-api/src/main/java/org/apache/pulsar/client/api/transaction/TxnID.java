@@ -48,6 +48,14 @@ public class TxnID implements Serializable {
      */
     private final long leastSigBits;
 
+    private transient final int hashCode;
+
+    public TxnID(long mostSigBits, long leastSigBits) {
+        this.mostSigBits = mostSigBits;
+        this.leastSigBits = leastSigBits;
+        this.hashCode = Objects.hash(mostSigBits, leastSigBits);
+    }
+
     @Override
     public String toString() {
         return "(" + mostSigBits + "," + leastSigBits + ")";
@@ -55,15 +63,15 @@ public class TxnID implements Serializable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(mostSigBits, leastSigBits);
+        return hashCode;
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof TxnID) {
             TxnID other = (TxnID) obj;
-            return Objects.equals(mostSigBits, other.mostSigBits)
-                    && Objects.equals(leastSigBits, other.leastSigBits);
+            return mostSigBits == other.mostSigBits
+                    && leastSigBits == other.leastSigBits;
         }
 
         return false;
