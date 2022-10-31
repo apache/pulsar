@@ -45,7 +45,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .buckets(BUCKETS)
             .register();
     private static final Histogram OPS_PER_BATCH = Histogram
-            .build("pulsar_batch_metadata_store_perbatch_ops", "-")
+            .build("pulsar_batch_metadata_store_batch_size", "-")
             .labelNames(NAME)
             .buckets(BUCKETS)
             .register();
