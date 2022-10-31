@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.create;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.collect.Lists;
