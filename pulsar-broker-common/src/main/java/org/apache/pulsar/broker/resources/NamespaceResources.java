@@ -33,12 +33,10 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -52,23 +50,15 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final PartitionedTopicResources partitionedTopicResources;
     private final MetadataStore configurationStore;
 
-    private final MetadataCache<LocalPolicies> localPoliciesCache;
-
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
     private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
-    public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
+    public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
-
-        if (localStore != null) {
-            localPoliciesCache = localStore.getMetadataCache(LocalPolicies.class);
-        } else {
-            localPoliciesCache = null;
-        }
     }
 
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
