@@ -22,5 +22,6 @@ public enum NotificationType {
     Created,
     Modified,
     ChildrenChanged,
-    Deleted
+    Deleted,
+    Invalidate
 }
