@@ -377,10 +377,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return this.filterRescheduledMsgs.longValue();
     }
 
-    protected String getSubscriptionName() {
-        return subscription == null ? null : subscription.getName();
-    }
-
     protected final void updatePendingBytesToDispatch(long size) {
         PENDING_BYTES_TO_DISPATCH.inc(size);
     }
