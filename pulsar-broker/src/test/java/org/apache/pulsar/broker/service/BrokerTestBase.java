@@ -29,10 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -293,55 +290,6 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
                     (CanPausedNamespaceService) pulsarService.getNamespaceService();
             canPausedNamespaceService.resume();
         }
-    }
-
-    /**
-     * see {@link #cleanupNamespaceByNsCollection(Collection, PulsarService, PulsarAdmin)}
-     */
-    public void cleanupNamespaceByPredicate(String tenant, Predicate<String> predicate) throws Exception{
-        cleanupNamespaceByPredicate(tenant, predicate, pulsar, admin);
-    }
-
-    /**
-     * see {@link #cleanupNamespaceByNsCollection(Collection, PulsarService, PulsarAdmin)}
-     */
-    public void cleanupNamespaceByNsArray(String...namespaces) throws Exception{
-        cleanupNamespaceByNsCollection(Arrays.asList(namespaces), pulsar, admin);
-    }
-
-    /**
-     * see {@link #cleanupNamespaceByNsCollection(Collection, PulsarService, PulsarAdmin)}
-     */
-    public void cleanupNamespaceByNsCollection(Collection<String> namespaces) throws Exception{
-        cleanupNamespaceByNsCollection(namespaces, pulsar, admin);
-    }
-
-    /**
-     * see {@link #cleanupNamespaceByNsCollection(Collection, PulsarService, PulsarAdmin)}
-     */
-    public static void cleanupNamespaceByPredicate(String tenant, Predicate<String> predicate, PulsarService pulsar,
-                                            PulsarAdmin admin) throws Exception{
-        cleanupNamespaceByNsCollection(admin.namespaces().getNamespaces(tenant).stream()
-                .filter(predicate).collect(Collectors.toSet()), pulsar, admin);
-    }
-
-    /**
-     * Remove namespaces.
-     */
-    public static void cleanupNamespaceByNsCollection(Collection<String> namespaces, PulsarService pulsar, PulsarAdmin admin)
-            throws Exception{
-        if (namespaces == null){
-            return;
-        }
-        boolean forceDeleteNamespaceAllowedOriginalValue = pulsar.getConfiguration().isForceDeleteNamespaceAllowed();
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
-        for (String ns : namespaces){
-            if (StringUtils.isEmpty(ns)){
-                continue;
-            }
-            deleteNamespaceGraceFully(ns, true, admin, pulsar);
-        }
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(forceDeleteNamespaceAllowedOriginalValue);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerTestBase.class);

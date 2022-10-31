@@ -39,6 +39,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +51,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
@@ -64,6 +66,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
@@ -1967,6 +1970,32 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
+    }
+    /**
+     * see {@link #cleanupNamespaceByNsCollection(Collection)}
+     */
+    private void cleanupNamespaceByPredicate(String tenant, Predicate<String> predicate) throws Exception{
+        cleanupNamespaceByNsCollection(admin.namespaces().getNamespaces(tenant).stream()
+                .filter(predicate).collect(Collectors.toSet()));
+    }
+
+    /**
+     * Remove namespaces.
+     */
+    private void cleanupNamespaceByNsCollection(Collection<String> namespaces)
+            throws Exception{
+        if (namespaces == null){
+            return;
+        }
+        boolean forceDeleteNamespaceAllowedOriginalValue = pulsar.getConfiguration().isForceDeleteNamespaceAllowed();
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        for (String ns : namespaces){
+            if (StringUtils.isEmpty(ns)){
+                continue;
+            }
+            deleteNamespaceGraceFully(ns, false);
+        }
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(forceDeleteNamespaceAllowedOriginalValue);
     }
 
 }
