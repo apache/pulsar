@@ -16,25 +16,25 @@ Specify how to run Pulsar using Helm's `--set option.name=value` command line op
 
 #### Kubernetes namespace
 
-By default, the Pulsar Helm chart is installed in a namespace called `pulsar`.
+By default, the Pulsar Helm Chart is installed in a namespace called `pulsar`.
 
 ```yaml
 namespace: pulsar
 ```
 
-To install the Pulsar Helm chart into a different Kubernetes namespace, you can include this option in the `helm install` command.
+To install the Pulsar Helm Chart into a different Kubernetes namespace, you can include this option in the `helm install` command.
 
 ```bash
 --set namespace=<different-k8s-namespace>
 ```
 
-By default, the Pulsar Helm chart doesn't create the namespace.
+By default, the Pulsar Helm Chart doesn't create the namespace.
 
 ```yaml
 namespaceCreate: false
 ```
 
-To use the Pulsar Helm chart to create the Kubernetes namespace automatically, you can include this option in the `helm install` command.
+To use the Pulsar Helm Chart to create the Kubernetes namespace automatically, you can include this option in the `helm install` command.
 
 ```bash
 --set namespaceCreate=true
@@ -42,7 +42,7 @@ To use the Pulsar Helm chart to create the Kubernetes namespace automatically, y
 
 #### Persistence
 
-By default, the Pulsar Helm chart creates Volume Claims with the expectation that a dynamic provisioner creates the underlying Persistent Volumes.
+By default, the Pulsar Helm Chart creates Volume Claims with the expectation that a dynamic provisioner creates the underlying Persistent Volumes.
 
 ```yaml
 volumes:
@@ -52,7 +52,7 @@ volumes:
   local_storage: false
 ```
 
-To use local persistent volumes as the persistent storage for Helm release, you can install the [local storage provisioner](#install-local-storage-provisioner) and include the following option in the `helm install` command. 
+To use local persistent volumes as the persistent storage for Helm release, you can install the [storage provisioner](#install-storage-provisioner) and include the following option in the `helm install` command. 
 
 ```bash
 --set volumes.local_storage=true
@@ -64,7 +64,7 @@ Before installing the production instance of Pulsar, ensure to plan the storage 
 
 :::
 
-The Pulsar Helm chart is designed for production use. To use the Pulsar Helm chart in a development environment (such as Minikube), you can disable persistence by including this option in your `helm install` command.
+The Pulsar Helm Chart is designed for production use. To use the Pulsar Helm Chart in a development environment (such as Minikube), you can disable persistence by including this option in your `helm install` command.
 
 ```bash
 --set volumes.persistence=false
@@ -79,7 +79,7 @@ affinity:
   anti_affinity: true
 ```
 
-To use the Pulsar Helm chart in a development environment (such as Minikube), you can disable `anti-affinity` by including this option in your `helm install` command.
+To use the Pulsar Helm Chart in a development environment (such as Minikube), you can disable `anti-affinity` by including this option in your `helm install` command.
 
 ```bash
 --set affinity.anti_affinity=false
@@ -87,7 +87,7 @@ To use the Pulsar Helm chart in a development environment (such as Minikube), yo
 
 #### Components
 
-The Pulsar Helm chart is designed for production usage. It deploys a production-ready Pulsar cluster, including Pulsar core components and monitoring components.
+The Pulsar Helm Chart is designed for production usage. It deploys a production-ready Pulsar cluster, including Pulsar core components and monitoring components.
 
 You can customize the components to be deployed by turning on/off individual components.
 
@@ -125,7 +125,7 @@ monitoring:
 
 #### Docker images
 
-The Pulsar Helm chart is designed to enable controlled upgrades. So it can configure independent image versions for components. You can customize the images by setting individual components.
+The Pulsar Helm Chart is designed to enable controlled upgrades. So it can configure independent image versions for components. You can customize the images by setting individual components.
 
 ```yaml
 ## Images
@@ -172,11 +172,11 @@ images:
 
 #### TLS
 
-The Pulsar Helm chart can be configured to enable TLS (Transport Layer Security) to protect all the traffic between components. Before enabling TLS, you have to provision TLS certificates for the required components.
+The Pulsar Helm Chart can be configured to enable TLS (Transport Layer Security) to protect all the traffic between components. Before enabling TLS, you have to provision TLS certificates for the required components.
 
 ##### Provision TLS certificates using cert-manager
 
-To use the `cert-manager` to provision the TLS certificates, you have to install the [cert-manager](#install-cert-manager) before installing the Pulsar Helm chart. After successfully installing the cert-manager, you can set `certs.internal_issuer.enabled` to `true`. Therefore, the Pulsar Helm chart can use the `cert-manager` to generate `selfsigning` TLS certificates for the configured components.
+To use the `cert-manager` to provision the TLS certificates, you have to install the [cert-manager](#install-cert-manager) before installing the Pulsar Helm Chart. After successfully installing the cert-manager, you can set `certs.internal_issuer.enabled` to `true`. Therefore, the Pulsar Helm Chart can use the `cert-manager` to generate `selfsigning` TLS certificates for the configured components.
 
 ```yaml
 certs:
@@ -243,7 +243,7 @@ tls:
 #### Authentication
 
 By default, authentication is disabled. You can set `auth.authentication.enabled` to `true` to enable authentication.
-Currently, the Pulsar Helm chart only supports the JWT authentication provider. You can set `auth.authentication.provider` to `jwt` to use the JWT authentication provider.
+Currently, the Pulsar Helm Chart only supports the JWT authentication provider. You can set `auth.authentication.provider` to `jwt` to use the JWT authentication provider.
 
 ```yaml
 # Enable or disable broker authentication and authorization.
@@ -289,27 +289,29 @@ To enable authorization, you can include this option in the `helm install` comma
 
 #### CPU and RAM resource requirements
 
-By default, the resource requests and the number of replicas for the Pulsar components in the Pulsar Helm chart are adequate for small production deployment. If you deploy a non-production instance, you can reduce the defaults to fit into a smaller cluster.
+By default, the resource requests and the number of replicas for the Pulsar components in the Pulsar Helm Chart are adequate for small production deployment. If you deploy a non-production instance, you can reduce the defaults to fit into a smaller cluster.
 
-Once you have all of your configuration options collected, you can install dependent charts before installing the Pulsar Helm chart.
+Once you have all of your configuration options collected, you can install dependent charts before installing the Pulsar Helm Chart.
 
 ## Install dependent charts
 
-#### Install local storage provisioner
+#### Install storage provisioner
 
-To use local persistent volumes as the persistent storage, you need to install a storage provisioner for [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/).
+To use [persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) as the persistent storage, you need to install a storage provisioner.
 
-One of the easiest ways to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
+One of the easiest ways to get started is to use the storage provisioner provided along with the Pulsar Helm Chart.
 
-```
+```bash
 helm repo add streamnative https://charts.streamnative.io
 helm repo update
-helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
+helm install pulsar-storage-provisioner streamnative/storage-provisioner
 ```
+
+Alternatively, you can create a [storage class](https://kubernetes.io/docs/concepts/storage/storage-classes/) for your Kubernetes cluster and configure the [storage class name](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml#L361).
 
 #### Install cert-manager
 
-The Pulsar Helm chart uses the [cert-manager](https://github.com/jetstack/cert-manager) to provision and manage TLS certificates automatically. To enable TLS encryption for brokers or proxies, you need to install the cert-manager in advance.
+The Pulsar Helm Chart uses the [cert-manager](https://github.com/jetstack/cert-manager) to provision and manage TLS certificates automatically. To enable TLS encryption for brokers or proxies, you need to install the cert-manager in advance.
 
 For details about how to install the cert-manager, follow the [official instructions](https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm).
 
@@ -353,7 +355,7 @@ helm install pulsar apache/pulsar \
     --set [your configuration options]
 ```
 
-You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm chart.
+You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm Chart.
 
 ### Monitor deployment
 
@@ -382,7 +384,7 @@ Although we have done our best to make these charts as seamless as possible, tro
 
 ## Uninstall
 
-To uninstall the Pulsar Helm chart, run the following command:
+To uninstall the Pulsar Helm Chart, run the following command:
 
 ```bash
 helm uninstall <pulsar-release-name>

@@ -7,7 +7,7 @@ sidebar_label: "Upgrade"
 
 To upgrade Apache Pulsar Helm to a newer version, complete the following steps:
 
-1. Check the change log for the specific version you would like to upgrade to and read the release notes that might pertain to the new Pulsar helm chart version.
+1. Check the change log for the specific version you would like to upgrade to and read the release notes that might pertain to the new Pulsar Helm Chart version.
 
 2. Go through the [deployment guide](helm-deploy.md) step by step.
 

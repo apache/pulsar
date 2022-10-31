@@ -4,7 +4,7 @@ title: Prepare Kubernetes resources
 sidebar_label: "Prepare"
 ---
 
-For a fully functional Pulsar cluster, you need a few resources before deploying the Apache Pulsar Helm chart. This guide provides instructions to prepare the Kubernetes cluster before deploying the Pulsar Helm chart.
+For a fully functional Pulsar cluster, you need a few resources before deploying the Apache Pulsar Helm Chart. This section provides the information about the preparations you need to do before deploying the Pulsar Helm Chart.
 
 ## Prerequisites
 
