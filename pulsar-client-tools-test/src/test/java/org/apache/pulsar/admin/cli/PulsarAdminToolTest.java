@@ -1627,7 +1627,11 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, null);
 
         cmdTopics.run(split("create-missed-partitions persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1", null);
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-missed-partitions persistent://myprop/clust/ns1/ds1 -s sub1,sub2"));
+        verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1", Lists.newArrayList("sub1", "sub2"));
 
         cmdTopics.run(split("create persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", null);

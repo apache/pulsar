@@ -1887,7 +1887,7 @@ admin.topics().createPartitionedTopic(topicName, numPartitions);
 
 ### Create missed partitions
 
-When topic auto-creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command to create partitions for the topic.
+When topic auto-creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command to create partitions for the topic, and you can also specify the subscription list to create subscriptions for all partitions of the topic.
 
 ````mdx-code-block
 <Tabs 
@@ -1895,12 +1895,14 @@ When topic auto-creation is disabled, and you have a partitioned topic without a
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-You can create missed partitions with the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command and specify the topic name as an argument.
+When you create missed partitions with the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions)
+command,you need to specify the topic name as an argument, and use the `-s` or `--subscriptions` flag to selectively specify the subscription list to create.
 
 ```shell
 
 $ bin/pulsar-admin topics create-missed-partitions \
   persistent://my-tenant/my-namespace/my-topic \
+  --subscriptions my-subscription-1,my-subscription-2
 
 ```
 
@@ -1915,7 +1917,8 @@ $ bin/pulsar-admin topics create-missed-partitions \
 ```java
 
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
-admin.topics().createMissedPartitions(topicName);
+String subscriptionName = "my-subscription";
+admin.topics().createMissedPartitions(topicName, Lists.newArrayList(subscriptionName));
 
 ```
 

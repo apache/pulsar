@@ -509,16 +509,15 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse, List<String> subscriptions) {
         getPartitionedTopicMetadataAsync(topicName, false, false)
-                .thenApply(metadata -> {
+                .thenCompose(metadata ->{
                     if (metadata == null) {
                         throw new RestException(Status.NOT_FOUND, String.format(
                                 "Partitioned Topic not found: %s ,has no metadata", topicName.toString()));
                     }
-                    return metadata;
+                    return tryCreatePartitionsAsync(metadata.partitions)
+                            .thenCompose(__ ->
+                                    createMissedSubscriptionsAsync(topicName, subscriptions, metadata.partitions));
                 })
-                .thenCompose(metadata ->
-                        tryCreatePartitionsAsync(metadata.partitions).thenApply(ignore -> metadata.partitions))
-                .thenCompose(numPartitions -> createMissedSubscriptionsAsync(topicName, subscriptions, numPartitions))
                 .thenAccept(v -> {
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
@@ -4574,7 +4573,8 @@ public class PersistentTopicsBase extends AdminResource {
      * @param numPartitions : number partitions for the topics
      *
      */
-    private CompletableFuture<Void> createMissedSubscriptionsAsync(TopicName topicName, List<String> subscriptions, int numPartitions) {
+    private CompletableFuture<Void> createMissedSubscriptionsAsync(TopicName topicName, List<String> subscriptions,
+                                                                   int numPartitions) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (CollectionUtils.isEmpty(subscriptions)) {
             result.complete(null);
@@ -4583,19 +4583,18 @@ public class PersistentTopicsBase extends AdminResource {
         PulsarAdmin admin;
         try {
             admin = pulsar().getAdminClient();
-        } catch (PulsarServerException e1) {
-            result.completeExceptionally(e1);
+        } catch (PulsarServerException ex) {
+            result.completeExceptionally(ex);
             return result;
         }
 
-        List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
+        List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>(subscriptions.size());
 
         subscriptions.forEach(subscription -> {
             for (int i = 0; i < numPartitions; i++) {
-                final String topicNamePartition = topicName.getPartition(i).toString();
                 CompletableFuture<Void> future = new CompletableFuture<>();
-                admin.topics().createSubscriptionAsync(topicNamePartition,
-                        subscription, MessageId.latest).whenComplete((__, ex) -> {
+                admin.topics().createSubscriptionAsync(topicName.getPartition(i).toString(), subscription,
+                        MessageId.latest).whenComplete((__, ex) -> {
                     if (ex == null) {
                         future.complete(null);
                     } else {
