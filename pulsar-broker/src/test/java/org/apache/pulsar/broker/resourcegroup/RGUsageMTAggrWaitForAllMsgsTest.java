@@ -547,7 +547,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                                        boolean checkConsume) throws Exception {
 
         BrokerService bs = pulsar.getBrokerService();
-        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats(false);
 
         log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
 

@@ -543,7 +543,7 @@ public class ResourceGroupService implements AutoCloseable{
     protected void aggregateResourceGroupLocalUsages() {
         final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
         BrokerService bs = this.pulsar.getBrokerService();
-        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats(false);
 
         for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             final String topicName = entry.getKey();

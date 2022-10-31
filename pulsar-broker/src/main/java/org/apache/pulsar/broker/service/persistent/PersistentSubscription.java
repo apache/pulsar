@@ -1066,7 +1066,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                          boolean getEarliestTimeInBacklog) {
+                                          boolean getEarliestTimeInBacklog,
+                                          boolean getTotalNonContiguousDeletedMessagesRange) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1164,9 +1165,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 });
             }
         }
-        subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
-        subStats.nonContiguousDeletedMessagesRangesSerializedSize =
-                cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
+        if (getTotalNonContiguousDeletedMessagesRange){
+            subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
+            subStats.nonContiguousDeletedMessagesRangesSerializedSize =
+                    cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
+        }
         return subStats;
     }
 

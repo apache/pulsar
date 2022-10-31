@@ -1107,7 +1107,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         if (sub != null) {
             // preserve accumulative stats form removed subscription
-            SubscriptionStatsImpl stats = sub.getStats(false, false, false);
+            SubscriptionStatsImpl stats = sub.getStats(false, false,
+                    false, true);
             bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
             msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
         }
@@ -2025,9 +2026,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                   boolean getEarliestTimeInBacklog) {
+                                   boolean getEarliestTimeInBacklog,
+                                   boolean getTotalNonContiguousDeletedMessagesRange) {
         try {
-            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog).get();
+            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                    getTotalNonContiguousDeletedMessagesRange).get();
         } catch (InterruptedException | ExecutionException e) {
             log.error("[{}] Fail to get stats", topic, e);
             return null;
@@ -2036,7 +2039,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                                           boolean getEarliestTimeInBacklog) {
+                                                           boolean getEarliestTimeInBacklog,
+                                                           boolean getTotalNonContiguousDeletedMessagesRange) {
 
         CompletableFuture<TopicStatsImpl> statsFuture = new CompletableFuture<>();
         TopicStatsImpl stats = new TopicStatsImpl();
@@ -2070,7 +2074,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =
-                    subscription.getStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
+                    subscription.getStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                            getTotalNonContiguousDeletedMessagesRange);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;

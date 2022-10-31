@@ -432,9 +432,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+            @QueryParam("getTotalNonContiguousDeletedMessagesRange") @DefaultValue("true")
+            boolean getTotalNonContiguousDeletedMessagesRange) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, false, false)
+        internalGetStatsAsync(authoritative, getPreciseBacklog, false,
+                false, getTotalNonContiguousDeletedMessagesRange)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -501,7 +504,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false, false, false);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false,
+                    false, false, true);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

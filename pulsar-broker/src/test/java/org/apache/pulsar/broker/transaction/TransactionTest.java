@@ -203,7 +203,7 @@ public class TransactionTest extends TransactionTestBase {
         Optional<Topic> optional = pulsarService.getBrokerService().getTopic(topic, false).get();
         assertTrue(optional.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
-        TopicStatsImpl stats = persistentTopic.getStats(false, false, false);
+        TopicStatsImpl stats = persistentTopic.getStats(false, false, false, true);
 
         assertEquals(stats.committedTxnCount, 1);
         assertEquals(stats.abortedTxnCount, 1);

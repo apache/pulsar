@@ -593,18 +593,23 @@ public class TopicsImpl extends BaseResource implements Topics {
         boolean getPreciseBacklog = getStatsOptions.isGetPreciseBacklog();
         boolean subscriptionBacklogSize = getStatsOptions.isSubscriptionBacklogSize();
         boolean getEarliestTimeInBacklog = getStatsOptions.isGetEarliestTimeInBacklog();
-        return sync(() -> getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog));
+        boolean getTotalNonContiguousDeletedMessagesRange =
+                getStatsOptions.isGetTotalNonContiguousDeletedMessagesRange();
+        return sync(() -> getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                getTotalNonContiguousDeletedMessagesRange));
     }
 
     @Override
     public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
                                                        boolean subscriptionBacklogSize,
-                                                       boolean getEarliestTimeInBacklog) {
+                                                       boolean getEarliestTimeInBacklog,
+                                                       boolean getTotalNonContiguousDeletedMessagesRange) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "stats")
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize)
-                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog);
+                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog)
+                .queryParam("getTotalNonContiguousDeletedMessagesRange", getTotalNonContiguousDeletedMessagesRange);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
 
         InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {

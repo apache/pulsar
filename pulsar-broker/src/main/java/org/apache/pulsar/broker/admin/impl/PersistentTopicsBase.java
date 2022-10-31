@@ -1262,7 +1262,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<? extends TopicStats> internalGetStatsAsync(boolean authoritative,
                                                                             boolean getPreciseBacklog,
                                                                             boolean subscriptionBacklogSize,
-                                                                            boolean getEarliestTimeInBacklog) {
+                                                                            boolean getEarliestTimeInBacklog,
+                                                      boolean getTotalNonContiguousDeletedMessagesRange) {
         CompletableFuture<Void> future;
 
         if (topicName.isGlobal()) {
@@ -1275,7 +1276,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenComposeAsync(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> topic.asyncGetStats(getPreciseBacklog, subscriptionBacklogSize,
-                        getEarliestTimeInBacklog));
+                        getEarliestTimeInBacklog, getTotalNonContiguousDeletedMessagesRange));
     }
 
     protected CompletableFuture<PersistentTopicInternalStats> internalGetInternalStatsAsync(boolean authoritative,
@@ -1411,7 +1412,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,
                                                boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                               boolean getEarliestTimeInBacklog) {
+                                               boolean getEarliestTimeInBacklog,
+                                               boolean getTotalNonContiguousDeletedMessagesRange) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -1435,14 +1437,15 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenCompose(owned -> {
                             if (owned) {
                                 return getTopicReferenceAsync(partition)
-                                    .thenApply(ref ->
-                                        ref.getStats(getPreciseBacklog, subscriptionBacklogSize,
-                                            getEarliestTimeInBacklog));
+                                        .thenApply(ref ->
+                                                ref.getStats(getPreciseBacklog, subscriptionBacklogSize,
+                                                        getEarliestTimeInBacklog,
+                                                        getTotalNonContiguousDeletedMessagesRange));
                             } else {
                                 try {
                                     return pulsar().getAdminClient().topics().getStatsAsync(
-                                        partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
-                                        getEarliestTimeInBacklog);
+                                            partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
+                                            getEarliestTimeInBacklog, getTotalNonContiguousDeletedMessagesRange);
                                 } catch (PulsarServerException e) {
                                     return FutureUtil.failedFuture(e);
                                 }

@@ -38,4 +38,9 @@ public class GetStatsOptions {
      * Whether to get the earliest time in backlog.
      */
     private final boolean getEarliestTimeInBacklog;
+
+    /**
+     * Whether to get total NonContiguousDeletedMessagesRange.
+     */
+    private final boolean getTotalNonContiguousDeletedMessagesRange;
 }

@@ -495,7 +495,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats(pulsar);
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(false, false, false, true);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -513,7 +513,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Thread.sleep(timeWaitToSync);
 
         rolloverPerIntervalStats(pulsar);
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(false, false, false, true);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         assertTrue(subStats.getMsgRateOut() > 0);
@@ -580,7 +580,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertNotNull(replicatorR3);
 
             rolloverPerIntervalStats(replicationPulasr);
-            stats = topicRef.getStats(false, false, false);
+            stats = topicRef.getStats(false, false, false, true);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
@@ -651,7 +651,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats(replicationPulasr);
-            stats = topicRef.getStats(false, false, false);
+            stats = topicRef.getStats(false, false, false, true);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             assertTrue(subStats.getMsgRateOut() > 0);
@@ -849,7 +849,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
             pulsar.getBrokerService().updateRates();
-            NonPersistentTopicStats stats = topic.getStats(false, false, false);
+            NonPersistentTopicStats stats = topic.getStats(false, false, false, true);
             NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
             NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
             NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");

@@ -266,11 +266,12 @@ public interface Topic {
     ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                            boolean getEarliestTimeInBacklog);
+                            boolean getEarliestTimeInBacklog, boolean getTotalNonContiguousDeletedMessagesRange);
 
     CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                               boolean subscriptionBacklogSize,
-                                                              boolean getEarliestTimeInBacklog);
+                                                              boolean getEarliestTimeInBacklog,
+                                                              boolean getTotalNonContiguousDeletedMessagesRange);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 

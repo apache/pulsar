@@ -288,7 +288,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         response = mock(AsyncResponse.class);
-        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false,
+                true);
         ArgumentCaptor<TopicStats> statCaptor = ArgumentCaptor.forClass(TopicStats.class);
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         TopicStats topicStats = statCaptor.getValue();
@@ -306,7 +307,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         response = mock(AsyncResponse.class);
-        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false,
+                true);
         statCaptor = ArgumentCaptor.forClass(TopicStats.class);
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();
@@ -325,7 +327,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         response = mock(AsyncResponse.class);
-        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false,
+                true);
         statCaptor = ArgumentCaptor.forClass(TopicStats.class);
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();
@@ -344,7 +347,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         response = mock(AsyncResponse.class);
-        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false,
+                true);
         statCaptor = ArgumentCaptor.forClass(TopicStats.class);
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();

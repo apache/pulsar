@@ -846,9 +846,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public NonPersistentTopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                                boolean getEarliestTimeInBacklog) {
+                                                boolean getEarliestTimeInBacklog,
+                                                boolean getTotalNonContiguousDeletedMessagesRange) {
         try {
-            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getPreciseBacklog).get();
+            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getPreciseBacklog,
+                    getTotalNonContiguousDeletedMessagesRange).get();
         } catch (InterruptedException | ExecutionException e) {
             log.error("[{}] Fail to get stats", topic, e);
             return null;
@@ -858,7 +860,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                                         boolean subscriptionBacklogSize,
-                                                                        boolean getEarliestTimeInBacklog) {
+                                                                        boolean getEarliestTimeInBacklog,
+                                                   boolean getTotalNonContiguousDeletedMessagesRange) {
         CompletableFuture<NonPersistentTopicStatsImpl> future = new CompletableFuture<>();
         NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 

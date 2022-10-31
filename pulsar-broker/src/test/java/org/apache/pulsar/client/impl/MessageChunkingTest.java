@@ -159,7 +159,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         pulsar.getBrokerService().updateRates();
 
-        PublisherStats producerStats = topic.getStats(false, false, false).getPublishers().get(0);
+        PublisherStats producerStats = topic.getStats(false, false, false, true).getPublishers().get(0);
 
         assertTrue(producerStats.getChunkedMessageRate() > 0);
 

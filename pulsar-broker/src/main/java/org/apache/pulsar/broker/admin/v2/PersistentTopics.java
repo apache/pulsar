@@ -1212,9 +1212,13 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return time of the earliest message in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If return If return TotalNonContiguousDeletedMessagesRange")
+            @QueryParam("getTotalNonContiguousDeletedMessagesRange") @DefaultValue("true")
+            boolean getTotalNonContiguousDeletedMessagesRange) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog)
+        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                getTotalNonContiguousDeletedMessagesRange)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -1314,11 +1318,14 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If return If return TotalNonContiguousDeletedMessagesRange")
+            @QueryParam("getTotalNonContiguousDeletedMessagesRange") @DefaultValue("true")
+            boolean getTotalNonContiguousDeletedMessagesRange) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize, getEarliestTimeInBacklog);
+                    subscriptionBacklogSize, getEarliestTimeInBacklog, getTotalNonContiguousDeletedMessagesRange);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

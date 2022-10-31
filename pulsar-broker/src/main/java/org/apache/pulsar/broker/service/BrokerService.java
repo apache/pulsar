@@ -475,7 +475,7 @@ public class BrokerService implements Closeable {
         Map<String, TopicStatsImpl> topicStatsMap = new HashMap<>();
         topicMap.forEach((name, topic) -> {
             topicStatsMap.put(name,
-                    topic.getStats(false, false, false));
+                    topic.getStats(false, false, false, true));
         });
         return topicStatsMap;
     }
@@ -2342,10 +2342,11 @@ public class BrokerService implements Closeable {
         return producerNameGenerator.getNextId();
     }
 
-    public Map<String, TopicStatsImpl> getTopicStats() {
+    public Map<String, TopicStatsImpl> getTopicStats(boolean getTotalNonContiguousDeletedMessagesRange) {
         HashMap<String, TopicStatsImpl> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false, false)));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false,
+                false, false, getTotalNonContiguousDeletedMessagesRange)));
 
         return stats;
     }

@@ -210,7 +210,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                                                                 throws InterruptedException, PulsarAdminException {
         BrokerService bs = pulsar.getBrokerService();
         Awaitility.await().untilAsserted(() -> {
-            TopicStatsImpl topicStats = bs.getTopicStats().get(topicString);
+            TopicStatsImpl topicStats = bs.getTopicStats(false).get(topicString);
             Assert.assertNotNull(topicStats);
             if (checkProduce) {
                 Assert.assertTrue(topicStats.bytesInCounter >= sentNumBytes);

@@ -1137,25 +1137,30 @@ public interface Topics {
 
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                        boolean getEarliestTimeInBacklog) throws PulsarAdminException {
+                                boolean getEarliestTimeInBacklog, boolean getTotalNonContiguousDeletedMessagesRange)
+            throws PulsarAdminException {
         GetStatsOptions getStatsOptions =
-                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                        getTotalNonContiguousDeletedMessagesRange);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog,
-                        boolean subscriptionBacklogSize) throws PulsarAdminException {
-        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, false);
+                                boolean subscriptionBacklogSize) throws PulsarAdminException {
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                false, true);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
-        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false, false);
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false,
+                false, true);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, new GetStatsOptions(false, false, false));
+        return getStats(topic, new GetStatsOptions(false, false,
+                false, true));
     }
 
     /**
@@ -1174,10 +1179,11 @@ public interface Topics {
      *
      */
     CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
-                                                boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog);
+                                                boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog,
+                                                boolean getTotalNonContiguousDeletedMessagesRange);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
-        return getStatsAsync(topic, false, false, false);
+        return getStatsAsync(topic, false, false, false, true);
     }
 
     /**
