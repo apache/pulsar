@@ -339,7 +339,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             if (StringUtils.isEmpty(ns)){
                 continue;
             }
-            deleteNamespaceGraceFully(ns, true, pulsar, admin);
+            deleteNamespaceGraceFully(ns, true, admin, pulsar);
         }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(forceDeleteNamespaceAllowedOriginalValue);
     }
