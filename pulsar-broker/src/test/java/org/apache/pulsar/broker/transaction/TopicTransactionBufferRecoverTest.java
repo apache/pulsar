@@ -31,7 +31,6 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableMap;
