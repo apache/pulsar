@@ -57,6 +57,8 @@ jobs:
           # txn     -> transaction
           # ws      -> websocket
           # ml      -> managed ledger
+          # zk      -> zookeeper
+          # bk      -> bookkeeper
           scopes: |
             admin
             broker
@@ -81,6 +83,8 @@ jobs:
             test
             txn
             ws
+            zk
+            bk
           # The pull request's title should be fulfill the following pattern:
           #
           #     [<type>][<optional scope>] <description>

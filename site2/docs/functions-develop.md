@@ -8,7 +8,7 @@ sidebar_label: "How to develop"
 
 Develop functions in Java, Python, or Go. 
 * For supported Java versions, refer to [Pulsar runtime Java version recommendation](https://github.com/apache/pulsar#pulsar-runtime-java-version-recommendation) for more details.
-* For supported Python versions, refer to [Python client](client-libraries-python.md#optional-dependencies) for more details.
+* For supported Python versions, refer to [Python client](client-libraries-python.md) for more details.
 
 :::
 

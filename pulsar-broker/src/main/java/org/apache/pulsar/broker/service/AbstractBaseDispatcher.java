@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
@@ -336,6 +335,19 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected String getSubscriptionName() {
         return subscription == null ? null : subscription.getName();
+    }
+
+    protected void checkAndApplyReachedEndOfTopicOrTopicMigration(List<Consumer> consumers) {
+        PersistentTopic topic = (PersistentTopic) subscription.getTopic();
+        checkAndApplyReachedEndOfTopicOrTopicMigration(topic, consumers);
+    }
+
+    public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
+        if (topic.isMigrated()) {
+            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+        } else {
+            consumers.forEach(Consumer::reachedEndOfTopic);
+        }
     }
 
     @Override
