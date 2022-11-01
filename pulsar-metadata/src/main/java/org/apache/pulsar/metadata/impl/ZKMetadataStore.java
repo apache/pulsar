@@ -186,6 +186,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                         log.warn("Remove watcher for non-existing znode failed. rc: {}, path: {}", code0, path);
                                     }
                                 }, null);
+                        existsCache.synchronous().invalidate(path);
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations

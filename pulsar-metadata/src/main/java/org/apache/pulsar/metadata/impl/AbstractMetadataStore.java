@@ -57,7 +57,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final ScheduledExecutorService executor;
     protected final AsyncLoadingCache<String, List<String>> childrenCache;
-    private final AsyncLoadingCache<String, Boolean> existsCache;
+    protected final AsyncLoadingCache<String, Boolean> existsCache;
     protected final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
 
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
