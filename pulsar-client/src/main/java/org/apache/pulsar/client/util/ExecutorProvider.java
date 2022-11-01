@@ -43,14 +43,15 @@ public class ExecutorProvider {
     protected static class ExtendedThreadFactory extends DefaultThreadFactory {
 
         @Getter
-        private Thread thread;
+        private volatile Thread thread;
         public ExtendedThreadFactory(String poolName, boolean daemon) {
             super(poolName, daemon);
         }
 
         @Override
         public Thread newThread(Runnable r) {
-            thread = super.newThread(r);
+            Thread thread = super.newThread(r);
+            this.thread = thread;
             return thread;
         }
     }
