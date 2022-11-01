@@ -97,7 +97,7 @@ public class PulsarStandaloneTest {
         verify(admin.namespaces(), times(1)).createNamespace(eq(ns.toString()));
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testStandaloneWithRocksDB() throws Exception {
         String[] args = new String[]{"--config",
                 "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
