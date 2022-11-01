@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +43,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.testng.annotations.Test;
 
 public class MetadataStoreTest extends BaseMetadataStoreTest {
@@ -239,7 +241,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
         store.registerListener(n -> {
-            notifications.add(n);
+            if (n.getType() != NotificationType.Invalidate) {
+                notifications.add(n);
+            }
         });
 
         String key1 = newKey();
@@ -258,6 +262,10 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertNotNull(n);
             assertEquals(n.getType(), NotificationType.Created);
             assertEquals(n.getPath(), key1);
+        } else {
+            long zkSessionId = ((ZKMetadataStore) store).getZkSessionId();
+            Collection<String> wchc = zks.wchc(zkSessionId);
+            assertTrue(wchc.contains(key1));
         }
 
         // Trigger modified notification
@@ -300,5 +308,11 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertNotNull(n);
         assertEquals(n.getType(), NotificationType.ChildrenChanged);
         assertEquals(n.getPath(), key1);
+
+        if (provider.equals("ZooKeeper")) {
+            long zkSessionId = ((ZKMetadataStore) store).getZkSessionId();
+            Collection<String> wchc = zks.wchc(zkSessionId);
+            assertTrue(wchc.isEmpty());
+        }
     }
 }

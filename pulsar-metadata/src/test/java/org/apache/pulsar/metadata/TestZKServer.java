@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -27,15 +26,17 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.SessionTracker;
-import org.apache.zookeeper.server.SessionTrackerImpl;
 import org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.zookeeper.server.admin.CommandResponse;
+import org.apache.zookeeper.server.admin.Commands;
 import org.assertj.core.util.Files;
 
 @Slf4j
@@ -155,5 +156,13 @@ public class TestZKServer implements AutoCloseable {
             }
         }
         return false;
+    }
+
+    public Collection<String> wchc(long sessionId) {
+        Commands.WatchCommand watchCommand = new Commands.WatchCommand();
+        CommandResponse response = watchCommand.run(zks, Collections.emptyMap());
+        Map<Long, Collection<String>> wchc =
+                (Map<Long, Collection<String>>) response.toMap().get("session_id_to_watched_paths");
+        return wchc.get(sessionId);
     }
 }
