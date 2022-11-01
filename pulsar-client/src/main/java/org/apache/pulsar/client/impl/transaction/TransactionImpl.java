@@ -57,6 +57,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final long txnIdLeastBits;
     private final long txnIdMostBits;
 
+    private final TxnID txnId;
+
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
@@ -89,6 +91,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.transactionTimeoutMs = transactionTimeoutMs;
         this.txnIdLeastBits = txnIdLeastBits;
         this.txnIdMostBits = txnIdMostBits;
+        this.txnId = new TxnID(this.txnIdMostBits, this.txnIdLeastBits);
 
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
@@ -109,7 +112,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                         return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     } else {
                         return tcClient.addPublishPartitionToTxnAsync(
-                                new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
+                                txnId, Lists.newArrayList(topic))
                                 .thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     }
                 });
@@ -150,7 +153,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                         return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     } else {
                         return tcClient.addSubscriptionToTxnAsync(
-                                new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
+                                txnId, topic, subscription)
                                 .thenCompose(ignored -> CompletableFuture.completedFuture(null));
                     }
                 });
@@ -191,7 +194,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                     abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(new PulsarClientException
                             .TransactionHasOperationFailedException()));
                 } else {
-                    tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                    tcClient.commitAsync(txnId)
                             .whenComplete((vx, ex) -> {
                                 if (ex != null) {
                                     if (ex instanceof TransactionNotFoundException
@@ -217,7 +220,7 @@ public class TransactionImpl implements Transaction , TimerTask {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
             opFuture.whenComplete((v, e) -> {
-                tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
+                tcClient.abortAsync(txnId).whenComplete((vx, ex) -> {
 
                     if (ex != null) {
                         if (ex instanceof TransactionNotFoundException
@@ -239,7 +242,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public TxnID getTxnID() {
-        return new TxnID(txnIdMostBits, txnIdLeastBits);
+        return this.txnId;
     }
 
     @Override
@@ -253,7 +256,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         } else {
             completableFuture
                     .completeExceptionally(new InvalidTxnStatusException(
-                            new TxnID(txnIdMostBits, txnIdLeastBits).toString(), state.name(), State.OPEN.name()));
+                            txnId.toString(), state.name(), State.OPEN.name()));
             return false;
         }
     }
