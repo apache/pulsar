@@ -69,7 +69,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 
 :::
 
-#### ALWAYS_COMPATIBLE example
+### ALWAYS_COMPATIBLE example
   
   In some situations, an application needs to store events of several different types in the same Pulsar topic. 
 
@@ -79,7 +79,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 
   Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events to co-exist in the same topic.
 
-#### ALWAYS_INCOMPATIBLE example
+### ALWAYS_INCOMPATIBLE example
 
   Sometimes we also make incompatible changes. For example, you are modifying a field type from `string` to `int`.
 
@@ -89,7 +89,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 
   * Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.
 
-#### BACKWARD and BACKWARD_TRANSITIVE example
+### BACKWARD and BACKWARD_TRANSITIVE example
   
 * Example 1
   
@@ -103,7 +103,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 
   Same SQL queries must continue to work even if the data is changed. To support it, you can evolve the schemas using the `BACKWARD` strategy.
 
-#### FORWARD and FORWARD_TRANSITIVE example
+### FORWARD and FORWARD_TRANSITIVE example
 
 * Example 1
   
@@ -119,7 +119,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
   
   Consequently, you can evolve the schemas using the `FORWARD` strategy to ensure that the old schema can process data encoded with the new schema.
 
-#### FULL and FULL_TRANSITIVE example
+### FULL and FULL_TRANSITIVE example
 
 In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
 

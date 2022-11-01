@@ -431,9 +431,9 @@ You can set [schema compatibility check strategy](schema-evolution-compatibility
 
 The schema compatibility check strategy set at different levels has priority: topic level > namespace level > broker level. 
 
-- If you set the strategy at both topic and namespace level, it uses the topic-level strategy. 
+- If you set the strategy at both topic and namespace levels, it uses the topic-level strategy. 
 
-- If you set the strategy at both namespace and broker level, it uses the namespace-level strategy.
+- If you set the strategy at both namespace and broker levels, it uses the namespace-level strategy.
 
 - If you do not set the strategy at any level, it uses the `FULL` strategy. For all available values, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy).
 
