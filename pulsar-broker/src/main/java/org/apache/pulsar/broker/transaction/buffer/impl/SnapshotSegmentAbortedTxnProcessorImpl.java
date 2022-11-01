@@ -147,11 +147,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition) {
-        ConcurrentOpenHashSet<TxnID> aborts = unsealedAbortedTxnIdSegment;
+        TransactionBufferSnapshotIndexesMetadata metadata = new TransactionBufferSnapshotIndexesMetadata(
+                maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(),
+                serializationForSegment(unsealedAbortedTxnIdSegment));
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
                 () -> persistentWorker
-                        .updateIndexMetadataForTheLastSnapshot(maxReadPosition, aborts)
+                        .updateSnapshotIndex(metadata, persistentSnapshotIndexes.getIndexList())
                         .thenRun(() -> completableFuture.complete(null))
                         .exceptionally(e -> {
                             completableFuture.completeExceptionally(e);
@@ -262,22 +264,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     //Wait the processor recover completely and the allow TB to recover the messages
                     // after the startReadCursorPosition.
 
-                    return openManagedLedgerFuture.thenCompose((ignore) -> {
-                        return FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
-                            if (invalidIndex.get() != 0 ) {
-                                persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
-                                        -> persistentWorker.updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
-                                        indexes.values().stream().toList()));
-                            }
-                            return CompletableFuture.completedFuture(finalStartReadCursorPosition);
-                        });
-                    }).exceptionally(ex -> {
-                        log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
-                        return null;
-                    });
+                    return openManagedLedgerFuture
+                            .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
+                                if (invalidIndex.get() != 0 ) {
+                                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
+                                            -> persistentWorker
+                                            .updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
+                                            indexes.values().stream().toList()));
+                                }
+                                return CompletableFuture.completedFuture(finalStartReadCursorPosition);
+                            })).exceptionally(ex -> {
+                                log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
+                                return null;
+                            });
 
-
-                },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                    },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                         .getExecutor(this));
     }
 
@@ -423,7 +424,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 } else {
                                     taskQueue.removeFirst();
                                 }
-                                STATE_UPDATER.compareAndSet(this, OperationState.WritingSegment, OperationState.None);
+                                STATE_UPDATER.compareAndSet(this,
+                                        OperationState.WritingSegment, OperationState.None);
                             });
                         }
                     }
@@ -443,7 +445,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                     taskQueue.removeFirst();
                                 }
 
-                                STATE_UPDATER.compareAndSet(this, OperationState.DeletingSegment, OperationState.None);
+                                STATE_UPDATER.compareAndSet(this,
+                                        OperationState.DeletingSegment, OperationState.None);
                             });
                         }
                     }
@@ -500,7 +503,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> deleteSnapshotSegment(PositionImpl positionNeedToDelete) {
             long sequenceIdNeedToDelete = indexes.get(positionNeedToDelete).getSequenceID();
-            return snapshotSegmentsWriterFuture.thenCompose(writer -> writer.deleteAsync(buildKey(sequenceIdNeedToDelete), null))
+            return snapshotSegmentsWriterFuture
+                    .thenCompose(writer -> writer.deleteAsync(buildKey(sequenceIdNeedToDelete), null))
                     .thenRun(() -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Successes to delete the snapshot segment, "
@@ -521,7 +525,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     });
         }
 
-        //Update the indexes with the giving index snapshot and indexlist in the transactionBufferSnapshotIndexe.
+        //Update the indexes with the giving index snapshot and index list in the transactionBufferSnapshotIndexe.
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment,
                                                             List<TransactionBufferSnapshotIndex> indexList) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
@@ -539,15 +543,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         log.error("[{}] Failed to update snapshot segment index", snapshotIndexes.getTopicName(), e);
                         return null;
                     });
-        }
-
-        //Only update the metadata in the transactionBufferSnapshotIndexes.
-        private CompletableFuture<Void> updateIndexMetadataForTheLastSnapshot(PositionImpl maxReadPosition,
-                                                                              ConcurrentOpenHashSet<TxnID> abortedTxns) {
-            TransactionBufferSnapshotIndexesMetadata metadata = new TransactionBufferSnapshotIndexesMetadata(
-                    maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), serializationForSegment(abortedTxns));
-
-            return updateSnapshotIndex(metadata, persistentSnapshotIndexes.getIndexList());
         }
 
         private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
@@ -587,19 +582,19 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     private ConcurrentOpenHashSet<TxnID> deserializationFotSnapshotSegment(List<TxnIDData> snapshotSegment) {
-        ConcurrentOpenHashSet<TxnID> set = new ConcurrentOpenHashSet<>();
+        ConcurrentOpenHashSet<TxnID> abortedTxns = new ConcurrentOpenHashSet<>();
         snapshotSegment.forEach(txnIDData -> {
-            set.add(new TxnID(txnIDData.getMostSigBits(), txnIDData.getLeastSigBits()));
+            abortedTxns.add(new TxnID(txnIDData.getMostSigBits(), txnIDData.getLeastSigBits()));
         });
-        return set;
+        return abortedTxns;
     }
 
-    private List<TxnIDData> serializationForSegment(ConcurrentOpenHashSet<TxnID> segment) {
-        List<TxnIDData> set = new LinkedList<>();
-        segment.forEach(txnID -> {
-            set.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()));
+    private List<TxnIDData> serializationForSegment(ConcurrentOpenHashSet<TxnID> abortedTxns) {
+        List<TxnIDData> segment = new LinkedList<>();
+        abortedTxns.forEach(txnID -> {
+            segment.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()));
         });
-        return set;
+        return segment;
     }
 
 }
