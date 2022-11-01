@@ -16,7 +16,7 @@ To package a Python function into **one Python file**, complete the following st
 1. Write a Python function.
 
    ```python
-    from pulsar import Function //  import the Function module from Pulsar
+    from pulsar import Function #  import the Function module from Pulsar
 
     # The classic ExclamationFunction that appends an exclamation at the end
     # of the input
@@ -151,7 +151,7 @@ To package a Python function with **PIP**, complete the following steps.
        pass
 
      def process(self, input, context):
-      // add your logic
+      # add your logic
       return input + '!'
    ```
 
