@@ -336,9 +336,29 @@ public class CmdClusters extends CmdBase {
                 description = "TLS TrustStore password for internal client", required = false)
         protected String brokerClientTlsTrustStorePassword;
 
+        @Parameter(names = "--tls-key-store-type",
+                description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        protected String brokerClientTlsKeyStoreType;
+
+        @Parameter(names = "--tls-key-store",
+                description = "TLS KeyStore path for internal client", required = false)
+        protected String brokerClientTlsKeyStore;
+
+        @Parameter(names = "--tls-key-store-pwd",
+                description = "TLS KeyStore password for internal client", required = false)
+        protected String brokerClientTlsKeyStorePassword;
+
         @Parameter(names = "--tls-trust-certs-filepath",
                 description = "path for the trusted TLS certificate file", required = false)
         protected String brokerClientTrustCertsFilePath;
+
+        @Parameter(names = "--tls-key-filepath",
+                description = "path for the TLS private key file", required = false)
+        protected String brokerClientKeyFilePath;
+
+        @Parameter(names = "--tls-certs-filepath",
+                description = "path for the TLS certificate file", required = false)
+        protected String brokerClientCertificateFilePath;
 
         @Parameter(names = "--listener-name",
                 description = "listenerName when client would like to connect to cluster", required = false)
@@ -403,8 +423,23 @@ public class CmdClusters extends CmdBase {
             if (brokerClientTlsTrustStorePassword != null) {
                 builder.brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword);
             }
+            if (brokerClientTlsKeyStoreType != null) {
+                builder.brokerClientTlsKeyStoreType(brokerClientTlsKeyStoreType);
+            }
+            if (brokerClientTlsKeyStore != null) {
+                builder.brokerClientTlsKeyStore(brokerClientTlsKeyStore);
+            }
+            if (brokerClientTlsKeyStorePassword != null) {
+                builder.brokerClientTlsKeyStorePassword(brokerClientTlsKeyStorePassword);
+            }
             if (brokerClientTrustCertsFilePath != null) {
                 builder.brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath);
+            }
+            if (brokerClientKeyFilePath != null) {
+                builder.brokerClientKeyFilePath(brokerClientKeyFilePath);
+            }
+            if (brokerClientCertificateFilePath != null) {
+                builder.brokerClientCertificateFilePath(brokerClientCertificateFilePath);
             }
 
             if (listenerName != null) {
