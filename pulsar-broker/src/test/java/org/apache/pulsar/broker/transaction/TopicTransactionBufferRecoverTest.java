@@ -74,6 +74,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -740,6 +741,83 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
         assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
         assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
+    }
+
+    @Test
+    public void testSnapshotSegment() throws Exception {
+        String topic = NAMESPACE1 + "/testSnapshotSegment";
+        String subName = "testSnapshotSegment";
+
+        LinkedMap<Transaction, MessageId> ongoingTxns = new LinkedMap<>();
+        LinkedList<MessageId> abortedTxns = new LinkedList<>();
+
+        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotSegmentSize(10);
+        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotMaxTransactionCount(3);
+
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            int maxReadMessage = 19;
+            int abortedTxnSize = 0;
+            for (int j = 0; j < 20; j++) {
+                Transaction transaction = pulsarClient.newTransaction()
+                        .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
+                //half common message and half transaction message.
+                //the transaction message have a half which are aborted.
+                if (RandomUtils.nextInt() % 2 == 0) {
+                    MessageId messageId = producer.newMessage(transaction).value(i * 10 + j).send();
+                    if (RandomUtils.nextInt() % 2 == 0) {
+                        transaction.abort().get();
+                        abortedTxns.add(messageId);
+                        abortedTxnSize++;
+                    } else {
+                        ongoingTxns.put(transaction, messageId);
+                        if (maxReadMessage == 19) {
+                            //The except number of the messages that can be read
+                            maxReadMessage = j - abortedTxnSize;
+                        }
+                    }
+                } else {
+                    MessageId messageId = producer.newMessage().value(i * 10 + j).send();
+                    transaction.commit().get();
+                }
+            }
+            for (int k = 0; k < maxReadMessage; k++) {
+                Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
+                assertNotNull(message);
+                assertFalse(abortedTxns.contains(message.getMessageId()));
+            }
+            Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(message);
+
+            for (Transaction ongoingTxn: ongoingTxns.keySet()) {
+                ongoingTxn.commit().get();
+            }
+            ongoingTxns.clear();
+            for (int k = maxReadMessage; k < 20 - abortedTxnSize; k++) {
+                message = consumer.receive(2, TimeUnit.SECONDS);
+                assertNotNull(message);
+                assertFalse(abortedTxns.contains(message.getMessageId()));
+            }
+        }
+
+        admin.topics().unload(topic);
+
+        for (int i = 0; i < 200 - abortedTxns.size(); i++) {
+            Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
+            assertNotNull(message);
+            assertFalse(abortedTxns.contains(message.getMessageId()));
+        }
     }
 
 }

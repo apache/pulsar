@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.metadata.v2;
 
-import java.util.Set;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,5 +29,5 @@ import lombok.NoArgsConstructor;
 public class TransactionBufferSnapshotIndexesMetadata {
     private long maxReadPositionLedgerId;
     private long maxReadPositionEntryId;
-    private Set<TxnIDData> aborts;
+    private List<TxnIDData> aborts;
 }
