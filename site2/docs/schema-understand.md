@@ -23,7 +23,7 @@ A `SchemaInfo` consists of the following fields:
 |  `name`  |   Schema name (a string).  | 
 |  `type`  |   Schema type, which determines how to interpret the schema data. <li>Predefined schema: see [here](#schema-type). </li><li>Customized schema: it is left as an empty string. </li> | 
 |  `schema`（`payload`)  |   Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.  | 
-|  `properties`  |   It is a user defined properties as a string/string map. Applications can use this bag for carrying any application specific logics. Possible properties might be the Git hash associated with the schema, an environment string like `dev` or `prod`.  | 
+|  `properties`  |   It is a user-defined property as a string/string map. Applications can use this bag for carrying any application-specific logics. Possible properties might be the Git hash associated with the schema, and an environment string like `dev` or `prod`.  | 
 
 **Example**
 
@@ -81,7 +81,7 @@ Currently, Pulsar supports the following complex types:
 | `keyvalue` | Represents a complex type of a key/value pair. |
 | `struct` | Handles structured data. It supports `AvroBaseStructSchema` and `ProtobufNativeSchema`. |
 
-#### keyvalue schema
+#### `keyvalue` schema
 
 `Keyvalue` schema helps applications define schemas for both key and value. Pulsar stores the `SchemaInfo` of key schema and the `SchemaInfo` of value schema together.
 
@@ -89,7 +89,7 @@ You can choose the encoding type when constructing the key/value schema.：
 * `INLINE` - Key/value pairs are encoded together in the message payload.
 * `SEPARATED` - see [Construct a key/value schema](schema-get-started.md#construct-a-keyvalue-schema).
 
-#### struct schema
+#### `struct` schema
 
 `struct` schema supports `AvroBaseStructSchema` and `ProtobufNativeSchema`.
 
@@ -110,8 +110,8 @@ For more examples, see [Construct a struct schema](schema-get-started.md#constru
 If you don't know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce or consume generic records to or from brokers.
 
 Auto schema contains two categories:
-* `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the out-bound bytes is compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#construct-an-auto_produce-schema).
-* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes is compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#construct-an-auto_consume-schema).
+* `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the out-bound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#construct-an-auto_produce-schema).
+* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#construct-an-auto_consume-schema).
 
 ### Native Avro Schema
 
@@ -121,7 +121,7 @@ Hence, we provide `Schema.NATIVE_AVRO` to wrap a native Avro schema of type `org
 
 ## Schema versioning
 
-Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
+Each `SchemaInfo` stored with a topic has a version. The schema version manages schema changes happening within a topic. 
 
 Messages produced with a given `SchemaInfo` is tagged with a schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding `SchemaInfo` and then use the `SchemaInfo` to deserialize data.
 

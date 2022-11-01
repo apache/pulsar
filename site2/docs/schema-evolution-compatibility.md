@@ -77,7 +77,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 
   For example, for a user entity, there are `userCreated`, `userAddressChanged` and `userEnquiryReceived` events. The application requires that those events are always read in the same order. 
 
-  Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events to co-exist in the same topic.
+  Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events to co-exist on the same topic.
 
 ### ALWAYS_INCOMPATIBLE example
 

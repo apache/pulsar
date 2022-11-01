@@ -372,7 +372,7 @@ The following example shows how to create a producer and a consumer with a Proto
 
 Suppose you have a Pulsar topic _P_, a producer processing messages from a Kafka topic _K_, an application reading the messages from _K_ and writing the messages to _P_.
 
-This example shows how construct an [AUTO_PRODUCE](schema-understand.md#auto-schema) schema to verify whether the bytes produced by _K_ can be sent to _P_.
+This example shows how to construct an [AUTO_PRODUCE](schema-understand.md#auto-schema) schema to verify whether the bytes produced by _K_ can be sent to _P_.
 
 ```java
 Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
@@ -388,7 +388,7 @@ pulsarProducer.produce(kafkaMessageBytes);
 
 Suppose you have a Pulsar topic _P_, a consumer (for example, _MySQL_) receiving messages from the topic _P_, an application reading the messages from _P_ and writing the messages to _MySQL_.
 
-This example shows how construct an [AUTO_CONSUME schema](schema-understand.md#auto-schema) to verify whether the bytes produced by _P_ can be sent to _MySQL_.
+This example shows how to construct an [AUTO_CONSUME schema](schema-understand.md#auto-schema) to verify whether the bytes produced by _P_ can be sent to _MySQL_.
 
 ```java
 Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
@@ -401,7 +401,7 @@ GenericRecord record = msg.getValue();
 
 ## Construct a native Avro schema
 
-This example shows how construct a [native Avro schema](schema-understand.md#native-avro-schema).
+This example shows how to construct a [native Avro schema](schema-understand.md#native-avro-schema).
 
 ```java
 org.apache.avro.Schema nativeAvroSchema = … ;
