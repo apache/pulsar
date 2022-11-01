@@ -1143,6 +1143,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      *            Flag indicating whether delete should succeed if topic still has unconnected subscriptions. Set to
      *            false when called from admin API (it will delete the subs too), and set to true when called from GC
      *            thread
+     * @param failIfHasBacklogs
+     *            Flag indicating whether delete should succeed if topic has backlogs. Set to false when called from
+     *            admin API (it will delete the subs too), and set to true when called from GC thread
      * @param closeIfClientsConnected
      *            Flag indicate whether explicitly close connected
      *            producers/consumers/replicators before trying to delete topic.
@@ -1157,6 +1160,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         lock.writeLock().lock();
         try {
+            // We can proceed with the deletion if either:
+            //  1. No one is connected and no subscriptions
+            //  2. The topic have subscriptions but no backlogs for all subscriptions
+            //     if delete_when_no_subscriptions is applied
+            //  3. We want to kick out everyone and forcefully delete the topic.
+            //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
             if (isClosingOrDeleting) {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
                 return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
@@ -1170,6 +1179,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .map(PersistentSubscription::getName).toList();
                 return FutureUtil.failedFuture(
                         new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
+            } else if (!closeIfClientsConnected && currentUsageCount() != 0 && !failIfHasBacklogs) {
+                return FutureUtil.failedFuture(new TopicBusyException(
+                        "Topic has " + currentUsageCount() + " connected producers/consumers"));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
@@ -1179,30 +1191,24 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
                 CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
+                List<CompletableFuture<Void>> futures = new ArrayList<>();
+                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 if (closeIfClientsConnected) {
-                    List<CompletableFuture<Void>> futures = new ArrayList<>();
                     replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                     shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
                     producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                    subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-                    FutureUtil.waitForAll(futures).thenRun(() -> {
-                        closeClientFuture.complete(null);
-                    }).exceptionally(ex -> {
-                        log.error("[{}] Error closing clients", topic, ex);
-                        unfenceTopicToResume();
-                        closeClientFuture.completeExceptionally(ex);
-                        return null;
-                    });
-                } else {
-                    closeClientFuture.complete(null);
                 }
+                FutureUtil.waitForAll(futures).thenRun(() -> {
+                    closeClientFuture.complete(null);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Error closing clients", topic, ex);
+                    unfenceTopicToResume();
+                    closeClientFuture.completeExceptionally(ex);
+                    return null;
+                });
 
                 closeClientFuture.thenAccept(delete -> {
-                    // We can proceed with the deletion if either:
-                    //  1. No one is connected
-                    //  2. We want to kick out everyone and forcefully delete the topic.
-                    //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
-                    if (currentUsageCount() ==  0 || (closeIfClientsConnected && !failIfHasSubscriptions)) {
+                    if (currentUsageCount() == 0) {
                         CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                         brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
