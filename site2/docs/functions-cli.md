@@ -34,7 +34,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | customSchemaOutputs  | Map`<String,String>`         | `--custom-schema-outputs`  | The mapping from output topics to schema properties.|
 | inputSpecs           | Map`<String,`[ConsumerConfig](#consumerconfig)`>` | `--input-specs` | The mapping from inputs to custom configurations.|
 | output               | String                     | `-o`, `--output`           | The output topic of a function. If none is specified, no output is written.  |
-| producerConfig       | [ProducerConfig](#produceconfig)  | `--producer-config` | The custom configurations for producers.  |
+| producerConfig       | [ProducerConfig](#producerconfig)  | `--producer-config` | The custom configurations for producers.  |
 | outputSchemaType     | String                     | `-st`, `--schema-type`     | The built-in schema type or custom schema class name used for message outputs.   |
 | outputSerdeClassName | String                     | `--output-serde-classname` | The SerDe class used for message outputs. |
 | logTopic             | String                     | `--log-topic`              | The topic that the logs of a function are produced to.  |
@@ -80,7 +80,7 @@ The following table outlines the nested fields and related arguments under the `
 | cryptoConfig         | [CryptoConfig](#cryptoconfig)   | N/A                   |Refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/common/functions/CryptoConfig.java). |
 | poolMessages         | Boolean                    | N/A                        | N/A |
 
-###### ProducerConfig
+##### ProducerConfig
 
 The following table outlines the nested fields and related arguments under the `producerConfig` field.
 

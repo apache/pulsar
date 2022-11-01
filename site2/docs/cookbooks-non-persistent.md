@@ -7,12 +7,12 @@ sidebar_label: "Non-persistent messaging"
 **Non-persistent topics** are Pulsar topics in which message data is *never* [persistently stored](concepts-architecture-overview.md#persistent-storage) and kept only in memory. This cookbook provides:
 
 * A basic [conceptual overview](#overview) of non-persistent topics
-* Information about [configurable parameters](#configuration) related to non-persistent topics
-* A guide to the [CLI interface](#cli) for managing non-persistent topics
+* Information about [configurable parameters](#configuration-for-standalone-mode) related to non-persistent topics
+* A guide to the [CLI interface](#manage-with-cli) for managing non-persistent topics
 
 ## Overview
 
-By default, Pulsar persistently stores *all* unacknowledged messages on multiple [BookKeeper](#persistent-storage) bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
+By default, Pulsar persistently stores *all* unacknowledged messages on multiple bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
 
 Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar [broker](reference-terminology.md#broker) or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.
 
@@ -26,7 +26,7 @@ non-persistent://tenant/namespace/topic
 
 ## Use
 
-To use non-persistent topics, you need to [enable](#enable) them in your Pulsar broker configuration and differentiate them by name when interacting with them. This [`pulsar-client produce`](reference-cli-tools.md#pulsar-client-produce) command, for example, would produce one message on a non-persistent topic in a standalone cluster:
+To use non-persistent topics, you need to [enable](#enable) them in your Pulsar broker configuration and differentiate them by name when interacting with them. This [`pulsar-client produce`](reference-cli-tools.md) command, for example, would produce one message on a non-persistent topic in a standalone cluster:
 
 ```bash
 bin/pulsar-client produce non-persistent://public/default/example-np-topic \
