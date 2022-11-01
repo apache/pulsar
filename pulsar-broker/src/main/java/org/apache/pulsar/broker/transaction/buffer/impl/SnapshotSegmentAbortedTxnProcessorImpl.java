@@ -66,11 +66,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private ConcurrentOpenHashSet<TxnID> unsealedAbortedTxnIdSegment = new ConcurrentOpenHashSet<>();
 
     //Store the fixed aborted transaction segment
-    private final ConcurrentSkipListMap<PositionImpl, ConcurrentOpenHashSet<TxnID>> abortTxnSegments
-            = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<PositionImpl, ConcurrentOpenHashSet<TxnID>> abortTxnSegments =
+            new ConcurrentSkipListMap<>();
 
-    private final ConcurrentSkipListMap<PositionImpl, TransactionBufferSnapshotIndex> indexes
-            = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<PositionImpl, TransactionBufferSnapshotIndex> indexes =
+            new ConcurrentSkipListMap<>();
     //The latest persistent snapshot index. This is used to combine new segment indexes with the latest metadata and
     // indexes.
     private TransactionBufferSnapshotIndexes persistentSnapshotIndexes = new TransactionBufferSnapshotIndexes();
@@ -214,7 +214,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
                             .OpenReadOnlyManagedLedgerCallback() {
                         @Override
-                        public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+                        public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger,
+                                                                      Object ctx) {
                             persistentSnapshotIndexes.getIndexList().forEach(index -> {
                                 CompletableFuture<Void> handleSegmentFuture = new CompletableFuture<>();
                                 completableFutures.add(handleSegmentFuture);
@@ -266,7 +267,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                     return openManagedLedgerFuture
                             .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
-                                if (invalidIndex.get() != 0 ) {
+                                if (invalidIndex.get() != 0) {
                                     persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
                                             -> persistentWorker
                                             .updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
@@ -380,7 +381,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 case UpdateIndex -> {
                     if (!taskQueue.isEmpty()) {
                         return;
-                    } else if(STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.UpdatingIndex)) {
+                    } else if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.UpdatingIndex)) {
                         lastOperationFuture = task.get();
                         lastOperationFuture.whenComplete((ignore, throwable) -> {
                             if (throwable != null && log.isDebugEnabled()) {
@@ -525,7 +526,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     });
         }
 
-        //Update the indexes with the giving index snapshot and index list in the transactionBufferSnapshotIndexe.
+        //Update the indexes with the giving index snapshot and index list in the transactionBufferSnapshotIndexes.
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment,
                                                             List<TransactionBufferSnapshotIndex> indexList) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
