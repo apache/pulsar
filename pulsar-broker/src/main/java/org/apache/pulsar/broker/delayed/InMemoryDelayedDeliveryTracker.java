@@ -22,6 +22,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -146,9 +147,9 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public Set<PositionImpl> getScheduledMessages(int maxMessages) {
+    public NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
-        Set<PositionImpl> positions = new TreeSet<>();
+        NavigableSet<PositionImpl> positions = new TreeSet<>();
         long cutoffTime = getCutoffTime();
 
         while (n > 0 && !priorityQueue.isEmpty()) {
