@@ -213,7 +213,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
             @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
-            @ApiParam(value = "If return If return TotalNonContiguousDeletedMessagesRange")
+            @ApiParam(value = "If return the total non-continues deleted message range")
             @QueryParam("getTotalNonContiguousDeletedMessagesRange") @DefaultValue("true")
             boolean getTotalNonContiguousDeletedMessagesRange) {
         try {
