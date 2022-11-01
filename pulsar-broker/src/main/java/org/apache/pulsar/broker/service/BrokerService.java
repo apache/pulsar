@@ -1265,9 +1265,18 @@ public class BrokerService implements Closeable {
                         : data.getServiceUrlTls();
                 if (data.isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
-                            data.isBrokerClientTlsEnabledWithKeyStore(), data.isTlsAllowInsecureConnection(),
-                            data.getBrokerClientTlsTrustStoreType(), data.getBrokerClientTlsTrustStore(),
-                            data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath());
+                            data.isBrokerClientTlsEnabledWithKeyStore(),
+                            data.isTlsAllowInsecureConnection(),
+                            data.getBrokerClientTlsTrustStoreType(),
+                            data.getBrokerClientTlsTrustStore(),
+                            data.getBrokerClientTlsTrustStorePassword(),
+                            data.getBrokerClientTlsKeyStoreType(),
+                            data.getBrokerClientTlsKeyStore(),
+                            data.getBrokerClientTlsKeyStorePassword(),
+                            data.getBrokerClientTrustCertsFilePath(),
+                            data.getBrokerClientKeyFilePath(),
+                            data.getBrokerClientCertificateFilePath()
+                    );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
                             pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(),
@@ -1275,7 +1284,13 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(),
                             pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
                             pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(),
-                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
+                            pulsar.getConfiguration().getBrokerClientTlsKeyStoreType(),
+                            pulsar.getConfiguration().getBrokerClientTlsKeyStore(),
+                            pulsar.getConfiguration().getBrokerClientTlsKeyStorePassword(),
+                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
+                            pulsar.getConfiguration().getBrokerClientKeyFilePath(),
+                            pulsar.getConfiguration().getBrokerClientCertificateFilePath()
+                    );
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -1301,18 +1316,25 @@ public class BrokerService implements Closeable {
     private void configTlsSettings(ClientBuilder clientBuilder, String serviceUrl,
                                    boolean brokerClientTlsEnabledWithKeyStore, boolean isTlsAllowInsecureConnection,
                                    String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
-                                   String brokerClientTlsTrustStorePassword, String brokerClientTrustCertsFilePath) {
+                                   String brokerClientTlsTrustStorePassword, String brokerClientTlsKeyStoreType,
+                                   String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
+                                   String brokerClientTrustCertsFilePath,
+                                   String brokerClientKeyFilePath, String brokerClientCertificateFilePath) {
         clientBuilder
                 .serviceUrl(serviceUrl)
-                .enableTls(true)
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection);
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
                     .tlsTrustStorePath(brokerClientTlsTrustStore)
-                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword);
+                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                    .tlsKeyStoreType(brokerClientTlsKeyStoreType)
+                    .tlsKeyStorePath(brokerClientTlsKeyStore)
+                    .tlsKeyStorePassword(brokerClientTlsKeyStorePassword);
         } else {
-            clientBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath);
+            clientBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                    .tlsKeyFilePath(brokerClientKeyFilePath)
+                    .tlsCertificateFilePath(brokerClientCertificateFilePath);
         }
     }
 
