@@ -16,23 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.delayed;
+package org.apache.pulsar.broker.delayed.bucket;
 
+import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.roaringbitmap.RoaringBitmap;
 
+@Slf4j
 @Data
 @AllArgsConstructor
-public class BucketState {
+public abstract class Bucket {
 
-    public static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
+    static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
+    static final String DELIMITER = "_";
+    static final int MaxRetryTimes = 3;
 
-    public static final String DELIMITER = "_";
+    protected final ManagedCursor cursor;
+    protected final BucketSnapshotStorage bucketSnapshotStorage;
 
     long startLedgerId;
     long endLedgerId;
@@ -51,8 +62,9 @@ public class BucketState {
 
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
-    BucketState(long startLedgerId, long endLedgerId) {
-        this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
+
+    Bucket(ManagedCursor cursor, BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
+        this(cursor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -85,16 +97,49 @@ public class BucketState {
         return contained;
     }
 
-    public String bucketKey() {
+    String bucketKey() {
         return String.join(DELIMITER, DELAYED_BUCKET_KEY_PREFIX, String.valueOf(startLedgerId),
                 String.valueOf(endLedgerId));
     }
 
-    public Optional<CompletableFuture<Long>> getSnapshotCreateFuture() {
+    Optional<CompletableFuture<Long>> getSnapshotCreateFuture() {
         return Optional.ofNullable(snapshotCreateFuture);
     }
 
-    public Optional<Long> getBucketId() {
+    Optional<Long> getBucketId() {
         return Optional.ofNullable(bucketId);
+    }
+
+    long getAndUpdateBucketId() {
+        Optional<Long> bucketIdOptional = getBucketId();
+        if (bucketIdOptional.isPresent()) {
+            return bucketIdOptional.get();
+        }
+
+        String bucketIdStr = cursor.getCursorProperties().get(bucketKey());
+        long bucketId = Long.parseLong(bucketIdStr);
+        setBucketId(bucketId);
+        return bucketId;
+    }
+
+    CompletableFuture<Long> asyncSaveBucketSnapshot(
+            ImmutableBucket bucketState, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
+            List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
+
+        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments)
+                .thenCompose(newBucketId -> {
+                    bucketState.setBucketId(newBucketId);
+                    String bucketKey = bucketState.bucketKey();
+                    return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
+                        log.warn("Failed to record bucketId to cursor property, bucketKey: {}", bucketKey);
+                        return null;
+                    }).thenApply(__ -> newBucketId);
+                });
+    }
+
+    private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
+        Objects.requireNonNull(bucketId);
+        return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
+                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
     }
 }

@@ -80,7 +80,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
                 fixedDelayDetectionLookahead);
     }
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+    public InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis, Clock clock,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
                                    long fixedDelayDetectionLookahead) {
