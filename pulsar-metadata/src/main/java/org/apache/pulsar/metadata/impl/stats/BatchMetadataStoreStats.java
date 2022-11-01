@@ -97,6 +97,8 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         if (closed.compareAndSet(false, true)) {
             EXECUTOR_QUEUE_SIZE.remove(this.metadataStoreName);
             OPS_WAITING.remove(this.metadataStoreName);
+            BATCH_EXECUTE_TIME.remove(this.metadataStoreName);
+            OPS_PER_BATCH.remove(metadataStoreName);
         }
     }
 }
