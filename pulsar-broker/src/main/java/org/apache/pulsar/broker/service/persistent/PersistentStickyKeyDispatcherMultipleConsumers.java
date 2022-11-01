@@ -176,7 +176,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         if (!allowOutOfOrderDelivery) {
             NavigableSet<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
             if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty()) {
-                PositionImpl replayPosition = messagesToReplayNow.pollFirst();
+                PositionImpl replayPosition = messagesToReplayNow.first();
 
                 // We have received a message potentially from the delayed tracker and, since we're not using it
                 // right now, it needs to be added to the redelivery tracker or we won't attempt anymore to

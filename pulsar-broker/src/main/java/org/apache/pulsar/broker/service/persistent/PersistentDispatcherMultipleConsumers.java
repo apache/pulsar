@@ -286,7 +286,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
 
                 havePendingReplayRead = true;
-                minReplayedPosition = messagesToReplayNow.pollFirst();
+                minReplayedPosition = messagesToReplayNow.first();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
                         ? asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
@@ -311,10 +311,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 havePendingRead = true;
                 NavigableSet<PositionImpl> toReplay = getMessagesToReplayNow(1);
-                minReplayedPosition = toReplay.pollFirst();
-                if (minReplayedPosition != null) {
+                if (!toReplay.isEmpty()) {
+                    minReplayedPosition = toReplay.first();
                     redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
+                } else {
+                    minReplayedPosition = null;
                 }
+
                 cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
                         ReadType.Normal, topic.getMaxReadPosition());
             } else {
