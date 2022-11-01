@@ -2118,18 +2118,25 @@ public class Namespaces extends NamespacesBase {
 
     @PUT
     @Path("/{tenant}/{namespace}/offloadThresholdInSeconds")
-    @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
+    @ApiOperation(value = "Set maximum number of seconds stored on the pulsar cluster for a topic,"
             + " before the broker will start offloading to longterm storage",
             notes = "A negative value disables automatic offloading")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
-            @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
-    public void setOffloadThresholdInSeconds(@PathParam("tenant") String tenant,
-                                             @PathParam("namespace") String namespace,
-                                             long newThreshold) {
+            @ApiResponse(code = 412, message = "offloadThresholdInSeconds value is not valid") })
+    public void setOffloadThresholdInSeconds(
+            @Suspended final AsyncResponse response,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            long newThreshold) {
         validateNamespaceName(tenant, namespace);
-        internalSetOffloadThresholdInSeconds(newThreshold);
+        internalSetOffloadThresholdInSecondsAsync(newThreshold)
+                .thenAccept(response::resume)
+                .exceptionally(t -> {
+                    resumeAsyncResponseExceptionally(response, t);
+                    return null;
+                });
     }
 
     @GET

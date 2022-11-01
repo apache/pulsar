@@ -1965,30 +1965,34 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetOffloadThresholdInSeconds(long newThreshold) {
+    protected CompletableFuture<Void> internalSetOffloadThresholdInSecondsAsync(long newThreshold) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        try {
-            updatePolicies(namespaceName, policies -> {
-                if (policies.offload_policies == null) {
-                    policies.offload_policies = new OffloadPoliciesImpl();
-                }
-                ((OffloadPoliciesImpl) policies.offload_policies)
-                        .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
-                policies.offload_threshold_in_seconds = newThreshold;
-                return policies;
-            });
-            log.info("[{}] Successfully updated offloadThresholdInSeconds configuration: namespace={}, value={}",
-                    clientAppId(), namespaceName, newThreshold);
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        updatePoliciesAsync(namespaceName,
+                policies -> {
+                    if (policies.offload_policies == null) {
+                        policies.offload_policies = new OffloadPoliciesImpl();
+                    }
+                    ((OffloadPoliciesImpl) policies.offload_policies)
+                            .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
+                    policies.offload_threshold_in_seconds = newThreshold;
+                    return policies;
+                })
+                .thenAccept(v -> {
+                    log.info("[{}] Successfully updated offloadThresholdInSeconds configuration: namespace={}, value={}",
+                            clientAppId(), namespaceName, newThreshold);
+                    f.complete(null);
+                })
+                .exceptionally(t -> {
+                    log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
+                            clientAppId(), namespaceName, t);
+                    f.completeExceptionally(new RestException(t));
+                    return null;
+                });
 
-        } catch (RestException pfe) {
-            throw pfe;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
-                    clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+        return f;
     }
 
     protected void internalSetOffloadDeletionLag(Long newDeletionLagMs) {
