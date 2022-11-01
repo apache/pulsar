@@ -42,7 +42,7 @@ public class ExecutorProvider {
 
     public static class ExtendedThreadFactory extends DefaultThreadFactory {
         @Getter
-        private Thread thread;
+        private volatile Thread thread;
         public ExtendedThreadFactory(String poolName) {
             super(poolName, false);
         }
@@ -52,9 +52,10 @@ public class ExecutorProvider {
 
         @Override
         public Thread newThread(Runnable r) {
-            thread = super.newThread(r);
+            Thread thread = super.newThread(r);
             thread.setUncaughtExceptionHandler((t, e) ->
                     log.error("Thread {} got uncaught Exception", t.getName(), e));
+            this.thread = thread;
             return thread;
         }
     }
