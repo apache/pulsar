@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -136,6 +136,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "re-deliveries after a failure."
     )
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
+
+    @ApiModelProperty(
+            name = "maxAcknowledgmentGroupSize",
+            value = "Group a consumer acknowledgment for the number of messages."
+    )
+    private int maxAcknowledgmentGroupSize = 1000;
 
     @ApiModelProperty(
             name = "negativeAckRedeliveryDelayMicros",

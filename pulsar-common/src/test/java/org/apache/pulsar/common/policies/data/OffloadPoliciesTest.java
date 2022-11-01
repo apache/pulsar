@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,7 @@ public class OffloadPoliciesTest {
     private final Integer managedLedgerOffloadMaxThreads = 10;
     private final Integer managedLedgerOffloadPrefetchRounds = 5;
     private final Long offloadThresholdInBytes = 0L;
+    private final Long offloadThresholdInSeconds = 100L;
     private final Long offloadDeletionLagInMillis = 5 * MIN;
 
     @Test
@@ -150,6 +151,7 @@ public class OffloadPoliciesTest {
         properties.setProperty("managedLedgerOffloadMaxThreads", "" + managedLedgerOffloadMaxThreads);
         properties.setProperty("managedLedgerOffloadPrefetchRounds", "" + managedLedgerOffloadPrefetchRounds);
         properties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + offloadThresholdInBytes);
+        properties.setProperty("managedLedgerOffloadThresholdInSeconds", "" + offloadThresholdInSeconds);
         properties.setProperty("managedLedgerOffloadDeletionLagMs", "" + offloadDeletionLagInMillis);
 
         properties.setProperty("s3ManagedLedgerOffloadRegion", s3ManagedLedgerOffloadRegion);
@@ -184,6 +186,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
 
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), s3ManagedLedgerOffloadRegion);
@@ -305,4 +308,50 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+
+    @Test
+    public void brokerPropertyCompatibleTest() {
+        final Long brokerOffloadThreshold = 0L;
+        final Long brokerDeletionLag = 2000L;
+        final String brokerReadPriority = "bookkeeper-first";
+
+        // 1. mergeConfiguration test
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
+        brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
+        brokerProperties.setProperty("managedLedgerDataReadPriority", "" + brokerReadPriority);
+        OffloadPoliciesImpl offloadPolicies =
+          OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
+
+        // 2. compatibleWithBrokerConfigFile test
+        brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
+        brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
+        brokerProperties.setProperty("managedLedgerDataReadPriority", "" + brokerReadPriority);
+        offloadPolicies = OffloadPoliciesImpl.create(brokerProperties);
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
+
+
+        brokerProperties = new Properties();
+        // 2.1 offload properties name in OffloadPoliciesImpl
+        brokerProperties.setProperty("managedLedgerOffloadThresholdInBytes", "" + (brokerOffloadThreshold));
+        brokerProperties.setProperty("managedLedgerOffloadDeletionLagInMillis", "" + (brokerDeletionLag));
+        brokerProperties.setProperty("managedLedgerOffloadedReadPriority", "" + (brokerReadPriority));
+        // 2.2 offload properties name in conf file
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold + 30);
+        brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag + 30);
+        brokerProperties.setProperty("managedLedgerDataReadPriority", "" + "tiered-storage-first");
+        offloadPolicies = OffloadPoliciesImpl.create(brokerProperties);
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), brokerReadPriority);
+    }
 }

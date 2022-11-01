@@ -146,7 +146,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker-maven.version>0.40.2</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf3.version>3.19.2</protobuf3.version>
+    <protobuf3.version>3.19.6</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.45.1</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
@@ -247,11 +247,13 @@ flexible messaging model and an intuitive client API.</description>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.2.0</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
+    <jettison.version>1.5.1</jettison.version>
+    <wiremock.version>2.33.2</wiremock.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
-    <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
+    <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.1.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
@@ -288,6 +290,12 @@ flexible messaging model and an intuitive client API.</description>
 
   <dependencyManagement>
     <dependencies>
+
+      <dependency>
+        <groupId>org.jline</groupId>
+        <artifactId>jline</artifactId>
+        <version>${jline3.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.asynchttpclient</groupId>
@@ -683,6 +691,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-text</artifactId>
+        <version>${commons-text.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
@@ -797,6 +811,13 @@ flexible messaging model and an intuitive client API.</description>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
+      <dependency>
+        <groupId>org.codehaus.jettison</groupId>
+        <artifactId>jettison</artifactId>
+        <version>${jettison.version}</version>
+      </dependency>
+
 
       <dependency>
         <groupId>org.hdrhistogram</groupId>
@@ -1396,13 +1417,6 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <dependencies>
-          <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>buildtools</artifactId>
-            <version>${project.version}</version>
-          </dependency>
-        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -1540,7 +1554,7 @@ flexible messaging model and an intuitive client API.</description>
             </licenseSet>
           </licenseSets>
           <mapping>
-            <java>JAVADOC_STYLE</java>
+            <java>SLASHSTAR_STYLE</java>
             <proto>JAVADOC_STYLE</proto>
             <go>DOUBLESLASH_STYLE</go>
             <conf>SCRIPT_STYLE</conf>

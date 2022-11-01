@@ -122,6 +122,8 @@ test_group_messaging() {
   mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests
   # run integration WebSocket tests
   mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-websocket.xml -DintegrationTests
+  # run integration TLS tests
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-tls.xml -DintegrationTests
 }
 
 test_group_plugin() {

@@ -4,7 +4,7 @@ title: Topic compaction
 sidebar_label: "Topic compaction"
 ---
 
-Pulsar's [topic compaction](concepts-topic-compaction.md#compaction) feature enables you to create **compacted** topics in which older, "obscured" entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).
+Pulsar's [topic compaction](concepts-topic-compaction.md#topic-compaction-example-the-stock-ticker) feature enables you to create **compacted** topics in which older, "obscured" entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).
 
 To use compaction:
 
@@ -49,7 +49,7 @@ bin/pulsar-admin topics compact \
 persistent://my-tenant/my-namespace/my-topic
 ```
 
-The `pulsar-admin` tool runs compaction via the Pulsar {@inject: rest:REST:/} API. To run compaction in its own dedicated process, i.e. *not* through the REST API, you can use the [`pulsar compact-topic`](reference-cli-tools.md#pulsar-compact-topic) command. Here's an example:
+The `pulsar-admin` tool runs compaction via the Pulsar {@inject: rest:REST:/} API. To run compaction in its own dedicated process, i.e. *not* through the REST API, you can use the [`pulsar compact-topic`](reference-cli-tools.md) command. Here's an example:
 
 ```bash
 bin/pulsar compact-topic \

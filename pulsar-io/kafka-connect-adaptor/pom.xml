@@ -42,12 +42,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-common</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_${scala.binary.version}</artifactId>
-      <version>${kafka-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -58,6 +58,14 @@
         <exclusion>
           <groupId>org.apache.kafka</groupId>
           <artifactId>kafka-log4j-appender</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -78,6 +86,7 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
