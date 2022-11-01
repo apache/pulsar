@@ -54,8 +54,8 @@ public class TxnIDData {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof TxnIDData other) {
-            return Objects.equals(mostSigBits, other.mostSigBits)
-                    && Objects.equals(leastSigBits, other.leastSigBits);
+            return mostSigBits == other.mostSigBits
+                    && leastSigBits == other.leastSigBits;
         }
 
         return false;

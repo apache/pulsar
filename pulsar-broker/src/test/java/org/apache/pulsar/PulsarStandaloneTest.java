@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar;
 
+import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
@@ -26,6 +27,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
+import java.util.List;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.util.IOUtils;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -35,6 +40,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -89,6 +95,36 @@ public class PulsarStandaloneTest {
         verify(tr, times(1)).createTenant(eq(tenant), any());
         verify(admin, times(1)).namespaces();
         verify(admin.namespaces(), times(1)).createNamespace(eq(ns.toString()));
+    }
+
+    @Test(groups = "broker")
+    public void testStandaloneWithRocksDB() throws Exception {
+        String[] args = new String[]{"--config",
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
+        final int bookieNum = 3;
+        final File tempDir = IOUtils.createTempDir("standalone", "test");
+
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
+        standalone.setBkDir(tempDir.getAbsolutePath());
+        standalone.setNumOfBk(bookieNum);
+
+        standalone.startBookieWithMetadataStore();
+        List<ServerConfiguration> firstBsConfs = standalone.bkCluster.getBsConfs();
+        Assert.assertEquals(firstBsConfs.size(), bookieNum);
+        standalone.close();
+
+        // start twice, read cookie from local folder
+        standalone.startBookieWithMetadataStore();
+        List<ServerConfiguration> secondBsConfs = standalone.bkCluster.getBsConfs();
+        Assert.assertEquals(secondBsConfs.size(), bookieNum);
+
+        for (int i = 0; i < bookieNum; i++) {
+            ServerConfiguration conf1 = firstBsConfs.get(i);
+            ServerConfiguration conf2 = secondBsConfs.get(i);
+            Assert.assertEquals(conf1.getBookiePort(), conf2.getBookiePort());
+        }
+        standalone.close();
+        cleanDirectory(tempDir);
     }
 
 }
