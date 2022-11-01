@@ -98,9 +98,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                             handler.start();
                         }
                     } else {
-                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException("The broker "
-                                + "doesn't enable transaction or transaction "
-                                + "has not completed initialization in broker"));
+                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException("The broker doesn't " +
+                                "enable the transaction coordinator, " +
+                                "or the transaction coordinator has not initialized"));
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
