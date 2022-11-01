@@ -80,10 +80,10 @@ public class ProducerStatsRecorderImplTest {
     @Test
     public void testPartitionTopicAggegationStats() {
         ProducerStatsRecorderImpl recorder1 = spy(new ProducerStatsRecorderImpl());
-        ProducerStatsRecorderImpl recorder2 = new ProducerStatsRecorderImpl();
+        PartitionedTopicProducerStatsRecorderImpl recorder2 = new PartitionedTopicProducerStatsRecorderImpl();
         when(recorder1.getSendMsgsRate()).thenReturn(1000.0);
         when(recorder1.getSendBytesRate()).thenReturn(1000.0);
-        recorder2.updateCumulativeStats(recorder1);
+        recorder2.updateCumulativeStats("test", recorder1);
         assertTrue(recorder2.getSendBytesRate() > 0);
         assertTrue(recorder2.getSendMsgsRate() > 0);
     }

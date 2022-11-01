@@ -115,5 +115,4 @@ public interface ProducerStats extends Serializable {
      * @return current pending send-message queue size of the producer
      */
     int getPendingQueueSize();
-
 }
