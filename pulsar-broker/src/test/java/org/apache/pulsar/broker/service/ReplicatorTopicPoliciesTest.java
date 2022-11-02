@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -761,6 +762,34 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
             assertEquals(replicaClusters.size(), 2);
             assertEquals(replicaClusters.toString(), "[r2, r3]");
         });
+    }
+
+    @Test
+    public void testReplicateAutoSubscriptionCreation() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride
+                = AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build();
+        // local
+        admin1.topicPolicies().setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies().getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies().getAutoSubscriptionCreation(topic, false)));
+        // global
+        admin1.topicPolicies(true).setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(admin2.topicPolicies(true)
+                .getAutoSubscriptionCreation(topic, false).isAllowAutoSubscriptionCreation(), true));
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(admin3.topicPolicies(true)
+                .getAutoSubscriptionCreation(topic, false).isAllowAutoSubscriptionCreation(), true));
+        // remove auto subscription creation for a topic
+        admin1.topicPolicies(true).removeAutoSubscriptionCreation(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
     }
 
     private void init(String namespace, String topic)

@@ -29,6 +29,8 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
@@ -144,16 +146,7 @@ public class PerformanceReader {
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-        long startTime = System.nanoTime();
-        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         ReaderListener<byte[]> listener = (reader, msg) -> {
-            if (arguments.testTime > 0) {
-                if (System.nanoTime() > testEndTime) {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
-                            + "--------------", arguments.testTime);
-                    PerfClientUtils.exit(0);
-                }
-            }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
@@ -214,6 +207,20 @@ public class PerformanceReader {
             printAggregatedThroughput(start);
             printAggregatedStats();
         }));
+
+        if (arguments.testTime > 0) {
+            TimerTask timoutTask = new TimerTask() {
+                @Override
+                public void run() {
+                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
+                            + "--------------", arguments.testTime);
+                    PerfClientUtils.exit(0);
+                }
+            };
+            Timer timer = new Timer();
+            timer.schedule(timoutTask, arguments.testTime * 1000);
+        }
+
 
         long oldTime = System.nanoTime();
         Histogram reportHistogram = null;

@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 /**
  * Implementation of a cache for the Pulsar connector.
@@ -73,7 +74,7 @@ public class PulsarConnectorCache {
 
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getZookeeperUri(),
+        this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getMetadataUrl(),
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
@@ -109,10 +110,10 @@ public class PulsarConnectorCache {
 
     private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
+        PulsarMetadataClientDriver.init();
+
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-            .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-            .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
-                .replace(",", ";") + "/ledgers")
+            .setMetadataServiceUri("metadata-store:" + pulsarConnectorConfig.getMetadataUrl())
             .setClientTcpNoDelay(false)
             .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
             .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())

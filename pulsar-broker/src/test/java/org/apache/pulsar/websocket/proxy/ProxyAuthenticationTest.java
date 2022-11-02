@@ -42,6 +42,7 @@ import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -140,10 +141,13 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertTrue(consumerFuture.get().isOpen());
         Assert.assertTrue(producerFuture.get().isOpen());
 
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(produceSocket.getBuffer().size() > 0);
+            Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+        });
+
         consumeSocket.awaitClose(1, TimeUnit.SECONDS);
         produceSocket.awaitClose(1, TimeUnit.SECONDS);
-        Assert.assertTrue(produceSocket.getBuffer().size() > 0);
-        Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
     @Test(timeOut = 10000)
@@ -194,14 +198,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             Assert.assertTrue(producerFuture.get().isOpen());
 
-            int retry = 0;
-            int maxRetry = 500;
-            while (consumeSocket.getReceivedMessagesCount() < 3) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumeSocket.getReceivedMessagesCount() >= 3));
 
             service.getProxyStats().generate();
 

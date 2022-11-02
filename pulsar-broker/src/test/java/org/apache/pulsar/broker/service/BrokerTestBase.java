@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Sets;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     protected static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
@@ -230,7 +231,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
                 expectChangeEventTopics.add(t);
             }
         }
-        Awaitility.await().until(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> {
             boolean finished = true;
             for (String changeEventTopicName : expectChangeEventTopics){
                 boolean bundleExists = firstPulsar.getNamespaceService()

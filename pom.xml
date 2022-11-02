@@ -248,6 +248,7 @@ flexible messaging model and an intuitive client API.</description>
     <awaitility.version>4.2.0</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
     <jettison.version>1.5.1</jettison.version>
+    <wiremock.version>2.33.2</wiremock.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>

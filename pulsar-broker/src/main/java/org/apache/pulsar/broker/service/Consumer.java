@@ -395,10 +395,10 @@ public class Consumer {
         subscription.doUnsubscribe(this).thenAccept(v -> {
             log.info("Unsubscribed successfully from {}", subscription);
             cnx.removedConsumer(this);
-            cnx.getCommandSender().sendSuccess(requestId);
+            cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {
             log.warn("Unsubscribe failed for {}", subscription, exception);
-            cnx.getCommandSender().sendError(requestId, BrokerServiceException.getClientErrorCode(exception),
+            cnx.getCommandSender().sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(exception),
                     exception.getCause().getMessage());
             return null;
         });

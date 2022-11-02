@@ -113,32 +113,17 @@ import org.slf4j.LoggerFactory;
  * @see org.apache.pulsar.broker.PulsarService
  */
 public class NamespaceService implements AutoCloseable {
-
-    public enum AddressType {
-        BROKER_URL, LOOKUP_URL
-    }
-
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceService.class);
 
     private final ServiceConfiguration config;
-
-    private final MetadataCache<LocalPolicies> localPoliciesCache;
-
     private final AtomicReference<LoadManager> loadManager;
-
     private final PulsarService pulsar;
-
     private final OwnershipCache ownershipCache;
     private final MetadataCache<LocalBrokerData> localBrokerDataCache;
-
     private final NamespaceBundleFactory bundleFactory;
-
-    private int uncountedNamespaces;
-
     private final String host;
 
     private static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
-
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN_V2 = Pattern.compile("pulsar/([^:]+:\\d+)");
@@ -166,8 +151,6 @@ public class NamespaceService implements AutoCloseable {
 
     /**
      * Default constructor.
-     *
-     * @throws PulsarServerException
      */
     public NamespaceService(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -180,7 +163,6 @@ public class NamespaceService implements AutoCloseable {
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
-        this.localPoliciesCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalPolicies.class);
     }
 
     public void initialize() {
@@ -302,13 +284,11 @@ public class NamespaceService implements AutoCloseable {
 
         // ensure that we own the heartbeat namespace
         if (registerNamespace(getHeartbeatNamespace(host, config), true)) {
-            this.uncountedNamespaces++;
             LOG.info("added heartbeat namespace name in local cache: ns={}", getHeartbeatNamespace(host, config));
         }
 
         // ensure that we own the heartbeat namespace
         if (registerNamespace(getHeartbeatNamespaceV2(host, config), true)) {
-            this.uncountedNamespaces++;
             LOG.info("added heartbeat namespace name in local cache: ns={}", getHeartbeatNamespaceV2(host, config));
         }
 
@@ -1183,7 +1163,15 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
         if (topic.isPersistent()) {
-            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+            if (topic.isPartitioned()) {
+                return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .partitionedTopicExistsAsync(TopicName.get(topic.getPartitionedTopicName()))
+                        .thenCompose(exists -> exists
+                                ? pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic)
+                                : CompletableFuture.completedFuture(false));
+            } else {
+                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+            }
         } else {
             if (topic.isPartitioned()) {
                 final TopicName partitionedTopicName = TopicName.get(topic.getPartitionedTopicName());
@@ -1461,8 +1449,6 @@ public class NamespaceService implements AutoCloseable {
     public boolean registerSLANamespace() throws PulsarServerException {
         boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(host, config), false);
         if (isNameSpaceRegistered) {
-            this.uncountedNamespaces++;
-
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Added SLA Monitoring namespace name in local cache: ns={}",
                         getSLAMonitorNamespace(host, config));

@@ -163,7 +163,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
-                        .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
+                        .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
+                                (PositionImpl) entry.getPosition())) {
                     individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();

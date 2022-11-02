@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -160,51 +162,56 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     public static Object[][] variationsBackoff() {
         return new Object[][] {
                 // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms / ack-timeout
-                { false, false, SubscriptionType.Shared, 100, 1000, 0 },
-                { false, false, SubscriptionType.Failover, 100, 1000, 0 },
-                { false, true, SubscriptionType.Shared, 100, 1000, 0 },
-                { false, true, SubscriptionType.Failover, 100, 1000, 0 },
-                { true, false, SubscriptionType.Shared, 100, 1000, 0 },
-                { true, false, SubscriptionType.Failover, 100, 1000, 0 },
-                { true, true, SubscriptionType.Shared, 100, 1000, 0 },
-                { true, true, SubscriptionType.Failover, 100, 1000, 0 },
+                { false, false, SubscriptionType.Shared, 100, 1000 },
+                { false, false, SubscriptionType.Failover, 100, 1000 },
+                { false, true, SubscriptionType.Shared, 100, 1000 },
+                { false, true, SubscriptionType.Failover, 100, 1000 },
+                { true, false, SubscriptionType.Shared, 100, 1000 },
+                { true, false, SubscriptionType.Failover, 100, 1000 },
+                { true, true, SubscriptionType.Shared, 100, 1000 },
+                { true, true, SubscriptionType.Failover, 100, 1000 },
 
-                { false, false, SubscriptionType.Shared, 0, 1000, 0 },
-                { false, false, SubscriptionType.Failover, 0, 1000, 0 },
-                { false, true, SubscriptionType.Shared, 0, 1000, 0 },
-                { false, true, SubscriptionType.Failover, 0, 1000, 0 },
-                { true, false, SubscriptionType.Shared, 0, 1000, 0 },
-                { true, false, SubscriptionType.Failover, 0, 1000, 0 },
-                { true, true, SubscriptionType.Shared, 0, 1000, 0 },
-                { true, true, SubscriptionType.Failover, 0, 1000, 0 },
+                { false, false, SubscriptionType.Shared, 0, 1000 },
+                { false, false, SubscriptionType.Failover, 0, 1000 },
+                { false, true, SubscriptionType.Shared, 0, 1000 },
+                { false, true, SubscriptionType.Failover, 0, 1000 },
+                { true, false, SubscriptionType.Shared, 0, 1000 },
+                { true, false, SubscriptionType.Failover, 0, 1000 },
+                { true, true, SubscriptionType.Shared, 0, 1000 },
+                { true, true, SubscriptionType.Failover, 0, 1000 },
 
-                { false, false, SubscriptionType.Shared, 100, 1000, 1000 },
-                { false, false, SubscriptionType.Failover, 100, 1000, 1000 },
-                { false, true, SubscriptionType.Shared, 100, 1000, 1000 },
-                { false, true, SubscriptionType.Failover, 100, 1000, 1000 },
-                { true, false, SubscriptionType.Shared, 100, 1000, 1000 },
-                { true, false, SubscriptionType.Failover, 100, 1000, 1000 },
-                { true, true, SubscriptionType.Shared, 100, 1000, 1000 },
-                { true, true, SubscriptionType.Failover, 100, 1000, 1000 },
+                { false, false, SubscriptionType.Shared, 100, 1000 },
+                { false, false, SubscriptionType.Failover, 100, 1000 },
+                { false, true, SubscriptionType.Shared, 100, 1000 },
+                { false, true, SubscriptionType.Failover, 100, 1000 },
+                { true, false, SubscriptionType.Shared, 100, 1000 },
+                { true, false, SubscriptionType.Failover, 100, 1000 },
+                { true, true, SubscriptionType.Shared, 100, 1000 },
+                { true, true, SubscriptionType.Failover, 100, 1000 },
 
-                { false, false, SubscriptionType.Shared, 0, 1000, 1000 },
-                { false, false, SubscriptionType.Failover, 0, 1000, 1000 },
-                { false, true, SubscriptionType.Shared, 0, 1000, 1000 },
-                { false, true, SubscriptionType.Failover, 0, 1000, 1000 },
-                { true, false, SubscriptionType.Shared, 0, 1000, 1000 },
-                { true, false, SubscriptionType.Failover, 0, 1000, 1000 },
-                { true, true, SubscriptionType.Shared, 0, 1000, 1000 },
-                { true, true, SubscriptionType.Failover, 0, 1000, 1000 },
+                { false, false, SubscriptionType.Shared, 0, 1000 },
+                { false, false, SubscriptionType.Failover, 0, 1000 },
+                { false, true, SubscriptionType.Shared, 0, 1000 },
+                { false, true, SubscriptionType.Failover, 0, 1000 },
+                { true, false, SubscriptionType.Shared, 0, 1000 },
+                { true, false, SubscriptionType.Failover, 0, 1000 },
+                { true, true, SubscriptionType.Shared, 0, 1000 },
+                { true, true, SubscriptionType.Failover, 0, 1000 },
         };
     }
 
     @Test(dataProvider = "variationsBackoff")
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
-            int minNackTimeMs, int maxNackTimeMs, int ackTimeout)
+            int minNackTimeMs, int maxNackTimeMs)
             throws Exception {
         log.info("Test negative acks with back off batching={} partitions={} subType={} minNackTimeMs={}, "
                         + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBackoff");
+
+        MultiplierRedeliveryBackoff backoff = MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(minNackTimeMs)
+                .maxDelayMs(maxNackTimeMs)
+                .build();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -212,11 +219,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(subscriptionType)
-                .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-                        .minDelayMs(minNackTimeMs)
-                        .maxDelayMs(maxNackTimeMs)
-                        .build())
-                .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryBackoff(backoff)
                 .subscribe();
 
         @Cleanup
@@ -235,9 +238,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         }
         producer.flush();
 
-        for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
-            consumer.negativeAcknowledge(msg);
+        final int redeliverCount = 5;
+        long firstReceivedAt = System.currentTimeMillis();
+        long expectedTotalRedeliveryDelay = 0;
+        for (int i = 0; i < redeliverCount; i++) {
+            for (int j = 0; j < N; j++) {
+                Message<String> msg = consumer.receive();
+                log.info("Received message {}", msg.getValue());
+                consumer.negativeAcknowledge(msg);
+            }
+            expectedTotalRedeliveryDelay += backoff.next(i);
         }
 
         Set<String> receivedMessages = new HashSet<>();
@@ -248,8 +258,14 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
-
+        long receivedAfterRedeliveryAt = System.currentTimeMillis();
+        log.info("Total redelivery delay: {} ms", receivedAfterRedeliveryAt - firstReceivedAt);
         assertEquals(receivedMessages, sentMessages);
+
+        if (SubscriptionType.Shared == subscriptionType) {
+            log.info("Total expected redelivery delay {} ms", expectedTotalRedeliveryDelay);
+            assertTrue(receivedAfterRedeliveryAt - firstReceivedAt >= expectedTotalRedeliveryDelay);
+        }
 
         // There should be no more messages
         assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));

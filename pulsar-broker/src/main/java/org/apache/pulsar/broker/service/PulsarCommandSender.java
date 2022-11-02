@@ -72,10 +72,6 @@ public interface PulsarCommandSender {
 
     void sendActiveConsumerChange(long consumerId, boolean isActive);
 
-    void sendSuccess(long requestId);
-
-    void sendError(long requestId, ServerError error, String message);
-
     void sendReachedEndOfTopic(long consumerId);
 
     boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls);
