@@ -521,7 +521,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         if (StringUtils.isNotEmpty(nsThresholdStr) && nsThresholdStr.contains(ns)) {
             Map<String, Long> nsThresholds = FieldParser.stringToMap(nsThresholdStr, String.class, Long.class);
-            Long threshold0 = nsThresholds.get(topicName.getNamespaceObject().toString());
+            Long threshold0 = nsThresholds.get(ns);
             if (threshold0 != null) {
                 threshold = threshold0;
             }
@@ -529,7 +529,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         if (StringUtils.isNotEmpty(topicThresholdStr) && topicThresholdStr.contains(topic)) {
             Map<String, Long> topicThresholds = FieldParser.stringToMap(topicThresholdStr, String.class, Long.class);
-            Long threshold0 = topicThresholds.get(topicName.getPartitionedTopicName());
+            Long threshold0 = topicThresholds.get(topic);
             if (threshold0 != null) {
                 threshold = threshold0;
             }
