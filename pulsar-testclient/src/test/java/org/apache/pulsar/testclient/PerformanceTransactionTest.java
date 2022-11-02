@@ -198,7 +198,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testConsumeTxnMessage() throws Exception {
-        String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 5";
+        String argString = "%s -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 5";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), subName,
