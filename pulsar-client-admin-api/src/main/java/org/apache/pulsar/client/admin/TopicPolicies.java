@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -1814,4 +1815,102 @@ public interface TopicPolicies {
     CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic);
 
 
+    /**
+     * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the namespace level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     *
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAutoSubscriptionCreation(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+            throws PulsarAdminException;
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings asynchronously.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the namespace level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     */
+    CompletableFuture<Void> setAutoSubscriptionCreationAsync(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
+
+    /**
+     * Get the autoSubscriptionCreation info within a topic.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
+                                                                 boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the autoSubscriptionCreation info within a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String topic, boolean applied);
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given topic.
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAutoSubscriptionCreation(String topic) throws PulsarAdminException;
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given topic asynchronously.
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic);
 }
