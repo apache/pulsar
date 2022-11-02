@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Properties;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -275,6 +276,8 @@ public class OffloadPoliciesTest {
 
     @Test
     public void mergeTest() {
+        TopicName topicName = TopicName.get("persistent://tenant/ns/topic");
+
         final String topicBucket = "topic-bucket";
         OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
         topicLevelPolicies.setS3ManagedLedgerOffloadBucket(topicBucket);
@@ -291,26 +294,36 @@ public class OffloadPoliciesTest {
         final Integer brokerOffloadMaxThreads = 2;
         Properties brokerProperties = new Properties();
         brokerProperties.setProperty("managedLedgerOffloadDriver", brokerDriver);
-        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
+
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
         brokerProperties.setProperty("managedLedgerOffloadMaxThreads", "" + brokerOffloadMaxThreads);
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
+        brokerProperties.setProperty("managedLedgerOffloadNamespaceThresholdInBytes", "tenant/ns=2");
+        brokerProperties.setProperty("managedLedgerOffloadTopicThresholdInBytes", "persistent://tenant/ns/topic=3");
+
+        brokerProperties.setProperty("managedLedgerOffloadThresholdInSeconds", "1");
+        brokerProperties.setProperty("managedLedgerOffloadNamespaceThresholdInSeconds", "tenant/ns=2");
+        brokerProperties.setProperty("managedLedgerOffloadTopicThresholdInSeconds", "persistent://tenant/ns/topic=3");
 
         OffloadPoliciesImpl offloadPolicies =
-                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, nsLevelPolicies, brokerProperties);
+                OffloadPoliciesImpl.mergeConfiguration(topicName, topicLevelPolicies, nsLevelPolicies, brokerProperties);
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), brokerDriver);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), topicBucket);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), nsDeletionLag);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), brokerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
                 Integer.valueOf(OffloadPoliciesImpl.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS));
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
+
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), Long.valueOf(3));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), Long.valueOf(3));
     }
 
 
     @Test
     public void brokerPropertyCompatibleTest() {
+        TopicName topicName = TopicName.get("persistent://tenant/ns/topic");
         final Long brokerOffloadThreshold = 0L;
         final Long brokerDeletionLag = 2000L;
         final String brokerReadPriority = "bookkeeper-first";
@@ -321,7 +334,7 @@ public class OffloadPoliciesTest {
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
         brokerProperties.setProperty("managedLedgerDataReadPriority", "" + brokerReadPriority);
         OffloadPoliciesImpl offloadPolicies =
-          OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+          OffloadPoliciesImpl.mergeConfiguration(topicName, null, null, brokerProperties);
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);

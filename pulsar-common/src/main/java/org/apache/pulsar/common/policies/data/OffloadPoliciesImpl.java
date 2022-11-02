@@ -27,15 +27,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FieldParser;
 
 /**
  * Definition of the offload policies.
@@ -429,7 +428,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      * @param brokerProperties broker level offload configuration
      * @return offload policies
      */
-    public static OffloadPoliciesImpl mergeConfiguration(OffloadPoliciesImpl topicLevelPolicies,
+    public static OffloadPoliciesImpl mergeConfiguration(TopicName topicName,
+                                                         OffloadPoliciesImpl topicLevelPolicies,
                                                          OffloadPoliciesImpl nsLevelPolicies,
                                                          Properties brokerProperties) {
         try {
@@ -442,7 +442,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
                     object = field.get(nsLevelPolicies);
                 } else {
-                    object = getCompatibleValue(brokerProperties, field);
+                    object = getCompatibleValue(topicName, brokerProperties, field);
                 }
                 if (object != null) {
                     field.set(offloadPolicies, object);
@@ -469,15 +469,19 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      * and {@link OffloadPoliciesImpl#managedLedgerOffloadThresholdInBytes} are not matched with
      * config file (broker.conf or standalone.conf).
      *
+     * @param topicName the topic name
      * @param properties broker configuration properties
      * @param field filed
      * @return field value
      */
-    private static Object getCompatibleValue(Properties properties, Field field) {
+    private static Object getCompatibleValue(TopicName topicName, Properties properties, Field field) {
         Object object;
         if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
-            object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
-                    properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
+            object = getManagedLedgerOffloadThreshold(
+                    topicName, properties, "managedLedgerOffloadThresholdInBytes");
+        } else if (field.getName().equals("managedLedgerOffloadThresholdInSeconds")) {
+            object = getManagedLedgerOffloadThreshold(
+                    topicName, properties, "managedLedgerOffloadThresholdInSeconds");
         } else if (field.getName().equals("managedLedgerOffloadDeletionLagInMillis")) {
             object = properties.getProperty("managedLedgerOffloadDeletionLagInMillis",
                     properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE));
@@ -488,6 +492,49 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             object = properties.get(field.getName());
         }
         return value((String) object, field);
+    }
+
+
+    private static String getManagedLedgerOffloadThreshold(TopicName topicName, Properties properties,
+                                                           String configName) {
+        String brokerThreshold;
+        String nsThresholdStr;
+        String topicThresholdStr;
+        String ns = topicName.getNamespace();
+        String topic = topicName.getPartitionedTopicName();
+
+        if (configName.equals("managedLedgerOffloadThresholdInBytes")) {
+            brokerThreshold = properties.getProperty("managedLedgerOffloadThresholdInBytes",
+                    properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
+            nsThresholdStr = properties.getProperty("managedLedgerOffloadNamespaceThresholdInBytes", null);
+            topicThresholdStr = properties.getProperty("managedLedgerOffloadTopicThresholdInBytes", null);
+        } else if (configName.equals("managedLedgerOffloadThresholdInSeconds")) {
+            brokerThreshold = properties.getProperty("managedLedgerOffloadThresholdInSeconds");
+            nsThresholdStr = properties.getProperty("managedLedgerOffloadNamespaceThresholdInSeconds", null);
+            topicThresholdStr = properties.getProperty("managedLedgerOffloadTopicThresholdInSeconds", null);
+        } else {
+            throw new IllegalArgumentException();
+        }
+
+        Long threshold = StringUtils.isEmpty(brokerThreshold) ? null : Long.valueOf(brokerThreshold);
+
+        if (null != nsThresholdStr && nsThresholdStr.contains(ns)) {
+            Map<String, Long> nsThresholds = FieldParser.stringToMap(nsThresholdStr, String.class, Long.class);
+            Long threshold0 = nsThresholds.get(topicName.getNamespaceObject().toString());
+            if (threshold0 != null) {
+                threshold = threshold0;
+            }
+        }
+
+        if (null != topicThresholdStr && topicThresholdStr.contains(topic)) {
+            Map<String, Long> topicThresholds = FieldParser.stringToMap(topicThresholdStr, String.class, Long.class);
+            Long threshold0 = topicThresholds.get(topicName.getPartitionedTopicName());
+            if (threshold0 != null) {
+                threshold = threshold0;
+            }
+        }
+
+        return threshold == null ? null : String.valueOf(threshold);
     }
 
     public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder {

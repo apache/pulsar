@@ -3256,28 +3256,4 @@ public class ServiceConfiguration implements PulsarConfiguration {
                                    MIN_ML_CACHE_EVICTION_FREQUENCY))
                 : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
-
-    public Long getManagedLedgerOffloadThresholdInBytes(NamespaceName ns, TopicName topicName) {
-        Long threshold = managedLedgerOffloadAutoTriggerSizeThresholdBytes;
-        if (managedLedgerOffloadNamespaceThresholdInBytes != null) {
-            threshold = managedLedgerOffloadNamespaceThresholdInBytes.get(ns.toString());
-        }
-        if (managedLedgerOffloadTopicThresholdInBytes != null) {
-            threshold = managedLedgerOffloadTopicThresholdInBytes.get(topicName.getPartitionedTopicName());
-        }
-
-        return threshold;
-    }
-
-    public Long getManagedLedgerOffloadThresholdInSeconds(NamespaceName ns, TopicName topicName) {
-        Long threshold = managedLedgerOffloadThresholdInSeconds;
-        if (managedLedgerOffloadNamespaceThresholdInSeconds != null) {
-            threshold = managedLedgerOffloadNamespaceThresholdInSeconds.get(ns.toString());
-        }
-        if (managedLedgerOffloadTopicThresholdInSeconds != null) {
-            threshold = managedLedgerOffloadTopicThresholdInSeconds.get(topicName.getPartitionedTopicName());
-        }
-
-        return threshold;
-    }
 }
