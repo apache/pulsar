@@ -2645,6 +2645,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 1);
         assertEquals(entries.get(0).getPosition(), PositionImpl.get(markDeletedPosition.getLedgerId(),
                 markDeletedPosition.getEntryId() + 7));
+
+        assertEquals(entry1.refCnt(), 0);
+        assertEquals(entry2.refCnt(), 0);
+        assertEquals(entry3.refCnt(), 0);
+        assertEquals(entry4.refCnt(), 0);
     }
 
     @Test(timeOut = 20000)
