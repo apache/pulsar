@@ -16,33 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.impl.batching;
+package org.apache.pulsar.broker.transaction.buffer.metadata.v2;
 
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
-public class OpGetChildren implements MetadataOp {
-
-    private final String path;
-    public final long created = System.currentTimeMillis();
-    private final CompletableFuture<List<String>> future = new CompletableFuture<>();
-
-    @Override
-    public Type getType() {
-        return Type.GET_CHILDREN;
-    }
-
-    @Override
-    public int size() {
-        return path.length();
-    }
-
-    @Override
-    public long created() {
-        return this.created;
-    }
+@NoArgsConstructor
+public class TransactionBufferSnapshotIndexesMetadata {
+    private long maxReadPositionLedgerId;
+    private long maxReadPositionEntryId;
+    private Set<TxnIDData> aborts;
 }

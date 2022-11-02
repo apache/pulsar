@@ -30,16 +30,12 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +57,8 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
@@ -128,6 +126,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         };
     }
 
+    @DataProvider(name = "enableSnapshotSegment")
+    public Object[] testSnapshot() {
+        return new Boolean[] {
+                true,
+                false
+        };
+    }
+
     @Test(dataProvider = "testTopic")
     private void recoverTest(String testTopic) throws Exception {
         PulsarClient pulsarClient = this.pulsarClient;
@@ -169,7 +175,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
 
-        tnx1.commit();
+        tnx1.commit().get();
 
         // only can receive message 1
         message = consumer.receive(2, TimeUnit.SECONDS);
@@ -242,9 +248,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    @Test
-    private void testTakeSnapshot() throws IOException, ExecutionException, InterruptedException {
-
+    private void testTakeSnapshot() throws Exception {
         @Cleanup
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING)
@@ -314,8 +318,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    @Test
-    private void testTopicTransactionBufferDeleteAbort() throws Exception {
+    @Test(dataProvider = "enableSnapshotSegment")
+    private void testTopicTransactionBufferDeleteAbort(Boolean enableSnapshotSegment) throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(enableSnapshotSegment);
         @Cleanup
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING)
@@ -390,22 +395,34 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     field.setAccessible(true);
                     TopicTransactionBuffer topicTransactionBuffer =
                             (TopicTransactionBuffer) field.get(persistentTopic);
-                    field = TopicTransactionBuffer.class.getDeclaredField("aborts");
+                    field = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
                     field.setAccessible(true);
-                    LinkedMap<TxnID, PositionImpl> linkedMap =
-                            (LinkedMap<TxnID, PositionImpl>) field.get(topicTransactionBuffer);
-                    assertEquals(linkedMap.size(), 1);
-                    assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
-                            ((MessageIdImpl) message.getMessageId()).getLedgerId());
-                    exist = true;
+                    AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) field.get(topicTransactionBuffer);
+
+                    if (enableSnapshotSegment) {
+                        //TODO
+                        exist = true;
+                    } else {
+                        Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
+                        abortsField.setAccessible(true);
+
+                        LinkedMap<TxnID, PositionImpl> linkedMap =
+                                (LinkedMap<TxnID, PositionImpl>) abortsField.get(abortedTxnProcessor);
+                        assertEquals(linkedMap.size(), 1);
+                        assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
+                                ((MessageIdImpl) message.getMessageId()).getLedgerId());
+                        exist = true;
+                    }
+
                 }
             }
         }
         assertTrue(exist);
     }
 
-    @Test
-    public void clearTransactionBufferSnapshotTest() throws Exception {
+    @Test(dataProvider = "enableSnapshotSegment")
+    public void clearTransactionBufferSnapshotTest(Boolean enableSnapshotSegment) throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(enableSnapshotSegment);
         String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
 
         Producer<byte[]> producer = pulsarClient
@@ -426,9 +443,11 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) originalTopic.getTransactionBuffer();
-        Method takeSnapshotMethod = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
-        takeSnapshotMethod.setAccessible(true);
-        takeSnapshotMethod.invoke(topicTransactionBuffer);
+        Field abortedTxnProcessorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
+        abortedTxnProcessorField.setAccessible(true);
+        AbortedTxnProcessor abortedTxnProcessor =
+                (AbortedTxnProcessor) abortedTxnProcessorField.get(topicTransactionBuffer);
+        abortedTxnProcessor.takeAbortedTxnsSnapshot(topicTransactionBuffer.getMaxReadPosition());
 
         TopicName transactionBufferTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(
@@ -667,8 +686,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setSequenceId(1L);
         snapshot.setMaxReadPositionLedgerId(2L);
         snapshot.setMaxReadPositionEntryId(3L);
-        snapshot.setAborts(Collections.singletonList(
-                new TxnIDData(1, 1)));
+        LinkedList<TxnIDData> txnIDSet = new LinkedList<>();
+        txnIDSet.add(new TxnIDData(1, 1));
+        snapshot.setAborts(txnIDSet );
 
         segmentWriter.write(buildKey(snapshot), snapshot);
         snapshot.setSequenceId(2L);
@@ -711,14 +731,15 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         ByteBuf headersAndPayload = entry.getDataBuffer();
         //skip metadata
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        snapshot = Schema.AVRO(TransactionBufferSnapshotSegment.class).decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
+        snapshot = Schema.AVRO(TransactionBufferSnapshotSegment.class)
+                .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
 
         //verify snapshot
         assertEquals(snapshot.getTopicName(), snapshotTopic);
         assertEquals(snapshot.getSequenceId(), 2L);
         assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
         assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
-        assertEquals(snapshot.getAborts().get(0), new TxnIDData(1, 1));
+        assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
     }
 
 }

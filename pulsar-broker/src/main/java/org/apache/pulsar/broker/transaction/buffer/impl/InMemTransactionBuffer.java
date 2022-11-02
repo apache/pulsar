@@ -360,7 +360,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID) {
+    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
         return false;
     }
 

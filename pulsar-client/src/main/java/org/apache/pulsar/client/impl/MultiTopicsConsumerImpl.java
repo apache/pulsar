@@ -95,7 +95,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
-    private final ConsumerStatsRecorder stats;
+    private final MultiTopicConsumerStatsRecorderImpl stats;
     private UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
@@ -156,7 +156,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0
-                ? new ConsumerStatsRecorderImpl(this)
+                ? new MultiTopicConsumerStatsRecorderImpl(this)
                 : null;
 
         // start track and auto subscribe partition increment
@@ -826,7 +826,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         stats.reset();
 
-        consumers.values().stream().forEach(consumer -> stats.updateCumulativeStats(consumer.getStats()));
+        consumers.forEach((partition, consumer) -> stats.updateCumulativeStats(partition, consumer.getStats()));
         return stats;
     }
 

@@ -202,16 +202,6 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendSuccess(long requestId) {
-        cnx.ctx().writeAndFlush(Commands.newSuccess(requestId), cnx.ctx().voidPromise());
-    }
-
-    @Override
-    public void sendError(long requestId, ServerError error, String message) {
-        cnx.ctx().writeAndFlush(Commands.newError(requestId, error, message), cnx.ctx().voidPromise());
-    }
-
-    @Override
     public void sendReachedEndOfTopic(long consumerId) {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9.getValue()) {
