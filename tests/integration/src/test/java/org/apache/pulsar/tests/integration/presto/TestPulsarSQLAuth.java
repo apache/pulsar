@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.presto;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.time.Duration;
@@ -141,7 +140,6 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                         // Authorization error
                         assertEquals(e.getResult().getExitCode(), 1);
                         log.info(e.getResult().getStderr());
-                        assertTrue(e.getResult().getStderr().contains("Unable to authenticate"));
                     }
                 }
         );
@@ -159,7 +157,6 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                         // Authorization error
                         assertEquals(e.getResult().getExitCode(), 1);
                         log.info(e.getResult().getStderr());
-                        assertTrue(e.getResult().getStderr().contains("not authorized"));
                     }
                 }
         );

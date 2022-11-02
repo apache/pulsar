@@ -186,12 +186,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerInterceptor brokerInterceptor;
     private State state;
     private volatile boolean isActive = true;
+    private SSLSession sslSession;
     private String authRole = null;
     private volatile AuthenticationDataSource authenticationData;
     private AuthenticationProvider authenticationProvider;
     private AuthenticationState authState;
     // In case of proxy, if the authentication credentials are forwardable,
     // it will hold the credentials of the original client
+    private AuthenticationProvider originalAuthenticationProvider;
     private AuthenticationState originalAuthState;
     private AuthenticationDataSource originalAuthData;
     private boolean pendingAuthChallengeResponse = false;
@@ -707,73 +709,93 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     // According to auth result, send newConnected or newAuthChallenge command.
-    private State doAuthentication(AuthData clientData,
-                                   int clientProtocolVersion,
-                                   String clientVersion) throws Exception {
-
+    private CompletableFuture<Void> doAuthenticationAsync(AuthData clientData, int clientProtocolVersion,
+                                                          String clientVersion) {
         // The original auth state can only be set on subsequent auth attempts (and only
         // in presence of a proxy and if the proxy is forwarding the credentials).
         // In this case, the re-validation needs to be done against the original client
-        // credentials.
-        boolean useOriginalAuthState = (originalAuthState != null);
-        AuthenticationState authState =  useOriginalAuthState ? originalAuthState : this.authState;
-        String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
-        AuthData brokerData = authState.authenticate(clientData);
+        // credentials, but we only can new an authentication state, because some authentication data(TLS, SASL)
+        // based on outside service.
+        // If we can get the role from the authentication sate, the global variable need to be updated.
 
-        if (log.isDebugEnabled()) {
-            log.debug("Authenticate using original auth state : {}, role = {}", useOriginalAuthState, authRole);
+        boolean useOriginalAuthState = (originalAuthState != null);
+        if (state == State.Connected) {
+            // For auth challenge, the authentication state requires to be updated.
+            if (log.isDebugEnabled()) {
+                log.debug("Refreshing authenticate state, original auth state: {}, original auth role: {}, "
+                                + "auth role: {}",
+                        useOriginalAuthState, originalPrincipal, authRole);
+            }
+            try {
+                if (useOriginalAuthState) {
+                    originalAuthState =
+                            originalAuthenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+                } else {
+                    authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+                }
+            } catch (AuthenticationException e) {
+                return CompletableFuture.failedFuture(e);
+            }
         }
 
-        if (authState.isComplete()) {
-            // Authentication has completed. It was either:
-            // 1. the 1st time the authentication process was done, in which case we'll send
-            //    a `CommandConnected` response
-            // 2. an authentication refresh, in which case we need to refresh authenticationData
+        CompletableFuture<AuthData> authFuture = CompletableFuture.completedFuture(null);
+        if (!useOriginalAuthState && !authState.isComplete()) {
+            authFuture = authState.authenticateAsync(clientData);
+        }
+        return authFuture.thenCompose(nextAuthData -> {
+            if (nextAuthData == null) {
+                // Authentication has completed. It was either:
+                // 1. the 1st time the authentication process was done, in which case we'll send
+                //    a `CommandConnected` response
+                // 2. an authentication refresh, in which case we need to refresh authenticationData and role
 
-            String newAuthRole = authState.getAuthRole();
+                AuthenticationState authState = useOriginalAuthState ? originalAuthState : this.authState;
+                AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
 
-            // Refresh the auth data.
-            this.authenticationData = authState.getAuthDataSource();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
-            }
-
-            if (!useOriginalAuthState) {
-                this.authRole = newAuthRole;
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                        remoteAddress, authMethod, this.authRole, originalPrincipal);
-            }
-
-            if (state != State.Connected) {
-                // First time authentication is done
-                completeConnect(clientProtocolVersion, clientVersion, enableSubscriptionPatternEvaluation);
-            } else {
-                // If the connection was already ready, it means we're doing a refresh
-                if (!StringUtils.isEmpty(authRole)) {
-                    if (!authRole.equals(newAuthRole)) {
-                        log.warn("[{}] Principal cannot change during an authentication refresh expected={} got={}",
-                                remoteAddress, authRole, newAuthRole);
-                        ctx.close();
-                    } else {
-                        log.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, authRole);
+                String newAuthRole = null;
+                try {
+                    newAuthRole = authState.getAuthRole();
+                } catch (AuthenticationException e) {
+                    log.warn("[{}] Failed to get auth role", remoteAddress, e);
+                    if (!useOriginalAuthState) {
+                        return CompletableFuture.failedFuture(e);
                     }
                 }
+
+                if (useOriginalAuthState) {
+                    if (newAuthRole != null) {
+                        this.originalPrincipal = newAuthRole;
+                    }
+                    this.originalAuthData = newAuthDataSource;
+                } else {
+                    this.authRole = newAuthRole;
+                    this.authenticationData = newAuthDataSource;
+                }
+
+                log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}, "
+                                + "using original auth state: {}",
+                        remoteAddress, authMethod, this.authRole, originalPrincipal, originalAuthState);
+                if (state != State.Connected) {
+                    // First time authentication is done
+                    completeConnect(clientProtocolVersion, clientVersion, enableSubscriptionPatternEvaluation);
+                } else {
+                    // Auth challenge is done, switch state to Connected.
+                    state = State.Connected;
+                    log.info("[{}] Refreshed authentication credentials", remoteAddress);
+                }
+            } else {
+                // auth not complete, continue auth with client side.
+                ctx.writeAndFlush(
+                        Commands.newAuthChallenge(authMethod, nextAuthData, clientProtocolVersion));
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Authentication in progress client by method {}, using original auth state: {}",
+                            remoteAddress, authMethod, useOriginalAuthState);
+                    log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connecting.name());
+                }
+                state = State.Connecting;
             }
-
-            return State.Connected;
-        }
-
-        // auth not complete, continue auth with client side.
-        writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, clientProtocolVersion));
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Authentication in progress client by method {}.",
-                remoteAddress, authMethod);
-            log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connecting.name());
-        }
-        return State.Connecting;
+            return CompletableFuture.completedFuture(null);
+        });
     }
 
     public void refreshAuthenticationCredentials() {
@@ -905,72 +927,62 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             // init authState and other var
             ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
-            SSLSession sslSession = null;
             if (sslHandler != null) {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+            doAuthenticationAsync(clientData, clientProtocolVersion, clientVersion).thenCompose(__ -> {
+                // This will fail the check if:
+                //  1. client is coming through a proxy
+                //  2. we require to validate the original credentials
+                //  3. no credentials were passed
+                if (connect.hasOriginalPrincipal()
+                        && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+                    // init authentication
+                    String originalAuthMethod;
+                    if (connect.hasOriginalAuthMethod()) {
+                        originalAuthMethod = connect.getOriginalAuthMethod();
+                    } else {
+                        originalAuthMethod = "none";
+                    }
 
-            if (log.isDebugEnabled()) {
-                String role = "";
-                if (authState != null && authState.isComplete()) {
-                    role = authState.getAuthRole();
+                    originalAuthenticationProvider =
+                            getBrokerService().getAuthenticationService().getAuthenticationProvider(originalAuthMethod);
+
+                    if (originalAuthenticationProvider == null) {
+                        return CompletableFuture.failedFuture(new AuthenticationException(String.format(
+                                "Can't find AuthenticationProvider for original role"
+                                        + " using auth method [%s] is not available", originalAuthMethod)));
+                    }
+
+                    try {
+                        originalAuthState = originalAuthenticationProvider.newAuthState(
+                                AuthData.of(connect.getOriginalAuthData().getBytes()), remoteAddress, sslSession);
+                        originalAuthData = originalAuthState.getAuthDataSource();
+                        originalPrincipal = originalAuthState.getAuthRole();
+
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Authenticate original role : {}", remoteAddress, originalPrincipal);
+                        }
+                    } catch (AuthenticationException e) {
+                        return CompletableFuture.failedFuture(e);
+                    }
                 } else {
-                    role = "authentication incomplete or null";
+                    originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Authenticate original role (forwarded from proxy): {}", remoteAddress,
+                                originalPrincipal);
+                    }
                 }
-                log.debug("[{}] Authenticate role : {}", remoteAddress, role);
-            }
-
-            state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
-
-            // This will fail the check if:
-            //  1. client is coming through a proxy
-            //  2. we require to validate the original credentials
-            //  3. no credentials were passed
-            if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
-                // init authentication
-                String originalAuthMethod;
-                if (connect.hasOriginalAuthMethod()) {
-                    originalAuthMethod = connect.getOriginalAuthMethod();
-                } else {
-                    originalAuthMethod = "none";
-                }
-
-                AuthenticationProvider originalAuthenticationProvider = getBrokerService()
-                        .getAuthenticationService()
-                        .getAuthenticationProvider(originalAuthMethod);
-
-                if (originalAuthenticationProvider == null) {
-                    throw new AuthenticationException(
-                            String.format("Can't find AuthenticationProvider for original role"
-                                    + " using auth method [%s] is not available", originalAuthMethod));
-                }
-
-                originalAuthState = originalAuthenticationProvider.newAuthState(
-                        AuthData.of(connect.getOriginalAuthData().getBytes()),
-                        remoteAddress,
-                        sslSession);
-                originalAuthData = originalAuthState.getAuthDataSource();
-                originalPrincipal = originalAuthState.getAuthRole();
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Authenticate original role : {}", remoteAddress, originalPrincipal);
-                }
-            } else {
-                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Authenticate original role (forwarded from proxy): {}",
-                        remoteAddress, originalPrincipal);
-                }
-            }
+                return CompletableFuture.completedFuture(null);
+            }).exceptionally(e -> {
+                closeWithAuthException("connect", e);
+                return null;
+            });
         } catch (Exception e) {
-            service.getPulsarStats().recordConnectionCreateFail();
-            logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
-            String msg = "Unable to authenticate";
-            writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
-            close();
+            closeWithAuthException("connect", e);
         }
     }
 
@@ -986,22 +998,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 remoteAddress, authResponse.getResponse().getAuthMethodName());
         }
 
-        try {
-            AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
-            doAuthentication(clientData, authResponse.getProtocolVersion(),
-                    authResponse.hasClientVersion() ? authResponse.getClientVersion() : EMPTY);
-        } catch (AuthenticationException e) {
-            service.getPulsarStats().recordConnectionCreateFail();
-            log.warn("[{}] Authentication failed: {} ", remoteAddress, e.getMessage());
-            writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
-            close();
-        } catch (Exception e) {
-            service.getPulsarStats().recordConnectionCreateFail();
-            String msg = "Unable to handleAuthResponse";
-            log.warn("[{}] {} ", remoteAddress, msg, e);
-            writeAndFlush(Commands.newError(-1, ServerError.UnknownError, msg));
-            close();
-        }
+        AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
+        String clientVersion = authResponse.hasClientVersion() ? authResponse.getClientVersion() : EMPTY;
+        doAuthenticationAsync(clientData, authResponse.getProtocolVersion(), clientVersion)
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        closeWithAuthException("authResponse", e);
+                    }
+                });
     }
 
     @Override
@@ -3172,11 +3176,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    private void closeWithAuthException(String operation, Throwable e) {
+        Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
+        service.getPulsarStats().recordConnectionCreateFail();
+        logAuthException(remoteAddress, operation, getPrincipal(), Optional.empty(), unwrapEx);
+        ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, unwrapEx.getMessage()));
+        close();
+    }
+
     private static void logAuthException(SocketAddress remoteAddress, String operation,
                                          String principal, Optional<TopicName> topic, Throwable ex) {
         String topicString = topic.map(t -> ", topic=" + t.toString()).orElse("");
         if (ex instanceof AuthenticationException) {
-            log.info("[{}] Failed to authenticate: operation={}, principal={}{}, reason={}",
+            log.error("[{}] Failed to authenticate: operation={}, principal={}{}, reason={}",
                     remoteAddress, operation, principal, topicString, ex.getMessage());
         } else {
             log.error("[{}] Error trying to authenticate: operation={}, principal={}{}",
