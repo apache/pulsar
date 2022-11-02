@@ -21,7 +21,7 @@ tenant: "test"
 namespace: "test-namespace"
 name: "debezium-mysql-source"
 topicName: "debezium-mysql-topic"
-archive: "connectors/pulsar-io-debezium-mysql-2.4.0-SNAPSHOT.nar"
+archive: "connectors/pulsar-io-debezium-mysql-2.11.0-SNAPSHOT.nar"
 
 parallelism: 1
 
