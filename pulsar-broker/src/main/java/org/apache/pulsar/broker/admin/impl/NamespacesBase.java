@@ -1966,20 +1966,21 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetOffloadThresholdInSecondsAsync(long newThreshold) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
         CompletableFuture<Void> f = new CompletableFuture<>();
-        updatePoliciesAsync(namespaceName,
-                policies -> {
-                    if (policies.offload_policies == null) {
-                        policies.offload_policies = new OffloadPoliciesImpl();
-                    }
-                    ((OffloadPoliciesImpl) policies.offload_policies)
-                            .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
-                    policies.offload_threshold_in_seconds = newThreshold;
-                    return policies;
-                })
+
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE)
+                .thenApply(v -> validatePoliciesReadOnlyAccessAsync())
+                .thenApply(v -> updatePoliciesAsync(namespaceName,
+                        policies -> {
+                            if (policies.offload_policies == null) {
+                                policies.offload_policies = new OffloadPoliciesImpl();
+                            }
+                            ((OffloadPoliciesImpl) policies.offload_policies)
+                                    .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
+                            policies.offload_threshold_in_seconds = newThreshold;
+                            return policies;
+                        })
+                )
                 .thenAccept(v -> {
                     log.info("[{}] Successfully updated offloadThresholdInSeconds configuration: namespace={}, value={}",
                             clientAppId(), namespaceName, newThreshold);

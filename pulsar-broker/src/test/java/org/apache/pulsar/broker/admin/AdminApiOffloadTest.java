@@ -289,10 +289,10 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         policies.setManagedLedgerOffloadBucket("buck2");
 
         admin.namespaces().setOffloadThresholdInSeconds(myNamespace, 300);
-        assertEquals(300, admin.namespaces().getOffloadThresholdInSeconds(myNamespace));
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(myNamespace), 300);
 
         admin.namespaces().setOffloadPolicies(myNamespace, policies);
-        assertEquals(policies, admin.namespaces().getOffloadPolicies(myNamespace));
+        assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), policies);
 
         String topicName = testTopic + UUID.randomUUID();
         try {
@@ -326,10 +326,10 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         namespacePolicies.setManagedLedgerOffloadBucket("buck2");
 
         admin.namespaces().setOffloadThresholdInSeconds(myNamespace, 300);
-        assertEquals(300, admin.namespaces().getOffloadThresholdInSeconds(myNamespace));
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(myNamespace), 300);
 
         admin.namespaces().setOffloadPolicies(myNamespace, namespacePolicies);
-        assertEquals(namespacePolicies, admin.namespaces().getOffloadPolicies(myNamespace));
+        assertEquals(admin.namespaces().getOffloadPolicies(myNamespace),namespacePolicies);
 
         OffloadPoliciesImpl topicPolicies = new OffloadPoliciesImpl();
         topicPolicies.setManagedLedgerOffloadThresholdInBytes(500L);

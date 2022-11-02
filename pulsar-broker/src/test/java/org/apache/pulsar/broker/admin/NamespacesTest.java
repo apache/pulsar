@@ -1404,12 +1404,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         admin.namespaces().setOffloadDeleteLag(namespace, 10000, TimeUnit.SECONDS);
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
-        assertEquals(-1, admin.namespaces().getOffloadThresholdInSeconds(namespace));
+        assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
 
         // assert we get the default which indicates it will fall back to default
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
-        assertEquals(-1, admin.namespaces().getOffloadThresholdInSeconds(namespace));
+        assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
         // the ledger config should have the expected value
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
@@ -1431,8 +1431,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
         admin.namespaces().setOffloadThresholdInSeconds(namespace, 100);
-        assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
-        assertEquals(100, admin.namespaces().getOffloadThresholdInSeconds(namespace));
+        assertEquals(admin.namespaces().getOffloadThreshold(namespace), 100);
+        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), 100);
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         admin.namespaces().getOffloadPolicies(namespace);
         offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
