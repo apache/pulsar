@@ -23,7 +23,6 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
 import java.util.NavigableSet;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
