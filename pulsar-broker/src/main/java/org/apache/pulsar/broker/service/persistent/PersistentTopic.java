@@ -1160,28 +1160,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         lock.writeLock().lock();
         try {
+            if (isClosingOrDeleting) {
+                log.warn("[{}] Topic is already being closed or deleted", topic);
+                return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
+            }
             // We can proceed with the deletion if either:
             //  1. No one is connected and no subscriptions
             //  2. The topic have subscriptions but no backlogs for all subscriptions
             //     if delete_when_no_subscriptions is applied
             //  3. We want to kick out everyone and forcefully delete the topic.
             //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
-            if (isClosingOrDeleting) {
-                log.warn("[{}] Topic is already being closed or deleted", topic);
-                return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
-            } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
-            } else if (failIfHasBacklogs && hasBacklogs()) {
-                List<String> backlogSubs =
-                        subscriptions.values().stream()
-                                .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
-                                .map(PersistentSubscription::getName).toList();
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
-            } else if (!closeIfClientsConnected && currentUsageCount() != 0 && !failIfHasBacklogs) {
-                return FutureUtil.failedFuture(new TopicBusyException(
-                        "Topic has " + currentUsageCount() + " connected producers/consumers"));
+            if (!closeIfClientsConnected) {
+                if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
+                    return FutureUtil.failedFuture(
+                            new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
+                } else if (failIfHasBacklogs) {
+                    if (hasBacklogs()) {
+                        List<String> backlogSubs =
+                                subscriptions.values().stream()
+                                        .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
+                                        .map(PersistentSubscription::getName).toList();
+                        return FutureUtil.failedFuture(
+                                new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
+                    } else if (!producers.isEmpty()) {
+                        return FutureUtil.failedFuture(new TopicBusyException(
+                                "Topic has " + producers.size() + " connected producers"));
+                    }
+                } else if (currentUsageCount() > 0) {
+                    return FutureUtil.failedFuture(new TopicBusyException(
+                            "Topic has " + currentUsageCount() + " connected producers/consumers"));
+                }
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
