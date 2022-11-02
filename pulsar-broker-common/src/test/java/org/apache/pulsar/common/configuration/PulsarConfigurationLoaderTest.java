@@ -32,6 +32,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -116,6 +118,7 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("metadataStoreSessionTimeoutMillis=60");
         printWriter.println("metadataStoreOperationTimeoutSeconds=600");
         printWriter.println("metadataStoreCacheExpirySeconds=500");
+        printWriter.println("managedLedgerOffloadNamespaceThresholdInBytes=myTenant/myNamespace=1, myTenant/myNamespace2=2");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -137,6 +140,12 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        Map<String, Long> m = serviceConfig.getManagedLedgerOffloadNamespaceThresholdInBytes();
+        Map<String, Long> m1 = new HashMap<>();
+        m1.put("myTenant/myNamespace", 1L);
+        m1.put("myTenant/myNamespace2", 2L);
+        assertEquals(m, m1);
     }
 
     @Test

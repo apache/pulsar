@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -41,6 +42,8 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -1969,6 +1972,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of bytes of namespaces before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadNamespaceThresholdInBytes;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of bytes of topics before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadTopicThresholdInBytes;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of seconds of namespaces before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadNamespaceThresholdInSeconds;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of seconds of topics before triggering automatic offload to long term storage"
+    )
+    private Map<String, Long> managedLedgerOffloadTopicThresholdInSeconds;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
     )
@@ -3232,5 +3255,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
                         Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
                                    MIN_ML_CACHE_EVICTION_FREQUENCY))
                 : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
+    }
+
+    public Long getManagedLedgerOffloadThresholdInBytes(NamespaceName ns, TopicName topicName) {
+        Long threshold = managedLedgerOffloadAutoTriggerSizeThresholdBytes;
+        if (managedLedgerOffloadNamespaceThresholdInBytes != null) {
+            threshold = managedLedgerOffloadNamespaceThresholdInBytes.get(ns.toString());
+        }
+        if (managedLedgerOffloadTopicThresholdInBytes != null) {
+            threshold = managedLedgerOffloadTopicThresholdInBytes.get(topicName.getPartitionedTopicName());
+        }
+
+        return threshold;
+    }
+
+    public Long getManagedLedgerOffloadThresholdInSeconds(NamespaceName ns, TopicName topicName) {
+        Long threshold = managedLedgerOffloadThresholdInSeconds;
+        if (managedLedgerOffloadNamespaceThresholdInSeconds != null) {
+            threshold = managedLedgerOffloadNamespaceThresholdInSeconds.get(ns.toString());
+        }
+        if (managedLedgerOffloadTopicThresholdInSeconds != null) {
+            threshold = managedLedgerOffloadTopicThresholdInSeconds.get(topicName.getPartitionedTopicName());
+        }
+
+        return threshold;
     }
 }
