@@ -3224,6 +3224,11 @@ public class BrokerService implements Closeable {
     }
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
+        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
+        if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
+            return topicPolicies.get().getAutoSubscriptionCreationOverride();
+        }
+
         Optional<Policies> policies =
                 pulsar.getPulsarResources().getNamespaceResources().getPoliciesIfCached(topicName.getNamespaceObject());
         // If namespace policies have the field set, it will override the broker-level setting
