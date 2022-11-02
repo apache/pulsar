@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
-import java.util.Set;
+import java.util.NavigableSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**
@@ -53,7 +53,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     /**
      * Get a set of position of messages that have already reached the delivery time.
      */
-    Set<PositionImpl> getScheduledMessages(int maxMessages);
+    NavigableSet<PositionImpl> getScheduledMessages(int maxMessages);
 
     /**
      * Tells whether the dispatcher should pause any message deliveries, until the DelayedDeliveryTracker has
