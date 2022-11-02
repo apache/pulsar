@@ -37,6 +37,10 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
         MetadataDrivers.registerClientDriver(METADATA_STORE_SCHEME, PulsarMetadataClientDriver.class);
     }
 
+    public static void init() {
+        // cause <cinit> to be invoked
+    }
+
     @Override
     public MetadataClientDriver initialize(ClientConfiguration clientConfiguration,
                                            ScheduledExecutorService scheduledExecutorService,
