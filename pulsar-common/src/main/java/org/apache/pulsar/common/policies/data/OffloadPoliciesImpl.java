@@ -513,6 +513,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             nsThresholdStr = properties.getProperty("managedLedgerOffloadNamespaceThresholdInSeconds", null);
             topicThresholdStr = properties.getProperty("managedLedgerOffloadTopicThresholdInSeconds", null);
         } else {
+            // it should never goes here.
             throw new IllegalArgumentException();
         }
 
