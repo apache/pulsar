@@ -30,9 +30,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -65,6 +68,7 @@ public class BKCluster implements AutoCloseable {
     // BookKeeper related variables
     private final List<File> tmpDirs = new ArrayList<>();
     private final List<LifecycleComponentStack> bookieComponents = new ArrayList<>();
+    @Getter
     private final List<ServerConfiguration> bsConfs = new ArrayList<>();
 
     protected final ServerConfiguration baseConf;
@@ -231,7 +235,22 @@ public class BKCluster implements AutoCloseable {
             // and 2nd bookie's cookie validation fails
             port = clusterConf.bkPort;
         }
+        File[] cookieDir = dataDir.listFiles((file) -> file.getName().equals("current"));
+        if (cookieDir != null && cookieDir.length > 0) {
+            String existBookieAddr = parseBookieAddressFromCookie(cookieDir[0]);
+            if (existBookieAddr != null) {
+                baseConf.setAdvertisedAddress(existBookieAddr.split(":")[0]);
+                port = Integer.parseInt(existBookieAddr.split(":")[1]);
+            }
+        }
         return newServerConfiguration(port, dataDir, new File[]{dataDir});
+    }
+
+    private String parseBookieAddressFromCookie(File dir) throws IOException {
+        Cookie cookie = Cookie.readFromDirectory(dir);
+        Pattern pattern = Pattern.compile(".*bookieHost: \"(.*?)\".*", Pattern.DOTALL);
+        Matcher m = pattern.matcher(cookie.toString());
+        return m.find() ? m.group(1) : null;
     }
 
     private ClientConfiguration newClientConfiguration() {

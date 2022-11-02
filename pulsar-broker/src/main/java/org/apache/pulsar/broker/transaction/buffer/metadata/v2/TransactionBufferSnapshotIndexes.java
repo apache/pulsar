@@ -35,6 +35,6 @@ public class TransactionBufferSnapshotIndexes {
 
     private List<TransactionBufferSnapshotIndex> indexList;
 
-    private TransactionBufferSnapshotSegment snapshot;
+    private TransactionBufferSnapshotIndexesMetadata snapshot;
 
 }
