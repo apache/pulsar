@@ -47,6 +47,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -793,10 +794,21 @@ public class CmdTopics extends CmdBase {
                 "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
         private boolean getEarliestTimeInBacklog = false;
 
+        @Parameter(names = {"-ncm",
+                "--get-total-non-contiguous-deleted-messages-range"}, description = "If return the total "
+                + "non-continues deleted message range")
+        private boolean getTotalNonContiguousDeletedMessagesRange = true;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog));
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(getPreciseBacklog)
+                            .subscriptionBacklogSize(subscriptionBacklogSize)
+                            .getEarliestTimeInBacklog(getEarliestTimeInBacklog)
+                            .getTotalNonContiguousDeletedMessagesRange(getTotalNonContiguousDeletedMessagesRange)
+                            .build();
+            print(getTopics().getStats(topic, getStatsOptions));
         }
     }
 

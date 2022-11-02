@@ -78,6 +78,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -1260,10 +1261,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<? extends TopicStats> internalGetStatsAsync(boolean authoritative,
-                                                                            boolean getPreciseBacklog,
-                                                                            boolean subscriptionBacklogSize,
-                                                                            boolean getEarliestTimeInBacklog,
-                                                      boolean getTotalNonContiguousDeletedMessagesRange) {
+                                                                            GetStatsOptions getStatsOptions) {
         CompletableFuture<Void> future;
 
         if (topicName.isGlobal()) {
@@ -1275,8 +1273,7 @@ public class PersistentTopicsBase extends AdminResource {
         return future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenComposeAsync(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> topic.asyncGetStats(getPreciseBacklog, subscriptionBacklogSize,
-                        getEarliestTimeInBacklog, getTotalNonContiguousDeletedMessagesRange));
+                .thenCompose(topic -> topic.asyncGetStats(getStatsOptions));
     }
 
     protected CompletableFuture<PersistentTopicInternalStats> internalGetInternalStatsAsync(boolean authoritative,
@@ -1411,9 +1408,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,
-                                               boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                               boolean getEarliestTimeInBacklog,
-                                               boolean getTotalNonContiguousDeletedMessagesRange) {
+                                               GetStatsOptions getStatsOptions) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -1433,23 +1428,20 @@ public class PersistentTopicsBase extends AdminResource {
                 TopicName partition = topicName.getPartition(i);
                 topicStatsFutureList.add(
                     pulsar().getNamespaceService()
-                        .isServiceUnitOwnedAsync(partition)
-                        .thenCompose(owned -> {
-                            if (owned) {
-                                return getTopicReferenceAsync(partition)
-                                        .thenApply(ref ->
-                                                ref.getStats(getPreciseBacklog, subscriptionBacklogSize,
-                                                        getEarliestTimeInBacklog,
-                                                        getTotalNonContiguousDeletedMessagesRange));
-                            } else {
-                                try {
-                                    return pulsar().getAdminClient().topics().getStatsAsync(
-                                            partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
-                                            getEarliestTimeInBacklog, getTotalNonContiguousDeletedMessagesRange);
-                                } catch (PulsarServerException e) {
-                                    return FutureUtil.failedFuture(e);
+                            .isServiceUnitOwnedAsync(partition)
+                            .thenCompose(owned -> {
+                                if (owned) {
+                                    return getTopicReferenceAsync(partition)
+                                            .thenApply(ref ->
+                                                    ref.getStats(getStatsOptions));
+                                } else {
+                                    try {
+                                        return pulsar().getAdminClient().topics().getStatsAsync(
+                                                partition.toString(), getStatsOptions);
+                                    } catch (PulsarServerException e) {
+                                        return FutureUtil.failedFuture(e);
+                                    }
                                 }
-                            }
                         })
                 );
             }

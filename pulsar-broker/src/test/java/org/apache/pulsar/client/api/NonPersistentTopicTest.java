@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -495,7 +496,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats(pulsar);
-        stats = topicRef.getStats(false, false, false, true);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -513,7 +517,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Thread.sleep(timeWaitToSync);
 
         rolloverPerIntervalStats(pulsar);
-        stats = topicRef.getStats(false, false, false, true);
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         assertTrue(subStats.getMsgRateOut() > 0);
@@ -580,7 +584,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertNotNull(replicatorR3);
 
             rolloverPerIntervalStats(replicationPulasr);
-            stats = topicRef.getStats(false, false, false, true);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+            stats = topicRef.getStats(getStatsOptions);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
@@ -651,7 +658,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats(replicationPulasr);
-            stats = topicRef.getStats(false, false, false, true);
+            stats = topicRef.getStats(getStatsOptions);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             assertTrue(subStats.getMsgRateOut() > 0);
@@ -849,7 +856,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
             pulsar.getBrokerService().updateRates();
-            NonPersistentTopicStats stats = topic.getStats(false, false, false, true);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+            NonPersistentTopicStats stats = topic.getStats(getStatsOptions);
             NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
             NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
             NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");

@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
@@ -158,8 +159,10 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         pulsar.getBrokerService().updateRates();
-
-        PublisherStats producerStats = topic.getStats(false, false, false, true).getPublishers().get(0);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        PublisherStats producerStats = topic.getStats(getStatsOptions).getPublishers().get(0);
 
         assertTrue(producerStats.getChunkedMessageRate() > 0);
 

@@ -119,6 +119,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -474,8 +475,11 @@ public class BrokerService implements Closeable {
 
         Map<String, TopicStatsImpl> topicStatsMap = new HashMap<>();
         topicMap.forEach((name, topic) -> {
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
             topicStatsMap.put(name,
-                    topic.getStats(false, false, false, true));
+                    topic.getStats(getStatsOptions));
         });
         return topicStatsMap;
     }
@@ -2342,12 +2346,9 @@ public class BrokerService implements Closeable {
         return producerNameGenerator.getNextId();
     }
 
-    public Map<String, TopicStatsImpl> getTopicStats(boolean getTotalNonContiguousDeletedMessagesRange) {
+    public Map<String, TopicStatsImpl> getTopicStats(GetStatsOptions getStatsOptions) {
         HashMap<String, TopicStatsImpl> stats = new HashMap<>();
-
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false,
-                false, false, getTotalNonContiguousDeletedMessagesRange)));
-
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(getStatsOptions)));
         return stats;
     }
 

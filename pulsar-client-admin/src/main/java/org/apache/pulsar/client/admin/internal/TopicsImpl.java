@@ -590,15 +590,10 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public TopicStats getStats(String topic, GetStatsOptions getStatsOptions) throws PulsarAdminException {
-        boolean getPreciseBacklog = getStatsOptions.isGetPreciseBacklog();
-        boolean subscriptionBacklogSize = getStatsOptions.isSubscriptionBacklogSize();
-        boolean getEarliestTimeInBacklog = getStatsOptions.isGetEarliestTimeInBacklog();
-        boolean getTotalNonContiguousDeletedMessagesRange =
-                getStatsOptions.isGetTotalNonContiguousDeletedMessagesRange();
-        return sync(() -> getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
-                getTotalNonContiguousDeletedMessagesRange));
+        return sync(() -> getStatsAsync(topic, getStatsOptions));
     }
 
+    @Deprecated
     @Override
     public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
                                                        boolean subscriptionBacklogSize,
@@ -644,6 +639,13 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<TopicStats> getStatsAsync(String topic, GetStatsOptions getStatsOptions) {
+        return getStatsAsync(topic, getStatsOptions.isGetPreciseBacklog(), getStatsOptions.isSubscriptionBacklogSize(),
+                getStatsOptions.isGetEarliestTimeInBacklog(),
+                getStatsOptions.isGetTotalNonContiguousDeletedMessagesRange());
     }
 
     @Override

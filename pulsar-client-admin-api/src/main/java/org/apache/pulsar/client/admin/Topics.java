@@ -1182,8 +1182,14 @@ public interface Topics {
                                                 boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog,
                                                 boolean getTotalNonContiguousDeletedMessagesRange);
 
+    CompletableFuture<TopicStats> getStatsAsync(String topic, GetStatsOptions getStatsOptions);
+
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
-        return getStatsAsync(topic, false, false, false, true);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+
+        return getStatsAsync(topic, getStatsOptions);
     }
 
     /**

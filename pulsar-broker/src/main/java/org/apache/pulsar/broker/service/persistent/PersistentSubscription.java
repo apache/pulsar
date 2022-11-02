@@ -74,6 +74,7 @@ import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -1065,6 +1066,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
+    public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
+        return getStats(getStatsOptions.isGetPreciseBacklog(), getStatsOptions.isSubscriptionBacklogSize(),
+                getStatsOptions.isGetEarliestTimeInBacklog(),
+                getStatsOptions.isGetTotalNonContiguousDeletedMessagesRange());
+    }
+    @Deprecated
     public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                                           boolean getEarliestTimeInBacklog,
                                           boolean getTotalNonContiguousDeletedMessagesRange) {

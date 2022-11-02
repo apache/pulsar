@@ -113,6 +113,7 @@ import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -1107,8 +1108,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         if (sub != null) {
             // preserve accumulative stats form removed subscription
-            SubscriptionStatsImpl stats = sub.getStats(false, false,
-                    false, true);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+            SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
             bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
             msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
         }
@@ -2025,12 +2028,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                   boolean getEarliestTimeInBacklog,
-                                   boolean getTotalNonContiguousDeletedMessagesRange) {
+    public TopicStatsImpl getStats(GetStatsOptions getStatsOptions) {
         try {
-            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
-                    getTotalNonContiguousDeletedMessagesRange).get();
+            return asyncGetStats(getStatsOptions).get();
         } catch (InterruptedException | ExecutionException e) {
             log.error("[{}] Fail to get stats", topic, e);
             return null;
@@ -2038,9 +2038,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                                           boolean getEarliestTimeInBacklog,
-                                                           boolean getTotalNonContiguousDeletedMessagesRange) {
+    public CompletableFuture<TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions) {
 
         CompletableFuture<TopicStatsImpl> statsFuture = new CompletableFuture<>();
         TopicStatsImpl stats = new TopicStatsImpl();
@@ -2074,8 +2072,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =
-                    subscription.getStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
-                            getTotalNonContiguousDeletedMessagesRange);
+                    subscription.getStats(getStatsOptions);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -2127,7 +2124,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return compactionRecord;
         });
 
-        if (getEarliestTimeInBacklog && stats.backlogSize != 0) {
+        if (getStatsOptions.isGetEarliestTimeInBacklog() && stats.backlogSize != 0) {
             ledger.getEarliestMessagePublishTimeInBacklog().whenComplete((earliestTime, e) -> {
                 if (e != null) {
                     log.error("[{}] Failed to get earliest message publish time in backlog", topic, e);

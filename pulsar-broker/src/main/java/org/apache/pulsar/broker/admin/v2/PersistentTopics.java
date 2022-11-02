@@ -50,6 +50,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -1217,8 +1218,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("getTotalNonContiguousDeletedMessagesRange") @DefaultValue("true")
             boolean getTotalNonContiguousDeletedMessagesRange) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
-                getTotalNonContiguousDeletedMessagesRange)
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(getPreciseBacklog)
+                        .subscriptionBacklogSize(subscriptionBacklogSize)
+                        .getEarliestTimeInBacklog(getEarliestTimeInBacklog)
+                        .getTotalNonContiguousDeletedMessagesRange(getTotalNonContiguousDeletedMessagesRange).build();
+        internalGetStatsAsync(authoritative, getStatsOptions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -1324,8 +1329,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             boolean getTotalNonContiguousDeletedMessagesRange) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize, getEarliestTimeInBacklog, getTotalNonContiguousDeletedMessagesRange);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(getPreciseBacklog)
+                            .subscriptionBacklogSize(subscriptionBacklogSize)
+                            .getEarliestTimeInBacklog(getEarliestTimeInBacklog)
+                            .getTotalNonContiguousDeletedMessagesRange(getTotalNonContiguousDeletedMessagesRange)
+                            .build();
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getStatsOptions);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

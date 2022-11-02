@@ -103,6 +103,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCal
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -203,7 +204,10 @@ public class TransactionTest extends TransactionTestBase {
         Optional<Topic> optional = pulsarService.getBrokerService().getTopic(topic, false).get();
         assertTrue(optional.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
-        TopicStatsImpl stats = persistentTopic.getStats(false, false, false, true);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        TopicStatsImpl stats = persistentTopic.getStats(getStatsOptions);
 
         assertEquals(stats.committedTxnCount, 1);
         assertEquals(stats.abortedTxnCount, 1);
