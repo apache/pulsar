@@ -22,7 +22,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -95,7 +94,8 @@ public class ConcurrentBitmapSortedLongPairSet {
     }
 
 
-    public <T> Set<T> items(int numberOfItems, LongPairSet.LongPairFunction<T> longPairConverter) {
+    public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,
+                                                           LongPairSet.LongPairFunction<T> longPairConverter) {
         NavigableSet<T> items = new TreeSet<>();
         lock.readLock().lock();
         try {
