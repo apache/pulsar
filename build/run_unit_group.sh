@@ -81,6 +81,10 @@ function test_group_broker_client_impl() {
   mvn_test -pl pulsar-broker -Dgroups='broker-impl'
 }
 
+function test_group_client() {
+  mvn_test -pl pulsar-client
+}
+
 # prints summaries of failed tests to console
 # by using the targer/surefire-reports files
 # works only when testForkCount > 1 since that is when surefire will create reports for individual test classes
@@ -143,13 +147,11 @@ function test_group_other() {
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
 
-  mvn_test -pl pulsar-client -Dinclude='**/PrimitiveSchemaTest.java'
-
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
-    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy|pulsar-io|pulsar-sql' | sort | uniq | \
+    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy|pulsar-io|pulsar-sql|pulsar-client' | sort | uniq | \
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
