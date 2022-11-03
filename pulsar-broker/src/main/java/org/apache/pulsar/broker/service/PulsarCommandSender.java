@@ -91,7 +91,7 @@ public interface PulsarCommandSender {
 
     void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction);
 
-    void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
+    void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message, int txnAction);
 
     void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics);
 

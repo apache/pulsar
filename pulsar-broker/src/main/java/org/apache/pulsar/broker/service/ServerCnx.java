@@ -2379,7 +2379,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.END_TXN.name(), requestId);
                         commandSender.sendEndTxnErrorResponse(requestId, txnID,
-                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage(), txnAction);
 
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
