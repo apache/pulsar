@@ -223,7 +223,7 @@ public class SensorReading {
 Create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like this:
 
 ```java
-Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+Producer<SensorReading> producer = client.newProducer(AvroSchema.of(SensorReading.class))
         .topic("sensor-readings")
         .create();
 ```
