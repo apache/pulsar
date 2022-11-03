@@ -73,7 +73,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                     @Override
                     public void completed(Response response) {
                         if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
+                            future.completeExceptionally(getApiException(response));
                         } else {
                             List<WorkerFunctionInstanceStats> metricsList =
                                     response.readEntity(new GenericType<List<WorkerFunctionInstanceStats>>() {});
@@ -188,7 +188,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                     @Override
                     public void completed(Response response) {
                         if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
+                            future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<WorkerInfo>(){}));
                         }
