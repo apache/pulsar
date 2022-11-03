@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
@@ -98,9 +97,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                             handler.start();
                         }
                     } else {
-                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException("The broker doesn't " +
-                                "enable the transaction coordinator, " +
-                                "or the transaction coordinator has not initialized"));
+                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                                "The broker doesn't enable the transaction coordinator, "
+                                        + "or the transaction coordinator has not initialized"));
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
