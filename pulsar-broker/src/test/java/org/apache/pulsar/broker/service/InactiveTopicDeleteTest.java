@@ -328,7 +328,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
             producer.send("Pulsar".getBytes());
         }
 
-        consumer.close();
         producer.close();
 
         Thread.sleep(2000);
@@ -338,6 +337,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.topics().skipAllMessages(topic, "sub");
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic)));
+        consumer.close();
     }
 
     @Test
