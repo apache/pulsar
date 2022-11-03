@@ -113,12 +113,14 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             // in a separate thread, and we want to prevent more reads
             sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry),
+                        readType == ReadType.Normal || ctx.isLast())) {
                     readMoreEntries();
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry),
+                    readType == ReadType.Normal || ctx.isLast())) {
                 readMoreEntriesAsync();
             }
         }
