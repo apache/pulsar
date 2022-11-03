@@ -338,14 +338,11 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message, int txnAction) {
+    public void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message) {
         BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(), error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
-        if (this.interceptor != null) {
-            this.interceptor.txnEnded(txnID.toString(), txnAction);
-        }
     }
 
     @Override
