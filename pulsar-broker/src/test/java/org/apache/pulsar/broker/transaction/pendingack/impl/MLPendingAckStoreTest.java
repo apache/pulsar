@@ -256,8 +256,8 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         Assert.assertTrue(mlPendingAckStoreForRead.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);
 
         // cleanup.
-        closePendingAckStoreWithRetry(mlPendingAckStoreForWrite, 3);
-        closePendingAckStoreWithRetry(mlPendingAckStoreForRead, 3);
+        closePendingAckStoreWithRetry(mlPendingAckStoreForWrite);
+        closePendingAckStoreWithRetry(mlPendingAckStoreForRead);
     }
 
     /**
@@ -265,19 +265,15 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
      * Because when the cursor close and cursor switch ledger are concurrent executing, the bad version exception is
      * thrown.
      */
-    private void closePendingAckStoreWithRetry(MLPendingAckStore pendingAckStore, int retryTimes){
-        while (retryTimes > 0){
-            retryTimes--;
-            boolean closeSuccessful = true;
+    private void closePendingAckStoreWithRetry(MLPendingAckStore pendingAckStore){
+        Awaitility.await().until(() -> {
             try {
                 pendingAckStore.closeAsync().get();
+                return true;
             } catch (Exception ex){
-                closeSuccessful = false;
+                return false;
             }
-            if (closeSuccessful){
-                break;
-            }
-        }
+        });
     }
 
     /**
