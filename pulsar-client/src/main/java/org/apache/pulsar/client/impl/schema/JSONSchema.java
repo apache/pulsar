@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -71,11 +71,12 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
-            backwardsCompatibleSchemaInfo = new SchemaInfoImpl()
-                    .setName("")
-                    .setProperties(schemaInfo.getProperties())
-                    .setType(SchemaType.JSON)
-                    .setSchema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema));
+            backwardsCompatibleSchemaInfo = SchemaInfoImpl.builder()
+                    .name("")
+                    .properties(schemaInfo.getProperties())
+                    .type(SchemaType.JSON)
+                    .schema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema))
+                    .build();
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
         }

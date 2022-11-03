@@ -30,8 +30,8 @@ Prior to version 2.0, *all* Pulsar topics had the following form:
 
 Two important changes have been made in Pulsar 2.0:
 
-* There is no longer a [cluster component](#no-cluster)
-* Properties have been [renamed to tenants](#tenants)
+* There is no longer a [cluster component](#no-cluster-component)
+* Properties have been [renamed to tenants](#properties-versus-tenants)
 * You can use a [flexible](#flexible-topic-naming) naming system to shorten many topic names
 * `/` is not allowed in topic name
 

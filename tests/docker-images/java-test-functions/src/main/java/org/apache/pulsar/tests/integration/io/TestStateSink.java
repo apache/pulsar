@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import java.nio.ByteBuffer;
+import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
-
-import java.nio.ByteBuffer;
-import java.util.Map;
 
 public class TestStateSink implements Sink<String> {
 

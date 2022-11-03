@@ -22,6 +22,8 @@ on:
   pull_request:
     branches:
       - master
+  schedule:
+    - cron: '0 12 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -44,7 +46,7 @@ jobs:
       changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Detect changed files
         id:   changes
@@ -56,7 +58,7 @@ jobs:
       - name: Check changed files
         id: check_changes
         run: |
-          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+          echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
 
 
       - name: Check if the PR has been approved for testing
@@ -75,7 +77,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -88,7 +90,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -98,7 +100,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -106,9 +108,12 @@ jobs:
       - name: Check source code license headers
         run: mvn -B -T 8 -ntp initialize apache-rat:check license:check
 
+      - name: Check source code style
+        run: mvn -B -T 8 -ntp initialize checkstyle:check
+
       - name: Build core-modules
         run: |
-          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true
+          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
 
       - name: Check binary licenses
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
@@ -165,7 +170,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -178,7 +183,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -188,7 +193,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || '17' }}
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || '17' }}
@@ -216,6 +221,13 @@ jobs:
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
+
+      - name: Upload to Codecov
+        if: ${{ github.repository == 'apache/pulsar' }}
+        uses: codecov/codecov-action@v3
+        continue-on-error: true
+        with:
+          flags: unittests
 
       - name: Publish Test Report
         uses: apache/pulsar-test-infra/action-junit-report@master
@@ -259,7 +271,7 @@ jobs:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -272,7 +284,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -282,7 +294,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -357,7 +369,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -370,7 +382,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -380,7 +392,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -403,7 +415,7 @@ jobs:
           ${{ matrix.setup }}
 
       - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         if: ${{ matrix.runtime_jdk }}
         with:
           distribution: 'temurin'
@@ -464,7 +476,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -486,7 +498,7 @@ jobs:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -502,7 +514,7 @@ jobs:
         uses: ./.github/actions/clean-disk
 
       - name: Cache local Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -513,7 +525,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -533,6 +545,10 @@ jobs:
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,tests/docker-images/latest-version-image install \
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
+
+      # check full build artifacts licenses
+      - name: Check binary licenses
+        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
 
       - name: Clean up disk space
         run: |
@@ -608,7 +624,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -621,7 +637,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -632,7 +648,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -719,7 +735,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -732,7 +748,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -743,7 +759,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -821,7 +837,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -841,13 +857,13 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -857,7 +873,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-all-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -873,7 +889,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.need_owasp == 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -886,7 +902,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -895,7 +911,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
       - name: Set up JDK ${{ matrix.jdk || '17' }}
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || '17' }}
@@ -962,7 +978,7 @@ jobs:
 
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}

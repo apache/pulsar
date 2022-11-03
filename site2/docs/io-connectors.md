@@ -188,7 +188,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-clickhouse)
+* [Example](io-jdbc-sink.md#example-of-clickhouse)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/clickhouse/src/main/java/org/apache/pulsar/io/jdbc/ClickHouseJdbcAutoSchemaSink.java)
 
@@ -196,7 +196,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-mariadb)
+* [Example](io-jdbc-sink.md#example-of-mariadb)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/mariadb/src/main/java/org/apache/pulsar/io/jdbc/MariadbJdbcAutoSchemaSink.java)
 
@@ -204,7 +204,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
 
-* [Example](io-jdbc-sink.md#example-for-openmldb)
+* [Example](io-jdbc-sink.md#example-of-openmldb)
 
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/openmldb/src/main/java/org/apache/pulsar/io/jdbc/OpenMLDBJdbcAutoSchemaSink.java)
 
@@ -212,7 +212,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-postgresql)
+* [Example](io-jdbc-sink.md#example-of-postgresql)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/postgres/src/main/java/org/apache/pulsar/io/jdbc/PostgresJdbcAutoSchemaSink.java)
   
@@ -220,7 +220,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-sqlite)
+* [Example](io-jdbc-sink.md#example-of-sqlite)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/sqlite/src/main/java/org/apache/pulsar/io/jdbc/SqliteJdbcAutoSchemaSink.java)
   

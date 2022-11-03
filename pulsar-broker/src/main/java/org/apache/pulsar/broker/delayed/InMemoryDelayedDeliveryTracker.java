@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
-import java.util.Set;
+import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 @Slf4j
 public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
 
-    private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
+    protected final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
 
     private final PersistentDispatcherMultipleConsumers dispatcher;
 
@@ -41,7 +41,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     private final Timer timer;
 
     // Current timeout or null if not set
-    private Timeout timeout;
+    protected Timeout timeout;
 
     // Timestamp at which the timeout is currently set
     private long currentTimeoutTarget;
@@ -146,9 +146,9 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public Set<PositionImpl> getScheduledMessages(int maxMessages) {
+    public NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
-        Set<PositionImpl> positions = new TreeSet<>();
+        NavigableSet<PositionImpl> positions = new TreeSet<>();
         long cutoffTime = getCutoffTime();
 
         while (n > 0 && !priorityQueue.isEmpty()) {
@@ -265,7 +265,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         if (log.isDebugEnabled()) {
             log.debug("[{}] Timer triggered", dispatcher.getName());
         }
-        if (timeout.isCancelled()) {
+        if (timeout == null || timeout.isCancelled()) {
             return;
         }
 
@@ -279,10 +279,11 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public void close() {
-        priorityQueue.close();
         if (timeout != null) {
             timeout.cancel();
+            timeout = null;
         }
+        priorityQueue.close();
     }
 
     @Override

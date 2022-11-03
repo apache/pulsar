@@ -92,7 +92,7 @@ properties:
 ```
 
 You can enable the following security settings on function workers.
-- [Enable TLS encryption](#enable-tls-transport-encryption)
+- [Enable TLS encryption](#enable-tls-encryption)
 - [Enable authentication providers](#enable-authentication-providers)
 - [Enable authorization providers](#enable-authorization-providers)
 - [Enable end-to-end encryption](functions-deploy-cluster-encryption.md)
@@ -197,7 +197,7 @@ Before starting function workers, make sure [function runtime](functions-runtime
 
 :::
 
-* You can start a function worker in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+* You can start a function worker in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
   ```bash
   bin/pulsar-daemon start functions-worker

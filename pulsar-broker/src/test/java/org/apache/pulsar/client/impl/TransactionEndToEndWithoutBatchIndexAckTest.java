@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  * End to end transaction test.
  */
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
     @BeforeClass
