@@ -212,6 +212,16 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
+    public void testDeleteNamespaceAfterUsedTransaction() throws Exception {
+        String topicName = TopicName.get(NAMESPACE1 + "/" + "testDeleteNamespaceAfterUsedTransaction").toString();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        admin.namespaces().deleteNamespace(NAMESPACE1, true);
+    }
+
+    @Test
     public void testCreateTransactionSystemTopic() throws Exception {
         String subName = "test";
         String topicName = TopicName.get(NAMESPACE1 + "/" + "testCreateTransactionSystemTopic").toString();
@@ -232,7 +242,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // getList does not include transaction system topic
         List<String> list = admin.topics().getList(NAMESPACE1);
-        assertEquals(list.size(), 1);
+        assertFalse(list.isEmpty());
         list.forEach(topic -> assertFalse(topic.contains(PENDING_ACK_STORE_SUFFIX)));
 
         try {
