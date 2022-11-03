@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -115,4 +117,11 @@ public interface ProducerStats extends Serializable {
      * @return current pending send-message queue size of the producer
      */
     int getPendingQueueSize();
+
+    /**
+     * @return stats for each partition if topic is partitioned topic
+     */
+    default Map<String, ProducerStats> getPartitionStats() {
+        return Collections.emptyMap();
+    }
 }
