@@ -643,7 +643,11 @@ public abstract class AdminResource extends PulsarWebResource {
                 })
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    if (ex instanceof RestException) {
+                        asyncResponse.resume(ex);
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
                     return null;
                 });
     }
