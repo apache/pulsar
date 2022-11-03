@@ -50,7 +50,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class SourcesBase extends AdminResource {
 
     Sources<? extends WorkerService> sources() {
-        return pulsar().getWorkerService().getSources();
+        return validateAndGetWorkerService().getSources();
     }
 
     @POST
