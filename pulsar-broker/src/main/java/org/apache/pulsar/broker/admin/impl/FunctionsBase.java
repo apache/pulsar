@@ -55,7 +55,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class FunctionsBase extends AdminResource {
 
     Functions<? extends WorkerService> functions() {
-        return pulsar().getWorkerService().getFunctions();
+        return validateAndGetWorkerService().getFunctions();
     }
 
     @POST
