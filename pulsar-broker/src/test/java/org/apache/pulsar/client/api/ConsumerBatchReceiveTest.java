@@ -651,8 +651,8 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testBatchReceiveTheSameTopicMessages() throws Exception {
         final String topic = "persistent://my-property/my-ns/testBatchReceiveTheSameTopicMessages" + UUID.randomUUID();
-        final String failoverSubName = "failover-sub";
-        final String shareSubName = "share-sub";
+        final String singleTopicBatchReceiveSub = "singleTopicBatchReceiveSub-sub";
+        final String multiTopicBatchReceiveSub = "multiTopicBatchReceiveSub-sub";
         admin.topics().createPartitionedTopic(topic, 5);
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -661,19 +661,17 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 .create();
 
         @Cleanup
-        Consumer<String> failoverConsumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> singleTopicBatchReceiveConsumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
-                .batchReceivePolicy(BatchReceivePolicy.DEFAULT_POLICY)
-                .subscriptionName(failoverSubName)
-                .subscriptionType(SubscriptionType.Failover)
+                .batchReceivePolicy(BatchReceivePolicy.DEFAULT_MULTI_TOPICS_DISABLE_POLICY)
+                .subscriptionName(singleTopicBatchReceiveSub)
                 .subscribe();
 
         @Cleanup
-        Consumer<String> shareConsumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> multiTopicBatchReceiveConsumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .batchReceivePolicy(BatchReceivePolicy.DEFAULT_POLICY)
-                .subscriptionName(shareSubName)
-                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(multiTopicBatchReceiveSub)
                 .subscribe();
 
         // prepare messages
@@ -682,13 +680,13 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
             producer.sendAsync(i + "");
         }
 
-        // test failover sub
+        // test receive single topic messages
         // if this flag become true, it means the batch receive multi-number messages
         boolean multiNumberFlag = false;
 
         // if number = 0, it means all the messages has been consumed
         while (number != 0) {
-            Messages<String> messages = failoverConsumer.batchReceive();
+            Messages<String> messages = singleTopicBatchReceiveConsumer.batchReceive();
             if (messages.size() > 0) {
                 if (messages.size() > 1) {
                     multiNumberFlag = true;
@@ -706,9 +704,9 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         }
         Assert.assertTrue(multiNumberFlag);
 
-        // tes share sub
+        // test default batch policy can receive the multi topics messages
         while (true) {
-            Messages<String> messages = shareConsumer.batchReceive();
+            Messages<String> messages = multiTopicBatchReceiveConsumer.batchReceive();
             if (messages.size() > 0) {
                 String topicName = null;
                 for (Message<String> message : messages) {
