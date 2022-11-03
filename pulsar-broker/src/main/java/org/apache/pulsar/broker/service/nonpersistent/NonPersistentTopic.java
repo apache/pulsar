@@ -244,8 +244,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
-        return  CompletableFuture.completedFuture(null);
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely() {
+        return TRANSACTION_DISABLED;
     }
 
     @Override

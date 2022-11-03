@@ -200,34 +200,31 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxnEnabled) {
-        if (!isTxnEnabled) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            transactionBufferFuture.thenRun(() -> {
-                if (checkIfNoSnapshot()) {
-                    snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
-                        if (changeToReadyStateFromNoSnapshot()) {
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                        }
-                        completableFuture.complete(null);
-                    }).exceptionally(exception -> {
-                        log.error("Topic {} failed to take snapshot", this.topic.getName());
-                        completableFuture.completeExceptionally(exception);
-                        return null;
-                    });
-                } else {
+    public CompletableFuture<Void> checkIfTBRecoverCompletely() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        transactionBufferFuture.thenRun(() -> {
+            if (checkIfNoSnapshot()) {
+                snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
+                    if (changeToReadyStateFromNoSnapshot()) {
+                        timer.newTimeout(TopicTransactionBuffer.this,
+                                takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                    }
                     completableFuture.complete(null);
-                }
-            }).exceptionally(exception -> {
-                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception.getCause());
-                completableFuture.completeExceptionally(exception.getCause());
-                return null;
-            });
-            return completableFuture;
-        }
+                }).exceptionally(exception -> {
+                    log.error("Topic {} failed to take snapshot", this.topic.getName());
+                    completableFuture.completeExceptionally(exception);
+                    return null;
+                });
+            } else {
+                completableFuture.complete(null);
+            }
+        }).exceptionally(exception -> {
+            log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception.getCause());
+            completableFuture.completeExceptionally(exception.getCause());
+            return null;
+        });
+        return completableFuture;
+
     }
 
     @Override

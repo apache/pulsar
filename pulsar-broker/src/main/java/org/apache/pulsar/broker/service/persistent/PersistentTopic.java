@@ -226,6 +226,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Getter
     protected final TransactionBuffer transactionBuffer;
 
+    // helper field for avoid method call if transaction not enabled.
+    private final boolean transactionEnabled;
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     private volatile long lastDataMessagePublishedTimestamp = 0;
 
@@ -299,12 +301,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName)) {
+            this.transactionEnabled = false;
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
+            this.transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
         } else {
+            this.transactionEnabled = true;
             this.transactionBuffer = new TransactionBufferDisable();
         }
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+
         if (ledger instanceof ShadowManagedLedgerImpl) {
             shadowSourceTopic = ((ShadowManagedLedgerImpl) ledger).getShadowSource();
         } else {
@@ -360,37 +365,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }));
     }
 
-    // for testing purposes
-    @VisibleForTesting
-    PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger,
-                    MessageDeduplication messageDeduplication) {
-        super(topic, brokerService);
-        this.ledger = ledger;
-        this.messageDeduplication = messageDeduplication;
-        this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
-        this.backloggedCursorThresholdEntries =
-                brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-
-        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this);
-        } else {
-            this.transactionBuffer = new TransactionBufferDisable();
-        }
-        shadowSourceTopic = null;
-    }
 
     private void initializeDispatchRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiterLock) {
@@ -543,8 +517,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
         }
 
-        // in order to sync the max position when cursor read entries
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        if (transactionEnabled) {
+            // in order to sync the max position when cursor read entries
+            transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        }
+
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         decrementPendingWriteOpsAndCheck();
@@ -612,8 +589,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
-        return getTransactionBuffer().checkIfTBRecoverCompletely(isTxnEnabled);
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely() {
+        if (!transactionEnabled) {
+            return TRANSACTION_DISABLED;
+        }
+
+        return getTransactionBuffer().checkIfTBRecoverCompletely();
     }
 
     @Override
@@ -1321,7 +1302,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        futures.add(transactionBuffer.closeAsync());
+        if (transactionEnabled) {
+            futures.add(transactionBuffer.closeAsync());
+        }
+
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
@@ -2071,10 +2055,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
         stats.publishRateLimitedTimes = publishRateLimitedTimes;
-        TransactionBuffer txnBuffer = getTransactionBuffer();
-        stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
-        stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
-        stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
+
+        if (transactionEnabled) {
+            TransactionBuffer txnBuffer = getTransactionBuffer();
+            stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
+            stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
+            stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
+        }
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =

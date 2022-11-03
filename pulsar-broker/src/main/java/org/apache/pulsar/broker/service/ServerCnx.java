@@ -1357,7 +1357,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     });
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
-                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                        CompletableFuture<Void> checkTxnRecoverFuture;
+                        if (isTxnEnabled) {
+                            checkTxnRecoverFuture = topic.checkIfTransactionBufferRecoverCompletely();
+                        } else {
+                            checkTxnRecoverFuture = Topic.TRANSACTION_DISABLED;
+                        }
+
+                        checkTxnRecoverFuture.thenAccept(__ -> {
                             CompletableFuture<Subscription> createInitSubFuture;
                             if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                     && topic.isPersistent()
