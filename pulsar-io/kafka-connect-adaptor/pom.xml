@@ -36,18 +36,7 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-common</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -82,11 +71,28 @@
       <version>${kafka-client.version}</version>
     </dependency>
 
+    <!-- pulsar-client is only needed for MessageId conversion (for seeking), commons-lang3 and Netty buffer manipulation -->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
-      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-buffer</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
     </dependency>
 
     <dependency>
@@ -104,6 +110,9 @@
         </exclusion>
       </exclusions>
     </dependency>
+
+
+
 
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -132,6 +141,13 @@
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
