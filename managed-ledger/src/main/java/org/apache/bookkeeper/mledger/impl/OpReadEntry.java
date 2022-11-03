@@ -67,8 +67,8 @@ class OpReadEntry implements ReadEntriesCallback {
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
-        for (int i = 0; i < entriesCount; i++) {
-            entriesSize += returnedEntries.get(i).getLength();
+        for (Entry returnedEntry : returnedEntries) {
+            entriesSize += returnedEntry.getLength();
         }
         cursor.updateReadStats(entriesCount, entriesSize);
 

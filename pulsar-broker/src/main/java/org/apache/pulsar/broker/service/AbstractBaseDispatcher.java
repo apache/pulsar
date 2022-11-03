@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 
@@ -56,8 +57,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private final LongAdder filterRejectedMsgs = new LongAdder();
     private final LongAdder filterRescheduledMsgs = new LongAdder();
 
+    private final boolean hasCompactorSubscriptionAttached;
+
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
+        this.hasCompactorSubscriptionAttached = subscription instanceof CompactorSubscription;
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
     }
@@ -86,7 +90,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     public int filterEntriesForConsumer(List<? extends Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
-        return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+        return filterEntriesForConsumer(null, 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
                 isReplayRead, consumer);
     }
 
@@ -99,7 +103,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
      * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
-    public int filterEntriesForConsumer(Optional<MessageMetadata[]> optMetadataArray, int startOffset,
+    public int filterEntriesForConsumer(MessageMetadata[] metadataArray, int startOffset,
              List<? extends Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
              EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
@@ -109,8 +113,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         int filteredMessageCount = 0;
         int filteredEntryCount = 0;
         long filteredBytesCount = 0;
+
         List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
         List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
+        List<Position> needIndividualAckMessagePos = new ArrayList<>();
+
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
@@ -118,56 +125,68 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;
-            final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
-                    .orElseGet(() -> (entry instanceof EntryAndMetadata)
-                            ? ((EntryAndMetadata) entry).getMetadata()
-                            : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
-                    );
+
+            final MessageMetadata msgMetadata;
+            if (metadataArray != null) {
+                msgMetadata = metadataArray[metadataIndex];
+            } else if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                msgMetadata = entryAndMetadata.getMetadata();
+            } else {
+                msgMetadata = Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1);
+            }
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+
             if (hasFilter) {
                 this.filterProcessedMsgs.add(entryMsgCnt);
+
+                EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
+                if (filterResult == EntryFilter.FilterResult.REJECT) {
+                    entriesToFiltered.add(entry.getPosition());
+                    entries.set(i, null);
+                    entry.release();
+
+                    // FilterResult will be always `ACCEPTED` when there is No Filter
+                    // dont need to judge whether `hasFilter` is true or not.
+                    this.filterRejectedMsgs.add(entryMsgCnt);
+                    filteredEntryCount++;
+                    filteredMessageCount += entryMsgCnt;
+                    filteredBytesCount += metadataAndPayload.readableBytes();
+
+                    continue;
+                } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                    entriesToRedeliver.add((PositionImpl) entry.getPosition());
+                    entries.set(i, null);
+                    entry.release();
+
+                    // FilterResult will be always `ACCEPTED` when there is No Filter
+                    // dont need to judge whether `hasFilter` is true or not.
+                    this.filterRescheduledMsgs.add(entryMsgCnt);
+                    filteredEntryCount++;
+                    filteredMessageCount += entryMsgCnt;
+                    filteredBytesCount += metadataAndPayload.readableBytes();
+
+                    continue;
+                }
             }
 
-            EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
-            if (filterResult == EntryFilter.FilterResult.REJECT) {
-                entriesToFiltered.add(entry.getPosition());
-                entries.set(i, null);
-                // FilterResult will be always `ACCEPTED` when there is No Filter
-                // dont need to judge whether `hasFilter` is true or not.
-                this.filterRejectedMsgs.add(entryMsgCnt);
-                filteredEntryCount++;
-                filteredMessageCount += entryMsgCnt;
-                filteredBytesCount += metadataAndPayload.readableBytes();
-                entry.release();
-                continue;
-            } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
-                entriesToRedeliver.add((PositionImpl) entry.getPosition());
-                entries.set(i, null);
-                // FilterResult will be always `ACCEPTED` when there is No Filter
-                // dont need to judge whether `hasFilter` is true or not.
-                this.filterRescheduledMsgs.add(entryMsgCnt);
-                filteredEntryCount++;
-                filteredMessageCount += entryMsgCnt;
-                filteredBytesCount += metadataAndPayload.readableBytes();
-                entry.release();
-                continue;
-            }
             if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
                     // so this marker is useless for this subscription
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                    needIndividualAckMessagePos.add(entry.getPosition());
                     entries.set(i, null);
                     entry.release();
+
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
                                 (PositionImpl) entry.getPosition())) {
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                    needIndividualAckMessagePos.add(entry.getPosition());
                     entries.set(i, null);
                     entry.release();
+
                     continue;
                 }
             }
@@ -180,14 +199,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
                 }
 
+                needIndividualAckMessagePos.add(entry.getPosition());
                 entries.set(i, null);
                 entry.release();
-                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
+
                 continue;
             } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
                 entry.release();
+
                 continue;
             }
 
@@ -201,6 +222,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             totalBytes += metadataAndPayload.readableBytes();
             totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
             batchSizes.setBatchSize(i, batchSize);
+
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
                 ackSet = cursor
@@ -219,17 +241,26 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
             }
         }
-        if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
-            subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
+
+        if (!hasCompactorSubscriptionAttached && !needIndividualAckMessagePos.isEmpty()) {
+            subscription.acknowledgeMessage(needIndividualAckMessagePos,
+                    AckType.Individual,
+                    Collections.emptyMap());
+        }
+
+        if (entriesToFiltered != null && !entriesToFiltered.isEmpty()) {
+            subscription.acknowledgeMessage(entriesToFiltered,
+                    AckType.Individual,
                     Collections.emptyMap());
 
             int filtered = entriesToFiltered.size();
             Topic topic = subscription.getTopic();
-            if (topic instanceof AbstractTopic) {
-                ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
+            if (topic instanceof AbstractTopic abstractTopic) {
+                abstractTopic.addFilteredEntriesCount(filtered);
             }
         }
-        if (CollectionUtils.isNotEmpty(entriesToRedeliver)) {
+
+        if (entriesToRedeliver != null && !entriesToRedeliver.isEmpty()) {
             this.subscription.getTopic().getBrokerService().getPulsar().getExecutor()
                     .schedule(() -> {
                         // simulate the Consumer rejected the message
@@ -248,12 +279,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
         return totalEntries;
-    }
-
-    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
-        if (!(subscription instanceof CompactorSubscription)) {
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
-        }
     }
 
     protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
@@ -345,7 +370,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
         if (topic.isMigrated()) {
-            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+            Optional<ClusterData.ClusterUrl> migratedClusterUrl = topic.getMigratedClusterUrl();
+            consumers.forEach(c -> c.topicMigrated(migratedClusterUrl));
         } else {
             consumers.forEach(Consumer::reachedEndOfTopic);
         }

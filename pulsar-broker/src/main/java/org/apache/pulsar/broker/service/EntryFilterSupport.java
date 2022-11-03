@@ -69,30 +69,23 @@ public class EntryFilterSupport {
     public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
                                                        Consumer consumer) {
         if (hasFilter) {
-            fillContext(filterContext, msgMetadata, subscription, consumer);
+            filterContext.fill(subscription, msgMetadata, consumer);
             return getFilterResult(filterContext, entry, entryFilters);
         } else {
             return EntryFilter.FilterResult.ACCEPT;
         }
     }
 
-    private void fillContext(FilterContext context, MessageMetadata msgMetadata,
-                             Subscription subscription, Consumer consumer) {
-        context.reset();
-        context.setMsgMetadata(msgMetadata);
-        context.setSubscription(subscription);
-        context.setConsumer(consumer);
-    }
-
 
     private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
                                                             List<EntryFilterWithClassLoader> entryFilters) {
         for (EntryFilter entryFilter : entryFilters) {
-            EntryFilter.FilterResult filterResult =
-                    entryFilter.filterEntry(entry, filterContext);
+            EntryFilter.FilterResult filterResult = entryFilter.filterEntry(entry, filterContext);
             if (filterResult == null) {
-                filterResult = EntryFilter.FilterResult.ACCEPT;
+                // null means EntryFilter.FilterResult.ACCEPT;
+                continue;
             }
+
             if (filterResult != EntryFilter.FilterResult.ACCEPT) {
                 return filterResult;
             }

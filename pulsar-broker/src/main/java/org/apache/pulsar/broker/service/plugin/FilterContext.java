@@ -35,5 +35,11 @@ public class FilterContext {
         consumer = null;
     }
 
+    public void fill(Subscription subscription, MessageMetadata msgMetadata, Consumer consumer) {
+        this.subscription = subscription;
+        this.msgMetadata = msgMetadata;
+        this.consumer = consumer;
+    }
+
     public static final FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();
 }
