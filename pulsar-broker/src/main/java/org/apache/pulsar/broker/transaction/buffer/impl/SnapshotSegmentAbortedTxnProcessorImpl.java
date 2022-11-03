@@ -63,7 +63,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 @Slf4j
 public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor {
 
-    private ConcurrentOpenHashSet<TxnID> unsealedAbortedTxnIdSegment = new ConcurrentOpenHashSet<>();
+    private ConcurrentOpenHashSet<TxnID> unsealedAbortedTxnIdSegment;
 
     //Store the fixed aborted transaction segment
     private final ConcurrentSkipListMap<PositionImpl, ConcurrentOpenHashSet<TxnID>> abortTxnSegments =
@@ -91,6 +91,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.transactionBufferMaxAbortedTxnsOfSnapshotSegment =  topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize();
+        this.unsealedAbortedTxnIdSegment =
+                new ConcurrentOpenHashSet<>(this.transactionBufferMaxAbortedTxnsOfSnapshotSegment);
     }
 
     @Override
@@ -98,9 +100,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
-            abortTxnSegments.put(maxReadPosition, unsealedAbortedTxnIdSegment);
+            ConcurrentOpenHashSet<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
+            abortTxnSegments.put(maxReadPosition, abortedSegment);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
-                    persistentWorker.takeSnapshotSegmentAsync(unsealedAbortedTxnIdSegment, maxReadPosition));
+                    persistentWorker.takeSnapshotSegmentAsync(abortedSegment, maxReadPosition));
             unsealedAbortedTxnIdSegment = new ConcurrentOpenHashSet<>();
         }
     }
@@ -400,8 +403,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     STATE_UPDATER.set(this, OperationState.Closing);
                     taskQueue.clear();
                     lastOperationFuture.thenRun(() -> {
-                        lastOperationFuture = task.get();
-                        lastOperationFuture.thenRun(() ->
+                        task.get().thenRun(() ->
                                 STATE_UPDATER.compareAndSet(this, OperationState.Closing, OperationState.Closed));
                     });
                 }
