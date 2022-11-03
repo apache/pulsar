@@ -22,6 +22,7 @@ on:
   pull_request:
     branches:
       - master
+      - branch-2.11
   workflow_dispatch:
 
 concurrency:
