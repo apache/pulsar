@@ -3329,6 +3329,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public PositionImpl getMaxReadPosition() {
+        if (!transactionEnabled) {
+            return PositionImpl.LATEST;
+        }
+
         return this.transactionBuffer.getMaxReadPosition();
     }
 
