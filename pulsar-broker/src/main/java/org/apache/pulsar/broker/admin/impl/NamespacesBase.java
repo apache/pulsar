@@ -248,17 +248,17 @@ public abstract class NamespacesBase extends AdminResource {
                     return namespaceResources().setPoliciesAsync(namespaceName, old -> {
                         old.deleted = true;
                         return  old;
-                    }).thenCompose(__ -> {
+                    }).thenCompose(ignore -> {
                         return internalDeleteTopicsAsync(copyAllTopics);
-                    }).thenCompose(__ -> {
+                    }).thenCompose(ignore -> {
                         return internalDeletePartitionedTopicsAsync(copyAllPartitionTopics);
-                    }).thenCompose(__ -> {
+                    }).thenCompose(ignore -> {
                         return internalDeleteTopicsAsync(allSystemTopics);
-                    }).thenCompose(__ -> {
+                    }).thenCompose(ignore__ -> {
                         return internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics);
                     });
                 })
-                .thenCompose(__ -> pulsar().getNamespaceService()
+                .thenCompose(ignore -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
                 .thenCompose(bundles -> FutureUtil.waitForAll(bundles.getBundles().stream()
                         .map(bundle -> pulsar().getNamespaceService().getOwnerAsync(bundle)
@@ -280,7 +280,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     return CompletableFuture.completedFuture(null);
                                 })
                         ).collect(Collectors.toList())))
-                .thenCompose(__ -> internalClearZkSources());
+                .thenCompose(ignore -> internalClearZkSources());
     }
 
     private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
