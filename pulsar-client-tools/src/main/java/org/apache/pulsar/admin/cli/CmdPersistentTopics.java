@@ -347,7 +347,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getStats(persistentTopic, getPreciseBacklog));
+            print(getPersistentTopics().getStats(persistentTopic, getPreciseBacklog));
         }
     }
 
