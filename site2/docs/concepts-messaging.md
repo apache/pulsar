@@ -570,7 +570,7 @@ In the *Failover* type, multiple consumers can attach to the same subscription. 
 
 For example, a partitioned topic has 3 partitions, and 15 consumers. Each partition will have 1 active consumer and 4 stand-by consumers.
 
-In the diagram below, **Consumer A** is the master consumer while **Consumer B** would be the next consumer in line to receive messages if **Consumer B** is disconnected.
+In the diagram below, **Consumer A** is the master consumer while **Consumer B** would be the next consumer in line to receive messages if **Consumer A** is disconnected.
 
 ![Failover subscriptions](/assets/pulsar-failover-subscriptions.svg)
 
