@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import com.google.common.collect.ComparisonChain;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -100,7 +101,7 @@ public class MessageRedeliveryController {
         return isContained.get();
     }
 
-    public Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+    public NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         return messagesToRedeliver.items(maxMessagesToRead, PositionImpl::new);
     }
 }
