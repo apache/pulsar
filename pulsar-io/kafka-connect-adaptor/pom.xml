@@ -166,5 +166,11 @@
       <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.asynchttpclient</groupId>
+      <artifactId>async-http-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 </project>
