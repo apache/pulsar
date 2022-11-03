@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -151,6 +152,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-entry-filters-per-topic", new GetEntryFiltersPerTopic());
         jcommander.addCommand("set-entry-filters-per-topic", new SetEntryFiltersPerTopic());
         jcommander.addCommand("remove-entry-filters-per-topic", new RemoveEntryFiltersPerTopic());
+
+        jcommander.addCommand("set-auto-subscription-creation", new SetAutoSubscriptionCreation());
+        jcommander.addCommand("get-auto-subscription-creation", new GetAutoSubscriptionCreation());
+        jcommander.addCommand("remove-auto-subscription-creation", new RemoveAutoSubscriptionCreation());
     }
 
     @Parameters(commandDescription = "Get entry filters for a topic")
@@ -1849,6 +1854,63 @@ public class CmdTopicPolicies extends CmdBase {
             SchemaCompatibilityStrategy strategy =
                     getAdmin().topicPolicies().getSchemaCompatibilityStrategy(persistentTopic, applied);
             print(strategy == null ? "null" : strategy.name());
+        }
+    }
+
+    @Parameters(commandDescription = "Enable autoSubscriptionCreation for a topic")
+    private class SetAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--enable", "-e"}, description = "Enable allowAutoSubscriptionCreation on topic")
+        private boolean enable = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setAutoSubscriptionCreation(persistentTopic,
+                    AutoSubscriptionCreationOverride.builder()
+                            .allowAutoSubscriptionCreation(enable)
+                            .build());
+        }
+    }
+
+    @Parameters(commandDescription = "Get the autoSubscriptionCreation for a topic")
+    private class GetAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--applied", "-a"}, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getAutoSubscriptionCreation(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove override of autoSubscriptionCreation for a topic")
+    private class RemoveAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to remove this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeAutoSubscriptionCreation(persistentTopic);
         }
     }
 

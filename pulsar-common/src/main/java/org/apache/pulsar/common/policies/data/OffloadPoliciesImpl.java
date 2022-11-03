@@ -75,6 +75,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     public static final String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public static final String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
+    public static final String DATA_READ_PRIORITY_NAME_IN_CONF_FILE = "managedLedgerDataReadPriority";
     public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
             OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
@@ -261,9 +262,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     Long.parseLong(properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE)));
         }
 
-        if (properties.containsKey("managedLedgerDataReadPriority")) {
+        if (!properties.containsKey("managedLedgerOffloadedReadPriority")
+                && properties.containsKey(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)) {
             setManagedLedgerOffloadedReadPriority(
-                    OffloadedReadPriority.fromString(properties.getProperty("managedLedgerDataReadPriority")));
+                    OffloadedReadPriority.fromString(properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)));
         }
     }
 
@@ -479,6 +481,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         } else if (field.getName().equals("managedLedgerOffloadDeletionLagInMillis")) {
             object = properties.getProperty("managedLedgerOffloadDeletionLagInMillis",
                     properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE));
+        } else if (field.getName().equals("managedLedgerOffloadedReadPriority")) {
+            object = properties.getProperty("managedLedgerOffloadedReadPriority",
+                    properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE));
         } else {
             object = properties.get(field.getName());
         }

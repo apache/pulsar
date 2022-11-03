@@ -3337,8 +3337,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this.transactionBuffer.getMaxReadPosition();
     }
 
-    public boolean isTxnAborted(TxnID txnID) {
-        return this.transactionBuffer.isTxnAborted(txnID);
+    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+        return this.transactionBuffer.isTxnAborted(txnID, readPosition);
     }
 
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
