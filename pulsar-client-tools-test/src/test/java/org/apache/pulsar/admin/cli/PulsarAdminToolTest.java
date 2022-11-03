@@ -292,22 +292,32 @@ public class PulsarAdminToolTest {
         clusters = new CmdClusters(() -> admin);
         clusters.run(split("create my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
                 + "--tls-enable-keystore --tls-trust-store-type JKS --tls-trust-store /var/private/tls/client.truststore.jks "
-                + "--tls-trust-store-pwd clientpw"));
+                + "--tls-trust-store-pwd clientpw --tls-key-store-type KEYSTORE_TYPE --tls-key-store /var/private/tls/client.keystore.jks "
+                + "--tls-key-store-pwd KEYSTORE_STORE_PWD"));
         ClusterData.Builder data = ClusterData.builder()
                 .serviceUrlTls("https://my-service.url:4443")
                 .brokerClientTlsEnabled(true)
                 .brokerClientTlsEnabledWithKeyStore(true)
                 .brokerClientTlsTrustStoreType("JKS")
                 .brokerClientTlsTrustStore("/var/private/tls/client.truststore.jks")
-                .brokerClientTlsTrustStorePassword("clientpw");
+                .brokerClientTlsTrustStorePassword("clientpw")
+                .brokerClientTlsKeyStoreType("KEYSTORE_TYPE")
+                .brokerClientTlsKeyStore("/var/private/tls/client.keystore.jks")
+                .brokerClientTlsKeyStorePassword("KEYSTORE_STORE_PWD");
+
         verify(mockClusters).createCluster("my-tls-cluster", data.build());
 
         clusters.run(split("update my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
-                + "--tls-trust-certs-filepath /path/to/ca.cert.pem"));
+                + "--tls-trust-certs-filepath /path/to/ca.cert.pem --tls-key-filepath KEY_FILEPATH --tls-certs-filepath CERTS_FILEPATH"));
         data.brokerClientTlsEnabledWithKeyStore(false)
                 .brokerClientTlsTrustStore(null)
                 .brokerClientTlsTrustStorePassword(null)
-                .brokerClientTrustCertsFilePath("/path/to/ca.cert.pem");
+                .brokerClientTlsKeyStoreType("JKS")
+                .brokerClientTlsKeyStore(null)
+                .brokerClientTlsKeyStorePassword(null)
+                .brokerClientTrustCertsFilePath("/path/to/ca.cert.pem")
+                .brokerClientKeyFilePath("KEY_FILEPATH")
+                .brokerClientCertificateFilePath("CERTS_FILEPATH");
         verify(mockClusters).updateCluster("my-tls-cluster", data.build());
     }
 
@@ -1419,6 +1429,16 @@ public class PulsarAdminToolTest {
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
                                 8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+
+        cmdTopics.run(split("set-auto-subscription-creation persistent://prop/clust/ns1/ds1 -e -g"));
+        verify(mockGlobalTopicsPolicies).setAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1",
+                AutoSubscriptionCreationOverride.builder()
+                        .allowAutoSubscriptionCreation(true)
+                        .build());
+        cmdTopics.run(split("get-auto-subscription-creation persistent://prop/clust/ns1/ds1 -a -g"));
+        verify(mockGlobalTopicsPolicies).getAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1", true);
+        cmdTopics.run(split("remove-auto-subscription-creation persistent://prop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1");
     }
 
     @Test

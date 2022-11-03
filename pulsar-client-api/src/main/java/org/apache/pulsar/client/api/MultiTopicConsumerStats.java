@@ -16,33 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.impl.batching;
+package org.apache.pulsar.client.api;
 
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-@Data
-@AllArgsConstructor
-public class OpGetChildren implements MetadataOp {
+/**
+ * Multi-topic Consumer statistics recorded by client.
+ *
+ * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
+ * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
+ */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface MultiTopicConsumerStats extends ConsumerStats {
 
-    private final String path;
-    public final long created = System.currentTimeMillis();
-    private final CompletableFuture<List<String>> future = new CompletableFuture<>();
-
-    @Override
-    public Type getType() {
-        return Type.GET_CHILDREN;
-    }
-
-    @Override
-    public int size() {
-        return path.length();
-    }
-
-    @Override
-    public long created() {
-        return this.created;
-    }
+    /**
+     * @return stats for each partition if topic is partitioned topic
+     */
+    Map<String, ConsumerStats> getPartitionStats();
 }
