@@ -167,7 +167,7 @@ class OpReadEntry implements ReadEntriesCallback {
     public int getNumberOfEntriesToRead() {
         return count - entries.size();
     }
-    
+
     private final Handle<OpReadEntry> recyclerHandle;
 
     private OpReadEntry(Handle<OpReadEntry> recyclerHandle) {
