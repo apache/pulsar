@@ -610,16 +610,14 @@ All the metadata store metrics are labeled with the following labels:
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *name*: `name=${metadata-store|configuration-metadata-store|state-metadata-store}`. `${name}` is the metadata store name.
 
-| Name                                   | Type      | Description                                                                                  |
-|----------------------------------------|-----------|----------------------------------------------------------------------------------------------|
-| pulsar_metadata_store_ops_latency      | Histogram | The latency of getting/deleting/putting data fail/success operations from/to metadata store. |
-| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                                                    |
-| pulsar_metadata_store_queueing_read        | Gauge     | The number of metadata store queueing read operations.        |
-| pulsar_metadata_store_queueing_write       | Gauge     | The number of metadata store queueing write operations.       |
-| pulsar_metadata_store_executor_queue_size  | Gauge     | The number of blocking operations in metadata store executor. |
-| pulsar_metadata_store_read_overflow_total  | Counter   | The number of read operations can't be queued.                |
-| pulsar_metadata_store_write_overflow_total | Counter   | The number of write operations can't be queued.               |
-| pulsar_metadata_store_waiting_ms           | Histogram | The waiting time of batch operations.                         |
+| Name                                               | Type      | Description                                                                                  |
+|----------------------------------------------------|-----------|----------------------------------------------------------------------------------------------|
+| pulsar_metadata_store_ops_latency                  | Histogram | The latency of getting/deleting/putting data fail/success operations from/to metadata store. |
+| pulsar_metadata_store_put_bytes_total              | Counter   | The number of data put to metadata store.                                                    |
+| pulsar_batch_metadata_store_executor_queue_size    | Gauge     | The number of blocking operations in metadata store executor.                                |
+| pulsar_batch_metadata_store_queue_wait_time_ms     | Histogram | The waiting time of batch operations.                                                        |
+| pulsar_batch_metadata_store_batch_execute_time_ms  | Histogram | The time of the batch execution in milliseconds.                                             |
+| pulsar_batch_metadata_store_batch_size             | Histogram | The number of read/write operations in the batch.                                            |
 
 ## Pulsar Functions
 
