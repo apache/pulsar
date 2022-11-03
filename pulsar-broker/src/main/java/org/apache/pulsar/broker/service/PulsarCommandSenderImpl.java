@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -201,22 +202,24 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendSuccess(long requestId) {
-        cnx.ctx().writeAndFlush(Commands.newSuccess(requestId), cnx.ctx().voidPromise());
-    }
-
-    @Override
-    public void sendError(long requestId, ServerError error, String message) {
-        cnx.ctx().writeAndFlush(Commands.newError(requestId, error, message), cnx.ctx().voidPromise());
-    }
-
-    @Override
     public void sendReachedEndOfTopic(long consumerId) {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9.getValue()) {
             log.info("[{}] Notifying consumer that end of topic has been reached", this);
             cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId), cnx.ctx().voidPromise());
         }
+    }
+
+    @Override
+    public boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls) {
+        // Only send notification if the client understand the command
+        if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v20.getValue()) {
+            log.info("[{}] Notifying {} that topic is migrated", type.name(), resourceId);
+            cnx.ctx().writeAndFlush(Commands.newTopicMigrated(type, resourceId, brokerUrl, brokerUrlTls),
+                    cnx.ctx().voidPromise());
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -267,11 +270,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                             topicName, subscription,  consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize);
                 }
 
-                int redeliveryCount = 0;
-                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                if (redeliveryTracker.contains(position)) {
-                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
-                }
+                int redeliveryCount = redeliveryTracker
+                        .getRedeliveryCount(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
 
                 ctx.write(
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,

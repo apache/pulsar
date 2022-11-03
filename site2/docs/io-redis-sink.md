@@ -4,8 +4,7 @@ title: Redis sink connector
 sidebar_label: "Redis sink connector"
 ---
 
-The  Redis sink connector pulls messages from Pulsar topics 
-and persists the messages to a Redis database.
+The  Redis sink connector pulls messages from Pulsar topics and persists the messages to a Redis database.
 
 
 
@@ -35,12 +34,11 @@ The configuration of the Redis sink connector has the following properties.
 
 ### Example
 
-Before using the Redis sink connector, you need to create a configuration file in the path you will start Pulsar service (i.e. `PULSAR_HOME`) through one of the following methods.
+Before using the Redis sink connector, you need to create a configuration file in the path you will start the Pulsar service (`PULSAR_HOME`) through one of the following methods.
 
 * JSON
 
   ```json
-  
   {
      "configs": {
         "redisHosts": "localhost:6379",
@@ -53,13 +51,11 @@ Before using the Redis sink connector, you need to create a configuration file i
         "connectTimeout": "3000"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       redisHosts: "localhost:6379"
       redisPassword: "mypassword"
@@ -69,7 +65,6 @@ Before using the Redis sink connector, you need to create a configuration file i
       batchSize: 1
       batchTimeMs: 1000
       connectTimeout: 3000
-  
   ```
 
 ### Usage
@@ -79,18 +74,14 @@ This example shows how to write records to a Redis database using the Pulsar Red
 1. Start a Redis server.
 
    ```bash
-   
-   $ docker pull redis:5.0.5
-   $ docker run -d -p 6379:6379 --name my-redis redis:5.0.5 --requirepass "mypassword"
-   
+   docker pull redis:5.0.5
+   docker run -d -p 6379:6379 --name my-redis redis:5.0.5 --requirepass "mypassword"
    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
    ```bash
-   
-   $ bin/pulsar standalone
-   
+   bin/pulsar standalone
    ```
 
    Make sure the NAR file is available at `connectors/pulsar-io-redis-@pulsar:version@.nar`.
@@ -100,58 +91,48 @@ This example shows how to write records to a Redis database using the Pulsar Red
    * Use the **JSON** configuration file as shown previously. 
 
        ```bash
-       
-       $ bin/pulsar-admin sinks localrun \
+       bin/pulsar-admin sinks localrun \
        --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
        --tenant public \
        --namespace default \
        --name my-redis-sink \
        --sink-config '{"redisHosts": "localhost:6379","redisPassword": "mypassword","redisDatabase": "0","clientMode": "Standalone","operationTimeout": "3000","batchSize": "1"}' \
        --inputs my-redis-topic
-       
        ```
 
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
-       
-       $ bin/pulsar-admin sinks localrun \
+       bin/pulsar-admin sinks localrun \
        --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
        --tenant public \
        --namespace default \
        --name my-redis-sink \
        --sink-config-file redis-sink-config.yaml \
        --inputs my-redis-topic
-       
        ```
 
 4. Publish records to the topic.
 
    ```bash
-   
-   $ bin/pulsar-client produce \
+   bin/pulsar-client produce \
        persistent://public/default/my-redis-topic \
        -k "streaming" \
        -m "Pulsar"
-   
    ```
 
 5. Start a Redis client in Docker.
 
    ```bash
-   
-   $ docker exec -it my-redis redis-cli -a "mypassword"
-   
+   docker exec -it my-redis redis-cli -a "mypassword"
    ```
 
 6. Check the key/value in Redis.
 
-   ```
-   
+   ```bash
    127.0.0.1:6379> keys *
    1) "streaming"
    127.0.0.1:6379> get "streaming"
    "Pulsar"
-   
    ```
 

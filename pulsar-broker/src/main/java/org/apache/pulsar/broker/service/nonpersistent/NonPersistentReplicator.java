@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
-        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService,
+        super(localCluster, topic.getName(), remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
                 replicationClient);
 
         producerBuilder.blockIfQueueFull(false);
@@ -58,18 +58,26 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         startProducer();
     }
 
+    /**
+     * @return Producer name format : replicatorPrefix.localCluster-->remoteCluster
+     */
+    @Override
+    protected String getProducerName() {
+        return getReplicatorName(replicatorPrefix, localCluster) + REPL_PRODUCER_NAME_DELIMITER + remoteCluster;
+    }
+
     @Override
     protected void readEntries(Producer<byte[]> producer) {
         this.producer = (ProducerImpl) producer;
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {
-            log.info("[{}][{} -> {}] Created replicator producer", topicName, localCluster, remoteCluster);
+            log.info("[{}] Created replicator producer", replicatorId);
             backOff.reset();
         } else {
             log.info(
-                    "[{}][{} -> {}] Replicator was stopped while creating the producer."
+                    "[{}] Replicator was stopped while creating the producer."
                             + " Closing it. Replicator state: {}",
-                    topicName, localCluster, remoteCluster, STATE_UPDATER.get(this));
+                    replicatorId, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
             closeProducerAsync();
             return;
@@ -85,8 +93,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             try {
                 msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
             } catch (Throwable t) {
-                log.error("[{}][{} -> {}] Failed to deserialize message at {} (buffer size: {}): {}", topicName,
-                        localCluster, remoteCluster, entry.getPosition(), length, t.getMessage(), t);
+                log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
+                        entry.getPosition(), length, t.getMessage(), t);
                 entry.release();
                 return;
             }
@@ -100,8 +108,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
             if (msg.hasReplicateTo() && !msg.getReplicateTo().contains(remoteCluster)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{} -> {}] Skipping message at {} / msg-id: {}: replicateTo {}", topicName,
-                            localCluster, remoteCluster, entry.getPosition(), msg.getMessageId(), msg.getReplicateTo());
+                    log.debug("[{}] Skipping message at {} / msg-id: {}: replicateTo {}", replicatorId,
+                            entry.getPosition(), msg.getMessageId(), msg.getReplicateTo());
                 }
                 entry.release();
                 msg.recycle();
@@ -118,8 +126,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{} -> {}] dropping message because replicator producer is not started/writable",
-                        topicName, localCluster, remoteCluster);
+                log.debug("[{}] dropping message because replicator producer is not started/writable",
+                        replicatorId);
             }
             msgDrop.recordEvent();
             entry.release();
@@ -167,12 +175,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         @Override
         public void sendComplete(Exception exception) {
             if (exception != null) {
-                log.error("[{}][{} -> {}] Error producing on remote broker", replicator.topicName,
-                        replicator.localCluster, replicator.remoteCluster, exception);
+                log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{} -> {}] Message persisted on remote broker", replicator.topicName,
-                            replicator.localCluster, replicator.remoteCluster);
+                    log.debug("[{}] Message persisted on remote broker", replicator.replicatorId);
                 }
             }
             entry.release();

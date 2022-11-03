@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,9 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -158,14 +158,14 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
-        Set<String> originMessageIds = Sets.newHashSet();
+        Set<String> originMessageIds = new HashSet<>();
         for (int i = 0; i < sendMessages; i++) {
             MessageId msgId = producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
             originMessageIds.add(msgId.toString());
         }
 
         int totalReceived = 0;
-        Set<String> retryMessageIds = Sets.newHashSet();
+        Set<String> retryMessageIds = new HashSet<>();
         do {
             Message<byte[]> message = consumer.receive();
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
@@ -183,7 +183,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertEquals(retryMessageIds, originMessageIds);
 
         int totalInDeadLetter = 0;
-        Set<String> deadLetterMessageIds = Sets.newHashSet();
+        Set<String> deadLetterMessageIds = new HashSet<>();
         do {
             Message message = deadLetterConsumer.receive();
             log.info("dead letter consumer received message : {} {}", message.getMessageId(),
@@ -199,8 +199,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
         } while (totalInDeadLetter < sendMessages);
 
         assertEquals(deadLetterMessageIds, originMessageIds);
-
-        deadLetterConsumer.close();
 
         Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -220,17 +218,29 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         // check the custom properties
         producer.send(String.format("Hello Pulsar [%d]", 1).getBytes());
-        Message<byte[]> message = consumer.receive();
-        Map<String, String> customProperties = new HashMap<String, String>();
-        customProperties.put("custom_key", "custom_value");
-        consumer.reconsumeLater(message, customProperties, 1, TimeUnit.SECONDS);
-        message = consumer.receive();
+        for (int i = 0; i < maxRedeliveryCount + 1; i++) {
+            Map<String, String> customProperties = new HashMap<String, String>();
+            customProperties.put("custom_key", "custom_value" + i);
+            Message<byte[]> message = consumer.receive();
+            log.info("Received message: {}", new String(message.getValue()));
+            consumer.reconsumeLater(message, customProperties, 1, TimeUnit.SECONDS);
+            if (i > 0) {
+                String value = message.getProperty("custom_key");
+                assertEquals(value, "custom_value" + (i - 1));
+                assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
+                        message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
+            }
+        }
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        Message<byte[]> message = deadLetterConsumer.receive();
         String value = message.getProperty("custom_key");
-        assertEquals(value, "custom_value");
+        assertEquals(value, "custom_value" + maxRedeliveryCount);
         assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
                 message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
+
         producer.close();
         consumer.close();
+        deadLetterConsumer.close();
     }
 
     //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed

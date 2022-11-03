@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -81,8 +81,9 @@ public class PerformanceConsumer {
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
-    private static final Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final long MAX_LATENCY = TimeUnit.DAYS.toMillis(10);
+    private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
+    private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments extends PerformanceBaseArguments {
@@ -314,12 +315,21 @@ public class PerformanceConsumer {
                 totalMessagesReceived.increment();
                 totalBytesReceived.add(msg.size());
 
+                if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+
                 if (limiter != null) {
                     limiter.acquire();
                 }
 
                 long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
                 if (latencyMillis >= 0) {
+                    if (latencyMillis >= MAX_LATENCY) {
+                        latencyMillis = MAX_LATENCY;
+                    }
                     recorder.recordValue(latencyMillis);
                     cumulativeRecorder.recordValue(latencyMillis);
                 }

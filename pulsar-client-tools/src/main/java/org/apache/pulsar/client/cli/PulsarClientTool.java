@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -96,8 +96,8 @@ public class PulsarClientTool {
 
     protected JCommander jcommander;
     IUsageFormatter usageFormatter;
-    CmdProduce produceCommand;
-    CmdConsume consumeCommand;
+    protected CmdProduce produceCommand;
+    protected CmdConsume consumeCommand;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {

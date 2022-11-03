@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -115,5 +115,4 @@ public interface ProducerStats extends Serializable {
      * @return current pending send-message queue size of the producer
      */
     int getPendingQueueSize();
-
 }

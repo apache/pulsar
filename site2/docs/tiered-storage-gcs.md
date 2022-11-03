@@ -13,66 +13,17 @@ Follow the steps below to install the GCS offloader.
 ### Prerequisite
 
 - Pulsar: 2.4.2 or later versions
-  
-### Step
 
-This example uses Pulsar 2.5.1.
+### Steps
 
-1. Download the Pulsar tarball using one of the following ways:
-
-   * Download from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz)
-
-   * Download from the Pulsar [download page](/download)
-
-   * Use [wget](https://www.gnu.org/software/wget)
-
-    ```shell
-    
-    wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
-    
-    ```
-
-2. Download and untar the Pulsar offloaders package. 
-
-   ```bash
-   
-   wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
-
-   tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
-   
-   ```
-
-   :::note
-
-   * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
-
-3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
-
-   ```
-   
-   mv apache-pulsar-offloaders-2.5.1/offloaders apache-pulsar-2.5.1/offloaders
-
-   ls offloaders
-   
-   ```
-
-   **Output**
-
-   ```
-   
-   tiered-storage-file-system-2.5.1.nar
-   tiered-storage-jcloud-2.5.1.nar
-   
-   ```
+1. [Download the Pulsar tarball](getting-started-standalone.md#download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
 :::note
 
-Before offloading data from BookKeeper to GCS, you need to configure some properties of the GCS offloader driver. 
+Before offloading data from BookKeeper to GCS, you need to configure some properties of the GCS offloader driver.
 
 :::
 
@@ -110,9 +61,7 @@ A bucket is a basic container that holds your data. Everything you store in GCS 
 This example names the bucket as _pulsar-topic-offload_.
 
 ```conf
-
 gcsManagedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 #### Bucket region (required)
@@ -129,18 +78,15 @@ For more information about bucket location, see [here](https://cloud.google.com/
 
 This example sets the bucket region as _europe-west3_.
 
-```
-
+```shell
 gcsManagedLedgerOffloadRegion=europe-west3
-
 ```
 
 #### Authentication (required)
 
-To enable a broker access GCS, you need to configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in the configuration file `broker.conf`. 
+To enable a broker to access GCS, you need to configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in the configuration file `broker.conf`.
 
-`gcsManagedLedgerOffloadServiceAccountKeyFile` is
-a JSON file, containing GCS credentials of a service account.
+`gcsManagedLedgerOffloadServiceAccountKeyFile` is a JSON file, containing GCS credentials of a service account.
 
 ##### Example
 
@@ -152,7 +98,7 @@ To generate service account credentials or view the public credentials that you'
 
 3. Click **Create service account**.
 
-4. In the **Create service account** window, type a name for the service account and select **Furnish a new private key**. 
+4. In the **Create service account** window, type a name for the service account and select **Furnish a new private key**.
 
    If you want to [grant G Suite domain-wide authority](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority) to the service account, select **Enable G Suite Domain-wide Delegation**.
 
@@ -167,9 +113,7 @@ To generate service account credentials or view the public credentials that you'
 6. You can get the following information and set this in `broker.conf`.
 
    ```conf
-   
    gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/user-name/Downloads/project-804d5e6a6f33.json"
-   
    ```
 
    :::tip
@@ -181,7 +125,7 @@ To generate service account credentials or view the public credentials that you'
 
 #### Size of block read/write
 
-You can configure the size of a request sent to or read from GCS in the configuration file `broker.conf`. 
+You can configure the size of a request sent to or read from GCS in the configuration file `broker.conf`.
 
 Configuration|Description
 |---|---
@@ -190,7 +134,7 @@ Configuration|Description
 
 ### Configure GCS offloader to run automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offload operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offload operation is triggered automatically.
 
 Threshold value|Action
 |---|---
@@ -209,14 +153,12 @@ The offload configurations in `broker.conf` and `standalone.conf` are used for t
 This example sets the GCS offloader threshold size to 10 MB using pulsar-admin.
 
 ```bash
-
 pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
-
 ```
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
 :::
 
@@ -226,7 +168,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
 - Use REST endpoint.
 
-- Use CLI tools (such as pulsar-admin). 
+- Use CLI tools (such as pulsar-admin).
 
   To trigger the GCS via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to GCS until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -235,79 +177,63 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 - This example triggers the GCS offloader to run manually using pulsar-admin with the command `pulsar-admin topics offload (topic-name) (threshold)`.
 
   ```bash
-  
   pulsar-admin topics offload persistent://my-tenant/my-namespace/topic1 10M
-  
   ```
 
   **Output**
 
   ```bash
-  
   Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-  
   ```
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
   :::
 
 - This example checks the GCS offloader status using pulsar-admin with the command `pulsar-admin topics offload-status options`.
 
   ```bash
-  
   pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-  
   ```
 
   **Output**
 
   ```bash
-  
   Offload is currently running
-  
   ```
 
   To wait for GCS to complete the job, add the `-w` flag.
 
   ```bash
-  
   pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-  
   ```
 
   **Output**
 
   ```
-  
   Offload was a success
-  
   ```
 
   If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
   ```bash
-  
-   pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-  
+  pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
   ```
 
   **Output**
 
   ```
-  
   Error in offload
   null
 
   Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-  
   ```
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
   :::
 

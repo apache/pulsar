@@ -4,29 +4,28 @@ title: Simulation tools
 sidebar_label: "Simulation tools"
 ---
 
-It is sometimes necessary create an test environment and incur artificial load to observe how well load managers
+It is sometimes necessary to create a test environment and incur artificial load to observe how well load managers
 handle the load. The load simulation controller, the load simulation client, and the broker monitor were created as an
 effort to make create this load and observe the effects on the managers more easily.
 
 ## Simulation Client
-The simulation client is a machine which will create and subscribe to topics with configurable message rates and sizes.
-Because it is sometimes necessary in simulating large load to use multiple client machines, the user does not interact
-with the simulation client directly, but instead delegates their requests to the simulation controller, which will then
+A simulation client is a machine that creates and subscribes to topics with configurable message rates and sizes.
+Because it is sometimes necessary to simulate a large load to use multiple client machines, the user does not interact
+with the simulation client directly but instead delegates their requests to the simulation controller, which will then
 send signals to clients to start incurring load. The client implementation is in the class
 `org.apache.pulsar.testclient.LoadSimulationClient`.
 
 ### Usage
 To Start a simulation client, use the `pulsar-perf` script with the command `simulation-client` as follows:
 
-```
-
+```shell
 pulsar-perf simulation-client --port <listen port> --service-url <pulsar service url>
-
 ```
 
 The client will then be ready to receive controller commands.
+
 ## Simulation Controller
-The simulation controller send signals to the simulation clients, requesting them to create new topics, stop old
+The simulation controller sends signals to the simulation clients, requesting them to create new topics, stop old
 topics, change the load incurred by topics, as well as several other tasks. It is implemented in the class
 `org.apache.pulsar.testclient.LoadSimulationController` and presents a shell to the user as an interface to send
 command with.
@@ -34,11 +33,9 @@ command with.
 ### Usage
 To start a simulation controller, use the `pulsar-perf` script with the command `simulation-controller` as follows:
 
-```
-
+```shell
 pulsar-perf simulation-controller --cluster <cluster to simulate on> --client-port <listen port for clients>
 --clients <comma-separated list of client host names>
-
 ```
 
 The clients should already be started before the controller is started. You will then be presented with a simple prompt,
@@ -100,10 +97,8 @@ console as it is updated using watchers.
 ### Usage
 To start a broker monitor, use the `monitor-brokers` command in the `pulsar-perf` script:
 
-```
-
+```shell
 pulsar-perf monitor-brokers --connect-string <zookeeper host:port>
-
 ```
 
 The console will then continuously print load data until it is interrupted.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,16 +49,6 @@ public class RedeliveryTrackerDisabled implements RedeliveryTracker {
 
     @Override
     public void clear() {
-        // no-op
-    }
-
-    @Override
-    public boolean contains(Position position) {
-        return false;
-    }
-
-    @Override
-    public void addIfAbsent(Position position) {
         // no-op
     }
 }

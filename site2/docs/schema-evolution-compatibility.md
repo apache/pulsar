@@ -46,7 +46,7 @@ The process of how Pulsar supports schema evolution is described as follows.
 
    :::
 
-3. Brokers use the schema compatibility checker to check if the `SchemaInfo` is compatible with the latest schema of the topic by applying its [compatibility check strategy](#compatibility-check-strategy). Currently, the compatibility check strategy is configured at the namespace level and applied to all the topics within that namespace.
+3. Brokers use the schema compatibility checker to check if the `SchemaInfo` is compatible with the latest schema of the topic by applying its [compatibility check strategy](#schema-compatibility-check-strategy). Currently, the compatibility check strategy is configured at the namespace level and applied to all the topics within that namespace.
 
 For more details, see [`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java).
 
@@ -61,12 +61,12 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 | --- | --- | --- | --- | --- |
 |  `ALWAYS_COMPATIBLE`  |   Disable schema compatibility check.  |   All changes are allowed  |   All previous versions  |   Any order  | 
 |  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution.  |   All changes are disabled  |   None  |   None  | 
-|  `BACKWARD`  |   Consumers using the schema V3 can process data written by producers using the schema V3 or V2.  |   <li>Add optional fields </li><li>Delete fields </li> |   Latest version  |   Consumers  | 
-|  `BACKWARD_TRANSITIVE`  |   Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.  |   <li>Add optional fields </li><li>Delete fields </li> |   All previous versions  |   Consumers  | 
-|  `FORWARD`  |   Consumers using the schema V3 or V2 can process data written by producers using the schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   Latest version  |   Producers  | 
-|  `FORWARD_TRANSITIVE`  |   Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   All previous versions  |   Producers  | 
+|  `BACKWARD`  |   Consumers using schema V3 can process data written by producers using schema V3 or V2.  |   <li>Add optional fields </li><li>Delete fields </li> |   Latest version  |   Consumers  | 
+|  `BACKWARD_TRANSITIVE`  |   Consumers using schema V3 can process data written by producers using schema V3, V2 or V1.  |   <li>Add optional fields </li><li>Delete fields </li> |   All previous versions  |   Consumers  | 
+|  `FORWARD`  |   Consumers using schema V3 or V2 can process data written by producers using schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   Latest version  |   Producers  | 
+|  `FORWARD_TRANSITIVE`  |   Consumers using schema V3, V2, or V1 can process data written by producers using schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   All previous versions  |   Producers  | 
 |  `FULL`  |   Backward and forward compatible between the schema V3 and V2.  |   <li>Modify optional fields </li> |   Latest version  |   Any order  | 
-|  `FULL_TRANSITIVE`  |   Backward and forward compatible among the schema V3, V2, and V1.  |   <li>Modify optional fields </li> |   All previous versions  |   Any order  | 
+|  `FULL_TRANSITIVE`  |   Backward and forward compatible among schema V3, V2, and V1.  |   <li>Modify optional fields </li> |   All previous versions  |   Any order  | 
 
 ### ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE 
 

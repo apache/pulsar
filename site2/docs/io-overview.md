@@ -54,9 +54,9 @@ Delivery semantic | Description
 
 > Processing guarantees for connectors not just rely on Pulsar guarantee but also **relate to external systems**, that is, **the implementation of source and sink**.
 
-* Source: Pulsar ensures that writing messages to Pulsar topics respects to the processing guarantees. It is within Pulsar's control.
+* Source: Pulsar ensures that writing messages to Pulsar topics respects the processing guarantees. It is within Pulsar's control.
 
-* Sink: the processing guarantees rely on the sink implementation. If the sink implementation does not handle retries in an idempotent way, the sink does not respect to the processing guarantees.
+* Sink: the processing guarantees rely on the sink implementation. If the sink implementation does not handle retries in an idempotent way, the sink does not respect the processing guarantees.
 
 ### Set
 
@@ -70,7 +70,7 @@ When creating a connector, you can set the processing guarantee with the followi
 
 > If `--processing-guarantees` is not specified when creating a connector, the default semantic is `ATLEAST_ONCE`.
 
-Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
+Take **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 ````mdx-code-block
 <Tabs groupId="io-choice"
@@ -80,27 +80,23 @@ Here takes **Admin CLI** as an example. For more information about **REST API** 
 <TabItem value="Source">
 
 ```bash
-
-$ bin/pulsar-admin sources create \
-  --processing-guarantees ATMOST_ONCE \
-  # Other source configs
-
+bin/pulsar-admin sources create \
+--processing-guarantees ATMOST_ONCE \
+# Other source configs
 ```
 
-For more information about the options of `pulsar-admin sources create`, see [here](reference-connector-admin.md#create).
+For more information about the options of `pulsar-admin sources create`, see [here](reference-connector-admin.md).
 
 </TabItem>
 <TabItem value="Sink">
 
 ```bash
-
-$ bin/pulsar-admin sinks create \
-  --processing-guarantees EFFECTIVELY_ONCE \
-  # Other sink configs
-
+bin/pulsar-admin sinks create \
+--processing-guarantees EFFECTIVELY_ONCE \
+# Other sink configs
 ```
 
-For more information about the options of `pulsar-admin sinks create`, see [here](reference-connector-admin.md#create-1).
+For more information about the options of `pulsar-admin sinks create`, see [here](reference-connector-admin.md).
 
 </TabItem>
 
@@ -117,7 +113,7 @@ After creating a connector, you can update the processing guarantee with the fol
   
 * EFFECTIVELY_ONCE
   
-Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
+Take **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 ````mdx-code-block
 <Tabs groupId="io-choice"
@@ -127,27 +123,23 @@ Here takes **Admin CLI** as an example. For more information about **REST API** 
 <TabItem value="Source">
 
 ```bash
-
-$ bin/pulsar-admin sources update \
-  --processing-guarantees EFFECTIVELY_ONCE \
-  # Other source configs
-
+bin/pulsar-admin sources update \
+--processing-guarantees EFFECTIVELY_ONCE \
+# Other source configs
 ```
 
-For more information about the options of `pulsar-admin sources update`, see [here](reference-connector-admin.md#update).
+For more information about the options of `pulsar-admin sources update`, see [here](reference-connector-admin.md).
 
 </TabItem>
 <TabItem value="Sink">
 
 ```bash
-
-$ bin/pulsar-admin sinks update \
-  --processing-guarantees ATMOST_ONCE \
-  # Other sink configs
-
+bin/pulsar-admin sinks update \
+--processing-guarantees ATMOST_ONCE \
+# Other sink configs
 ```
 
-For more information about the options of `pulsar-admin sinks update`, see [here](reference-connector-admin.md#update-1).
+For more information about the options of `pulsar-admin sinks update`, see [here](reference-connector-admin.md).
 
 </TabItem>
 
@@ -159,5 +151,5 @@ For more information about the options of `pulsar-admin sinks update`, see [here
 
 You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the `Connector Admin CLI` with sources and sinks subcommands. For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
 
-Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via the `Connector Admin CLI` or `Functions Admin CLI`, an instance is started on a worker. For more information, see [Functions worker](functions-worker-run-separately.md).
+Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via the `Connector Admin CLI` or `Functions Admin CLI`, an instance is started on a worker. For more information, see [Functions worker](functions-worker.md).
 

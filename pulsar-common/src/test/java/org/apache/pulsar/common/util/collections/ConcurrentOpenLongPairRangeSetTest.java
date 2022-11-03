@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -459,5 +459,25 @@ public class ConcurrentOpenLongPairRangeSetTest {
                 lastRange.upperEndpoint());
         gRangeConnected.add(lastRange);
         return gRangeConnected;
+    }
+
+    @Test
+    public void testCardinality() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        int v = set.cardinality(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        assertEquals(v, 0 );
+        set.addOpenClosed(1, 0, 1, 20);
+        set.addOpenClosed(1, 30, 1, 90);
+        set.addOpenClosed(2, 0, 3, 30);
+        v = set.cardinality(1, 0, 1, 100);
+        assertEquals(v, 80);
+        v = set.cardinality(1, 11, 1, 100);
+        assertEquals(v, 70);
+        v = set.cardinality(1, 0, 1, 90);
+        assertEquals(v, 80);
+        v = set.cardinality(1, 0, 1, 80);
+        assertEquals(v, 70);
+        v = set.cardinality(1, 0, 3, 30);
+        assertEquals(v, 80 + 31);
     }
 }

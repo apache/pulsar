@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,6 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
-import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -144,29 +143,14 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     String.format("%s %s already exists", ComponentTypeUtils.toString(componentType), sinkName));
         }
 
-        Function.FunctionDetails functionDetails = null;
-        boolean isPkgUrlProvided = isNotBlank(sinkPkgUrl);
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isPkgUrlProvided) {
-                    if (Utils.hasPackageTypePrefix(sinkPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(sinkPkgUrl);
-                    } else {
-                        if (!Utils.isFunctionPackageUrlSupported(sinkPkgUrl)) {
-                            throw new IllegalArgumentException(
-                                    "Function Package url is not valid. supported url (http/https/file)");
-                        }
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(
-                                    String.format("Encountered error \"%s\" when getting %s package from %s",
-                                            e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
-                        }
-                    }
+                if (isNotBlank(sinkPkgUrl)) {
+                    componentPackageFile = getPackageFile(sinkPkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             sinkConfig, componentPackageFile);
                 } else {
@@ -243,6 +227,12 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+            String transformFunction = sinkConfig.getTransformFunction();
+            if (isNotBlank(transformFunction)) {
+                setTransformFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
+            }
+
             updateRequest(null, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
@@ -329,67 +319,24 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails = null;
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isNotBlank(sinkPkgUrl)) {
-                    if (Utils.hasPackageTypePrefix(sinkPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(sinkPkgUrl);
-                    } else {
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(
-                                    String.format("Encountered error \"%s\" when getting %s package from %s",
-                                            e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
-                        }
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
-                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
-                    try {
-                        componentPackageFile = FunctionCommon
-                                .extractFileFromPkgURL(existingComponent.getPackageLocation().getPackagePath());
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(
-                                String.format("Encountered error \"%s\" when getting %s package from %s",
-                                        e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
-                            mergedConfig, componentPackageFile);
-                } else if (uploadedInputStream != null) {
-
-                    componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
-                            mergedConfig, componentPackageFile);
-                    if (!isFunctionCodeBuiltin(functionDetails)
-                            && (componentPackageFile == null || fileDetail == null)) {
+                componentPackageFile = getPackageFile(
+                        sinkPkgUrl,
+                        existingComponent.getPackageLocation().getPackagePath(),
+                        uploadedInputStream);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
+                        mergedConfig, componentPackageFile);
+                if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)
+                        && !isFunctionCodeBuiltin(functionDetails)
+                        && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(
                                 ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
-                } else {
-                    componentPackageFile = FunctionCommon.createPkgTempFile();
-                    componentPackageFile.deleteOnExit();
-                    if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
-                        worker().getBrokerAdmin().packages().download(
-                                existingComponent.getPackageLocation().getPackagePath(),
-                                componentPackageFile.getAbsolutePath());
-                    } else {
-                        WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile,
-                                existingComponent.getPackageLocation().getPackagePath());
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
-                            mergedConfig, componentPackageFile);
-                }
             } catch (Exception e) {
                 log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant,
                         namespace, sinkName, e);
@@ -466,11 +413,45 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
+            String transformFunction = mergedConfig.getTransformFunction();
+            if (isNotBlank(transformFunction)
+                    && !transformFunction.equals(existingSinkConfig.getTransformFunction())) {
+                setTransformFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
+            }
+
             updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((sinkPkgUrl != null && !sinkPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
                     componentPackageFile.delete();
+                }
+            }
+        }
+    }
+
+    private void setTransformFunctionPackageLocation(Function.FunctionMetaData.Builder functionMetaDataBuilder,
+                                                 Function.FunctionDetails functionDetails, String transformFunction) {
+        File functionPackageFile = null;
+        try {
+            String builtin = functionDetails.getBuiltin();
+            if (isBlank(builtin)) {
+                functionPackageFile = getPackageFile(transformFunction);
+            }
+            Function.PackageLocationMetaData.Builder functionPackageLocation =
+                    getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                            transformFunction, null, functionPackageFile,
+                            functionDetails.getName() + "__sink-function",
+                            Function.FunctionDetails.ComponentType.FUNCTION, builtin);
+            functionMetaDataBuilder.setTransformFunctionPackageLocation(functionPackageLocation);
+        } catch (Exception e) {
+            log.error("Failed process {} {}/{}/{} extra function package: ",
+                    ComponentTypeUtils.toString(componentType), functionDetails.getTenant(),
+                    functionDetails.getNamespace(), functionDetails.getName(), e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } finally {
+            if (functionPackageFile != null && functionPackageFile.exists()) {
+                if (!transformFunction.startsWith(Utils.FILE)) {
+                    functionPackageFile.delete();
                 }
             }
         }
@@ -758,7 +739,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                                                  final String namespace,
                                                                  final String sinkName,
                                                                  final SinkConfig sinkConfig,
-                                                                 final File sinkPackageFile) throws IOException {
+                                                                 final File sinkPackageFile)
+            throws IOException, PulsarAdminException {
 
         // The rest end points take precedence over whatever is there in sinkConfig
         sinkConfig.setTenant(tenant);
@@ -796,17 +778,28 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 throw new IllegalArgumentException("Sink package is not provided");
             }
 
+            ClassLoader functionClassLoader = null;
+            if (isNotBlank(sinkConfig.getTransformFunction())) {
+                functionClassLoader =
+                        getBuiltinFunctionClassLoader(sinkConfig.getTransformFunction());
+                if (functionClassLoader == null) {
+                    File functionPackageFile = getPackageFile(sinkConfig.getTransformFunction());
+                    functionClassLoader = getClassLoaderFromPackage(sinkConfig.getTransformFunctionClassName(),
+                            functionPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                }
+                if (functionClassLoader == null) {
+                    throw new IllegalArgumentException("Transform Function package not found");
+                }
+            }
+
             SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
-                    sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+                sinkConfig, classLoader, functionClassLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+
             return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         } finally {
             if (shouldCloseClassLoader) {
                 ClassLoaderUtils.closeClassLoader(classLoader);
             }
         }
-    }
-
-    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return FunctionsImpl.downloadPackageFile(worker(), packageName);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
@@ -26,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -51,6 +51,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
+    private final LongAdder filterProcessedMsgs = new LongAdder();
+    private final LongAdder filterAcceptedMsgs = new LongAdder();
+    private final LongAdder filterRejectedMsgs = new LongAdder();
+    private final LongAdder filterRescheduledMsgs = new LongAdder();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
@@ -102,8 +106,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
-        List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
-        List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
+        int filteredMessageCount = 0;
+        int filteredEntryCount = 0;
+        long filteredBytesCount = 0;
+        List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
+        List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
@@ -116,15 +123,33 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                             ? ((EntryAndMetadata) entry).getMetadata()
                             : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     );
+
+            int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            if (hasFilter) {
+                this.filterProcessedMsgs.add(entryMsgCnt);
+            }
+
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
             if (filterResult == EntryFilter.FilterResult.REJECT) {
                 entriesToFiltered.add(entry.getPosition());
                 entries.set(i, null);
+                // FilterResult will be always `ACCEPTED` when there is No Filter
+                // dont need to judge whether `hasFilter` is true or not.
+                this.filterRejectedMsgs.add(entryMsgCnt);
+                filteredEntryCount++;
+                filteredMessageCount += entryMsgCnt;
+                filteredBytesCount += metadataAndPayload.readableBytes();
                 entry.release();
                 continue;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
                 entriesToRedeliver.add((PositionImpl) entry.getPosition());
                 entries.set(i, null);
+                // FilterResult will be always `ACCEPTED` when there is No Filter
+                // dont need to judge whether `hasFilter` is true or not.
+                this.filterRescheduledMsgs.add(entryMsgCnt);
+                filteredEntryCount++;
+                filteredMessageCount += entryMsgCnt;
+                filteredBytesCount += metadataAndPayload.readableBytes();
                 entry.release();
                 continue;
             }
@@ -138,13 +163,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
-                        .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
+                        .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
+                                (PositionImpl) entry.getPosition())) {
                     individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 }
-            } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+            }
+
+            if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 // Message metadata was corrupted or the messages was a server-only marker
 
@@ -161,6 +189,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 entries.set(i, null);
                 entry.release();
                 continue;
+            }
+
+            if (hasFilter) {
+                this.filterAcceptedMsgs.add(entryMsgCnt);
             }
 
             totalEntries++;
@@ -182,7 +214,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
             BrokerInterceptor interceptor = subscription.interceptor();
             if (null != interceptor) {
+                // keep for compatibility if users has implemented the old interface
                 interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata);
+                interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
@@ -205,6 +239,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
         }
 
+        if (serviceConfig.isDispatchThrottlingForFilteredEntriesEnabled()) {
+            acquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, filteredEntryCount,
+                    filteredMessageCount, filteredBytesCount);
+        }
+
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
@@ -214,6 +253,19 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
         if (!(subscription instanceof CompactorSubscription)) {
             subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
+        }
+    }
+
+    protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
+                                                      long totalMessagesSent, long totalBytesSent) {
+        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled()
+                || (cursor != null && !cursor.isActive())) {
+            long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
+            topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
+                    rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+            topic.getDispatchRateLimiter().ifPresent(rateLimter ->
+                    rateLimter.tryDispatchPermit(permits, totalBytesSent));
+            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(permits, totalBytesSent));
         }
     }
 
@@ -284,5 +336,38 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected String getSubscriptionName() {
         return subscription == null ? null : subscription.getName();
+    }
+
+    protected void checkAndApplyReachedEndOfTopicOrTopicMigration(List<Consumer> consumers) {
+        PersistentTopic topic = (PersistentTopic) subscription.getTopic();
+        checkAndApplyReachedEndOfTopicOrTopicMigration(topic, consumers);
+    }
+
+    public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
+        if (topic.isMigrated()) {
+            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+        } else {
+            consumers.forEach(Consumer::reachedEndOfTopic);
+        }
+    }
+
+    @Override
+    public long getFilterProcessedMsgCount() {
+        return this.filterProcessedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterAcceptedMsgCount() {
+        return this.filterAcceptedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterRejectedMsgCount() {
+        return this.filterRejectedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterRescheduledMsgCount() {
+        return this.filterRescheduledMsgs.longValue();
     }
 }

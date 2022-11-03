@@ -4,7 +4,7 @@ title: Debug with localrun mode
 sidebar_label: "Debug with localrun mode"
 ---
 
-In localrun mode, a function consumes and produces actual data to a Pulsar cluster, and mirrors how the function actually runs in a Pulsar cluster. This provides a way to test your function and allow you to launch a function instance on your local machine as a thread for easy debugging.
+In localrun mode, a function consumes and produces actual data to a Pulsar cluster, and mirrors how the function runs in a Pulsar cluster. This provides a way to test your function and allows you to launch a function instance on your local machine as a thread for easy debugging.
 
 :::note
 
@@ -15,19 +15,16 @@ Debugging with localrun mode is only available for Java functions in Pulsar 2.4.
 Before using localrun mode, you need to add the following dependency.
 
 ```xml
-
 <dependency>
    <groupId>org.apache.pulsar</groupId>
    <artifactId>pulsar-functions-local-runner</artifactId>
    <version>${pulsar.version}</version>
 </dependency>
-
 ```
 
 For example, you can run your function in the following manner.
 
 ```java
-
 FunctionConfig functionConfig = new FunctionConfig();
 functionConfig.setName(functionName);
 functionConfig.setInputs(Collections.singleton(sourceTopic));
@@ -37,7 +34,6 @@ functionConfig.setOutput(sinkTopic);
 
 LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
 localRunner.start(true);
-
 ```
 
 You can debug functions using an IDE. Set breakpoints and manually step through a function to debug with real data.
@@ -45,7 +41,6 @@ You can debug functions using an IDE. Set breakpoints and manually step through 
 The following code example shows how to run a function in localrun mode.
 
 ```java
-
 public class ExclamationFunction implements Function<String, String> {
 
    @Override
@@ -64,5 +59,4 @@ public static void main(String[] args) throws Exception {
     LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
     localRunner.start(false);
 }
-
 ```

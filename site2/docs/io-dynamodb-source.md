@@ -8,7 +8,7 @@ The DynamoDB source connector pulls data from DynamoDB table streams and persist
 
 This connector uses the [DynamoDB Streams Kinesis Adapter](https://github.com/awslabs/dynamodb-streams-kinesis-adapter),
 which uses the [Kinesis Consumer Library](https://github.com/awslabs/amazon-kinesis-client) (KCL) to do the actual
-consuming of messages. The KCL uses DynamoDB to track state for consumers and requires cloudwatch access to log metrics.
+consuming of messages. The KCL uses DynamoDB to track the state of consumers and requires cloudwatch access to log metrics.
 
 
 ## Configuration
@@ -41,7 +41,6 @@ Before using the DynamoDB source connector, you need to create a configuration f
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "awsEndpoint": "https://some.endpoint.aws",
@@ -57,13 +56,11 @@ Before using the DynamoDB source connector, you need to create a configuration f
         "startAtTime": "2019-03-05T19:28:58.000Z"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       awsEndpoint: "https://some.endpoint.aws"
       awsRegion: "us-east-1"
@@ -76,6 +73,5 @@ Before using the DynamoDB source connector, you need to create a configuration f
       receiveQueueSize: 2000
       initialPositionInStream: "TRIM_HORIZON"
       startAtTime: "2019-03-05T19:28:58.000Z"
-  
   ```
 

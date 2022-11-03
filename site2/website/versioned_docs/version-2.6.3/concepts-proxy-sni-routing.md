@@ -80,8 +80,8 @@ ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy an
 
 ```
 
-String brokerServiceUrl = “pulsar+ssl://pulsar-broker-vip:6651/”;
-String proxyUrl = “pulsar+ssl://ats-proxy:443”;
+String brokerServiceUrl = "pulsar+ssl://pulsar-broker-vip:6651/";
+String proxyUrl = "pulsar+ssl://ats-proxy:443";
 ClientBuilder clientBuilder = PulsarClient.builder()
 		.serviceUrl(brokerServiceUrl)
         .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)

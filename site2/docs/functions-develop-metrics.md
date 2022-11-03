@@ -19,7 +19,7 @@ Using the language-native interface for Java or Python is **not** able to publis
 
 You can use both built-in metrics and customized metrics to monitor functions.
 - Use the built-in [function metrics](reference-metrics.md#pulsar-functions).
-  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of Java, Python, and Go functions. You can check the metrics by following the [monitoring](deploy-monitoring.md/#function-and-connector-stats) guide. 
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of Java, Python, and Go functions. You can check the metrics by following the [monitoring](deploy-monitoring.md#function-and-connector-stats) guide. 
 - Set your customized metrics.
   In addition to the built-in metrics, Pulsar allows you to customize metrics for Java and Python functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
 
@@ -33,7 +33,6 @@ Here is an example of how to customize metrics for Java, Python and Go functions
 <TabItem value="Java">
 
 ```java
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -51,14 +50,12 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
         return null;
     }
 }
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Function
 
 class MetricRecorderFunction(Function):
@@ -67,14 +64,12 @@ class MetricRecorderFunction(Function):
 
         if input == 11:
             context.record_metric('elevens-count', 1)
-
 ```
 
 </TabItem>
 <TabItem value="Go">
 
 ```go
-
 func metricRecorderFunction(ctx context.Context, in []byte) error {
 	inputstr := string(in)
 	fctx, ok := pf.FromContext(ctx)
@@ -87,7 +82,6 @@ func metricRecorderFunction(ctx context.Context, in []byte) error {
 	}
 	return nil
 }
-
 ```
 
 </TabItem>

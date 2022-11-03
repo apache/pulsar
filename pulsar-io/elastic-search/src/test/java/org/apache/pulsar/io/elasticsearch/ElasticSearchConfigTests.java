@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -93,6 +93,7 @@ public class ElasticSearchConfigTests {
         assertEquals(config.getSocketTimeoutInMs(), 60000);
 
         assertEquals(config.isStripNulls(), true);
+        assertEquals(config.isCopyKeyFields(), false);
         assertEquals(config.isSchemaEnable(), false);
         assertEquals(config.isKeyIgnore(), true);
         assertEquals(config.getMalformedDocAction(), ElasticSearchConfig.MalformedDocAction.FAIL);
