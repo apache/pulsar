@@ -412,4 +412,4 @@ For complete examples, refer to [C++ client examples](https://github.com/apache/
 
 ## Schema
 
-To work with [Pulsar schema](schema-overview.md) using C++ clients, see [Schema - Get started](schema-get-started.md). For specific schema types that C++ clients support, see [code](https://github.com/apache/pulsar-client-cpp/blob/main/include/pulsar/Schema.h#L51-L132).
+To work with [Pulsar schema](schema-overview.md) using C++ clients, see [Schema - Get started](schema-get-started.md). For specific schema types that C++ clients support, see [code](https://github.com/apache/pulsar-client-cpp/blob/main/include/pulsar/Schema.h).

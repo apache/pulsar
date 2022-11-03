@@ -8,6 +8,7 @@ This section introduces the following content:
 * [What is Pulsar Schema](#what-is-pulsar-schema)
 * [Why use it](#why-use-it)
 * [How it works](#how-it-works)
+* [Use case](#use-case)
 * [What's next?](#whats-next)
 
 ## What is Pulsar Schema
@@ -109,13 +110,9 @@ This diagram illustrates how schema works on the consumer side.
 
 ## Use case
 
-By default, Pulsar takes bytes as input and sends bytes as output. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
-* The field does not exist.
-* The field type has changed (for example, `string` is changed to `int`).
-
 You can use language-specific types of data when constructing and handling messages from simple data types like `string` to more complex application-specific types.
 
-For example, use the _User_ class to define the messages sent to Pulsar topics.
+For example, you are using the _User_ class to define the messages sent to Pulsar topics.
 
 ```java
 public class User {
@@ -139,9 +136,7 @@ producer.send(message);
 
 **With a schema**
 
-If you construct a producer by specifying a schema, then you can send a class to a topic directly without worrying about how to serialize POJOs into bytes. 
-
-This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize it into bytes. 
+This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize POJOs into bytes.
 
 ```java
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))

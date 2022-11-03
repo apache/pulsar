@@ -51,10 +51,10 @@ The following table outlines the primitive types that Pulsar schema supports, an
 | Primitive Type | Description | Java Type| Python Type | Go Type |
 |---|---|---|---|---|
 | `BOOLEAN` | A binary value | boolean | bool | bool |
-| `INT8` | A 8-bit signed integer | byte | | int8 |
-| `INT16` | A 16-bit signed integer | short | | int16 |
+| `INT8` | A 8-bit signed integer | int | | int8 |
+| `INT16` | A 16-bit signed integer | int | | int16 |
 | `INT32` | A 32-bit signed integer | int | | int32 |
-| `INT64` | A 64-bit signed integer | long | | int64 |
+| `INT64` | A 64-bit signed integer | int | | int64 |
 | `FLOAT` | A single precision (32-bit) IEEE 754 floating-point number | float | float | float32 |
 | `DOUBLE` | A double-precision (64-bit) IEEE 754 floating-point number | double | float | float64|
 | `BYTES` | A sequence of 8-bit unsigned bytes | byte[], ByteBuffer, ByteBuf | bytes | []byte |

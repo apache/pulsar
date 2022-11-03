@@ -58,12 +58,6 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
 3. Produce messages using a key/value schema.
 
    ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.SEPARATED
-   );
-
    Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
        .topic(TOPIC)
        .create();
@@ -80,12 +74,6 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
 4. Consume messages using a key/value schema.
 
    ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.SEPARATED
-   );
-
    Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
        ...
        .topic(TOPIC)
@@ -239,6 +227,8 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
         .topic("sensor-readings")
         .create();
 ```
+
+### Avro-based schema using Java
 
 The following schema formats are currently available for Java:
 
