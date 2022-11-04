@@ -218,16 +218,16 @@ public abstract class NamespacesBase extends AdminResource {
                          }))
                 .thenCompose(topics -> {
                     List<String> allTopics = topics.get(0);
-                    ArrayList<String> copyAllTopics = new ArrayList<>();
+                    ArrayList<String> allUserCreatedTopics = new ArrayList<>();
                     List<String> allPartitionedTopics = topics.get(1);
-                    ArrayList<String> copyAllPartitionTopics = new ArrayList<>();
+                    ArrayList<String> allUserCreatedPartitionTopics = new ArrayList<>();
                     boolean hasNonSystemTopic = false;
                     List<String> allSystemTopics = new ArrayList<>();
                     List<String> allPartitionedSystemTopics = new ArrayList<>();
                     for (String topic : allTopics) {
                         if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                             hasNonSystemTopic = true;
-                            copyAllTopics.add(topic);
+                            allUserCreatedTopics.add(topic);
                         } else {
                             allSystemTopics.add(topic);
                         }
@@ -235,7 +235,7 @@ public abstract class NamespacesBase extends AdminResource {
                     for (String topic : allPartitionedTopics) {
                         if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                             hasNonSystemTopic = true;
-                            copyAllPartitionTopics.add(topic);
+                            allUserCreatedPartitionTopics.add(topic);
                         } else {
                             allPartitionedSystemTopics.add(topic);
                         }
@@ -249,9 +249,9 @@ public abstract class NamespacesBase extends AdminResource {
                         old.deleted = true;
                         return  old;
                     }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(copyAllTopics);
+                        return internalDeleteTopicsAsync(allUserCreatedTopics);
                     }).thenCompose(ignore -> {
-                        return internalDeletePartitionedTopicsAsync(copyAllPartitionTopics);
+                        return internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics);
                     }).thenCompose(ignore -> {
                         return internalDeleteTopicsAsync(allSystemTopics);
                     }).thenCompose(ignore__ -> {
