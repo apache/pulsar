@@ -91,8 +91,8 @@ public class SecurityUtility {
 
     /**
      * Get Bouncy Castle provider, and call Security.addProvider(provider) if success.
-     * 1. try get from classpath.
-     * 2. try get from Nar.
+     *  1. try get from classpath.
+     *  2. try get from Nar.
      */
     public static Provider getProvider() {
         boolean isProviderInstalled =
@@ -219,8 +219,7 @@ public class SecurityUtility {
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, String trustCertsFilePath,
-                                              String certFilePath, String keyFilePath, String providerName)
-            throws GeneralSecurityException {
+            String certFilePath, String keyFilePath, String providerName) throws GeneralSecurityException {
         X509Certificate[] trustCertificates = loadCertificatesFromPemFile(trustCertsFilePath);
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
@@ -229,7 +228,6 @@ public class SecurityUtility {
 
     /**
      * Creates {@link SslContext} with capability to do auto-cert refresh.
-     *
      * @param allowInsecureConnection
      * @param trustCertsFilePath
      * @param certFilePath
@@ -455,7 +453,7 @@ public class SecurityUtility {
         return certificates;
     }
 
-    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException {
+    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException  {
         if (inStream == null) {
             return null;
         }
@@ -523,7 +521,7 @@ public class SecurityUtility {
     }
 
     private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
-                                        InputStream trustCertsStream) throws IOException, FileNotFoundException {
+            InputStream trustCertsStream) throws IOException, FileNotFoundException {
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
@@ -536,7 +534,7 @@ public class SecurityUtility {
     }
 
     private static void setupKeyManager(SslContextBuilder builder, PrivateKey privateKey,
-                                        X509Certificate[] certificates) {
+            X509Certificate[] certificates) {
         builder.keyManager(privateKey, (X509Certificate[]) certificates);
     }
 
@@ -553,7 +551,7 @@ public class SecurityUtility {
     }
 
     private static void setupClientAuthentication(SslContextBuilder builder,
-                                                  boolean requireTrustedClientCertOnConnect) {
+        boolean requireTrustedClientCertOnConnect) {
         if (requireTrustedClientCertOnConnect) {
             builder.clientAuth(ClientAuth.REQUIRE);
         } else {
