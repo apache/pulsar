@@ -74,7 +74,9 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.ledgerInfoCompressionType = CompressionType.NONE;
         this.cursorInfoCompressionType = CompressionType.NONE;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
-        store.registerListener(this);
+        if (store != null) {
+            store.registerListener(this);
+        }
     }
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor, String ledgerInfoCompressionType,
@@ -84,7 +86,9 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.ledgerInfoCompressionType = parseCompressionType(ledgerInfoCompressionType);
         this.cursorInfoCompressionType = parseCompressionType(cursorInfoCompressionType);
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
-        store.registerListener(this);
+        if (store != null) {
+            store.registerListener(this);
+        }
     }
 
     private CompressionType parseCompressionType(String value) {

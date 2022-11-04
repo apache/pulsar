@@ -1505,7 +1505,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         void setMessageId(long ledgerId, long entryId, int partitionIndex) {
             if (msg != null) {
-                msg.setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
+                if (msg.getMessageId() != null) {
+                    msg.setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
+                }
             } else if (msgs.size() == 1) {
                 // If there is only one message in batch, the producer will publish messages like non-batch
                 msgs.get(0).setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
