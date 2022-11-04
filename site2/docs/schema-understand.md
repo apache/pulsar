@@ -78,20 +78,20 @@ Currently, Pulsar supports the following complex types:
 
 | Complex Type | Description |
 |---|---|
-| `keyvalue` | Represents a complex type of a key/value pair. |
-| `struct` | Handles structured data. It supports `AvroBaseStructSchema` and `ProtobufNativeSchema`. |
+| `KeyValue` | Represents a complex type of a key/value pair. |
+| `Struct` | Handles structured data. It supports `AvroBaseStructSchema` and `ProtobufNativeSchema`. |
 
-#### `keyvalue` schema
+#### `KeyValue` schema
 
-`Keyvalue` schema helps applications define schemas for both key and value. Pulsar stores the `SchemaInfo` of key schema and the `SchemaInfo` of value schema together.
+`KeyValue` schema helps applications define schemas for both key and value. Pulsar stores the `SchemaInfo` of key schema and the value schema together.
 
 You can choose the encoding type when constructing the key/value schema.：
 * `INLINE` - Key/value pairs are encoded together in the message payload.
 * `SEPARATED` - see [Construct a key/value schema](schema-get-started.md#construct-a-keyvalue-schema).
 
-#### `struct` schema
+#### `Struct` schema
 
-`struct` schema supports `AvroBaseStructSchema` and `ProtobufNativeSchema`.
+`Struct` schema supports `AvroBaseStructSchema` and `ProtobufNativeSchema`.
 
 |Type|Description|
 ---|---|
