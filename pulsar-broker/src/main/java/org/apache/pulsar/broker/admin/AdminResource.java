@@ -576,7 +576,20 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
                                                   boolean createLocalTopicOnly, Map<String, String> properties) {
-        validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC)
+        if (numPartitions <= 0) {
+            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of partitions should be more than 0"));
+            return;
+        }
+        checkTopicExistsAsync(topicName)
+                .thenAccept(exists -> {
+                    if (exists) {
+                        log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                        throw new RestException(Status.CONFLICT, "This topic already exists");
+                    }
+                })
+                .thenRun(() -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
+                        NamespaceOperation.CREATE_TOPIC))
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .handle((policies, ex) -> {
                     if (ex != null
@@ -586,9 +599,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         throw new RestException(ex);
                     }
 
-                    if (numPartitions <= 0) {
-                        throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0.");
-                    }
                     int maxTopicsPerNamespace = policies != null && policies.max_topics_per_namespace != null
                             ? policies.max_topics_per_namespace : pulsar().getConfig().getMaxTopicsPerNamespace();
                     if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
@@ -607,16 +617,11 @@ public abstract class AdminResource extends PulsarWebResource {
                         throw new RestException(Status.NOT_ACCEPTABLE,
                                 "Number of partitions should be less than or equal to " + maxPartitions);
                     }
-                    return checkTopicExistsAsync(topicName).thenAccept(exists -> {
-                        if (exists) {
-                            log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                            throw new RestException(Status.CONFLICT, "This topic already exists");
-                        }
-                    });
+                    return null;
                 })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
-                .thenAccept(__ -> {
+                .thenRun(() -> {
                     List<String> replicatedClusters = new ArrayList<>();
                     if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
                         getNamespaceReplicatedClusters(namespaceName)
