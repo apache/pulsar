@@ -172,5 +172,11 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.typesafe.netty</groupId>
+      <artifactId>netty-reactive-streams</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
+
 </project>
