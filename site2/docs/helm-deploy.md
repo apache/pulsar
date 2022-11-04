@@ -52,11 +52,7 @@ volumes:
   local_storage: false
 ```
 
-To use local persistent volumes as the persistent storage for Helm release, you can install the [local storage provisioner](#install-local-storage-provisioner) and include the following option in the `helm install` command. 
-
-```bash
---set volumes.local_storage=true
-```
+If you want to use local persistent volumes as the persistent storage for Helm release, you can install a local storage provisioner and include `--set volumes.local_storage=true` in the `helm install` command. See [Install storage provisioner](#install-storage-provisioner) for more details.
 
 :::note
 
@@ -295,21 +291,15 @@ Once you have all of your configuration options collected, you can install depen
 
 ## Install dependent charts
 
-#### Install storage provisioner
+### Install storage provisioner
 
-To use [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) as the persistent storage, you need to install a local storage provisioner.
+For more information about storage provisioner, refer to [Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/storage-classes/#provisioner). Note that you need to create a storage class for your Kubernetes cluster and configure the [storage class name](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml) in the Helm Chart.
 
-One of the easiest ways to get started is to use the local storage provisioner provided along with the Pulsar Helm Chart.
+If you want to use [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) as the persistent storage, you need to install a local storage provisioner. Here are two options:
+* [Local Path Provisioner](https://github.com/rancher/local-path-provisioner)
+* [Local Persistence Volume Static Provisioner](https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner)
 
-```bash
-helm repo add streamnative https://charts.streamnative.io
-helm repo update
-helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
-```
-
-Alternatively, you can create a [storage class](https://kubernetes.io/docs/concepts/storage/storage-classes/) for your Kubernetes cluster and configure the [storage class name](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml#L361).
-
-#### Install cert-manager
+### Install cert-manager
 
 The Pulsar Helm Chart uses the [cert-manager](https://github.com/jetstack/cert-manager) to provision and manage TLS certificates automatically. To enable TLS encryption for brokers or proxies, you need to install the cert-manager in advance.
 
