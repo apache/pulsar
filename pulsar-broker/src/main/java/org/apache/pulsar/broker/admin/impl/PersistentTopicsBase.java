@@ -2321,70 +2321,15 @@ public class PersistentTopicsBase extends AdminResource {
                                 authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
                             final int numPartitions = partitionMetadata.partitions;
                             if (numPartitions > 0) {
-                                final CompletableFuture<Void> future = new CompletableFuture<>();
-                                final AtomicInteger count = new AtomicInteger(numPartitions);
-                                final AtomicInteger failureCount = new AtomicInteger(0);
-                                final AtomicReference<Throwable> partitionException = new AtomicReference<>();
-
-                                // Create the subscription on each partition
-                                for (int i = 0; i < numPartitions; i++) {
-                                    TopicName topicNamePartition = topicName.getPartition(i);
-                                    try {
-                                        pulsar().getAdminClient().topics()
-                                                .createSubscriptionAsync(topicNamePartition.toString(),
-                                                        subscriptionName, targetMessageId, false, properties)
-                                                .handle((r, ex) -> {
-                                                    if (ex != null) {
-                                                        // fail the operation on unknown exception or
-                                                        // if all the partitioned failed due to
-                                                        // subscription-already-exist
-                                                        if (failureCount.incrementAndGet() == numPartitions
-                                                                || !(ex instanceof PulsarAdminException
-                                                                        .ConflictException)) {
-                                                            partitionException.set(ex);
-                                                        }
-                                                    }
-
-                                                    if (count.decrementAndGet() == 0) {
-                                                        future.complete(null);
-                                                    }
-
-                                                    return null;
-                                                });
-                                    } catch (Exception e) {
-                                        log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
-                                              clientAppId(), topicNamePartition, subscriptionName, targetMessageId, e);
-                                        future.completeExceptionally(e);
-                                    }
-                                }
-
-                                future.whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        if (ex instanceof PulsarAdminException) {
-                                            asyncResponse.resume(new RestException((PulsarAdminException) ex));
-                                            return;
-                                        } else {
-                                            asyncResponse.resume(new RestException(ex));
-                                            return;
-                                        }
-                                    }
-
-                                    if (partitionException.get() != null) {
-                                        log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
-                                                clientAppId(), topicName,
-                                                subscriptionName, targetMessageId, partitionException.get());
-                                        if (partitionException.get() instanceof PulsarAdminException) {
-                                            asyncResponse.resume(
-                                                    new RestException((PulsarAdminException) partitionException.get()));
-                                            return;
-                                        } else {
-                                            asyncResponse.resume(new RestException(partitionException.get()));
-                                            return;
-                                        }
-                                    }
-
-                                    asyncResponse.resume(Response.noContent().build());
-                                });
+                                internalCreateSubscriptionForPartitionedTopic(numPartitions, subscriptionName,
+                                        targetMessageId, properties)
+                                        .thenAccept(ignore -> {
+                                            asyncResponse.resume(Response.noContent().build());
+                                        })
+                                        .exceptionally(ex -> {
+                                            asyncResponse.resume(ex);
+                                            return null;
+                                        });
                             } else {
                                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
                                         subscriptionName, targetMessageId, authoritative, replicated, properties);
@@ -2459,6 +2404,68 @@ public class PersistentTopicsBase extends AdminResource {
                         "Failed for Subscription Busy: " + t.getMessage()));
             } else {
                 resumeAsyncResponseExceptionally(asyncResponse, t);
+            }
+            return null;
+        });
+    }
+
+    private CompletableFuture<Void> internalCreateSubscriptionForPartitionedTopic(
+            int numPartitions, String subscriptionName, MessageIdImpl targetMessageId, Map<String, String> properties) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        final AtomicInteger count = new AtomicInteger(numPartitions);
+        final AtomicInteger failureCount = new AtomicInteger(0);
+        final AtomicReference<Throwable> partitionException = new AtomicReference<>();
+
+        // Create the subscription on each partition
+        for (int i = 0; i < numPartitions; i++) {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            try {
+                pulsar().getAdminClient().topics()
+                        .createSubscriptionAsync(topicNamePartition.toString(),
+                                subscriptionName, targetMessageId, false, properties)
+                        .handle((r, ex) -> {
+                            if (ex != null) {
+                                // fail the operation on unknown exception or
+                                // if all the partitioned failed due to
+                                // subscription-already-exist
+                                if (failureCount.incrementAndGet() == numPartitions
+                                        || !(ex instanceof PulsarAdminException
+                                        .ConflictException)) {
+                                    partitionException.set(ex);
+                                }
+                            }
+
+                            if (count.decrementAndGet() == 0) {
+                                future.complete(null);
+                            }
+
+                            return null;
+                        });
+            } catch (Exception e) {
+                log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
+                        clientAppId(), topicNamePartition, subscriptionName, targetMessageId, e);
+                future.completeExceptionally(e);
+            }
+        }
+
+        return future.handle((r, ex) -> {
+            if (ex != null) {
+                if (ex instanceof PulsarAdminException) {
+                    throw new RestException((PulsarAdminException) ex);
+                } else {
+                    throw new RestException(ex);
+                }
+            }
+
+            if (partitionException.get() != null) {
+                log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
+                        clientAppId(), topicName,
+                        subscriptionName, targetMessageId, partitionException.get());
+                if (partitionException.get() instanceof PulsarAdminException) {
+                    throw new RestException((PulsarAdminException) partitionException.get());
+                } else {
+                    throw new RestException(partitionException.get());
+                }
             }
             return null;
         });
@@ -4580,33 +4587,25 @@ public class PersistentTopicsBase extends AdminResource {
             result.complete(null);
             return result;
         }
-        PulsarAdmin admin;
-        try {
-            admin = pulsar().getAdminClient();
-        } catch (PulsarServerException ex) {
-            result.completeExceptionally(ex);
-            return result;
-        }
 
         List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>(subscriptions.size());
 
         subscriptions.forEach(subscription -> {
-            for (int i = 0; i < numPartitions; i++) {
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                admin.topics().createSubscriptionAsync(topicName.getPartition(i).toString(), subscription,
-                        MessageId.latest).whenComplete((__, ex) -> {
-                    if (ex == null) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            internalCreateSubscriptionForPartitionedTopic(numPartitions, subscription,
+                    (MessageIdImpl) MessageId.latest, null)
+                    .thenAccept(__ -> {
                         future.complete(null);
-                    } else {
+                    })
+                    .exceptionally(ex -> {
                         if (ex instanceof PulsarAdminException.ConflictException) {
                             future.complete(null);
                         } else {
                             future.completeExceptionally(ex);
                         }
-                    }
-                });
-                subscriptionFutures.add(future);
-            }
+                        return null;
+                    });
+            subscriptionFutures.add(future);
         });
         FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
             log.info("[{}] Successfully created subscriptions on new partitions {}", clientAppId(), topicName);
