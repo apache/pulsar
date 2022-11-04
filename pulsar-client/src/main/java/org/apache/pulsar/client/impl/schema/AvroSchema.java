@@ -118,6 +118,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.LocalTimestampMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.LocalTimestampMicrosConversion());
         if (jsr310ConversionEnabled) {
             // The conversion that is registered first is higher priority than the registered later.
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
