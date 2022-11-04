@@ -36,7 +36,7 @@ import org.roaringbitmap.RoaringBitmap;
 @Slf4j
 @Data
 @AllArgsConstructor
-public abstract class Bucket {
+abstract class Bucket {
 
     static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
     static final String DELIMITER = "_";

@@ -28,8 +28,8 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.time.Clock;
 import java.util.Iterator;
+import java.util.NavigableSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +40,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -48,7 +48,7 @@ import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @Slf4j
 @ThreadSafe
-public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker {
+public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
 
     static final int AsyncOperationTimeoutSeconds = 30;
 
@@ -84,35 +84,16 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                                  BucketSnapshotStorage bucketSnapshotStorage,
                                  long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
                                  int maxNumBuckets) {
-        super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict,
-                -1L);
+        super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.minIndexCountPerBucket = minIndexCountPerBucket;
         this.timeStepPerBucketSnapshotSegment = timeStepPerBucketSnapshotSegment;
         this.maxNumBuckets = maxNumBuckets;
-        ManagedCursor cursor = dispatcher.getCursor();
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-
         this.numberDelayedMessages = 0L;
-
-        this.lastMutableBucket = new MutableBucket(cursor, bucketSnapshotStorage, super.getPriorityQueue());
-    }
-
-    private void moveScheduledMessageToSharedQueue(long cutoffTime) {
-        TripleLongPriorityQueue priorityQueue = getPriorityQueue();
-        while (!priorityQueue.isEmpty()) {
-            long timestamp = priorityQueue.peekN1();
-            if (timestamp > cutoffTime) {
-                break;
-            }
-
-            long ledgerId = priorityQueue.peekN2();
-            long entryId = priorityQueue.peekN3();
-            sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
-
-            priorityQueue.pop();
-        }
+        ManagedCursor cursor = dispatcher.getCursor();
+        this.lastMutableBucket = new MutableBucket(cursor, bucketSnapshotStorage);
     }
 
     @Override
@@ -121,7 +102,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             if (timeout == null || timeout.isCancelled()) {
                 return;
             }
-            moveScheduledMessageToSharedQueue(getCutoffTime());
+            lastMutableBucket.moveScheduledMessageToSharedQueue(getCutoffTime(), sharedBucketPriorityQueue);
         }
         super.run(timeout);
     }
@@ -166,13 +147,14 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         boolean existBucket = findImmutableBucket(ledgerId).isPresent();
 
         // Create bucket snapshot
-        if (ledgerId > lastMutableBucket.endLedgerId && !getPriorityQueue().isEmpty()) {
-            if (getPriorityQueue().size() >= minIndexCountPerBucket && !existBucket) {
-                sealBucket();
-                lastMutableBucket.resetLastMutableBucketRange();
-                if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
-                    // TODO merge bucket snapshot (synchronize operate)
-                }
+        if (!existBucket && ledgerId > lastMutableBucket.endLedgerId
+                && lastMutableBucket.size() >= minIndexCountPerBucket
+                && !lastMutableBucket.isEmpty()) {
+            sealBucket();
+            lastMutableBucket.resetLastMutableBucketRange();
+
+            if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
+                // TODO merge bucket snapshot (synchronize operate)
             }
         }
 
@@ -182,16 +164,9 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
         } else {
             checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
-
-            getPriorityQueue().add(deliverAt, ledgerId, entryId);
-
-            if (lastMutableBucket.startLedgerId == -1L) {
-                lastMutableBucket.setStartLedgerId(ledgerId);
-            }
-            lastMutableBucket.setEndLedgerId(ledgerId);
+            lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
         }
 
-        lastMutableBucket.putIndexBit(ledgerId, entryId);
         numberDelayedMessages++;
 
         if (log.isDebugEnabled()) {
@@ -217,12 +192,12 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
     @Override
     protected long nextDeliveryTime() {
-        if (getPriorityQueue().isEmpty() && !sharedBucketPriorityQueue.isEmpty()) {
+        if (lastMutableBucket.isEmpty() && !sharedBucketPriorityQueue.isEmpty()) {
             return sharedBucketPriorityQueue.peekN1();
-        } else if (sharedBucketPriorityQueue.isEmpty() && !getPriorityQueue().isEmpty()) {
-            return getPriorityQueue().peekN1();
+        } else if (sharedBucketPriorityQueue.isEmpty() && !lastMutableBucket.isEmpty()) {
+            return lastMutableBucket.nextDeliveryTime();
         }
-        long timestamp = getPriorityQueue().peekN1();
+        long timestamp = lastMutableBucket.nextDeliveryTime();
         long bucketTimestamp = sharedBucketPriorityQueue.peekN1();
         return Math.min(timestamp, bucketTimestamp);
     }
@@ -234,16 +209,16 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
     @Override
     public synchronized long getBufferMemoryUsage() {
-        return getPriorityQueue().bytesCapacity() + sharedBucketPriorityQueue.bytesCapacity();
+        return this.lastMutableBucket.getBufferMemoryUsage() + sharedBucketPriorityQueue.bytesCapacity();
     }
 
     @Override
-    public synchronized Set<PositionImpl> getScheduledMessages(int maxMessages) {
+    public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
         long cutoffTime = getCutoffTime();
 
-        moveScheduledMessageToSharedQueue(cutoffTime);
+        lastMutableBucket.moveScheduledMessageToSharedQueue(cutoffTime, sharedBucketPriorityQueue);
 
-        Set<PositionImpl> positions = new TreeSet<>();
+        NavigableSet<PositionImpl> positions = new TreeSet<>();
         int n = maxMessages;
 
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
@@ -302,7 +277,6 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
     @Override
     public synchronized void clear() {
-        super.clear();
         cleanImmutableBuckets(true);
         sharedBucketPriorityQueue.clear();
         lastMutableBucket.clear();
@@ -313,6 +287,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     @Override
     public synchronized void close() {
         super.close();
+        lastMutableBucket.close();
         cleanImmutableBuckets(false);
         sharedBucketPriorityQueue.close();
     }

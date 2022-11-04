@@ -25,11 +25,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
 import java.time.Clock;
 import java.util.NavigableMap;
@@ -46,10 +44,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTest {
-
-    private final Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-bucket-delayed-delivery-test"),
-            500, TimeUnit.MILLISECONDS);
+@Test(groups = "broker")
+public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
     private BucketSnapshotStorage bucketSnapshotStorage;
 
@@ -61,7 +57,6 @@ public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTes
     }
 
     @DataProvider(name = "delayedTracker")
-    @Override
     public Object[][] provider(Method method) throws Exception {
         dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
         clock = mock(Clock.class);
@@ -159,27 +154,6 @@ public class BucketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTes
 
         assertTrue(tracker.containsMessage(3, 3));
 
-        tracker.close();
-    }
-
-    @Override
-    @Test(dataProvider = "delayedTracker")
-    public void testWithFixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertEquals(tracker.getFixedDelayDetectionLookahead(), -1L);
-        tracker.close();
-    }
-
-    @Override
-    @Test(dataProvider = "delayedTracker")
-    public void testWithMixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertEquals(tracker.getFixedDelayDetectionLookahead(), -1L);
-        tracker.close();
-    }
-
-    @Override
-    @Test(dataProvider = "delayedTracker")
-    public void testWithNoDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertEquals(tracker.getFixedDelayDetectionLookahead(), -1L);
         tracker.close();
     }
 }

@@ -38,14 +38,14 @@ import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
-public class MutableBucket extends Bucket {
+class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
 
     MutableBucket(ManagedCursor cursor,
-                  BucketSnapshotStorage bucketSnapshotStorage, TripleLongPriorityQueue priorityQueue) {
+                  BucketSnapshotStorage bucketSnapshotStorage) {
         super(cursor, bucketSnapshotStorage, -1L, -1L);
-        this.priorityQueue = priorityQueue;
+        this.priorityQueue = new TripleLongPriorityQueue();
     }
 
     Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
@@ -147,13 +147,57 @@ public class MutableBucket extends Bucket {
         return result;
     }
 
+    void moveScheduledMessageToSharedQueue(long cutoffTime, TripleLongPriorityQueue sharedBucketPriorityQueue) {
+        while (!priorityQueue.isEmpty()) {
+            long timestamp = priorityQueue.peekN1();
+            if (timestamp > cutoffTime) {
+                break;
+            }
+
+            long ledgerId = priorityQueue.peekN2();
+            long entryId = priorityQueue.peekN3();
+            sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
+
+            priorityQueue.pop();
+        }
+    }
+
     void resetLastMutableBucketRange() {
-        this.setStartLedgerId(-1L);
-        this.setEndLedgerId(-1L);
+        this.startLedgerId = -1L;
+        this.endLedgerId = -1L;
     }
 
     void clear() {
         this.resetLastMutableBucketRange();
         this.delayedIndexBitMap.clear();
+    }
+
+    public void close() {
+        priorityQueue.close();
+    }
+
+    long getBufferMemoryUsage() {
+        return priorityQueue.bytesCapacity();
+    }
+
+    boolean isEmpty() {
+        return priorityQueue.isEmpty();
+    }
+
+    long nextDeliveryTime() {
+        return priorityQueue.peekN1();
+    }
+
+    long size() {
+        return priorityQueue.size();
+    }
+
+    void addMessage(long ledgerId, long entryId, long deliverAt) {
+        priorityQueue.add(deliverAt, ledgerId, entryId);
+        if (startLedgerId == -1L) {
+            this.startLedgerId = ledgerId;
+        }
+        this.endLedgerId = ledgerId;
+        putIndexBit(ledgerId, entryId);
     }
 }
