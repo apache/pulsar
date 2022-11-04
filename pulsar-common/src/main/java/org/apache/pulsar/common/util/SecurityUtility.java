@@ -124,7 +124,12 @@ public class SecurityUtility {
             conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             conscryptClazz.getMethod("checkAvailability").invoke(null);
         } catch (Throwable e) {
-            log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            if (e.getCause().getClass().getName().equals("java.lang.UnsatisfiedLinkError")) {
+                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
+                        System.getProperty("os.name"), System.getProperty("os.arch"));
+            } else {
+                log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            }
             return null;
         }
 
@@ -448,7 +453,7 @@ public class SecurityUtility {
         return certificates;
     }
 
-    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException  {
+    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException {
         if (inStream == null) {
             return null;
         }
@@ -546,7 +551,7 @@ public class SecurityUtility {
     }
 
     private static void setupClientAuthentication(SslContextBuilder builder,
-        boolean requireTrustedClientCertOnConnect) {
+                                                  boolean requireTrustedClientCertOnConnect) {
         if (requireTrustedClientCertOnConnect) {
             builder.clientAuth(ClientAuth.REQUIRE);
         } else {
