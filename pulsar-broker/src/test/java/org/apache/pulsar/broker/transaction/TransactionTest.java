@@ -212,16 +212,6 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void testDeleteNamespaceAfterUsedTransaction() throws Exception {
-        String topicName = TopicName.get(NAMESPACE1 + "/" + "testDeleteNamespaceAfterUsedTransaction").toString();
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-
-        admin.namespaces().deleteNamespace(NAMESPACE1, true);
-    }
-
-    @Test
     public void testCreateTransactionSystemTopic() throws Exception {
         String subName = "test";
         String topicName = TopicName.get(NAMESPACE1 + "/" + "testCreateTransactionSystemTopic").toString();
