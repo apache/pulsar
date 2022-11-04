@@ -52,8 +52,6 @@ volumes:
   local_storage: false
 ```
 
-If you want to use local persistent volumes as the persistent storage for Helm release, you can install a local storage provisioner and include `--set volumes.local_storage=true` in the `helm install` command. See [Install storage provisioner](#install-storage-provisioner) for more details.
-
 :::note
 
 Before installing the production instance of Pulsar, ensure to plan the storage settings to avoid extra storage migration work. Because after initial installation, you must edit Kubernetes objects manually if you want to change storage settings.
@@ -295,7 +293,7 @@ Once you have all of your configuration options collected, you can install depen
 
 For more information about storage provisioner, refer to [Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/storage-classes/#provisioner). Note that you need to create a storage class for your Kubernetes cluster and configure the [storage class name](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml) in the Helm Chart.
 
-If you want to use [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) as the persistent storage, you need to install a local storage provisioner. Here are two options:
+If you want to use **local** [persistent volumes](#persistence) as the persistent storage, you need to install a local storage provisioner. Here are two options:
 * [Local Path Provisioner](https://github.com/rancher/local-path-provisioner)
 * [Local Persistence Volume Static Provisioner](https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner)
 
