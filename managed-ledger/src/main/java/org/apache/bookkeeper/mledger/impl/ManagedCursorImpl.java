@@ -2626,6 +2626,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         State oldState = STATE_UPDATER.getAndSet(this, State.Closing);
         if (oldState == State.Closed || oldState == State.Closing) {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
+            if (oldState == State.Closed){
+                STATE_UPDATER.set(this, State.Closed);
+            }
             callback.closeComplete(ctx);
             return;
         }
