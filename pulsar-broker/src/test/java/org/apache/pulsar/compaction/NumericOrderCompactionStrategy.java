@@ -29,10 +29,10 @@ public class NumericOrderCompactionStrategy implements TopicCompactionStrategy<I
         }
 
         @Override
-        public boolean isValid(Integer prev, Integer cur) {
+        public boolean shouldKeepLeft(Integer prev, Integer cur) {
             if (prev == null || cur == null) {
-                return true;
+                return false;
             }
-            return prev < cur;
+            return prev >= cur;
         }
     }

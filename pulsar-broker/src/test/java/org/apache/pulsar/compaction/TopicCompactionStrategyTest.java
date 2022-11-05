@@ -33,8 +33,8 @@ public class TopicCompactionStrategyTest {
         }
 
         @Override
-        public boolean isValid(byte[] prev, byte[] cur) {
-            return true;
+        public boolean shouldKeepLeft(byte[] prev, byte[] cur) {
+            return false;
         }
     }
 
@@ -48,7 +48,7 @@ public class TopicCompactionStrategyTest {
     public void testNumericOrderCompactionStrategy() {
         TopicCompactionStrategy<Integer> strategy =
                 TopicCompactionStrategy.load(NumericOrderCompactionStrategy.class.getCanonicalName());
-        Assert.assertTrue(strategy.isValid(1, 2));
-        Assert.assertFalse(strategy.isValid(2, 1));
+        Assert.assertFalse(strategy.shouldKeepLeft(1, 2));
+        Assert.assertTrue(strategy.shouldKeepLeft(2, 1));
     }
 }

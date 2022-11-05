@@ -164,8 +164,8 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
-
         Message<T> msg = consumer.receive(timeout, unit);
+
         if (msg != null) {
             consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
                 log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),

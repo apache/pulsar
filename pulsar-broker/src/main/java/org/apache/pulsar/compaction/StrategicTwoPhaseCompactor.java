@@ -147,7 +147,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         return promise;
     }
 
-    private <T> boolean doCompactMessage(Message<T> msg, PhaseOneResult<T> result, TopicCompactionStrategy strategy) {
+    private <T> boolean doCompactMessage(
+            Message<T> msg, PhaseOneResult<T> result, TopicCompactionStrategy<T> strategy) {
         Map<String, Message<T>> cache = result.cache;
         String key = msg.getKey();
 
@@ -159,7 +160,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         Message<T> prev = cache.get(key);
         T prevVal = prev == null ? null : prev.getValue();
 
-        if (strategy.isValid(prevVal, val)) {
+        if (!strategy.shouldKeepLeft(prevVal, val)) {
             if (val != null && msg.size() > 0) {
                 cache.remove(key); // to reorder
                 cache.put(key, msg);
@@ -184,7 +185,6 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
 
     private static class PhaseOneResult<T> {
         MessageId firstId;
-        //MessageId to; // last undeleted messageId
         MessageId lastId; // last read messageId
         Map<String, Message<T>> cache;
 
@@ -253,7 +253,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     }
 
     private <T> void phaseOneLoop(Reader<T> reader, CompletableFuture<PhaseOneResult> promise,
-                                  PhaseOneResult<T> result, TopicCompactionStrategy strategy) {
+                                  PhaseOneResult<T> result, TopicCompactionStrategy<T> strategy) {
 
         if (promise.isDone()) {
             return;

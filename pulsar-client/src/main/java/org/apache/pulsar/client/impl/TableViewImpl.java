@@ -182,7 +182,7 @@ public class TableViewImpl<T> implements TableView<T> {
                 T prev = data.get(key);
                 boolean update = true;
                 if (compactionStrategy != null) {
-                    update = compactionStrategy.isValid(prev, cur);
+                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
                 }
 
                 if (update) {

@@ -96,7 +96,7 @@ public class StrategicCompactionTest extends CompactionTest {
             Integer cur = seed < j / 5 ? null : seed;
             producer.newMessage().key(key).value(cur).send();
             Integer prev = expected.get(key);
-            if (strategy.isValid(prev, cur)) {
+            if (!strategy.shouldKeepLeft(prev, cur)) {
                 if (cur == null) {
                     expected.remove(key);
                 } else {

@@ -57,7 +57,7 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
     public static <T> CompactionReaderImpl<T> create(PulsarClientImpl client, Schema<T> schema, String topic,
                                                      CompletableFuture<Consumer<T>> consumerFuture,
                                                      CryptoKeyReader cryptoKeyReader) {
-        ReaderConfigurationData conf = new ReaderConfigurationData<>();
+        ReaderConfigurationData<T> conf = new ReaderConfigurationData<>();
         conf.setTopicName(topic);
         conf.setSubscriptionName(COMPACTION_SUBSCRIPTION);
         conf.setStartMessageId(MessageId.earliest);
@@ -66,7 +66,7 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
         conf.setSubscriptionMode(SubscriptionMode.Durable);
         conf.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         conf.setCryptoKeyReader(cryptoKeyReader);
-        return new CompactionReaderImpl(client, conf, client.externalExecutorProvider(), consumerFuture, schema);
+        return new CompactionReaderImpl<>(client, conf, client.externalExecutorProvider(), consumerFuture, schema);
     }
 
 
@@ -82,8 +82,7 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
-        return receiveFuture;
+        return consumer.receiveAsync();
     }
 
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
@@ -91,6 +90,6 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
     }
 
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String, Long> properties) {
-        return consumer.doAcknowledgeWithTxn(messageId, CommandAck.AckType.Cumulative, properties, null);
+        return consumer.doAcknowledge(messageId, CommandAck.AckType.Cumulative, properties, null);
     }
 }

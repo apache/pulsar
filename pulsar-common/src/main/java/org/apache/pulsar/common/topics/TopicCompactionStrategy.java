@@ -21,8 +21,8 @@ package org.apache.pulsar.common.topics;
 import org.apache.pulsar.client.api.Schema;
 
 /**
- * Defines a strategy to compact messages in a topic.
- * This strategy can be passed to Topic Compactor and Table View to select messages in a specific way.
+ * Defines a custom strategy to compact messages in a topic.
+ * This strategy can be passed to Topic Compactor and Table View to compact messages in a custom way.
  *
  * Examples:
  *
@@ -30,13 +30,13 @@ import org.apache.pulsar.client.api.Schema;
  *
  * // Run topic compaction by the compaction strategy.
  * // While compacting messages for each key,
- * //   it will choose messages only if TopicCompactionStrategy.valid(prev, cur) returns true.
+ * //   it will choose messages only if TopicCompactionStrategy.shouldKeepLeft(prev, cur) returns false.
  * StrategicTwoPhaseCompactor compactor = new StrategicTwoPhaseCompactor(...);
  * compactor.compact(topic, strategy);
  *
  * // Run table view by the compaction strategy.
  * // While updating messages in the table view <key,value> map,
- * //   it will choose messages only if TopicCompactionStrategy.valid(prev, cur) returns true.
+ * //   it will choose messages only if TopicCompactionStrategy.shouldKeepLeft(prev, cur) returns false.
  * TableView tableView = pulsar.getClient().newTableViewBuilder(strategy.getSchema())
  *                 .topic(topic)
  *                 .loadConf(Map.of(
@@ -51,14 +51,14 @@ public interface TopicCompactionStrategy<T> {
      */
     Schema<T> getSchema();
     /**
-     * Tests if the current message is valid compared to the previous message for the same key.
+     * Tests if the compaction needs to keep the left(previous message)
+     * compared to the right(current message) for the same key.
      *
-     * @param prev previous message
-     * @param cur current message
-     * @return True if the prev to the cur message transition is valid. Otherwise, false.
+     * @param prev previous message value
+     * @param cur current message value
+     * @return True if it needs to keep the previous message and ignore the current message. Otherwise, False.
      */
-    boolean isValid(T prev, T cur);
-
+    boolean shouldKeepLeft(T prev, T cur);
 
     static TopicCompactionStrategy load(String topicCompactionStrategyClassName) {
         if (topicCompactionStrategyClassName == null) {

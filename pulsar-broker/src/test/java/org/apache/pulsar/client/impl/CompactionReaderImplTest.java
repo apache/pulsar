@@ -77,7 +77,7 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
                 .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, new CompletableFuture(), null);
 
         ConsumerBase consumerBase = spy(reader.getConsumer());
-        org.apache.commons.lang3.reflect.FieldUtils.writeDeclaredField(
+        FieldUtils.writeDeclaredField(
                 reader, "consumer", consumerBase, true);
 
         ReaderConfigurationData readerConfigurationData =
