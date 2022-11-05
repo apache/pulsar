@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,27 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto2";
-
-package pulsar.delay;
-option java_package = "org.apache.pulsar.broker.delayed.proto";
-option optimize_for = SPEED;
-
-message DelayedIndex {
-    required uint64 timestamp = 1;
-    required uint64 ledger_id = 2;
-    required uint64 entry_id = 3;
-}
-
-message SnapshotSegmentMetadata {
-    map<uint64, bytes> delayed_index_bit_map = 1;
-    required uint64 max_schedule_timestamp = 2;
-}
-
-message SnapshotSegment {
-    repeated DelayedIndex indexes = 1;
-}
-
-message SnapshotMetadata {
-    repeated SnapshotSegmentMetadata metadata_list = 1;
-}
+package org.apache.pulsar.broker.delayed.bucket;
