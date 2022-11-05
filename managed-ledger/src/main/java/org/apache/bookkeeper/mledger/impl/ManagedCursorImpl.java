@@ -2623,12 +2623,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        State oldState = STATE_UPDATER.getAndSet(this, State.Closing);
-        if (oldState == State.Closed || oldState == State.Closing) {
+        boolean alreadyClosing = !trySetStateToClosing();
+        if (alreadyClosing) {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
-            if (oldState == State.Closed){
-                STATE_UPDATER.set(this, State.Closed);
-            }
             callback.closeComplete(ctx);
             return;
         }
@@ -2708,6 +2705,26 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
         });
+    }
+
+    /**
+     * Try set {@link #state} to {@link State#Closing}.
+     * @return false if the already is {@link State#Closing} or {@link State#Closed}.
+     */
+    private boolean trySetStateToClosing() {
+        if (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Closing)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.NoLedger, State.Closing)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.Open, State.Closing)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.SwitchingLedger, State.Closing)){
+            return true;
+        }
+        return false;
     }
 
     private void flushPendingMarkDeletes() {
