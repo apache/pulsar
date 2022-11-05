@@ -30,9 +30,9 @@ public interface AbortedTxnProcessor {
      * After the transaction buffer writes a transaction aborted marker to the topic,
      * the transaction buffer will put the aborted txnID and the aborted marker position to AbortedTxnProcessor.
      * @param txnID aborted transaction ID.
-     * @param position the position of the abort txnID
+     * @param abortedMarkerPersistentPosition the position of the abort txn marker.
      */
-    void putAbortedTxnAndPosition(TxnID txnID, PositionImpl position);
+    void putAbortedTxnAndPosition(TxnID txnID, PositionImpl abortedMarkerPersistentPosition);
 
     /**
      * Clean up invalid aborted transactions.

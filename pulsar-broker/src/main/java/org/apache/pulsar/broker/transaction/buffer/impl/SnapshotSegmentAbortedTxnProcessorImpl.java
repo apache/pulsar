@@ -92,19 +92,20 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         this.transactionBufferMaxAbortedTxnsOfSnapshotSegment =  topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize();
         this.unsealedAbortedTxnIdSegment =
-                new ConcurrentOpenHashSet<>(this.transactionBufferMaxAbortedTxnsOfSnapshotSegment);
+                new ConcurrentOpenHashSet<>(this.transactionBufferMaxAbortedTxnsOfSnapshotSegment, 1);
     }
 
     @Override
-    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl maxReadPosition) {
+    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             ConcurrentOpenHashSet<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
-            abortTxnSegments.put(maxReadPosition, abortedSegment);
+            abortTxnSegments.put(abortedMarkerPersistentPosition, abortedSegment);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
-                    persistentWorker.takeSnapshotSegmentAsync(abortedSegment, maxReadPosition));
-            unsealedAbortedTxnIdSegment = new ConcurrentOpenHashSet<>();
+                    persistentWorker.takeSnapshotSegmentAsync(abortedSegment, this.topic.getMaxReadPosition()));
+            this.unsealedAbortedTxnIdSegment =
+                    new ConcurrentOpenHashSet<>(this.transactionBufferMaxAbortedTxnsOfSnapshotSegment, 1);
         }
     }
 
@@ -116,14 +117,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         } else {
             PositionImpl maxReadPosition = abortTxnSegments.ceilingKey((PositionImpl) readPosition);
             if (maxReadPosition != null) {
-                return abortTxnSegments.keySet().stream()
-                        .filter((position) -> position.compareTo(maxReadPosition) <= 0)
-                        .anyMatch((position -> abortTxnSegments.get(position).contains(txnID)));
+                return abortTxnSegments.get(maxReadPosition).contains(txnID);
             } else {
-                return abortTxnSegments.keySet().stream()
-                        .filter((position) -> position.compareTo((PositionImpl) readPosition) <= 0)
-                        .anyMatch((position -> abortTxnSegments.get(position).contains(txnID)))
-                        || unsealedAbortedTxnIdSegment.contains(txnID);
+                return unsealedAbortedTxnIdSegment.contains(txnID);
             }
         }
     }

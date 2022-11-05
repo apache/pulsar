@@ -56,8 +56,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl position) {
-        aborts.put(abortedTxnId, position);
+    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
+        aborts.put(abortedTxnId, this.topic.getMaxReadPosition());
     }
 
     //In this implementation we clear the invalid aborted txn ID one by one.
