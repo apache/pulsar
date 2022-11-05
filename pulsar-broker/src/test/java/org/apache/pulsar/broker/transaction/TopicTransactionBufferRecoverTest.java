@@ -87,6 +87,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -750,11 +751,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         LinkedMap<Transaction, MessageId> ongoingTxns = new LinkedMap<>();
         LinkedList<MessageId> abortedTxns = new LinkedList<>();
-
+        // 0. Modify the configurations
+        int theSizeOfSegment = 10;
+        int theCountOfSnapshotMaxTxnCount = 3;
         this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotSegmentSize(10);
-        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotMaxTransactionCount(3);
-
+        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotSegmentSize(theSizeOfSegment);
+        this.getPulsarServiceList().get(0).getConfig()
+                .setTransactionBufferSnapshotMaxTransactionCount(theCountOfSnapshotMaxTxnCount);
+        // 1. Build prodcuer and consumer
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(false)
@@ -766,14 +770,16 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscribe();
 
+        // 2. Check the AbortedTxnProcessor workflow 10 times
         for (int i = 0; i < 10; i++) {
-            int maxReadMessage = 19;
+            MessageId maxReadMessage = null;
             int abortedTxnSize = 0;
-            for (int j = 0; j < 20; j++) {
+            // The number of aborted transaction = 30 / 2, that is more than the size of snapshot segment 10.
+            for (int j = 0; j < theSizeOfSegment * 4; j++) {
                 Transaction transaction = pulsarClient.newTransaction()
                         .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
-                //half common message and half transaction message.
-                //the transaction message have a half which are aborted.
+                //Half common message and half transaction message.
+                //And the transaction message have a half which are aborted.
                 if (RandomUtils.nextInt() % 2 == 0) {
                     MessageId messageId = producer.newMessage(transaction).value(i * 10 + j).send();
                     if (RandomUtils.nextInt() % 2 == 0) {
@@ -782,9 +788,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                         abortedTxnSize++;
                     } else {
                         ongoingTxns.put(transaction, messageId);
-                        if (maxReadMessage == 19) {
+                        if (maxReadMessage == null) {
+                            log.info("Max read Position in test: [{}]", messageId);
                             //The except number of the messages that can be read
-                            maxReadMessage = j - abortedTxnSize;
+                            maxReadMessage = messageId;
                         }
                     }
                 } else {
@@ -792,25 +799,30 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     transaction.commit().get();
                 }
             }
-            for (int k = 0; k < maxReadMessage; k++) {
+            // 2.1 Check the updating of the maxReadPosition
+            int hasReceived = 0;
+            while (true) {
                 Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
-                assertNotNull(message);
-                assertFalse(abortedTxns.contains(message.getMessageId()));
+                if (message != null) {
+                    Assert.assertTrue(message.getMessageId().compareTo(maxReadMessage) < 0);
+                    hasReceived ++;
+                } else {
+                    break;
+                }
             }
-            Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(message);
 
             for (Transaction ongoingTxn: ongoingTxns.keySet()) {
                 ongoingTxn.commit().get();
             }
             ongoingTxns.clear();
-            for (int k = maxReadMessage; k < 20 - abortedTxnSize; k++) {
-                message = consumer.receive(2, TimeUnit.SECONDS);
+            // 2.2 Check the aborted txn
+            for (int k = hasReceived; k < theSizeOfSegment * 4 - abortedTxnSize; k++) {
+                Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
                 assertNotNull(message);
                 assertFalse(abortedTxns.contains(message.getMessageId()));
             }
         }
-
+        // 3. Test recover
         admin.topics().unload(topic);
 
         for (int i = 0; i < 200 - abortedTxns.size(); i++) {
