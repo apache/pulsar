@@ -2709,7 +2709,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     /**
      * Try set {@link #state} to {@link State#Closing}.
-     * @return false if the already is {@link State#Closing} or {@link State#Closed}.
+     * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
      */
     private boolean trySetStateToClosing() {
         if (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Closing)){
