@@ -1505,7 +1505,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         void setMessageId(long ledgerId, long entryId, int partitionIndex) {
             if (msg != null) {
-                if (msg.getMessageId() != null) {
+                if (msg.getMessageId() == null) {
                     msg.setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
                 }
             } else if (msgs.size() == 1) {
