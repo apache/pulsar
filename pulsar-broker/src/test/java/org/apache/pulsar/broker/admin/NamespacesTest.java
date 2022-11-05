@@ -2039,6 +2039,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(CompletableFuture.completedFuture(topics)).when(mockNamespaceService).getFullListOfTopics(any());
         // 5. delete the namespace
         admin.namespaces().deleteNamespace(namespace, true);
+        // cleanup
+        resetBroker();
     }
 
     @Test
