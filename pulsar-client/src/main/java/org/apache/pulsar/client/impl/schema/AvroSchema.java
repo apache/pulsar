@@ -130,8 +130,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
             } catch (ClassNotFoundException e) {
                 // Skip if have not provide joda-time dependency.
             }
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         }
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
     }
 
