@@ -119,6 +119,13 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     }
 
     @Override
+    public <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> rawRangeBoundMapper,
+                                                RangeBoundConvertFunction<T, O> rangeBoundMapper,
+                                                RangeBoundBiConsumer<O> action) {
+        rangeSet.forEachWithRangeBoundMapper(rawRangeBoundMapper, rangeBoundMapper, action);
+    }
+
+    @Override
     public int size() {
         return rangeSet.size();
     }

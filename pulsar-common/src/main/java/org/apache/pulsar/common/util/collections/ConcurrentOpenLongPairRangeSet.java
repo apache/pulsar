@@ -209,8 +209,10 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 int nextOpenMark = set.nextClearBit(currentClosedMark);
-                Range<T> range = Range.openClosed(consumer.apply(key, currentClosedMark - 1),
-                        consumer.apply(key, nextOpenMark - 1));
+                Range<T> range = Range.openClosed(
+                        consumer.apply(key, currentClosedMark - 1),
+                        consumer.apply(key, nextOpenMark - 1)
+                );
                 if (!action.process(range)) {
                     completed.set(true);
                     break;
@@ -219,6 +221,35 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
         });
     }
+
+    @Override
+    public <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> rawRangeBoundMapper,
+                                                RangeBoundConvertFunction<T, O> __,
+                                                RangeBoundBiConsumer<O> action) {
+        AtomicBoolean completed = new AtomicBoolean(false);
+        rangeBitSetMap.forEach((key, set) -> {
+            if (completed.get()) {
+                return;
+            }
+            if (set.isEmpty()) {
+                return;
+            }
+            int first = set.nextSetBit(0);
+            int last = set.previousSetBit(set.size());
+            int currentClosedMark = first;
+            while (currentClosedMark != -1 && currentClosedMark <= last) {
+                int nextOpenMark = set.nextClearBit(currentClosedMark);
+                O lower = rawRangeBoundMapper.apply(key, currentClosedMark - 1);
+                O upper = rawRangeBoundMapper.apply(key, nextOpenMark - 1);
+                if (!action.process(lower, upper)) {
+                    completed.set(true);
+                    break;
+                }
+                currentClosedMark = set.nextSetBit(nextOpenMark);
+            }
+        });
+    }
+
 
     @Override
     public Range<T> firstRange() {
@@ -269,7 +300,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     public int size() {
         if (updatedAfterCachedForSize) {
             MutableInt size = new MutableInt(0);
-            forEach((range) -> {
+            forEachWithRangeBoundMapper((ledgerId, entryId) -> 0, null, (ignored1, ignored2) -> {
                 size.increment();
                 return true;
             });

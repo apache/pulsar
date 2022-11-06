@@ -2834,25 +2834,27 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return Collections.emptyList();
             }
 
-            MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
-                    .newBuilder();
-            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
-            individualDeletedMessages.forEach((positionRange) -> {
-                PositionImpl p = positionRange.lowerEndpoint();
-                nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                nestedPositionBuilder.setEntryId(p.getEntryId());
-                messageRangeBuilder.setLowerEndpoint(nestedPositionBuilder.build());
-                p = positionRange.upperEndpoint();
-                nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                nestedPositionBuilder.setEntryId(p.getEntryId());
-                messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
-                MessageRange messageRange = messageRangeBuilder.build();
-                acksSerializedSize.addAndGet(messageRange.getSerializedSize());
-                rangeList.add(messageRange);
-                return rangeList.size() <= config.getMaxUnackedRangesToPersist();
-            });
+
+            individualDeletedMessages.forEachWithRangeBoundMapper(
+                    (ledgerId, entryId) -> MLDataFormats.NestedPositionInfo.newBuilder()
+                            .setLedgerId(ledgerId)
+                            .setEntryId(entryId)
+                            .build(),
+                    null,
+                    (lowerBound, upperBound) -> {
+                        MessageRange messageRange = MLDataFormats.MessageRange.newBuilder()
+                                .setLowerEndpoint(lowerBound)
+                                .setUpperEndpoint(upperBound).build();
+
+                        acksSerializedSize.addAndGet(messageRange.getSerializedSize());
+                        rangeList.add(messageRange);
+
+                        return rangeList.size() <= config.getMaxUnackedRangesToPersist();
+
+                    });
+
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
             return rangeList;

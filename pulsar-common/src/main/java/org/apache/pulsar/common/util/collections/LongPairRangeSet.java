@@ -105,6 +105,25 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer);
 
     /**
+     * Performs the given action for each entry in this map until all entries have been processed
+     * or action returns "false". Unless otherwise specified by the implementing class,
+     * actions are performed in the order of entry set iteration (if an iteration order is specified.)
+     *
+     * This method is optimized for reduce `Range` and `PositionImpl` object creation.
+     * Caller of this method can use either {@param rawRangeBoundConsumer}
+     * or {@param rangeBoundConvertFunction} to apply conversion directly
+     * on the raw LongPair like (long, long)
+     * or on the `T` (PositionImpl).
+     *
+     * Those convert function will apply on both bound of the range, then the result will pass to
+     * {@param action} to do iteration jobs.
+     *
+     */
+    <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> rawRangeBoundConsumer,
+                                         RangeBoundConvertFunction<T, O> rangeBoundConvertFunction,
+                                         RangeBoundBiConsumer<O> action);
+
+    /**
      * Returns total number of ranges into the set.
      *
      * @return
@@ -135,7 +154,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      *
      * @param <T> the type of the result.
      */
-    public interface LongPairConsumer<T> {
+    interface LongPairConsumer<T> {
         T apply(long key, long value);
     }
 
@@ -143,13 +162,37 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * The interface exposing a method for processing of ranges.
      * @param <T> - The incoming type of data in the range object.
      */
-    public interface RangeProcessor<T extends Comparable<T>> {
+    interface RangeProcessor<T extends Comparable<T>> {
         /**
          *
          * @param range
          * @return false if there is no further processing required
          */
         boolean process(Range<T> range);
+    }
+
+    /**
+     * The interface exposing a method for conversion each bound of ranges.
+     * this will be use in `forEachWithRangeBoundMapper` when iteration.
+     * @param <T> - The incoming type of data in the range object.
+     * @param <O> - The output type of data after apply the conversion.
+     */
+    interface RangeBoundConvertFunction<T, O> {
+        O apply(T rangeBound);
+    }
+
+    /**
+     * The interface exposing a method for do iteration jobs after apply
+     * user define range bound conversion function.
+     * @param <O> the input type of parameter return by `RangeBoundConvertFunction`
+     */
+    interface RangeBoundBiConsumer<O> {
+        /**
+         *
+         * @param range
+         * @return false if there is no further processing required
+         */
+        boolean process(O rangeLowerBound, O rangeUpperBound);
     }
 
     /**
@@ -270,13 +313,27 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
+        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> __) {
             for (Range<T> range : asRanges()) {
                 if (!action.process(range)) {
                     break;
                 }
             }
         }
+
+        @Override
+        public <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> __,
+                                RangeBoundConvertFunction<T, O> rangeBoundMapper,
+                                RangeBoundBiConsumer<O> action) {
+            for (Range<T> range : asRanges()) {
+                O lower = rangeBoundMapper.apply(range.lowerEndpoint());
+                O upper = rangeBoundMapper.apply(range.upperEndpoint());
+                if (!action.process(lower, upper)) {
+                    break;
+                }
+            }
+        }
+
 
         @Override
         public boolean contains(long key, long value) {
