@@ -486,11 +486,17 @@ public class ConcurrentOpenLongPairRangeSetTest {
     @Test
     public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
-        set.add(Range.closed(new LongPair(1, 10), new LongPair(1, 15)));
-        set.add(Range.closed(new LongPair(1, 20), new LongPair(2, 10)));
-        set.add(Range.closed(new LongPair(2, 25), new LongPair(2, 28)));
-        set.add(Range.closed(new LongPair(3, 12), new LongPair(3, 20)));
-        set.add(Range.closed(new LongPair(4, 12), new LongPair(4, 20)));
+        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet = new LongPairRangeSet.DefaultRangeSet<>(consumer);
+
+        set.addOpenClosed(1, 10, 1, 15);
+        set.addOpenClosed(2, 25, 2, 28);
+        set.addOpenClosed(3, 12, 3, 20);
+        set.addOpenClosed(4, 12, 4, 20);
+
+        defaultRangeSet.addOpenClosed(1, 10, 1, 15);
+        defaultRangeSet.addOpenClosed(2, 25, 2, 28);
+        defaultRangeSet.addOpenClosed(3, 12, 3, 20);
+        defaultRangeSet.addOpenClosed(4, 12, 4, 20);
 
 
         MutableInt size = new MutableInt(0);
@@ -504,8 +510,15 @@ public class ConcurrentOpenLongPairRangeSetTest {
             return true;
         });
 
+        List<LongPair> defaultRangeSetResult = new ArrayList<>();
         List<LongPair> forEachIterWithRangeBoundMapperResult = new ArrayList<>();
 
+        defaultRangeSet.forEachWithRangeBoundMapper(LongPair::new, (pair) -> pair, (rangeLowerBound, rangeUpperBound) -> {
+            defaultRangeSetResult.add(rangeLowerBound);
+            defaultRangeSetResult.add(rangeUpperBound);
+            return true;
+        });
+        
         set.forEachWithRangeBoundMapper(LongPair::new, (pair) -> pair, (rangeLowerBound, rangeUpperBound) -> {
             forEachIterWithRangeBoundMapperResult.add(rangeLowerBound);
             forEachIterWithRangeBoundMapperResult.add(rangeUpperBound);
@@ -513,6 +526,9 @@ public class ConcurrentOpenLongPairRangeSetTest {
         });
 
         assertEquals(forEachIterResult, forEachIterWithRangeBoundMapperResult);
+        assertEquals(forEachIterResult, defaultRangeSetResult);
+
         assertEquals(size.intValue(), set.size());
+        assertEquals(size.intValue(), defaultRangeSet.size());
     }
 }
