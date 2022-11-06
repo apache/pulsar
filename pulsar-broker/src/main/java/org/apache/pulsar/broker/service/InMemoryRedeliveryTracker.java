@@ -38,9 +38,8 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     }
 
     @Override
-    public int getRedeliveryCount(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
+    public int getRedeliveryCount(long ledgerId, long entryId) {
+        LongPair count = trackerCache.get(ledgerId, entryId);
         return (int) (count != null ? count.first : 0);
     }
 
