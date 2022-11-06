@@ -2838,11 +2838,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             List<MessageRange> rangeList = new ArrayList<>();
 
             individualDeletedMessages.forEachWithRangeBoundMapper(
+                    // conversion function for `ConcurrentOpenLongPairRangeSet`
                     (ledgerId, entryId) -> MLDataFormats.NestedPositionInfo.newBuilder()
                             .setLedgerId(ledgerId)
                             .setEntryId(entryId)
                             .build(),
-                    null,
+                    // conversion function for `LongPairRangeSet.DefaultRangeSet`
+                    (positionImpl) -> MLDataFormats.NestedPositionInfo.newBuilder()
+                            .setLedgerId(positionImpl.getLedgerId())
+                            .setEntryId(positionImpl.getEntryId())
+                            .build(),
                     (lowerBound, upperBound) -> {
                         MessageRange messageRange = MLDataFormats.MessageRange.newBuilder()
                                 .setLowerEndpoint(lowerBound)

@@ -300,7 +300,9 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     public int size() {
         if (updatedAfterCachedForSize) {
             MutableInt size = new MutableInt(0);
-            forEachWithRangeBoundMapper((ledgerId, entryId) -> 0, null, (ignored1, ignored2) -> {
+
+            // ignore result because we just want to count
+            forEachWithRangeBoundMapper((ledgerId, entryId) -> 0, __ -> 0, (ignored1, ignored2) -> {
                 size.increment();
                 return true;
             });
