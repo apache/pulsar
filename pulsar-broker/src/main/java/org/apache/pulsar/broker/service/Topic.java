@@ -145,14 +145,9 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
-     * return if transaction disabled when call checkIfTransactionBufferRecoverCompletely
-     */
-    CompletableFuture<Void> TRANSACTION_DISABLED = CompletableFuture.completedFuture(null);
-
-    /**
      * Wait TransactionBuffer Recovers completely.
      * Take snapshot after TB Recovers completely.
-     * @return a future return by takeSnapshot or TRANSACTION_DISABLED
+     * @return a future return by takeSnapshot.
      */
     CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely();
 

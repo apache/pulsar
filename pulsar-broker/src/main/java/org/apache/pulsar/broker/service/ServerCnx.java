@@ -88,6 +88,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -1361,7 +1362,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (isTxnEnabled) {
                             checkTxnRecoverFuture = topic.checkIfTransactionBufferRecoverCompletely();
                         } else {
-                            checkTxnRecoverFuture = Topic.TRANSACTION_DISABLED;
+                            checkTxnRecoverFuture = TransactionBuffer.TRANSACTION_NOT_ENABLED;
                         }
 
                         checkTxnRecoverFuture.thenAccept(__ -> {

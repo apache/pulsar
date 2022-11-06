@@ -177,6 +177,11 @@ public interface TransactionBuffer {
      */
     CompletableFuture<Void> checkIfTBRecoverCompletely();
 
+    /**
+     * return if transaction is not enabled when call TransactionBuffer methods.
+     */
+    CompletableFuture<Void> TRANSACTION_NOT_ENABLED =
+            CompletableFuture.completedFuture(null);
 
 
     long getOngoingTxnCount();

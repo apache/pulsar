@@ -591,7 +591,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely() {
         if (!transactionEnabled) {
-            return TRANSACTION_DISABLED;
+            return TransactionBuffer.TRANSACTION_NOT_ENABLED;
         }
 
         return getTransactionBuffer().checkIfTBRecoverCompletely();
