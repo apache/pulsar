@@ -26,7 +26,9 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.testng.annotations.Test;
@@ -479,5 +481,38 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(v, 70);
         v = set.cardinality(1, 0, 3, 30);
         assertEquals(v, 80 + 31);
+    }
+
+    @Test
+    public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        set.add(Range.closed(new LongPair(1, 10), new LongPair(1, 15)));
+        set.add(Range.closed(new LongPair(1, 20), new LongPair(2, 10)));
+        set.add(Range.closed(new LongPair(2, 25), new LongPair(2, 28)));
+        set.add(Range.closed(new LongPair(3, 12), new LongPair(3, 20)));
+        set.add(Range.closed(new LongPair(4, 12), new LongPair(4, 20)));
+
+
+        MutableInt size = new MutableInt(0);
+
+        List<LongPair> forEachIterResult = new ArrayList<>();
+        set.forEach((range) -> {
+            forEachIterResult.add(range.lowerEndpoint());
+            forEachIterResult.add(range.upperEndpoint());
+
+            size.increment();
+            return true;
+        });
+
+        List<LongPair> forEachIterWithRangeBoundMapperResult = new ArrayList<>();
+
+        set.forEachWithRangeBoundMapper(LongPair::new, (pair) -> pair, (rangeLowerBound, rangeUpperBound) -> {
+            forEachIterWithRangeBoundMapperResult.add(rangeLowerBound);
+            forEachIterWithRangeBoundMapperResult.add(rangeUpperBound);
+            return true;
+        });
+
+        assertEquals(forEachIterResult, forEachIterWithRangeBoundMapperResult);
+        assertEquals(size.intValue(), set.size());
     }
 }
