@@ -2716,7 +2716,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         STATE_UPDATER.updateAndGet(this, state -> {
             switch (state){
                 case Closing:
-                case Closed: return state;
+                case Closed: {
+                    notClosing.set(false);
+                    return state;
+                }
                 default: {
                     notClosing.set(true);
                     return State.Closing;
