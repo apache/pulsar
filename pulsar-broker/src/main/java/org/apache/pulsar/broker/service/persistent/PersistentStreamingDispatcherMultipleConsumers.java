@@ -105,25 +105,8 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
 
-        // dispatch messages to a separate thread, but still in order for this subscription
-        // sendMessagesToConsumers is responsible for running broker-side filters
-        // that may be quite expensive
-        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
-            // setting sendInProgress here, because sendMessagesToConsumers will be executed
-            // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
-            dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry),
-                        readType == ReadType.Normal || ctx.isLast())) {
-                    readMoreEntries();
-                }
-            }));
-        } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry),
-                    readType == ReadType.Normal || ctx.isLast())) {
-                readMoreEntriesAsync();
-            }
-        }
+        sendMessagesToConsumers(readType, Lists.newArrayList(entry));
+
         ctx.recycle();
     }
 
@@ -169,7 +152,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (sendInProgress || sendInProgressReplay) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;

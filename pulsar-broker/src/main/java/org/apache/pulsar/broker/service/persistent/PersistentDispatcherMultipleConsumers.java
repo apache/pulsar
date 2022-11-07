@@ -95,6 +95,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
     protected boolean sendInProgress;
+    protected boolean sendInProgressReplay;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -255,7 +256,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (sendInProgress || sendInProgressReplay) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -549,31 +550,55 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
+       sendMessagesToConsumers(readType, entries);
+    }
+
+    protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            if (readType == ReadType.Replay) {
+                sendInProgressReplay = true;
+            } else {
+                sendInProgress = true;
+            }
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, entries)) {
+                boolean canReadMore;
+                try {
+                    canReadMore = trySendMessagesToConsumers(readType, entries);
+                } finally {
+                    if (readType == ReadType.Replay) {
+                        sendInProgressReplay = false;
+                    } else {
+                        sendInProgress = false;
+                    }
+                }
+                if (canReadMore) {
                     readMoreEntries();
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, entries)) {
+            if (readType == ReadType.Replay) {
+                sendInProgressReplay = true;
+            } else {
+                sendInProgress = true;
+            }
+            boolean canReadMore;
+            try {
+                canReadMore = trySendMessagesToConsumers(readType, entries);
+            } finally {
+                if (readType == ReadType.Replay) {
+                    sendInProgressReplay = false;
+                } else {
+                    sendInProgress = false;
+                }
+            }
+            if (canReadMore) {
                 readMoreEntriesAsync();
             }
-        }
-    }
-
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        sendInProgress = true;
-        try {
-            return trySendMessagesToConsumers(readType, entries);
-        } finally {
-            sendInProgress = false;
         }
     }
 
