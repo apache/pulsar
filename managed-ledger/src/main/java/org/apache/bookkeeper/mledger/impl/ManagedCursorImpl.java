@@ -3305,8 +3305,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void trimDeletedEntries(List<Entry> entries) {
-        entries.removeIf(entry -> ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
-                || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId()));
+        entries.removeIf(entry -> {
+            boolean isDeleted = ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
+                    || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId());
+            if (isDeleted) {
+                entry.release();
+            }
+            return isDeleted;
+        });
     }
 
     private ManagedCursorImpl cursorImpl() {

@@ -4,92 +4,470 @@ title: Get started
 sidebar_label: "Get started"
 ---
 
-This chapter introduces Pulsar schemas and explains why they are important. 
 
-## Schema Registry
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-Type safety is extremely important in any application built around a message bus like Pulsar. 
 
-Producers and consumers need some kind of mechanism for coordinating types at the topic level to avoid various potential problems arising. For example, serialization and deserialization issues. 
+This hands-on tutorial provides instructions and examples on how to construct and customize schemas.
 
-Applications typically adopt one of the following approaches to guarantee type safety in messaging. Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
+## Construct a string schema
 
-#### Note
->
-> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [Go client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
+This example demonstrates how to construct a [string schema](schema-understand.md#primitive-type) and use it to produce and consume messages in Java.
 
-### Client-side approach
+1. Create a producer with a string schema and send messages.
 
-Producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also "knowing" which types are being transmitted via which topics. 
+   ```java
+   Producer<String> producer = client.newProducer(Schema.STRING).create();
+   producer.newMessage().value("Hello Pulsar!").send();
+   ```
 
-If a producer is sending temperature sensor data on the topic `topic-1`, consumers of that topic will run into trouble if they attempt to parse that data as moisture sensor readings.
+2. Create a consumer with a string schema and receive messages.  
 
-Producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an "out-of-band" basis.
+   ```java
+   Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
+   consumer.receive();
+   ```
 
-### Server-side approach 
+## Construct a key/value schema
 
-Producers and consumers inform the system which data types can be transmitted via the topic. 
+This example shows how to construct a [key/value schema](schema-understand.md#keyvalue-schema) and use it to produce and consume messages in Java.
 
-With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.
+1. Construct a key/value schema with `INLINE` encoding type.
 
-Pulsar has a built-in **schema registry** that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.
+   ```java
+   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+   Schema.INT32,
+   Schema.STRING,
+   KeyValueEncodingType.INLINE
+   );
+   ```
 
-## Why use schema
+2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
-When a schema is enabled, Pulsar does parse data, it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
+   ```java
+   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+   Schema.INT32,
+   Schema.STRING,
+   KeyValueEncodingType.SEPARATED
+   );
+   ```
 
-* The field does not exist
+3. Produce messages using a key/value schema.
 
-* The field type has changed (for example, `string` is changed to `int`)
+   ```java
+   Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
+       .topic(TOPIC)
+       .create();
 
-There are a few methods to prevent and overcome these exceptions, for example, you can catch exceptions when parsing errors, which makes code hard to maintain; or you can adopt a schema management system to perform schema evolution, not to break downstream applications, and enforces type safety to max extend in the language you are using, the solution is Pulsar Schema.
+   final int key = 100;
+   final String value = "value-100";
 
-Pulsar schema enables you to use language-specific types of data when constructing and handling messages from simple types like `string` to more complex application-specific types. 
+   // send the key/value message
+   producer.newMessage()
+   .value(new KeyValue(key, value))
+   .send();
+   ```
+
+4. Consume messages using a key/value schema.
+
+   ```java
+   Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
+       ...
+       .topic(TOPIC)
+       .subscriptionName(SubscriptionName).subscribe();
+
+   // receive key/value pair
+   Message<KeyValue<Integer, String>> msg = consumer.receive();
+   KeyValue<Integer, String> kv = msg.getValue();
+   ```
+
+## Construct a struct schema
+
+This example shows how to construct a [struct schema](schema-understand.md#struct-schema) and use it to produce and consume messages using different methods.
+
+````mdx-code-block
+<Tabs 
+  defaultValue="static"
+  values={[{"label":"static","value":"static"},{"label":"generic","value":"generic"},{"label":"SchemaDefinition","value":"SchemaDefinition"}]}>
+
+<TabItem value="static">
+
+You can predefine the `struct` schema, which can be a POJO in Java, a `struct` in Go, or classes generated by Avro or Protobuf tools. 
 
 **Example** 
 
-You can use the _User_ class to define the messages sent to Pulsar topics.
+Pulsar gets the schema definition from the predefined `struct` using an Avro library. The schema definition is the schema data stored as a part of the `SchemaInfo`.
+
+1. Create the _User_ class to define the messages sent to Pulsar topics.
+
+   ```java
+   @Builder
+   @AllArgsConstructor
+   @NoArgsConstructor
+   public static class User {
+       String name;
+       int age;
+   }
+   ```
+
+2. Create a producer with a `struct` schema and send messages.
+
+   ```java
+   Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
+   producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
+   ```
+
+3. Create a consumer with a `struct` schema and receive messages
+
+   ```java
+   Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
+   User user = consumer.receive().getValue();
+   ```
+
+</TabItem>
+<TabItem value="generic">
+
+Sometimes applications do not have pre-defined structs, and you can use this method to define schema and access data.
+
+You can define the `struct` schema using the `GenericSchemaBuilder`, generate a generic struct using `GenericRecordBuilder` and consume messages into `GenericRecord`.
+
+**Example** 
+
+1. Use `RecordSchemaBuilder` to build a schema.
+
+   ```java
+   RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+   recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+   SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+   ```
+
+2. Use `RecordBuilder` to build the struct records.
+
+   ```java
+   producer.newMessage().value(schema.newRecordBuilder()
+               .set("intField", 32)
+               .build()).send();
+   ```
+
+</TabItem>
+<TabItem value="SchemaDefinition">
+
+You can define the `schemaDefinition` to generate a `struct` schema.
+
+**Example** 
+
+1. Create the _User_ class to define the messages sent to Pulsar topics.
+
+   ```java
+   @Builder
+   @AllArgsConstructor
+   @NoArgsConstructor
+   public static class User {
+       String name;
+       int age;
+   }
+   ```
+
+2. Create a producer with a `SchemaDefinition` and send messages.
+
+   ```java
+   SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
+   Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
+   producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
+   ```
+
+3. Create a consumer with a `SchemaDefinition` schema and receive messages
+
+   ```java
+   SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
+   Consumer<User> consumer = client.newConsumer(Schema.AVRO(schemaDefinition)).subscribe();
+   User user = consumer.receive().getValue();
+   ```
+
+</TabItem>
+
+</Tabs>
+````
+
+### Avro schema using Java
+
+Suppose you have a `SensorReading` class as follows, and you'd like to transmit it over a Pulsar topic.
 
 ```java
-public class User {
-    String name;
-    int age;
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
 }
 ```
 
-When constructing a producer with the _User_ class, you can specify a schema or not as below.
-
-### Without schema
-
-If you construct a producer without specifying a schema, then the producer can only produce messages of type `byte[]`. If you have a POJO class, you need to serialize the POJO into bytes before sending messages.
-
-**Example**
+Create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like this:
 
 ```java
-Producer<byte[]> producer = client.newProducer()
-        .topic(topic)
+Producer<SensorReading> producer = client.newProducer(AvroSchema.of(SensorReading.class))
+        .topic("sensor-readings")
         .create();
-User user = new User("Tom", 28);
-byte[] message = … // serialize the `user` by yourself;
-producer.send(message);
 ```
 
-### With schema
+### Avro-based schema using Java
 
-If you construct a producer with specifying a schema, then you can send a class to a topic directly without worrying about how to serialize POJOs into bytes. 
+The following schema formats are currently available for Java:
 
-**Example**
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
 
-This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize it into bytes. 
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
+      .topic("some-raw-bytes-topic")
+      .create();
+  ```
+
+  Or, equivalently:
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer()
+      .topic("some-raw-bytes-topic")
+      .create();
+  ```
+
+* `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
+
+  ```java
+  Producer<String> stringProducer = client.newProducer(Schema.STRING)
+      .topic("some-string-topic")
+      .create();
+  ```
+
+* Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
+
+  ```java
+  Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
+      .topic("some-pojo-topic")
+      .create();
+  ```
+
+* Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
+
+  ```java
+  Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
+      .topic("some-protobuf-topic")
+      .create();
+  ```
+
+* Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
+
+  ```java
+  Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
+      .topic("some-avro-topic")
+      .create();
+  ```
+
+
+### Avro schema using C++
+
+- The following example shows how to create a producer with an Avro schema.
+
+  ```cpp
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  Producer producer;
+  ProducerConfiguration producerConf;
+  producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.createProducer("topic-avro", producerConf, producer);
+  ```
+
+- The following example shows how to create a consumer with an Avro schema.
+
+  ```cpp
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  ConsumerConfiguration consumerConf;
+  Consumer consumer;
+  consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+  ```
+
+### ProtobufNative schema using C++
+
+The following example shows how to create a producer and a consumer with a ProtobufNative schema.
+
+1. Generate the `User` class using Protobuf3 or later versions.
+
+   ```protobuf
+   syntax = "proto3";
+
+   message User {
+       string name = 1;
+       int32 age = 2;
+   }
+   ```
+
+2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
+
+   ```cpp
+   #include <pulsar/ProtobufNativeSchema.h>
+   ```
+
+3. Create a producer to send a `User` instance.
+
+   ```cpp
+   ProducerConfiguration producerConf;
+   producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
+   Producer producer;
+   client.createProducer("topic-protobuf", producerConf, producer);
+   User user;
+   user.set_name("my-name");
+   user.set_age(10);
+   std::string content;
+   user.SerializeToString(&content);
+   producer.send(MessageBuilder().setContent(content).build());
+   ```
+
+4. Create a consumer to receive a `User` instance.
+
+   ```cpp
+   ConsumerConfiguration consumerConf;
+   consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
+   consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
+   Consumer consumer;
+   client.subscribe("topic-protobuf", "my-sub", consumerConf, consumer);
+   Message msg;
+   consumer.receive(msg);
+   User user2;
+   user2.ParseFromArray(msg.getData(), msg.getLength());
+   ```
+
+
+## Construct an AUTO_PRODUCE schema
+
+Suppose you have a Pulsar topic _P_, a producer processing messages from a Kafka topic _K_, an application reading the messages from _K_ and writing the messages to _P_.
+
+This example shows how to construct an [AUTO_PRODUCE](schema-understand.md#auto-schema) schema to verify whether the bytes produced by _K_ can be sent to _P_.
 
 ```java
-Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
-        .topic(topic)
-        .create();
-User user = new User("Tom", 28);
-producer.send(user);
+Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
+    …
+    .create();
+
+byte[] kafkaMessageBytes = … ; 
+
+pulsarProducer.produce(kafkaMessageBytes);
 ```
 
-### Summary
+## Construct an AUTO_CONSUME schema
 
-When constructing a producer with a schema, you do not need to serialize messages into bytes, instead Pulsar schema does this job in the background.
+Suppose you have a Pulsar topic _P_, a consumer (for example, _MySQL_) receiving messages from the topic _P_, an application reading the messages from _P_ and writing the messages to _MySQL_.
+
+This example shows how to construct an [AUTO_CONSUME schema](schema-understand.md#auto-schema) to verify whether the bytes produced by _P_ can be sent to _MySQL_.
+
+```java
+Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
+    …
+    .subscribe();
+
+Message<GenericRecord> msg = consumer.receive() ; 
+GenericRecord record = msg.getValue();
+```
+
+## Construct a native Avro schema
+
+This example shows how to construct a [native Avro schema](schema-understand.md#native-avro-schema).
+
+```java
+org.apache.avro.Schema nativeAvroSchema = … ;
+
+Producer<byte[]> producer = pulsarClient.newProducer().topic("ingress").create();
+
+byte[] content = … ;
+
+producer.newMessage(Schema.NATIVE_AVRO(nativeAvroSchema)).value(content).send();
+```
+
+## Customize schema storage
+
+By default, Pulsar stores various data types of schemas in [Apache BookKeeper](https://bookkeeper.apache.org) deployed alongside Pulsar. Alternatively, you can use another storage system if needed. 
+
+To use a non-default (non-BookKeeper) storage system for Pulsar schemas, you need to implement the following Java interfaces: 
+* [SchemaStorage interface](#schemastorage-interface) 
+* [SchemaStorageFactory interface](#schemastoragefactory-interface)
+
+### Implement SchemaStorage interface
+
+The `SchemaStorage` interface has the following methods:
+
+```java
+public interface SchemaStorage {
+    // How schemas are updated
+    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
+
+    // How schemas are fetched from storage
+    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
+
+    // How schemas are deleted
+    CompletableFuture<SchemaVersion> delete(String key);
+
+    // Utility method for converting a schema version byte array to a SchemaVersion object
+    SchemaVersion versionFromBytes(byte[] version);
+
+    // Startup behavior for the schema storage client
+    void start() throws Exception;
+
+    // Shutdown behavior for the schema storage client
+    void close() throws Exception;
+}
+```
+
+:::tip
+
+For a complete example of **schema storage** implementation, see [BookKeeperSchemaStorage](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorage.java) class.
+
+:::
+
+### Implement SchemaStorageFactory interface 
+
+The `SchemaStorageFactory` interface has the following method:
+
+```java
+public interface SchemaStorageFactory {
+    @NotNull
+    SchemaStorage create(PulsarService pulsar) throws Exception;
+}
+```
+
+:::tip
+
+For a complete example of **schema storage factory** implementation, see [BookKeeperSchemaStorageFactory](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.java) class.
+
+:::
+
+### Deploy custom schema storage
+
+To use your custom schema storage implementation, perform the following steps.
+
+1. Package the implementation in a [JAR](https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html) file.
+   
+2. Add the JAR file to the `lib` folder in your Pulsar binary or source distribution.
+   
+3. Change the `schemaRegistryStorageClassName` configuration in the `conf/broker.conf` file to your custom factory class.
+      
+4. Start Pulsar.
