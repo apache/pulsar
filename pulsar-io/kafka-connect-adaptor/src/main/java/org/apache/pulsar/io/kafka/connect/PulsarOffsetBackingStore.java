@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.Schema;
 @Slf4j
 public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
+    private final ObjectMapper mapper = new ObjectMapper();
     private final Map<ByteBuffer, ByteBuffer> data = new ConcurrentHashMap<>();
     private PulsarClient client;
     private String topic;
@@ -252,15 +253,11 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         });
     }
 
-
-    public static Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
+    private Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
         if (!isBlank(config)) {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(config, new TypeReference<Map<String, Object>>() {
-            });
+            return mapper.readValue(config, new TypeReference<>() {});
         } else {
             return Collections.emptyMap();
         }
     }
-
 }
