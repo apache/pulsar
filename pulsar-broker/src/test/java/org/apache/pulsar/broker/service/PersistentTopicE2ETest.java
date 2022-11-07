@@ -1690,6 +1690,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .receiverQueueSize(20)
                 .subscribe();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topicName)
