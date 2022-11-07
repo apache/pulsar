@@ -24,12 +24,17 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertFalse;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.Arrays;
+import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
@@ -40,6 +45,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.roaringbitmap.RoaringBitmap;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -155,5 +162,77 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker.containsMessage(3, 3));
 
         tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker", invocationCount = 10)
+    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) {
+        for (int i = 1; i <= 100; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), 100);
+
+        clockTime.set(1 * 10);
+
+        assertTrue(tracker.hasMessageAvailable());
+        Set<PositionImpl> scheduledMessages = tracker.getScheduledMessages(100);
+
+        assertEquals(scheduledMessages.size(), 1);
+
+        tracker.addMessage(101, 101, 101 * 10);
+
+        tracker.close();
+
+        clockTime.set(30 * 10);
+
+        tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
+                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50);
+
+        assertFalse(tracker.containsMessage(101, 101));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 70);
+
+        clockTime.set(100 * 10);
+
+        assertTrue(tracker.hasMessageAvailable());
+        scheduledMessages = tracker.getScheduledMessages(70);
+
+        assertEquals(scheduledMessages.size(), 70);
+
+        int i = 31;
+        for (PositionImpl scheduledMessage : scheduledMessages) {
+            assertEquals(scheduledMessage, PositionImpl.get(i, i));
+            i++;
+        }
+
+        tracker.close();
+    }
+
+    @Test
+    public void testRoaringBitmapSerialize() {
+        List<Long> data = List.of(1L, 3L, 5L, 10L, 16L, 18L, 999L, 0L);
+        RoaringBitmap roaringBitmap = new RoaringBitmap();
+        for (Long datum : data) {
+            roaringBitmap.add(datum, datum + 1);
+        }
+
+        assertEquals(roaringBitmap.getCardinality(), data.size());
+        for (Long datum : data) {
+            assertTrue(roaringBitmap.contains(datum, datum + 1));
+        }
+
+        byte[] array = new byte[roaringBitmap.serializedSizeInBytes()];
+        roaringBitmap.serialize(ByteBuffer.wrap(array));
+
+        RoaringBitmap roaringBitmap2 = new ImmutableRoaringBitmap(ByteBuffer.wrap(array)).toRoaringBitmap();
+        assertEquals(roaringBitmap2.getCardinality(), data.size());
+        for (Long datum : data) {
+            assertTrue(roaringBitmap2.contains(datum, datum + 1));
+        }
+
+        byte[] array2 = new byte[roaringBitmap2.serializedSizeInBytes()];
+        roaringBitmap.serialize(ByteBuffer.wrap(array2));
+
+        assertTrue(Arrays.equals(array, array2));
+        assertNotSame(array, array2);
     }
 }
