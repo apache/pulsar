@@ -26,6 +26,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -241,12 +242,42 @@ public class RawBatchMessageContainerImplTest {
         container.createOpSendMsg();
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test
     public void testToByteBufWithEncryptionWithoutCryptoKeyReader() {
         setEncryptionAndCompression(true, false);
         RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(1);
         String topic = "my-topic";
         container.add(createMessage(topic, "hi-1", 0), null);
-        container.toByteBuf();
+        Assert.assertEquals(container.getNumMessagesInBatch(), 1);
+        Throwable e = null;
+        try {
+            container.toByteBuf();
+        } catch (IllegalStateException ex){
+            e = ex;
+        }
+        Assert.assertEquals(e.getClass(), IllegalStateException.class);
+        Assert.assertEquals(container.getNumMessagesInBatch(), 0);
+        Assert.assertEquals(container.batchedMessageMetadataAndPayload, null);
+    }
+
+    @Test
+    public void testToByteBufWithEncryptionWithInvalidEncryptKeys() {
+        setEncryptionAndCompression(true, false);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(1);
+        container.setCryptoKeyReader(cryptoKeyReader);
+        encryptKeys = new HashMap<>();
+        encryptKeys.put(null, null);
+        String topic = "my-topic";
+        container.add(createMessage(topic, "hi-1", 0), null);
+        Assert.assertEquals(container.getNumMessagesInBatch(), 1);
+        Throwable e = null;
+        try {
+            container.toByteBuf();
+        } catch (IllegalArgumentException ex){
+            e = ex;
+        }
+        Assert.assertEquals(e.getClass(), IllegalArgumentException.class);
+        Assert.assertEquals(container.getNumMessagesInBatch(), 0);
+        Assert.assertEquals(container.batchedMessageMetadataAndPayload, null);
     }
 }

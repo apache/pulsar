@@ -372,7 +372,6 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                         mxBean.addCompactionReadOp(topic, message.size());
                         addToCompactedLedger(lh, message, topic, outstanding)
                                 .whenComplete((res, exception2) -> {
-                                    outstanding.release();
                                     if (exception2 != null) {
                                         promise.completeExceptionally(exception2);
                                         return;
@@ -402,8 +401,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         CompletableFuture<Boolean> bkf = new CompletableFuture<>();
         if (m == null || batchMessageContainer.add((MessageImpl<?>) m, null)) {
             if (batchMessageContainer.getNumMessagesInBatch() > 0) {
-                ByteBuf serialized = batchMessageContainer.toByteBuf();
                 try {
+                    ByteBuf serialized = batchMessageContainer.toByteBuf();
                     outstanding.acquire();
                     mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
                     long start = System.nanoTime();
@@ -419,6 +418,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                             }, null);
 
                 } catch (Throwable t) {
+                    log.error("Failed to add entry", t);
+                    batchMessageContainer.discard((Exception) t);
                     return FutureUtil.failedFuture(t);
                 }
             } else {

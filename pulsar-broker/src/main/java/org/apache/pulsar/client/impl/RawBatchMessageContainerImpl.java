@@ -67,6 +67,9 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             msgCrypto.encrypt(encryptionKeys, cryptoKeyReader, () -> messageMetadata,
                     compressedPayload.nioBuffer(), targetBuffer);
         } catch (PulsarClientException e) {
+            encryptedPayload.release();
+            compressedPayload.release();
+            discard(e);
             throw new RuntimeException("Failed to encrypt payload", e);
         }
         encryptedPayload.writerIndex(targetBuffer.remaining());
@@ -99,17 +102,23 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             EncryptionContext encryptionContext = (EncryptionContext) lastMessage.getEncryptionCtx().get();
 
             if (cryptoKeyReader == null) {
-                throw new IllegalStateException("Messages are encrypted but no cryptoKeyReader is provided.");
+                IllegalStateException ex =
+                        new IllegalStateException("Messages are encrypted but no cryptoKeyReader is provided.");
+                discard(ex);
+                throw ex;
             }
 
-            this.encryptionKeys = encryptionContext.getKeys().keySet();
-            this.msgCrypto =
-                    new MessageCryptoBc(String.format(
-                            "[%s] [%s]", topicName, "RawBatchMessageContainer"), true);
-            try {
-                msgCrypto.addPublicKeyCipher(encryptionKeys, cryptoKeyReader);
-            } catch (PulsarClientException.CryptoException e) {
-                throw new IllegalArgumentException("Failed to set encryption keys", e);
+            encryptionKeys = encryptionContext.getKeys().keySet();
+            if (msgCrypto == null) {
+                msgCrypto =
+                        new MessageCryptoBc(String.format(
+                                "[%s] [%s]", topicName, "RawBatchMessageContainer"), true);
+                try {
+                    msgCrypto.addPublicKeyCipher(encryptionKeys, cryptoKeyReader);
+                } catch (PulsarClientException.CryptoException e) {
+                    discard(e);
+                    throw new IllegalArgumentException("Failed to set encryption keys", e);
+                }
             }
         }
 
