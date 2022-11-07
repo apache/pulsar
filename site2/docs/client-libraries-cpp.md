@@ -9,7 +9,7 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
-You can use a Pulsar C++ client to create producers, consumers, and readers. For Pulsar features that C++ clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
+You can use a Pulsar C++ client to create producers, consumers, and readers. For Pulsar features that C++ clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914). For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
 ## Installation
 
@@ -395,22 +395,6 @@ conf.setMaxPendingChunkedMessage(100);
 Consumer consumer;
 client.subscribe("my-topic", "my-sub", conf, consumer);
 ```
-
-## Enable authentication in connection URLs
-If you use TLS authentication when connecting to Pulsar, you need to add `ssl` in the connection URLs, and the default port is `6651`. The following is an example.
-
-```cpp
-ClientConfiguration config = ClientConfiguration();
-config.setUseTls(true);
-config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
-config.setTlsAllowInsecureConnection(false);
-config.setAuth(pulsar::AuthTls::create(
-            "/path/to/client-cert.pem", "/path/to/client-key.pem"););
-
-Client client("pulsar+ssl://my-broker.com:6651", config);
-```
-
-For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
 ## Schema
 
