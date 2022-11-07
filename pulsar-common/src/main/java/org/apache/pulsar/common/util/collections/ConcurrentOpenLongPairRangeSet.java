@@ -195,37 +195,18 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
-    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
-        AtomicBoolean completed = new AtomicBoolean(false);
-        rangeBitSetMap.forEach((key, set) -> {
-            if (completed.get()) {
-                return;
-            }
-            if (set.isEmpty()) {
-                return;
-            }
-            int first = set.nextSetBit(0);
-            int last = set.previousSetBit(set.size());
-            int currentClosedMark = first;
-            while (currentClosedMark != -1 && currentClosedMark <= last) {
-                int nextOpenMark = set.nextClearBit(currentClosedMark);
-                Range<T> range = Range.openClosed(
-                        consumer.apply(key, currentClosedMark - 1),
-                        consumer.apply(key, nextOpenMark - 1)
-                );
-                if (!action.process(range)) {
-                    completed.set(true);
-                    break;
-                }
-                currentClosedMark = set.nextSetBit(nextOpenMark);
-            }
+    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumerParam) {
+        forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            Range<T> range = Range.openClosed(
+                    consumerParam.apply(lowerKey, lowerValue),
+                    consumerParam.apply(upperKey, upperValue)
+            );
+            return action.process(range);
         });
     }
 
     @Override
-    public <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> rawRangeBoundMapper,
-                                                RangeBoundConvertFunction<T, O> __,
-                                                RangeBoundBiConsumer<O> action) {
+    public void forEachRawRange(RawRangeProcessor<T> processor) {
         AtomicBoolean completed = new AtomicBoolean(false);
         rangeBitSetMap.forEach((key, set) -> {
             if (completed.get()) {
@@ -239,9 +220,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 int nextOpenMark = set.nextClearBit(currentClosedMark);
-                O lower = rawRangeBoundMapper.apply(key, currentClosedMark - 1);
-                O upper = rawRangeBoundMapper.apply(key, nextOpenMark - 1);
-                if (!action.process(lower, upper)) {
+                if (!processor.processRawRange(key, currentClosedMark - 1,
+                        key, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
@@ -302,10 +282,11 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             MutableInt size = new MutableInt(0);
 
             // ignore result because we just want to count
-            forEachWithRangeBoundMapper((ledgerId, entryId) -> 0, __ -> 0, (ignored1, ignored2) -> {
+            forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
                 size.increment();
                 return true;
             });
+
             cachedSize = size.intValue();
             updatedAfterCachedForSize = false;
         }

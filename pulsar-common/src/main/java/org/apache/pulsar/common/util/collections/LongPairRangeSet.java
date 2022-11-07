@@ -119,9 +119,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * {@param action} to do iteration jobs.
      *
      */
-    <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> rawRangeBoundConsumer,
-                                         RangeBoundConvertFunction<T, O> rangeBoundConvertFunction,
-                                         RangeBoundBiConsumer<O> action);
+    void forEachRawRange(RawRangeProcessor<T> action);
 
     /**
      * Returns total number of ranges into the set.
@@ -159,6 +157,15 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     }
 
     /**
+     * Represents a function that accepts result and produces a LongPair.
+     * Reverse ops of `LongPairConsumer<T>`
+     * @param <T> the type of the result.
+     */
+    interface RangeBoundConsumer<T> {
+        LongPair apply(T bound);
+    }
+
+    /**
      * The interface exposing a method for processing of ranges.
      * @param <T> - The incoming type of data in the range object.
      */
@@ -172,27 +179,15 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     }
 
     /**
-     * The interface exposing a method for conversion each bound of ranges.
-     * this will be use in `forEachWithRangeBoundMapper` when iteration.
+     * The interface exposing a method for processing raw form of ranges.
+     * This method will omit the process to convert (long, long) to `T`
+     * create less object during the iteration.
      * @param <T> - The incoming type of data in the range object.
      * @param <O> - The output type of data after apply the conversion.
      */
-    interface RangeBoundConvertFunction<T, O> {
-        O apply(T rangeBound);
-    }
-
-    /**
-     * The interface exposing a method for do iteration jobs after apply
-     * user define range bound conversion function.
-     * @param <O> the input type of parameter return by `RangeBoundConvertFunction`
-     */
-    interface RangeBoundBiConsumer<O> {
-        /**
-         *
-         * @param range
-         * @return false if there is no further processing required
-         */
-        boolean process(O rangeLowerBound, O rangeUpperBound);
+    interface RawRangeProcessor<T> {
+        boolean processRawRange(long lowerKey, long lowerValue,
+                                long upperKey, long upperValue);
     }
 
     /**
@@ -251,9 +246,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         RangeSet<T> set = TreeRangeSet.create();
 
         private final LongPairConsumer<T> consumer;
+        private final RangeBoundConsumer<T> rangeEndPointConsumer;
 
-        public DefaultRangeSet(LongPairConsumer<T> consumer) {
+        public DefaultRangeSet(LongPairConsumer<T> consumer, RangeBoundConsumer<T> reverseConsumer) {
             this.consumer = consumer;
+            this.rangeEndPointConsumer = reverseConsumer;
         }
 
         @Override
@@ -322,13 +319,12 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public <O> void forEachWithRangeBoundMapper(LongPairConsumer<O> __,
-                                RangeBoundConvertFunction<T, O> rangeBoundMapper,
-                                RangeBoundBiConsumer<O> action) {
+        public void forEachRawRange(RawRangeProcessor<T> action) {
             for (Range<T> range : asRanges()) {
-                O lower = rangeBoundMapper.apply(range.lowerEndpoint());
-                O upper = rangeBoundMapper.apply(range.upperEndpoint());
-                if (!action.process(lower, upper)) {
+                LongPair lowerEndpoint = this.rangeEndPointConsumer.apply(range.lowerEndpoint());
+                LongPair upperEndpoint = this.rangeEndPointConsumer.apply(range.upperEndpoint());
+                if (!action.processRawRange(lowerEndpoint.key, lowerEndpoint.value,
+                        upperEndpoint.key, upperEndpoint.value)) {
                     break;
                 }
             }

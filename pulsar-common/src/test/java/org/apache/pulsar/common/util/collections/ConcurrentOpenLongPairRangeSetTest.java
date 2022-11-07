@@ -26,10 +26,10 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.testng.annotations.Test;
 
@@ -39,7 +39,8 @@ import com.google.common.collect.TreeRangeSet;
 
 public class ConcurrentOpenLongPairRangeSetTest {
 
-    static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
+    static final LongPairConsumer<LongPair> consumer = LongPair::new;
+    static final RangeBoundConsumer<LongPair> reverseConsumer = pair -> pair;
 
     @Test
     public void testIsEmpty() {
@@ -486,7 +487,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     @Test
     public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
-        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet = new LongPairRangeSet.DefaultRangeSet<>(consumer);
+        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet = new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
 
         set.addOpenClosed(1, 10, 1, 15);
         set.addOpenClosed(2, 25, 2, 28);
@@ -511,21 +512,21 @@ public class ConcurrentOpenLongPairRangeSetTest {
         });
 
         List<LongPair> defaultRangeSetResult = new ArrayList<>();
-        List<LongPair> forEachIterWithRangeBoundMapperResult = new ArrayList<>();
+        List<LongPair> forEachRawRangeResult = new ArrayList<>();
 
-        defaultRangeSet.forEachWithRangeBoundMapper(LongPair::new, (pair) -> pair, (rangeLowerBound, rangeUpperBound) -> {
-            defaultRangeSetResult.add(rangeLowerBound);
-            defaultRangeSetResult.add(rangeUpperBound);
+        defaultRangeSet.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            defaultRangeSetResult.add(new LongPair(lowerKey, lowerValue));
+            defaultRangeSetResult.add(new LongPair(upperKey, upperValue));
             return true;
         });
         
-        set.forEachWithRangeBoundMapper(LongPair::new, (pair) -> pair, (rangeLowerBound, rangeUpperBound) -> {
-            forEachIterWithRangeBoundMapperResult.add(rangeLowerBound);
-            forEachIterWithRangeBoundMapperResult.add(rangeUpperBound);
+        set.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            forEachRawRangeResult.add(new LongPair(lowerKey, lowerValue));
+            forEachRawRangeResult.add(new LongPair(upperKey, upperValue));
             return true;
         });
 
-        assertEquals(forEachIterResult, forEachIterWithRangeBoundMapperResult);
+        assertEquals(forEachIterResult, forEachRawRangeResult);
         assertEquals(forEachIterResult, defaultRangeSetResult);
 
         assertEquals(size.intValue(), set.size());
