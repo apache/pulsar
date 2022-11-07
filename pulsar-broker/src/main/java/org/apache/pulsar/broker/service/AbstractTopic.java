@@ -439,6 +439,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected boolean isProducersExceeded() {
+        if (isSystemTopic()) {
+            return false;
+        }
         Integer maxProducers = topicPolicies.getMaxProducersPerTopic().get();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
