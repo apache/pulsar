@@ -242,14 +242,14 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger = factory3.open("testUpdateCursorProperties", new ManagedLedgerConfig());
         c1 = ledger.openCursor("c1");
 
-        c1.putCursorProperty(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test").get();
-        c1.putCursorProperty("custom4", "custom4").get();
-        c1.setCursorProperties(cursorPropertiesUpdated).get();
+        c1.putCursorProperty(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test").get(10, TimeUnit.SECONDS);
+        c1.putCursorProperty("custom4", "custom4").get(10, TimeUnit.SECONDS);
+        c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
 
         cursorPropertiesUpdated.put(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test");
 
         try {
-            c1.setCursorProperties(cursorPropertiesUpdated).get();
+            c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
             Assert.fail("Should fail");
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("The property key can't start with"));
@@ -284,7 +284,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
                 ManagedLedgerException.BadVersionException.class));
 
         for (CompletableFuture<Void> future : futures) {
-            future.get();
+            future.get(10, TimeUnit.SECONDS);
         }
 
         assertEquals(c1.getCursorProperties().get("a"), "2");
