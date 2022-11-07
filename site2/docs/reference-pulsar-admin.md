@@ -1055,6 +1055,12 @@ Usage
 pulsar-admin namespaces delete tenant/namespace
 ```
 
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-f`, `--force`|Delete namespace forcefully by force deleting all topics under it|false|
+
 ### `set-deduplication`
 Enable or disable message deduplication on a namespace
 
