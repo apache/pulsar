@@ -51,9 +51,9 @@ body:
 
         <details>
         <summary>Full exception stacktrace</summary>
-        <code><pre>
+        <pre><code>
           full exception stacktrace here
-        </pre></code>
+        </code></pre>
         </details>
     validations:
       required: true

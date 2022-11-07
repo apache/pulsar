@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -2362,8 +2362,7 @@ public class CmdNamespaces extends CmdBase {
             Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
             if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
                 long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
-                if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
-                        && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                if (maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }

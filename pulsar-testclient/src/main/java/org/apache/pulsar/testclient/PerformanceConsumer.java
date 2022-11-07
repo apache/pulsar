@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -314,6 +314,12 @@ public class PerformanceConsumer {
 
                 totalMessagesReceived.increment();
                 totalBytesReceived.add(msg.size());
+
+                if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
 
                 if (limiter != null) {
                     limiter.acquire();

@@ -262,7 +262,7 @@ auth:
     client: "admin"
 ```
 
-To enable authentication, you can run [prepare helm release](#prepare-the-helm-release) to generate token secret keys and tokens for three super users specified in the `auth.superUsers` field. The generated token keys and super user tokens are uploaded and stored as Kubernetes secrets prefixed with `<pulsar-release-name>-token-`. You can use the following command to find those secrets.
+To enable authentication, you can run [prepare helm release](#prepare-helm-release) to generate token secret keys and tokens for three super users specified in the `auth.superUsers` field. The generated token keys and super user tokens are uploaded and stored as Kubernetes secrets prefixed with `<pulsar-release-name>-token-`. You can use the following command to find those secrets.
 
 ```bash
 kubectl get secrets -n <k8s-namespace>

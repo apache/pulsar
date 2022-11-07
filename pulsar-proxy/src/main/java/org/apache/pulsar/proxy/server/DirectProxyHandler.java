@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -243,11 +242,11 @@ public class DirectProxyHandler {
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         } else {
             if (inboundChannel.remoteAddress() instanceof InetSocketAddress
-                    && outboundChannel.localAddress() instanceof InetSocketAddress) {
+                    && inboundChannel.localAddress() instanceof InetSocketAddress) {
                 InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
                 String sourceAddress = clientAddress.getAddress().getHostAddress();
                 int sourcePort = clientAddress.getPort();
-                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.localAddress();
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,

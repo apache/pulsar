@@ -46,13 +46,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-broker-common</artifactId>
-      <version>${project.parent.version}</version>
-      <scope>compile</scope>
-    </dependency>
-
-    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
@@ -295,4 +288,20 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>skipTestsForUnitGroupOther</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

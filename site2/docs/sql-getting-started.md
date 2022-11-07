@@ -15,7 +15,7 @@ Before querying data in Pulsar, you need to install Pulsar and built-in connecto
 
 To query data in Pulsar with Pulsar SQL, complete the following steps.
 
-1. Start a Pulsar standalone cluster.
+1. Start a Pulsar standalone cluster:
 
 ```bash
 PULSAR_STANDALONE_USE_ZOOKEEPER=1 ./bin/pulsar standalone
@@ -23,27 +23,26 @@ PULSAR_STANDALONE_USE_ZOOKEEPER=1 ./bin/pulsar standalone
 
 :::note
 
-Starting the Pulsar standalone cluster from scratch doesn't enable ZooKeeper by default.
-However, the Pulsar SQL depends on ZooKeeper. Therefore, you need to set `PULSAR_STANDALONE_USE_ZOOKEEPER=1` to enable ZooKeeper.
+Starting the Pulsar standalone cluster from scratch doesn't enable ZooKeeper by default. However, the Pulsar SQL depends on ZooKeeper. Therefore, you need to set `PULSAR_STANDALONE_USE_ZOOKEEPER=1` to enable ZooKeeper.
 
 :::
 
-2. Start a Pulsar SQL worker.
+2. Start a Pulsar SQL worker:
 
 ```bash
 ./bin/pulsar sql-worker run
 ```
 
-3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
+3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI:
 
 ```bash
 ./bin/pulsar sql
 ```
 
-4. Test with SQL commands.
+4. Test with SQL commands:
 
 ```bash
-presto> show catalogs;
+trino> show catalogs;
  Catalog
 ---------
  pulsar
@@ -55,7 +54,7 @@ Splits: 19 total, 19 done (100.00%)
 0:00 [0 rows, 0B] [0 rows/s, 0B/s]
 
 
-presto> show schemas in pulsar;
+trino> show schemas in pulsar;
         Schema
 -----------------------
  information_schema
@@ -68,7 +67,7 @@ Splits: 19 total, 19 done (100.00%)
 0:00 [4 rows, 89B] [21 rows/s, 471B/s]
 
 
-presto> show tables in pulsar."public/default";
+trino> show tables in pulsar."public/default";
  Table
 -------
 (0 rows)
@@ -80,16 +79,16 @@ Splits: 19 total, 19 done (100.00%)
 
 Since there is no data in Pulsar, no records are returned.
 
-5. Start the built-in connector _DataGeneratorSource_ and ingest some mock data.
+5. Start the built-in connector `DataGeneratorSource` and ingest some mock data:
 
 ```bash
 ./bin/pulsar-admin sources create --name generator --destinationTopicName generator_test --source-type data-generator
 ```
 
-And then you can query a topic in the namespace "public/default".
+And then you can query a topic in the namespace "public/default":
 
 ```bash
-presto> show tables in pulsar."public/default";
+trino> show tables in pulsar."public/default";
      Table
 ----------------
  generator_test
@@ -100,10 +99,10 @@ Splits: 19 total, 19 done (100.00%)
 0:02 [1 rows, 38B] [0 rows/s, 17B/s]
 ```
 
-You can now query the data within the topic "generator_test".
+You can now query the data within the topic "generator_test":
 
 ```bash
-presto> select * from pulsar."public/default".generator_test;
+trino> select * from pulsar."public/default".generator_test;
 
   firstname  | middlename  |  lastname   |              email               |   username   | password | telephonenumber | age |                 companyemail                  | nationalidentitycardnumber |
 -------------+-------------+-------------+----------------------------------+--------------+----------+-----------------+-----+-----------------------------------------------+----------------------------+
@@ -117,61 +116,3 @@ presto> select * from pulsar."public/default".generator_test;
 ```
 
 You can query the mock data.
-
-## Query your own data
-
-If you want to query your own data, you need to ingest your own data first. You can write a simple producer and write custom defined data to Pulsar. The following is an example.
-
-```java
-public class TestProducer {
-
-    public static class Foo {
-        private int field1 = 1;
-        private String field2;
-        private long field3;
-
-        public Foo() {
-        }
-
-        public int getField1() {
-            return field1;
-        }
-
-        public void setField1(int field1) {
-            this.field1 = field1;
-        }
-
-        public String getField2() {
-            return field2;
-        }
-
-        public void setField2(String field2) {
-            this.field2 = field2;
-        }
-
-        public long getField3() {
-            return field3;
-        }
-
-        public void setField3(long field3) {
-            this.field3 = field3;
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
-        Producer<Foo> producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic("test_topic").create();
-
-        for (int i = 0; i < 1000; i++) {
-            Foo foo = new Foo();
-            foo.setField1(i);
-            foo.setField2("foo" + i);
-            foo.setField3(System.currentTimeMillis());
-            producer.newMessage().value(foo).send();
-        }
-        producer.close();
-        pulsarClient.close();
-    }
-}
-```
-

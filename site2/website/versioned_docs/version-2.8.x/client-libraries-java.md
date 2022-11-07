@@ -134,7 +134,7 @@ boolean|`tlsAllowInsecureConnection`|Whether the Pulsar client accepts untrusted
 boolean | `tlsHostnameVerificationEnable` | Whether to enable TLS hostname verification|false
 int|`concurrentLookupRequest`|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
 int|`maxLookupRequest`|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (60 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 int|`keepAliveIntervalSeconds`|Seconds of keeping alive interval for each client broker connection|30
 int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br /><br />If the duration passes without a response from a broker, the connection attempt is dropped|10000
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000

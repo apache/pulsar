@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -98,7 +98,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(event -> {
                         if (sessionWatcher != null) {
-                            sessionWatcher.ifPresent(sw -> sw.process(event));
+                            sessionWatcher.ifPresent(sw -> executor.execute(() -> sw.process(event)));
                         }
                     }))
                     .build();

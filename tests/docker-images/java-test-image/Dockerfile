@@ -46,10 +46,9 @@ RUN mkdir -p /etc/apt/keyrings \
      && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-17-jdk
-
-ENV JAVA_HOME /usr/lib/jvm/temurin-17-jdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-amd64/conf/security/java.security
+     && apt-get -y install temurin-17-jdk \
+     && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
+     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
@@ -62,12 +61,13 @@ RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
-    && mkdir -p /pulsar/ssl
+    && mkdir -p /pulsar/certificate-authority
 
 COPY target/conf /etc/supervisord/conf.d/
 RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 
-COPY target/ssl /pulsar/ssl/
+# TLS certificates
+COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
 

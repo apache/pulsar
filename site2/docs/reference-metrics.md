@@ -25,7 +25,7 @@ The following types of metrics are available:
 
 ## ZooKeeper
 
-The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
+The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in `conf/zookeeper.conf`.
 
 ZooKeeper provides a New Metrics System since 3.6.0. For more detailed metrics, refer to the [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
@@ -147,6 +147,7 @@ The following metrics are available for broker:
   - [Schema metrics](#schema-metrics)
   - [Offload metrics](#offload-metrics)
   - [Web service executor metrics](#web-service-executor-metrics)
+  - [Metadata store metrics](#metadata-store-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -400,7 +401,7 @@ All the bundleUnloading metrics are labeled with the following labels:
 
 | Name                          | Type    | Description                                                |
 |-------------------------------|---------|------------------------------------------------------------|
-| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
+| pulsar_lb_bundles_split_total | Counter | The total count of bundle split in this leader broker |
 
 #### Bundle metrics
 All the bundle metrics are labeled with the following labels:
@@ -601,6 +602,19 @@ All the web service executor metrics are labeled with the following labels:
 | pulsar_web_executor_idle_threads | GAUGE | The idle threads of pulsar-web thread pool |
 | pulsar_web_executor_active_threads | GAUGE | The number of threads performing tasks of pulsar-web thread pool |
 | pulsar_web_executor_current_threads | GAUGE | The number of threads in the pulsar-web thread pool |
+
+### Metadata store metrics
+
+All the metadata store metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *name*: `name=${metadata-store|configuration-metadata-store|state-metadata-store}`. `${name}` is the metadata store name.
+
+| Name                                   | Type      | Description                                                                                  |
+|----------------------------------------|-----------|----------------------------------------------------------------------------------------------|
+| pulsar_metadata_store_ops_latency      | Histogram | The latency of getting/deleting/putting data fail/success operations from/to metadata store. |
+| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                                                    |
+
 
 ## Pulsar Functions
 
