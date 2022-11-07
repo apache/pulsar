@@ -2712,19 +2712,18 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
      */
     private boolean trySetStateToClosing() {
-        if (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Closing)){
-            return true;
-        }
-        if (STATE_UPDATER.compareAndSet(this, State.NoLedger, State.Closing)){
-            return true;
-        }
-        if (STATE_UPDATER.compareAndSet(this, State.Open, State.Closing)){
-            return true;
-        }
-        if (STATE_UPDATER.compareAndSet(this, State.SwitchingLedger, State.Closing)){
-            return true;
-        }
-        return false;
+        final AtomicBoolean updated = new AtomicBoolean(false);
+        STATE_UPDATER.updateAndGet(this, state -> {
+            switch (state){
+                case Closing:
+                case Closed: return state;
+                default: {
+                    updated.set(true);
+                    return State.Closing;
+                }
+            }
+        });
+        return updated.get();
     }
 
     private void flushPendingMarkDeletes() {

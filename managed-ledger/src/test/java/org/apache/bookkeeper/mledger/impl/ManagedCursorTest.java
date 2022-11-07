@@ -153,8 +153,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
         cursor.close();
         assertEquals(cursor.getState(), ManagedCursorImpl.State.Closed.toString());
-        // cleanup.
+        // cleanup, "ledger.close" will trigger another "cursor.close"
         ledger.close();
+        assertEquals(cursor.getState(), ManagedCursorImpl.State.Closed.toString());
     }
 
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
