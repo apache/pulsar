@@ -130,7 +130,7 @@ public class BatchReceivePolicy implements Serializable {
         private int maxNumBytes;
         private int timeout;
         private TimeUnit timeoutUnit;
-        private boolean messagesFromMultiTopicsEnabled;
+        private boolean messagesFromMultiTopicsEnabled = true;
 
         public Builder maxNumMessages(int maxNumMessages) {
             this.maxNumMessages = maxNumMessages;
