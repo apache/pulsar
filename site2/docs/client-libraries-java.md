@@ -262,7 +262,6 @@ Mode     | Description
 The following is an example:
 
 ```java
-
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
@@ -272,7 +271,6 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRoutingMode(MessageRoutingMode.SinglePartition)
         .create();
 producer.send("Partitioned topic message".getBytes());
-
 ```
 
 #### Custom message router
@@ -280,29 +278,24 @@ producer.send("Partitioned topic message".getBytes());
 To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
-
 public interface MessageRouter extends Serializable {
     int choosePartition(Message msg);
 }
-
 ```
 
 The following router routes every message to partition 10:
 
 ```java
-
 public class AlwaysTenRouter implements MessageRouter {
     public int choosePartition(Message msg) {
         return 10;
     }
 }
-
 ```
 
 With that implementation, you can send messages to partitioned topics as below.
 
 ```java
-
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
@@ -312,14 +305,12 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
-
 ```
 
 #### How to choose partitions when using a key
 If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.
 
 ```java
-
 // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
@@ -331,7 +322,6 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-
 ```
 
 ### Async send
@@ -387,17 +377,16 @@ To enable chunking, you need to disable batching (`enableBatching`=`false`) conc
 
 ### Intercept messages
 
-`ProducerInterceptor`s intercept and possibly mutate messages received by the producer before they are published to the brokers.
+`ProducerInterceptor` intercepts and possibly mutates messages received by the producer before they are published to the brokers.
 
 The interface has three main events:
 * `eligible` checks if the interceptor can be applied to the message.
 * `beforeSend` is triggered before the producer sends the message to the broker. You can modify messages within this event.
 * `onSendAcknowledgement` is triggered when the message is acknowledged by the broker or the sending failed.
 
-To intercept messages, you can add one or multiple `ProducerInterceptor`s when creating a `Producer` as follows.
+To intercept messages, you can add a `ProducerInterceptor` or multiple ones when creating a `Producer` as follows.
 
 ```java
-
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .intercept(new ProducerInterceptor {
@@ -417,12 +406,11 @@ Producer<byte[]> producer = client.newProducer()
 			}
         })
         .create();
-
 ```
 
 :::note
 
-If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+Multiple interceptors apply in the order they are passed to the `intercept` method.
 
 :::
 
@@ -1171,7 +1159,7 @@ The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *a
 
 ## Authentication
 
-Pulsar currently supports the following authentication mechansims:
+Pulsar Java clients currently support the following authentication mechansims:
 * [TLS](security-tls-authentication.md#configure-tls-authentication-in-pulsar-clients)
 * [JWT](security-jwt.md#configure-jwt-authentication-in-pulsar-clients)
 * [Athenz](security-athenz.md#configure-athenz-authentication-in-pulsar-clients)
