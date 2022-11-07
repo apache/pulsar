@@ -209,7 +209,7 @@ public class ProxyConnection extends PulsarHandler {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         super.exceptionCaught(ctx, cause);
-        LOG.warn("[{}] Got exception {} : Message: {} State: {}", remoteAddress, cause.getClass().getSimpleName(),
+        LOG.warn("[{}] Got exception {} : Message: {} State: {} Cause: {}", remoteAddress, cause.getClass().getSimpleName(),
                 cause.getMessage(), state,
                 ClientCnx.isKnownException(cause) ? null : cause);
         if (state != State.Closed) {
