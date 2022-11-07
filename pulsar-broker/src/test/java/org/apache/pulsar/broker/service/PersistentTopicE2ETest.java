@@ -71,6 +71,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -1713,11 +1714,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         consumer.redeliverUnacknowledgedMessages();
-
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(((ConsumerBase<String>) consumer).numMessagesInQueue(), 10);
+        });
         for (int i = 0; i < 10; i++) {
             // Verify: msg [L:0] must be redelivered
             try {
-                final Message<String> redeliveredMsg = consumer.receive(1, TimeUnit.SECONDS);
+                final Message<String> redeliveredMsg = consumer.receive();
                 unackedMessages.removeIf(unackedMessage -> unackedMessage.getValue().equals(redeliveredMsg.getValue()));
             } catch (Exception e) {
                 fail("msg should be redelivered ", e);
