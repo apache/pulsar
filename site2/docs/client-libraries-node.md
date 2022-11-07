@@ -4,7 +4,7 @@ title: The Pulsar Node.js client
 sidebar_label: "Node.js"
 ---
 
-You can use a Pulsar Node.js client to create producers, consumers, and readers. For Pulsar features that Python clients support, see [Pulsar Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
+You can use a Pulsar Node.js client to create producers, consumers, and readers. For Pulsar features that Python clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
 
 For 1.3.0 or later versions, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) used in TypeScript are available.
 

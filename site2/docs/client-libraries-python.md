@@ -9,8 +9,7 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
-You can use a Pulsar Python client to create producers, consumers, and readers. For Pulsar features that Python clients support, see [Pulsar Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
-
+You can use a Pulsar Python client to create producers, consumers, and readers. For Pulsar features that Python clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
 
 ## Installation
 
