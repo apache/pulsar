@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -251,8 +252,9 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         try {
             c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
             Assert.fail("Should fail");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("The property key can't start with"));
+        } catch (Exception e) {
+            assertTrue(
+                    FutureUtil.unwrapCompletionException(e).getMessage().contains("The property key can't start with"));
         }
 
         assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
