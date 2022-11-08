@@ -20,15 +20,17 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.lang.StringUtils.isBlank;
-import static org.apache.pulsar.io.common.IOConfigUtils.loadConfigFromJsonString;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +55,7 @@ import org.apache.pulsar.client.api.Schema;
 @Slf4j
 public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
+    private final ObjectMapper mapper = new ObjectMapper();
     private final Map<ByteBuffer, ByteBuffer> data = new ConcurrentHashMap<>();
     private PulsarClient client;
     private String topic;
@@ -248,5 +251,13 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 readToEnd(new CompletableFuture<>());
             }
         });
+    }
+
+    private Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
+        if (!isBlank(config)) {
+            return mapper.readValue(config, new TypeReference<>() {});
+        } else {
+            return Collections.emptyMap();
+        }
     }
 }
