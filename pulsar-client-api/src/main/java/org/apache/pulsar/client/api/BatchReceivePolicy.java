@@ -90,7 +90,7 @@ public class BatchReceivePolicy implements Serializable {
 
 
     /**
-     * If it is false, one time `batachReceive()` only can receive the single topic messages,
+     * If it is false, one time `batchReceive()` only can receive the single topic messages,
      * the max messages and max size will not be strictly followed. (default: true).
      */
     private final boolean messagesFromMultiTopicsEnabled;
