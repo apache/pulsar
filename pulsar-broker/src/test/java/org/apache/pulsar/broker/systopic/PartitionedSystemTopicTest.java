@@ -25,9 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -55,8 +53,6 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -274,52 +270,17 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns, 2);
         admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
 
-        admin.topicPolicies().setMaxConsumers(topic, 1);
+        admin.topicPolicies().setMaxConsumers(topic, 0);
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
         SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
-        SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
 
-        admin.topicPolicies().setMaxProducers(topic, 1);
-        AtomicInteger successCount = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(3);
-        new Thread(() -> {
-            try {
-                admin.topicPolicies().setCompactionThreshold(topic, 1L);
-                successCount.incrementAndGet();
-            } catch (PulsarAdminException ignore) {
-            } finally {
-                latch.countDown();
-            }
-        }).start();
-        new Thread(() -> {
-            try {
-                admin.topicPolicies().setSchemaCompatibilityStrategy(topic,
-                        SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-                successCount.incrementAndGet();
-            } catch (PulsarAdminException ignore) {
-            } finally {
-                latch.countDown();
-            }
-        }).start();
-        new Thread(() -> {
-            try {
-                admin.topicPolicies().setDispatchRate(topic, DispatchRate.builder()
-                        .ratePeriodInSecond(1).build());
-                successCount.incrementAndGet();
-            } catch (PulsarAdminException ignore) {
-            } finally {
-                latch.countDown();
-            }
-        }).start();
-        latch.await();
-        Assert.assertEquals(3, successCount.get());
+        admin.topicPolicies().setMaxProducers(topic, 0);
+        admin.topicPolicies().setCompactionThreshold(topic, 1L);
+
         Assert.assertTrue(reader1.hasMoreEvents());
         Assert.assertNotNull(reader1.readNext());
-        Assert.assertTrue(reader2.hasMoreEvents());
-        Assert.assertNotNull(reader2.readNext());
         reader1.close();
-        reader2.close();
     }
 }
