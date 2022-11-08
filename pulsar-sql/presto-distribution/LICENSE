@@ -256,6 +256,9 @@ The Apache Software License, Version 2.0
     - netty-transport-native-unix-common-4.1.77.Final.jar
     - netty-transport-native-unix-common-4.1.77.Final-linux-x86_64.jar
     - netty-codec-http2-4.1.77.Final.jar
+    - netty-incubator-transport-classes-io_uring-0.0.15.Final.jar
+    - netty-incubator-transport-native-io_uring-0.0.15.Final-linux-x86_64.jar
+    - netty-incubator-transport-native-io_uring-0.0.15.Final-linux-aarch_64.jar
  * GRPC
     - grpc-api-1.45.1.jar
     - grpc-context-1.45.1.jar

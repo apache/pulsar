@@ -311,6 +311,9 @@ The Apache Software License, Version 2.0
     - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-osx-x86_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-windows-x86_64.jar
     - io.netty-netty-tcnative-classes-2.0.52.Final.jar
+    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.15.Final.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.15.Final-linux-x86_64.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.15.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
     - io.prometheus-simpleclient-0.16.0.jar
