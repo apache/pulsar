@@ -342,6 +342,7 @@ public class ModularLoadManagerImplTest {
                 brokerServiceUrl = pulsar3.getBrokerServiceUrl();
             }
         }
+        brokerUrl = brokerUrl.replaceFirst("http[s]?://", "");
         log.debug("destination broker service url - {}, broker url - {}", brokerServiceUrl, brokerUrl);
         String leaderServiceUrl = admin1.brokers().getLeaderBroker().getServiceUrl();
         log.debug("leader serviceUrl - {}, broker1 service url - {}", leaderServiceUrl, pulsar1.getSafeWebServiceAddress());
