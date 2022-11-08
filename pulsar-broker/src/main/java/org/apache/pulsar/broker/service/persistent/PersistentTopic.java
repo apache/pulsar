@@ -214,7 +214,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscriptionApplied;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
@@ -1953,6 +1952,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.ownerBroker = brokerService.pulsar().getLookupServiceAddress();
         stats.offloadedStorageSize = ledger.getOffloadedSize();
         stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();

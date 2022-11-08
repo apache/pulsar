@@ -14,50 +14,10 @@ Follow the steps below to install the Azure BlobStore offloader.
 
 - Pulsar: 2.6.2 or later versions
 
-### Step
-
 This example uses Pulsar 2.6.2.
 
-1. Download the Pulsar tarball using one of the following ways:
-
-   * Download from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz)
-
-   * Download from the Pulsar [downloads page](/download)
-
-   * Use [wget](https://www.gnu.org/software/wget):
-
-    ```shell
-    wget https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz
-    ```
-
-2. Download and untar the Pulsar offloaders package.
-
-   ```bash
-   wget https://downloads.apache.org/pulsar/pulsar-2.6.2/apache-pulsar-offloaders-2.6.2-bin.tar.gz
-   tar xvfz apache-pulsar-offloaders-2.6.2-bin.tar.gz
-   ```
-
-3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
-
-   ```
-   mv apache-pulsar-offloaders-2.6.2/offloaders apache-pulsar-2.6.2/offloaders
-
-   ls offloaders
-   ```
-
-   **Output**
-
-   ```
-   tiered-storage-file-system-2.6.2.nar
-   tiered-storage-jcloud-2.6.2.nar
-   ```
-
-   :::note
-
-   * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 

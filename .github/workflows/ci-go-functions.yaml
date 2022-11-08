@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Go Functions Tests
+name: CI - Go Functions
 on:
   pull_request:
     branches:
@@ -40,25 +40,19 @@ env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
-
-  go-functions-tests:
-    name: Run Go Tests
-    strategy:
-      matrix:
-        go-version: [1.15, 1.16, 1.17]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
-    timeout-minutes: 120
-
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      docs_only: ${{ steps.check_changes.outputs.docs_only }}
+      cpp_only: ${{ steps.check_changes.outputs.cpp_only }}
+      changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
-      - name: Check out code into the Go module directory
+      - name: checkout
         uses: actions/checkout@v2
 
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
       - name: Detect changed files
-        id:   changes
+        id: changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
@@ -68,18 +62,44 @@ jobs:
         id: check_changes
         run: |
           echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
-          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
+
+  check-style:
+    needs: changed_files_job
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    name: Go ${{ matrix.go-version }} Functions style check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.15, 1.16, 1.17]
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' && steps.check_changes.outputs.cpp_only != 'true' }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
-      - name: Run tests
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' && steps.check_changes.outputs.cpp_only != 'true' }}
+      - name: InstallTool
+        run: |
+          cd pulsar-function-go
+          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
+          ./bin/golangci-lint --version
+
+      - name: Build
         run: |
           cd pulsar-function-go
           export GO111MODULE=on
+          go build ./...
+
+      - name: Test
+        run: |
+          cd pulsar-function-go
+          export GO111MODULE=on
+          ./bin/golangci-lint run -c ./golangci.yml ./pf
           go test -v $(go list ./... | grep -v examples)

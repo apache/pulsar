@@ -343,7 +343,12 @@
         "reference-cli-tools",
         "reference-configuration",
         "reference-metrics",
-        "reference-rest-api-overview"
+        "reference-rest-api-overview",
+        {
+          "type": "link",
+          "href": "/release-notes/",
+          "label": "Release notes"
+        }
       ]
     }
   ]

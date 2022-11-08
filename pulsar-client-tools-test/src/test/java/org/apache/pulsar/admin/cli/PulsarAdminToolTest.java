@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -590,6 +591,34 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).setRetention("myprop/clust/ns1",
                 new RetentionPolicies(60, 1));
 
+        // Test with default time unit (seconds)
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120 -s 20M"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 20));
+
+        // Test with explicit time unit (seconds)
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120s -s 20M"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 20));
+
+        // Test size with default size less than 1 mb
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120s -s 4096"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 0));
+
+        // Test size with default size greater than 1mb
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 180 -s " + (2 * 1024 * 1024)));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(3, 2));
+
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
 
@@ -948,6 +977,35 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
         verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
                 new RetentionPolicies(10, 20));
+
+        // Test with default time unit (seconds)
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 20));
+
+        // Test with explicit time unit (seconds)
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180s -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 20));
+
+        // Test size with default size less than 1 mb
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s 4096"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 0));
+
+        // Test size with default size greater than 1mb
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s " + (2 * 1024 * 1024)));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 2));
+
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 
@@ -1122,6 +1180,18 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M -g"));
         verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
                 new RetentionPolicies(10, 20));
+
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 1440s -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(24, 20));
+
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockGlobalTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 1440 -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(24, 20));
+
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 

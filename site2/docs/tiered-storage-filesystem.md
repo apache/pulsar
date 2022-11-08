@@ -20,58 +20,10 @@ This section describes how to install the filesystem offloader.
 
 - Pulsar: 2.4.2 or higher versions
 
-### Step
-
 This example uses Pulsar 2.5.1.
 
-1. Download the Pulsar tarball using one of the following ways:
-
-   * Download the Pulsar tarball from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz)
-
-   * Download the Pulsar tarball from the Pulsar [download page](/download/)
-
-   * Use the [wget](https://www.gnu.org/software/wget) command to download the Pulsar tarball.
-
-    ```shell
-    wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
-    ```
-
-2. Download and untar the Pulsar offloaders package.
-
-   ```bash
-   wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
-
-   tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
-   ```
-
-   :::note
-
-   * If you run Pulsar in a bare-metal cluster, ensure that the `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you run Pulsar in Docker or deploy Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
-
-3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
-
-   ```
-   mv apache-pulsar-offloaders-2.5.1/offloaders apache-pulsar-2.5.1/offloaders
-
-   ls offloaders
-   ```
-
-   **Output**
-
-   ```
-   tiered-storage-file-system-2.5.1.nar
-   tiered-storage-jcloud-2.5.1.nar
-   ```
-
-   :::note
-
-   * If you run Pulsar in a bare-metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you run Pulsar in Docker or deploy Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
@@ -252,7 +204,7 @@ This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1. For de
 1. Download and uncompress Hadoop 3.2.1.
 
    ```shell
-   wget https://mirrors.bfsu.edu.cn/apache/hadoop/common/hadoop-3.2.1/hadoop-3.2.1.tar.gz  
+   wget https://mirrors.bfsu.edu.cn/apache/hadoop/common/hadoop-3.2.1/hadoop-3.2.1.tar.gz
 
    tar -zxvf hadoop-3.2.1.tar.gz -C $HADOOP_HOME
    ```

@@ -1,7 +1,7 @@
 ---
 id: reference-metrics
-title: Pulsar Metrics
-sidebar_label: "Pulsar Metrics"
+title: Pulsar metrics
+sidebar_label: "Pulsar metrics"
 ---
 
 

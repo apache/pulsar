@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - CPP build on Windows
+name: CI - CPP build
 on:
   pull_request:
     branches:
@@ -36,15 +36,55 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  VCPKG_FEATURE_FLAGS: manifests
-
 jobs:
-  cpp-build-windows:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      docs_only: ${{ needs.changed_files_job.outputs.docs_only }}
+      cpp_only: ${{ needs.changed_files_job.outputs.cpp_only }}
+      changed_tests: ${{ steps.changes.outputs.tests_files }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Detect changed files
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+          list-files: csv
+
+      - name: Check changed files
+        id: check_changes
+        run: |
+          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+
+  cpp-build-centos7:
+    needs: changed_files_job
+    name:
+    runs-on: ubuntu-latest
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     timeout-minutes: 120
 
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: build cpp client on centos 7
+        run: |
+          echo "Build C++ client library on CentOS 7"
+          pulsar-client-cpp/docker-build-centos7.sh
+
+  cpp-build-windows:
+    needs: changed_files_job
+    timeout-minutes: 120
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     env:
       VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
     strategy:
@@ -69,17 +109,6 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
-
-      - name: Detect changed files
-        id: changes
-        uses: apache/pulsar-test-infra/paths-filter@master
-        with:
-          filters: .github/changes-filter.yaml
-          list-files: csv
-
-      - name: Check changed files
-        id: check_changes
-        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
       - name: Restore vcpkg and its artifacts.
         uses: actions/cache@v2
@@ -110,12 +139,11 @@ jobs:
         shell: bash
 
       - name: Install vcpkg packages
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-client-cpp && ${{ env.VCPKG_ROOT }}\vcpkg.exe install --triplet ${{ matrix.triplet }}
 
       - name: Configure (default)
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -130,7 +158,6 @@ jobs:
           fi
 
       - name: Compile
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -139,7 +166,6 @@ jobs:
           fi
 
       - name: Configure (dynamic library only)
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -155,10 +181,77 @@ jobs:
           fi
 
       - name: Compile
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
             cd pulsar-client-cpp && \
             cmake --build ./build-1 --parallel --config Release
           fi
+  cpp-deb-rpm-packaging:
+    needs: changed_files_job
+    name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: clean disk
+        run: |
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
+
+      - name: Package Pulsar source
+        run: mvn -B -ntp -q clean package -pl pulsar-client-api -am -DskipTests
+
+      - name: Build Debian packages
+        run: |
+          echo "Build Debian packages"
+          BUILD_IMAGE=1 pulsar-client-cpp/pkg/deb/docker-build-deb.sh
+
+      - name: Build RPM packages
+        run: |
+          echo "Build RPM packages"
+          BUILD_IMAGE=1 pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
+
+  build-python-wheel:
+    needs: changed_files_job
+    name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: build python3.9 client
+
+        run: |
+          echo "Build Python3.9 client library"
+          pulsar-client-cpp/docker-build-python3.9.sh

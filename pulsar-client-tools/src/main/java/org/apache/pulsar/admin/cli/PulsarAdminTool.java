@@ -230,7 +230,9 @@ public class PulsarAdminTool {
             jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
         } else {
             // Other mode, all components are initialized.
-            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
+            if (c.getValue() != null) {
+                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
+            }
         }
     }
 
