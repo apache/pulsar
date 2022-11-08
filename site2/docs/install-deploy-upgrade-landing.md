@@ -12,7 +12,8 @@ Any developer can install, deploy, and upgrade Apache Pulsar in a few simple ste
 
 [Deploy a Pulsar cluster using Helm](helm-deploy.md)
 
-[Upgrade Pulsar Helm release](“helm-upgrade”)
+[Upgrade Pulsar Helm release](helm-upgrade.md)
+
 
 
 
