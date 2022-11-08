@@ -33,6 +33,7 @@ import org.apache.pulsar.tests.integration.containers.DebeziumMsSqlContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
 
 import lombok.Cleanup;
@@ -42,6 +43,10 @@ import lombok.extern.slf4j.Slf4j;
 public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
     protected final AtomicInteger testId = new AtomicInteger(0);
+
+    public PulsarDebeziumSourcesTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
