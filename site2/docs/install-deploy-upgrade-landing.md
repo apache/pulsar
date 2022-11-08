@@ -10,7 +10,8 @@ Any developer can install, deploy, and upgrade Apache Pulsar in a few simple ste
 
 [Deploy a Pulsar cluster on AWS using Terraform and Ansible](deploy-aws.md)
 
-[Deploy Pulsar cluster using Helm](“helm-deploy”)
+[Deploy a Pulsar cluster using Helm](helm-deploy.md)
+
 [Upgrade Pulsar Helm release](“helm-upgrade”)
 
 
