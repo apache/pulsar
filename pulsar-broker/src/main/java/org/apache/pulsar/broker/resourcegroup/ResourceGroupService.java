@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-
 import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
