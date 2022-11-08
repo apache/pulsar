@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Concurrent hash map where both keys and values are composed of pairs of longs.
@@ -38,6 +40,7 @@ import java.util.concurrent.locks.StampedLock;
  * <p>Keys <strong>MUST</strong> be &gt;= 0.
  */
 public class ConcurrentLongLongPairHashMap {
+    private static final Logger logger = LoggerFactory.getLogger(ConcurrentLongLongPairHashMap.class);
 
     private static final long EmptyKey = -1L;
     private static final long DeletedKey = -2L;
@@ -327,10 +330,19 @@ public class ConcurrentLongLongPairHashMap {
             try {
                 while (true) {
                     // First try optimistic locking
-                    long storedKey1 = table[bucket];
-                    long storedKey2 = table[bucket + 1];
-                    long storedValue1 = table[bucket + 2];
-                    long storedValue2 = table[bucket + 3];
+                    long storedKey1 = 0;
+                    long storedKey2 = 0;
+                    long storedValue1 = 0;
+                    long storedValue2 = 0;
+                    try {
+                        storedKey1 = table[bucket];
+                        storedKey2 = table[bucket + 1];
+                        storedValue1 = table[bucket + 2];
+                        storedValue2 = table[bucket + 3];
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        // read a dirty capacity, cause ArrayIndexOutOfBoundsException
+                        logger.error("Read a dirty capacity, fallback to Pessimistic Read. capacity:{}, bucket:{}", capacity, bucket);
+                    }
 
                     if (!acquiredLock && validate(stamp)) {
                         // The values we have read are consistent
