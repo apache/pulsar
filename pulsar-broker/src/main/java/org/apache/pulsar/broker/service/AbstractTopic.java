@@ -438,15 +438,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return new PublishRate(config.getMaxPublishRatePerTopicInMessages(), config.getMaxPublishRatePerTopicInBytes());
     }
 
-    protected boolean isProducersExceeded() {
-        if (isSystemTopic()) {
+    protected boolean isProducersExceeded(Producer producer) {
+        if (isSystemTopic() || producer.isRemote()) {
             return false;
         }
         Integer maxProducers = topicPolicies.getMaxProducersPerTopic().get();
-        if (maxProducers > 0 && maxProducers <= producers.size()) {
+        if (maxProducers != null && maxProducers > 0 && maxProducers <= getUserCreatedProducerSize()) {
             return true;
         }
         return false;
+    }
+
+    private long getUserCreatedProducerSize() {
+        return producers.values().stream().filter(p -> !p.isRemote() || !p.getTopic().isSystemTopic()).count();
     }
 
     protected void registerTopicPolicyListener() {
@@ -963,7 +967,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected void internalAddProducer(Producer producer) throws BrokerServiceException {
-        if (isProducersExceeded()) {
+        if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
         }
