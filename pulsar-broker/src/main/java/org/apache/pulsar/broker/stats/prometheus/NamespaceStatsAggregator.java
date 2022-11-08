@@ -319,19 +319,19 @@ public class NamespaceStatsAggregator {
                                          AggregatedBrokerStats brokerStats) {
         // Print metrics values. This is necessary to have the available brokers being
         // reported in the brokers dashboard even if they don't have any topic or traffic
-        writeMetric(stream, "pulsar_topics_count", brokerStats.topicsCount, cluster);
-        writeMetric(stream, "pulsar_subscriptions_count", brokerStats.subscriptionsCount, cluster);
-        writeMetric(stream, "pulsar_producers_count", brokerStats.producersCount, cluster);
-        writeMetric(stream, "pulsar_consumers_count", brokerStats.consumersCount, cluster);
-        writeMetric(stream, "pulsar_rate_in", brokerStats.rateIn, cluster);
-        writeMetric(stream, "pulsar_rate_out", brokerStats.rateOut, cluster);
-        writeMetric(stream, "pulsar_throughput_in", brokerStats.throughputIn, cluster);
-        writeMetric(stream, "pulsar_throughput_out", brokerStats.throughputOut, cluster);
-        writeMetric(stream, "pulsar_storage_size", brokerStats.storageSize, cluster);
-        writeMetric(stream, "pulsar_storage_logical_size", brokerStats.storageLogicalSize, cluster);
-        writeMetric(stream, "pulsar_storage_write_rate", brokerStats.storageWriteRate, cluster);
-        writeMetric(stream, "pulsar_storage_read_rate", brokerStats.storageReadRate, cluster);
-        writeMetric(stream, "pulsar_msg_backlog", brokerStats.msgBacklog, cluster);
+        writeMetric(stream, "pulsar_broker_topics_count", brokerStats.topicsCount, cluster);
+        writeMetric(stream, "pulsar_broker_subscriptions_count", brokerStats.subscriptionsCount, cluster);
+        writeMetric(stream, "pulsar_broker_producers_count", brokerStats.producersCount, cluster);
+        writeMetric(stream, "pulsar_broker_consumers_count", brokerStats.consumersCount, cluster);
+        writeMetric(stream, "pulsar_broker_rate_in", brokerStats.rateIn, cluster);
+        writeMetric(stream, "pulsar_broker_rate_out", brokerStats.rateOut, cluster);
+        writeMetric(stream, "pulsar_broker_throughput_in", brokerStats.throughputIn, cluster);
+        writeMetric(stream, "pulsar_broker_throughput_out", brokerStats.throughputOut, cluster);
+        writeMetric(stream, "pulsar_broker_storage_size", brokerStats.storageSize, cluster);
+        writeMetric(stream, "pulsar_broker_storage_logical_size", brokerStats.storageLogicalSize, cluster);
+        writeMetric(stream, "pulsar_broker_storage_write_rate", brokerStats.storageWriteRate, cluster);
+        writeMetric(stream, "pulsar_broker_storage_read_rate", brokerStats.storageReadRate, cluster);
+        writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,
