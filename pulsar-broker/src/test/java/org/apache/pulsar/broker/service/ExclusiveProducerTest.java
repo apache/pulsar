@@ -379,6 +379,32 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topics")
+    public void waitForExclusiveBeforeExistSharedTest(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .producerName("p1")
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        p1.send("test");
+
+        // p2 should fenced.
+        try {
+            pulsarClient.newProducer(Schema.STRING)
+                    .topic(topic)
+                    .producerName("p2")
+                    .accessMode(ProducerAccessMode.WaitForExclusive)
+                    .create();
+            fail("Should have failed");
+        } catch (ProducerFencedException expected) {
+        }
+
+        p1.close();
+    }
+
+    @Test(dataProvider = "topics")
     public void waitForExclusiveWithClientTimeout(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 

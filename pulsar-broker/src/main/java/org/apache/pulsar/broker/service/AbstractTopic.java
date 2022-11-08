@@ -814,12 +814,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         });
                     }
             case WaitForExclusive: {
-                if (hasExclusiveProducer || !producers.isEmpty()) {
+                if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     CompletableFuture<Optional<Long>> future = new CompletableFuture<>();
                     log.info("[{}] Queuing producer {} since there's already a producer", topic, producer);
                     waitingExclusiveProducers.add(Pair.of(producer, future));
                     producerQueuedFuture.complete(null);
                     return future;
+                } else if (!producers.isEmpty()) {
+                    return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
                 } else if (producer.getTopicEpoch().isPresent()
                         && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
                     // If a producer reconnects, but all the topic epoch has already moved forward, this producer needs
