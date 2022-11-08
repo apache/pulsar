@@ -81,10 +81,32 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     public ProducerImpl.OpSendMsg createOpSendMsg() {
         throw new UnsupportedOperationException();
     }
+
+    /**
+     * Sets a CryptoKeyReader instance to encrypt batched messages during serialization, `toByteBuf()`.
+     * @param cryptoKeyReader a CryptoKeyReader instance
+     */
     public void setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         this.cryptoKeyReader = cryptoKeyReader;
     }
 
+    /**
+     * Serializes the batched messages and return the ByteBuf.
+     * It sets the CompressionType and Encryption Keys from the batched messages.
+     * If successful, it calls `clear()` at the end to release buffers from this container.
+     *
+     * The returned byte buffer follows this format:
+     * [IdSize][Id][metadataAndPayloadSize][metadataAndPayload].
+     * This format is the same as RawMessage.serialize()'s format
+     * as the compacted messages is deserialized as RawMessage in broker.
+     *
+     * It throws the following runtime exceptions from encryption:
+     * IllegalStateException if cryptoKeyReader is not set for encrypted messages.
+     * IllegalArgumentException if encryption key init fails.
+     * RuntimeException if message encryption fails.
+     *
+     * @return a ByteBuf instance
+     */
     public ByteBuf toByteBuf() {
         if (numMessagesInBatch > 1) {
             messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
