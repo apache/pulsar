@@ -39,6 +39,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,11 +47,11 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import io.netty.channel.EventLoopGroup;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -87,7 +88,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     private PersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
     private ChannelPromise channelMock;
-    private OrderedExecutor orderedExecutor;
+    private OrderedScheduler orderedExecutor;
 
     private PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher;
 
@@ -112,7 +113,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
 
-        orderedExecutor = OrderedExecutor.newBuilder().build();
+        orderedExecutor = OrderedScheduler.newSchedulerBuilder().build();
         doReturn(orderedExecutor).when(brokerMock).getTopicOrderedExecutor();
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
@@ -121,6 +122,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             orderedExecutor.execute(((Runnable)invocation.getArguments()[0]));
             return null;
         }).when(eventLoopGroup).execute(any(Runnable.class));
+
+        doAnswer(invocation -> {
+            Runnable runnable = (Runnable) invocation.getArguments()[0];
+            Long delay = (Long) invocation.getArguments()[1];
+            TimeUnit timeUnit = (TimeUnit) invocation.getArguments()[2];
+            orderedExecutor.schedule(runnable, delay, timeUnit);
+            return null;
+        }).when(eventLoopGroup).schedule(any(Runnable.class), anyLong(), any());
 
         topicMock = mock(PersistentTopic.class);
         doReturn(brokerMock).when(topicMock).getBrokerService();
@@ -349,7 +358,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(consumer1).isWritable();
         doAnswer(invocationOnMock -> {
             @SuppressWarnings("unchecked")
-            List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
+            List<Entry> entries = invocationOnMock.getArgument(0);
             for (Entry entry : entries) {
                 remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer1.add(entry.getPosition());
@@ -364,7 +373,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(consumer2).isWritable();
         doAnswer(invocationOnMock -> {
             @SuppressWarnings("unchecked")
-            List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
+            List<Entry> entries = invocationOnMock.getArgument(0);
             for (Entry entry : entries) {
                 remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer2.add(entry.getPosition());
@@ -394,7 +403,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Mock Cursor#asyncReplayEntries
         doAnswer(invocationOnMock -> {
             @SuppressWarnings("unchecked")
-            Set<Position> positions = (Set<Position>) invocationOnMock.getArgument(0);
+            Set<Position> positions = invocationOnMock.getArgument(0);
             List<Entry> entries = allEntries.stream().filter(entry -> positions.contains(entry.getPosition()))
                     .collect(Collectors.toList());
             if (!entries.isEmpty()) {

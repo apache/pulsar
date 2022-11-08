@@ -94,8 +94,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile PositionImpl minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
-    protected boolean sendInProgress;
-    protected boolean sendInProgressReplay;
+    private int sendingTaskCounter = 0;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -256,7 +255,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (sendInProgress || sendInProgressReplay) {
+        if (haveSendingTask()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -554,52 +553,36 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+        Runnable runnable = () -> {
+            boolean canReadMore;
+            synchronized (PersistentDispatcherMultipleConsumers.this) {
+                try {
+                    canReadMore = trySendMessagesToConsumers(readType, entries);
+                } finally {
+                    sendingTaskCounter--;
+                }
+            }
+            if (canReadMore) {
+                readMoreEntries();
+            }
+        };
+
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            if (readType == ReadType.Replay) {
-                sendInProgressReplay = true;
-            } else {
-                sendInProgress = true;
-            }
-            dispatchMessagesThread.execute(safeRun(() -> {
-                boolean canReadMore;
-                try {
-                    canReadMore = trySendMessagesToConsumers(readType, entries);
-                } finally {
-                    if (readType == ReadType.Replay) {
-                        sendInProgressReplay = false;
-                    } else {
-                        sendInProgress = false;
-                    }
-                }
-                if (canReadMore) {
-                    readMoreEntries();
-                }
-            }));
+            sendingTaskCounter++;
+            dispatchMessagesThread.execute(safeRun(runnable));
         } else {
-            if (readType == ReadType.Replay) {
-                sendInProgressReplay = true;
-            } else {
-                sendInProgress = true;
-            }
-            boolean canReadMore;
-            try {
-                canReadMore = trySendMessagesToConsumers(readType, entries);
-            } finally {
-                if (readType == ReadType.Replay) {
-                    sendInProgressReplay = false;
-                } else {
-                    sendInProgress = false;
-                }
-            }
-            if (canReadMore) {
-                readMoreEntriesAsync();
-            }
+            sendingTaskCounter++;
+            runnable.run();
         }
+    }
+
+    protected boolean haveSendingTask() {
+        return sendingTaskCounter > 0;
     }
 
     /**

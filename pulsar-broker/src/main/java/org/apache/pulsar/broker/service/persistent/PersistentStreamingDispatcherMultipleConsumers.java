@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -51,18 +50,6 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription) {
         super(topic, cursor, subscription);
-    }
-
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
-                                                                 boolean isLastEntryInBatch) {
-        sendInProgress = true;
-        try {
-            return trySendMessagesToConsumers(readType, entries);
-        } finally {
-            if (isLastEntryInBatch) {
-                sendInProgress = false;
-            }
-        }
     }
 
     /**
@@ -152,7 +139,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void readMoreEntries() {
-        if (sendInProgress || sendInProgressReplay) {
+        if (haveSendingTask()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
