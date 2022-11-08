@@ -2787,6 +2787,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return possibleSendToDeadLetterTopicMessages;
     }
 
+    boolean isAckReceiptEnabled() {
+        ClientCnx cnx = getClientCnx();
+        return conf.isAckReceiptEnabled() && cnx != null
+                && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion());
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
 
 }
