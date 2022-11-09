@@ -23,9 +23,14 @@ import org.apache.pulsar.tests.integration.io.sinks.PulsarIOSinkRunner;
 import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.io.sources.PulsarIOSourceRunner;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testcontainers.containers.GenericContainer;
 
 public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
+
+    public PulsarIOTestBase(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected void testSink(SinkTester tester, boolean builtin) throws Exception {

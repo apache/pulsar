@@ -13,6 +13,8 @@ To create a tenant:
 
 Enter the toolset container.
 
+
+```bash
 kubectl exec -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
 
 In the toolset container, create a tenant named apache.
