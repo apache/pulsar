@@ -504,22 +504,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         String functionPackagePath = functionMetaData.getPackageLocation().getPackagePath();
         if (!functionPackagePath.startsWith(Utils.HTTP)
                 && !functionPackagePath.startsWith(Utils.FILE)
-                && !functionPackagePath.startsWith(Utils.BUILTIN)) {
-            if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
-                try {
-                    worker().getBrokerAdmin().packages().delete(functionPackagePath);
-                } catch (PulsarAdminException e) {
-                    log.error("{}/{}/{} Failed to cleanup package in package managemanet with url {}", tenant,
-                            namespace, componentName, functionMetaData.getPackageLocation().getPackagePath(), e);
-                }
-            } else {
-                try {
-                    WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(),
-                            functionMetaData.getPackageLocation().getPackagePath());
-                } catch (IOException e) {
-                    log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
-                            functionMetaData.getPackageLocation().getPackagePath(), e);
-                }
+                && !functionPackagePath.startsWith(Utils.BUILTIN)
+                && !worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+            try {
+                WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionPackagePath);
+            } catch (IOException e) {
+                log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
+                        functionPackagePath, e);
             }
 
         }
