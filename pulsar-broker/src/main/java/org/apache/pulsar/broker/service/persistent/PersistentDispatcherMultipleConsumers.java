@@ -581,7 +581,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected boolean haveSendingTask() {
+    protected synchronized boolean haveSendingTask() {
         return sendingTaskCounter > 0;
     }
 
