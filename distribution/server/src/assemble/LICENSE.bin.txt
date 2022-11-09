@@ -248,7 +248,7 @@ The Apache Software License, Version 2.0
  * Jackson
      - com.fasterxml.jackson.core-jackson-annotations-2.13.4.jar
      - com.fasterxml.jackson.core-jackson-core-2.13.4.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.13.4.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.13.4.2.jar
      - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.4.jar
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.4.jar
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.4.jar
