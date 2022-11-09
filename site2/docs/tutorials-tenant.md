@@ -41,7 +41,8 @@ The tenant apache has been successfully created.
 [How to create a namespace](tutorials-namespace.md)
 
 [How to create a topic](tutorials-topic)
-[Run a standalone cluster in Kubernetes](getting-started-helm)
+[Run a standalone cluster in Kubernetes](getting-started-helm.md)
+
 
 
 
