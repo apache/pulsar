@@ -9,7 +9,9 @@ This tutorial has the following prerequisites:
 
 [Create tenant](tutorials-tenant.md)
 [Create namespace](tutorials-namespace.md)
-[Create topic](tutorials-topic.md):::
+[Create topic](tutorials-topic.md)
+:::
+
 
 In this tutorial, we will:
 Configure the Pulsar client
