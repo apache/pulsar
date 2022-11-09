@@ -25,6 +25,8 @@ bin/pulsar-admin tenants create apache
 
 List the tenants to see if the tenant is created successfully.
 
+
+```bash
 bin/pulsar-admin tenants list
 
 You should see a similar output as below. 
