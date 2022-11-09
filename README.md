@@ -138,9 +138,11 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 - zip
 
 > **Note**:
-> * This project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system installed Maven.
+>
+> This project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system-installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.    
-> * It's better to use CMD rather than Powershell on Windows, since maven will activate windows profile and run `rename-netty-native-libs.cmd`.
+>
+> It's better to use CMD rather than Powershell on Windows. Because maven will activate the `windows` profile which runs `rename-netty-native-libs.cmd`.
 
 ### Build
 Compile and install:
