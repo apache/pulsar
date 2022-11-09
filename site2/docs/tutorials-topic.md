@@ -2,7 +2,8 @@
 Id: tutorials-topic
 title: How to create a topic
 sidebar_label: “Tutorials”
-—
+---
+
 
 Apache Pulsar is a distributed messaging system that supports high performance and low latency. Topics are the primary way to structure data in Apache Pulsar. A Pulsar topic is a unit of storage that organizes messages into a stream. Each message in a topic has an offset, which uniquely identifies the message within the topic. 
 
