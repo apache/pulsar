@@ -4,7 +4,9 @@ title: Produce and consume messages
 sidebar_label: “Tutorials”
 —
 
-:::Note: This tutorial has the following prerequisites:
+:::note
+This tutorial has the following prerequisites:
+
 [Create tenant](tutorials-tenant.md)
 [Create namespace](tutorials-namespace.md)
 [Create topic](tutorials-topic.md):::
