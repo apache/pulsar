@@ -322,7 +322,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             // readMoreEntries should run regardless whether or not stuck is caused by
             // stuckConsumers for avoid stopping dispatch.
-            topic.getBrokerService().executor().schedule(safeRun(this::readMoreEntries), 100, TimeUnit.MILLISECONDS);
+            topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
         }  else if (currentThreadKeyNumber == 0) {
             topic.getBrokerService().executor().schedule(safeRun(this::readMoreEntries), 100, TimeUnit.MILLISECONDS);
         }

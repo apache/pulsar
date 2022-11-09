@@ -553,7 +553,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        Runnable runnable = () -> {
+        java.util.function.Consumer<Boolean> consumer = asyncRead -> {
             boolean canReadMore;
             synchronized (PersistentDispatcherMultipleConsumers.this) {
                 try {
@@ -563,7 +563,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }
             if (canReadMore) {
-                readMoreEntries();
+                if (asyncRead) {
+                    readMoreEntriesAsync();
+                } else {
+                    readMoreEntries();
+                }
             }
         };
 
@@ -574,10 +578,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             sendingTaskCounter++;
-            dispatchMessagesThread.execute(safeRun(runnable));
+            dispatchMessagesThread.execute(safeRun(() -> consumer.accept(false)));
         } else {
             sendingTaskCounter++;
-            runnable.run();
+            consumer.accept(true);
         }
     }
 
