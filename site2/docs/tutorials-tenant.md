@@ -19,7 +19,9 @@ kubectl exec -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
 
 In the toolset container, create a tenant named apache.
 
-	bin/pulsar-admin tenants create apache
+
+```bash
+bin/pulsar-admin tenants create apache
 
 List the tenants to see if the tenant is created successfully.
 
