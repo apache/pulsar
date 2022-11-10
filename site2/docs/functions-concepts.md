@@ -37,7 +37,7 @@ Each function has a separate state store with FQFN. You can specify a state inte
 
 ## Function worker
 
-Function worker is a logic component to monitor, orchestrate, and execute individual function in [cluster-mode](functions-deploy.md#depoy-a-function-in-cluster-mode) deployment of Pulsar Functions. 
+Function worker is a logic component to monitor, orchestrate, and execute an individual function in [cluster-mode](functions-deploy.md#depoy-a-function-in-cluster-mode) deployment of Pulsar Functions. 
 
 Within function workers, each [function instance](#function-instance) can be executed as a thread or process, depending on the selected configurations. Alternatively, if a Kubernetes cluster is available, functions can be spawned as StatefulSets within Kubernetes. See [Set up function workers](functions-worker.md) for more details.
 
@@ -94,22 +94,18 @@ Pulsar provides three different messaging delivery semantics that you can apply 
 You can set the processing guarantees for a function when you create the function. The following command creates a function with effectively-once guarantees applied.
 
 ```bash
-
 bin/pulsar-admin functions create \
   --name my-effectively-once-function \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
-
 ```
 
 You can change the processing guarantees applied to a function using the `update` command. 
 
 ```bash
-
 bin/pulsar-admin functions update \
   --processing-guarantees ATMOST_ONCE \
   # Other function configs
-
 ```
 
 ## Context
@@ -150,11 +146,11 @@ Pulsar Functions take byte arrays as inputs and spit out byte arrays as output. 
 
 :::note    
 
-Currently, window function is only available in Java, and does not support `MANUAL` and  `Effectively-once` delivery semantics.
+Currently, window functions are only available in Java, and do not support `MANUAL` and  `Effectively-once` delivery semantics.
 
 :::
 
-Window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into “buckets” where functions can be applied.
+A window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into "buckets" where functions can be applied.
 
 ![A window of data within an event stream](/assets/function-data-window.svg)
 
@@ -180,7 +176,7 @@ Based on whether two adjacent windows can share common events or not, windows ca
 
 #### Tumbling window
 
-Tumbling window assigns elements to a window of a specified time length or count. The eviction policy for tumbling windows is always based on the window being full. So you only need to specify the trigger policy, either count-based or time-based. 
+A tumbling window assigns elements to a window of a specified time length or count. The eviction policy for tumbling windows is always based on the window being full. So you only need to specify the trigger policy, either count-based or time-based. 
 
 In a tumbling window with a count-based trigger policy, as illustrated in the following example, the trigger policy is set to 2. Each function is triggered and executed when two items are in the window, regardless of the time. 
 

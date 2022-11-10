@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -124,6 +124,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * @return last biggest range into the set
      */
     Range<T> lastRange();
+
+    /**
+     * Return the number bit sets to true from lower (inclusive) to upper (inclusive).
+     */
+    int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue);
 
     /**
      * Represents a function that accepts two long arguments and produces a result.
@@ -294,6 +299,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
             }
             List<Range<T>> list = Lists.newArrayList(set.asRanges().iterator());
             return list.get(list.size() - 1);
+        }
+
+        @Override
+        public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

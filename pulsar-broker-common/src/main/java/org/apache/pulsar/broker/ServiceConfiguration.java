@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
  */
 @Getter
 @Setter
+@ToString
 public class ServiceConfiguration implements PulsarConfiguration {
 
     @Category
@@ -330,8 +331,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver "
-            + "tracker")
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Class name of the factory that implements the delayed deliver tracker.
+            If value is "org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory", \
+            will create bucket based delayed message index tracker.
+            """)
     private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
             + ".InMemoryDelayedDeliveryTrackerFactory";
 
@@ -349,6 +353,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
             + "delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket min index count. When the index count of the current bucket is more than \
+            this value and all message indexes of current ledger have already been added to the tracker \
+            we will seal the bucket.""")
+    private long delayedDeliveryMinIndexCountPerBucket = 50000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket time step(in seconds) in per bucket snapshot segment, \
+            after reaching the max time step limitation, the snapshot segment will be cut off.""")
+    private long delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The max number of delayed message index bucket, \
+            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
+    private int delayedDeliveryMaxNumBuckets = 50;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
+    private boolean delayedDeliverySharedIndexEnabled = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
+            + "when detecting if all the messages in the topic have a fixed delay. "
+            + "Default is 50,000. Setting the lookahead window to 0 will disable the "
+            + "logic to handle fixed delays in messages in a different way.")
+    private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
@@ -615,12 +644,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
     )
     private boolean forceDeleteTenantAllowed = false;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of namespaces. Default is false."
     )
     private boolean forceDeleteNamespaceAllowed = false;
@@ -1028,6 +1059,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
 
+    @FieldContext(
+        dynamic = false,
+        category = CATEGORY_SERVER,
+        doc = "Whether the broker should count filtered entries in dispatch rate limit calculations. When disabled, "
+            + "only messages sent to a consumer count towards a dispatch rate limit at the broker, topic, and "
+            + "subscription level. When enabled, messages filtered out due to entry filter logic are counted towards "
+            + "each relevant rate limit."
+    )
+    private boolean dispatchThrottlingForFilteredEntriesEnabled = false;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
@@ -1102,6 +1143,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
          doc = " The directory for all the entry filter implementations."
     )
     private String entryFiltersDirectory = "";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Whether allow topic level entry filters policies overrides broker configuration."
+    )
+    private boolean allowOverrideEntryFilters = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1740,19 +1788,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of bookies to use when creating a ledger"
+        doc = "Ensemble (E) size, Number of bookies to use for storing entries in a ledger.\n"
+            + "Please notice that sticky reads enabled by bookkeeperEnableStickyReads=true aren’t used "
+            + " unless ensemble size (E) equals write quorum (Qw) size."
     )
     private int managedLedgerDefaultEnsembleSize = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of copies to store for each message"
+        doc = "Write quorum (Qw) size, Replication factor for storing entries (messages) in a ledger."
     )
     private int managedLedgerDefaultWriteQuorum = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
-        doc = "Number of guaranteed copies (acks to wait before write is complete)"
+        doc = "Ack quorum (Qa) size, Number of guaranteed copies "
+               + "(acks to wait for before a write is considered completed)"
     )
     private int managedLedgerDefaultAckQuorum = 2;
 
@@ -1913,6 +1964,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The threshold to triggering automatic offload to long term storage"
+    )
+    private long managedLedgerOffloadThresholdInSeconds = -1L;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
     )
@@ -2064,6 +2120,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
+            doc = "When [current usage < average usage - threshold], "
+                    + "the broker with the highest load will be triggered to unload"
+    )
+    private boolean lowerBoundarySheddingEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
             doc = "load balance placement strategy"
     )
     private String loadBalancerLoadPlacementStrategy =
@@ -2079,6 +2142,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "maximum interval to update load report"
+    )
+    private int loadBalancerReportUpdateMinIntervalMillis = 5000;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Min delay of load report to collect, in milli-seconds"
     )
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
@@ -2152,6 +2221,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The placement strategy can select broker1 and broker2 as best candidates.)"
     )
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
+
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In FlowOrQpsEquallyDivideBundleSplitAlgorithm,"
+                    + " if msgRate >= loadBalancerNamespaceBundleMaxMsgRate * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0 "
+                    + " or throughput >=  loadBalancerNamespaceBundleMaxBandwidthMbytes * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0, "
+                    + " execute split bundle"
+    )
+    private int flowOrQpsDifferenceThresholdPercentage = 10;
 
     @FieldContext(
             dynamic = true,
@@ -2318,7 +2400,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Supported algorithms name for namespace bundle split"
     )
     private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
-            "topic_count_equally_divide", "specified_positions_divide");
+            "topic_count_equally_divide", "specified_positions_divide", "flow_or_qps_equally_divide");
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2439,6 +2521,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "phase one loop exceeds this time, the compaction will not proceed."
     )
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
+                + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
+    )
+    private int clusterMigrationCheckDurationSeconds = 0;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,
@@ -2577,6 +2666,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
     @FieldContext(
+            dynamic = true,
             category = CATEGORY_METRICS,
             doc = "Enable expose the broker bundles metrics."
     )
@@ -2711,14 +2801,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
+                    + "If transaction buffer enables snapshot segment, transaction buffer updates snapshot metadata"
+                    + "after the number of transaction operations reaches this value."
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Transaction buffer take snapshot min interval time"
+            doc = "The interval time for transaction buffer to take snapshots."
+                    + "If transaction buffer enables snapshot segment, "
+                    + "it is the interval time for transaction buffer to update snapshot metadata."
     )
     private int transactionBufferSnapshotMinTimeInMillis = 5000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer stores the transaction ID of aborted transactions and takes snapshots."
+                    + "This configuration determines the size of the snapshot segment. "
+                    + "The default value is 256 KB (262144 bytes)."
+    )
+    private int transactionBufferSnapshotSegmentSize = 262144;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Whether to enable segmented transaction buffer snapshot "
+                    + "to handle a large number of aborted transactions."
+    )
+    private boolean transactionBufferSegmentedSnapshotEnabled = false;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -131,6 +131,11 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     @Override
     public Range<T> lastRange() {
         return rangeSet.lastRange();
+    }
+
+    @Override
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        return rangeSet.cardinality(lowerKey, lowerValue, upperKey, upperValue);
     }
 
     @VisibleForTesting

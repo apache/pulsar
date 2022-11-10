@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
@@ -164,7 +165,8 @@ public class CompactedTopicImpl implements CompactedTopic {
         return promise;
     }
 
-    private static void findStartPointLoop(PositionImpl p, long start, long end,
+    @VisibleForTesting
+    static void findStartPointLoop(PositionImpl p, long start, long end,
                                            CompletableFuture<Long> promise,
                                            AsyncLoadingCache<Long, MessageIdData> cache) {
         long midpoint = start + ((end - start) / 2);
@@ -178,7 +180,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                     if (comparePositionAndMessageId(p, startEntry.join()) <= 0) {
                         promise.complete(start);
                     } else if (comparePositionAndMessageId(p, middleEntry.join()) <= 0) {
-                        findStartPointLoop(p, start, midpoint, promise, cache);
+                        findStartPointLoop(p, start + 1, midpoint, promise, cache);
                     } else if (comparePositionAndMessageId(p, endEntry.join()) <= 0) {
                         findStartPointLoop(p, midpoint + 1, end, promise, cache);
                     } else {

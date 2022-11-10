@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,11 +23,16 @@ import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
 import org.apache.pulsar.tests.integration.io.RabbitMQSinkTester;
 import org.apache.pulsar.tests.integration.io.RabbitMQSourceTester;
 import org.apache.pulsar.tests.integration.io.sources.KafkaSourceTester;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
 public class PulsarSinksTest extends PulsarIOTestBase {
+
+    public PulsarSinksTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
 
     @DataProvider(name = "withSchema")
     public Object[][] withSchema() {

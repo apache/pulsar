@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -130,7 +130,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        this.resetConfig();
     }
 
     @Test
@@ -3057,6 +3056,40 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // chunk message send success
         producer.send(new byte[2000]);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShadowTopics() throws Exception {
+        final String sourceTopic = "persistent://" + myNamespace + "/source-test-" + UUID.randomUUID();
+        final String shadowTopic1 = "persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID();
+        final String shadowTopic2 = "persistent://" + myNamespace + "/shadow-test2-" + UUID.randomUUID();
+
+        pulsarClient.newProducer().topic(sourceTopic).create().close();
+
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertNull(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(sourceTopic))));
+
+        //shadow topic must exist
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
+                admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1)));
+
+        //shadow topic must be persistent topic
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
+                admin.topics().setShadowTopics(sourceTopic,
+                        List.of("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
+
+        pulsarClient.newProducer().topic(shadowTopic1).create().close();
+        pulsarClient.newProducer().topic(shadowTopic2).create().close();
+
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
+                List.of(shadowTopic1)));
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1, shadowTopic2));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
+                List.of(shadowTopic1, shadowTopic2)));
+
+        admin.topics().removeShadowTopics(sourceTopic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getShadowTopics(sourceTopic)));
     }
 
 }

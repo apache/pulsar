@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -38,7 +35,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -166,51 +162,56 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     public static Object[][] variationsBackoff() {
         return new Object[][] {
                 // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms / ack-timeout
-                { false, false, SubscriptionType.Shared, 100, 1000, 0 },
-                { false, false, SubscriptionType.Failover, 100, 1000, 0 },
-                { false, true, SubscriptionType.Shared, 100, 1000, 0 },
-                { false, true, SubscriptionType.Failover, 100, 1000, 0 },
-                { true, false, SubscriptionType.Shared, 100, 1000, 0 },
-                { true, false, SubscriptionType.Failover, 100, 1000, 0 },
-                { true, true, SubscriptionType.Shared, 100, 1000, 0 },
-                { true, true, SubscriptionType.Failover, 100, 1000, 0 },
+                { false, false, SubscriptionType.Shared, 100, 1000 },
+                { false, false, SubscriptionType.Failover, 100, 1000 },
+                { false, true, SubscriptionType.Shared, 100, 1000 },
+                { false, true, SubscriptionType.Failover, 100, 1000 },
+                { true, false, SubscriptionType.Shared, 100, 1000 },
+                { true, false, SubscriptionType.Failover, 100, 1000 },
+                { true, true, SubscriptionType.Shared, 100, 1000 },
+                { true, true, SubscriptionType.Failover, 100, 1000 },
 
-                { false, false, SubscriptionType.Shared, 0, 1000, 0 },
-                { false, false, SubscriptionType.Failover, 0, 1000, 0 },
-                { false, true, SubscriptionType.Shared, 0, 1000, 0 },
-                { false, true, SubscriptionType.Failover, 0, 1000, 0 },
-                { true, false, SubscriptionType.Shared, 0, 1000, 0 },
-                { true, false, SubscriptionType.Failover, 0, 1000, 0 },
-                { true, true, SubscriptionType.Shared, 0, 1000, 0 },
-                { true, true, SubscriptionType.Failover, 0, 1000, 0 },
+                { false, false, SubscriptionType.Shared, 0, 1000 },
+                { false, false, SubscriptionType.Failover, 0, 1000 },
+                { false, true, SubscriptionType.Shared, 0, 1000 },
+                { false, true, SubscriptionType.Failover, 0, 1000 },
+                { true, false, SubscriptionType.Shared, 0, 1000 },
+                { true, false, SubscriptionType.Failover, 0, 1000 },
+                { true, true, SubscriptionType.Shared, 0, 1000 },
+                { true, true, SubscriptionType.Failover, 0, 1000 },
 
-                { false, false, SubscriptionType.Shared, 100, 1000, 1000 },
-                { false, false, SubscriptionType.Failover, 100, 1000, 1000 },
-                { false, true, SubscriptionType.Shared, 100, 1000, 1000 },
-                { false, true, SubscriptionType.Failover, 100, 1000, 1000 },
-                { true, false, SubscriptionType.Shared, 100, 1000, 1000 },
-                { true, false, SubscriptionType.Failover, 100, 1000, 1000 },
-                { true, true, SubscriptionType.Shared, 100, 1000, 1000 },
-                { true, true, SubscriptionType.Failover, 100, 1000, 1000 },
+                { false, false, SubscriptionType.Shared, 100, 1000 },
+                { false, false, SubscriptionType.Failover, 100, 1000 },
+                { false, true, SubscriptionType.Shared, 100, 1000 },
+                { false, true, SubscriptionType.Failover, 100, 1000 },
+                { true, false, SubscriptionType.Shared, 100, 1000 },
+                { true, false, SubscriptionType.Failover, 100, 1000 },
+                { true, true, SubscriptionType.Shared, 100, 1000 },
+                { true, true, SubscriptionType.Failover, 100, 1000 },
 
-                { false, false, SubscriptionType.Shared, 0, 1000, 1000 },
-                { false, false, SubscriptionType.Failover, 0, 1000, 1000 },
-                { false, true, SubscriptionType.Shared, 0, 1000, 1000 },
-                { false, true, SubscriptionType.Failover, 0, 1000, 1000 },
-                { true, false, SubscriptionType.Shared, 0, 1000, 1000 },
-                { true, false, SubscriptionType.Failover, 0, 1000, 1000 },
-                { true, true, SubscriptionType.Shared, 0, 1000, 1000 },
-                { true, true, SubscriptionType.Failover, 0, 1000, 1000 },
+                { false, false, SubscriptionType.Shared, 0, 1000 },
+                { false, false, SubscriptionType.Failover, 0, 1000 },
+                { false, true, SubscriptionType.Shared, 0, 1000 },
+                { false, true, SubscriptionType.Failover, 0, 1000 },
+                { true, false, SubscriptionType.Shared, 0, 1000 },
+                { true, false, SubscriptionType.Failover, 0, 1000 },
+                { true, true, SubscriptionType.Shared, 0, 1000 },
+                { true, true, SubscriptionType.Failover, 0, 1000 },
         };
     }
 
     @Test(dataProvider = "variationsBackoff")
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
-            int minNackTimeMs, int maxNackTimeMs, int ackTimeout)
+            int minNackTimeMs, int maxNackTimeMs)
             throws Exception {
         log.info("Test negative acks with back off batching={} partitions={} subType={} minNackTimeMs={}, "
                         + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBackoff");
+
+        MultiplierRedeliveryBackoff backoff = MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(minNackTimeMs)
+                .maxDelayMs(maxNackTimeMs)
+                .build();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -218,11 +219,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(subscriptionType)
-                .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-                        .minDelayMs(minNackTimeMs)
-                        .maxDelayMs(maxNackTimeMs)
-                        .build())
-                .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryBackoff(backoff)
                 .subscribe();
 
         @Cleanup
@@ -241,9 +238,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         }
         producer.flush();
 
-        for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
-            consumer.negativeAcknowledge(msg);
+        final int redeliverCount = 5;
+        long firstReceivedAt = System.currentTimeMillis();
+        long expectedTotalRedeliveryDelay = 0;
+        for (int i = 0; i < redeliverCount; i++) {
+            for (int j = 0; j < N; j++) {
+                Message<String> msg = consumer.receive();
+                log.info("Received message {}", msg.getValue());
+                consumer.negativeAcknowledge(msg);
+            }
+            expectedTotalRedeliveryDelay += backoff.next(i);
         }
 
         Set<String> receivedMessages = new HashSet<>();
@@ -254,8 +258,14 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
-
+        long receivedAfterRedeliveryAt = System.currentTimeMillis();
+        log.info("Total redelivery delay: {} ms", receivedAfterRedeliveryAt - firstReceivedAt);
         assertEquals(receivedMessages, sentMessages);
+
+        if (SubscriptionType.Shared == subscriptionType) {
+            log.info("Total expected redelivery delay {} ms", expectedTotalRedeliveryDelay);
+            assertTrue(receivedAfterRedeliveryAt - firstReceivedAt >= expectedTotalRedeliveryDelay);
+        }
 
         // There should be no more messages
         assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
@@ -267,7 +277,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     public void testNegativeAcksDeleteFromUnackedTracker() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksDeleteFromUnackedTracker");
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
@@ -282,18 +292,15 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(3, 1, 0, 1);
         BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(3, 1, 0, 2);
 
-        UnAckedMessageTracker unAckedMessageTracker = ((ConsumerImpl) consumer).getUnAckedMessageTracker();
+        UnAckedMessageTracker unAckedMessageTracker = consumer.getUnAckedMessageTracker();
         unAckedMessageTracker.add(topicMessageId);
 
-        Field fieldNegativeAcksTracker = Whitebox.getField(ConsumerImpl.class, "negativeAcksTracker");
-        NegativeAcksTracker negativeAcksTracker = (NegativeAcksTracker) fieldNegativeAcksTracker.get(((ConsumerImpl) consumer));
-        Field fieldNackedMessages = Whitebox.getField(NegativeAcksTracker.class, "nackedMessages");
         // negative topic message id
         consumer.negativeAcknowledge(topicMessageId);
-        HashMap<MessageId, Long> nackedMessages = (HashMap)fieldNackedMessages.get(negativeAcksTracker);
-        assertEquals(nackedMessages.size(), 1);
+        NegativeAcksTracker negativeAcksTracker = consumer.getNegativeAcksTracker();
+        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse(-1).intValue(), 1);
         assertEquals(unAckedMessageTracker.size(), 0);
-        nackedMessages.clear();
+        negativeAcksTracker.close();
         // negative batch message id
         unAckedMessageTracker.add(batchMessageId);
         unAckedMessageTracker.add(batchMessageId2);
@@ -301,14 +308,14 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumer.negativeAcknowledge(batchMessageId);
         consumer.negativeAcknowledge(batchMessageId2);
         consumer.negativeAcknowledge(batchMessageId3);
-        assertEquals(nackedMessages.size(), 1);
+        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse(-1).intValue(), 1);
         assertEquals(unAckedMessageTracker.size(), 0);
-        nackedMessages.clear();
+        negativeAcksTracker.close();
     }
 
     @Test(timeOut = 10000)
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
-        stopBroker();
+        cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setup();
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatchAckEnabled");
@@ -320,7 +327,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
-                .ackTimeout(1000, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup

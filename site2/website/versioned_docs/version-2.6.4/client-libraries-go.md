@@ -35,7 +35,7 @@ import "github.com/apache/pulsar-client-go/pulsar"
 
 ## Connection URLs
 
-To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol) URL.
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here's an example for `localhost`:
 
@@ -53,7 +53,7 @@ pulsar://pulsar.us-west.example.com:6650
 
 ```
 
-If you're using [TLS](security-tls-authentication) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
 
@@ -640,7 +640,7 @@ defer readerInclusive.Close()
 | StartMessageIDInclusive | If true, the reader will start at the `StartMessageID`, included. Default is `false` and the reader will start from the "next" message | false |
 | MessageChannel | MessageChannel sets a `MessageChannel` for the consumer When a message is received, it will be pushed to the channel for consumption| |
 | ReceiverQueueSize | ReceiverQueueSize sets the size of the consumer receive queue. | 1000 |
-| SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | “reader” | 
+| SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | "reader" | 
 | ReadCompacted | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic.  ReadCompacted can only be enabled when reading from a persistent topic. | false|
 
 ## Messages
@@ -680,7 +680,7 @@ Parameter | Description
 
 ## TLS encryption and authentication
 
-In order to use [TLS encryption](security-tls-transport), you'll need to configure your client to do so:
+In order to use [TLS encryption](security-tls-transport.md), you'll need to configure your client to do so:
 
  * Use `pulsar+ssl` URL type
  * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar broker
@@ -700,7 +700,7 @@ opts := pulsar.ClientOptions{
 
 ## OAuth2 authentication
 
-To use [OAuth2 authentication](security-oauth2), you'll need to configure your client to perform the following operations.
+To use [OAuth2 authentication](security-oauth2.md), you'll need to configure your client to perform the following operations.
 This example shows how to configure OAuth2 authentication.
 
 ```go

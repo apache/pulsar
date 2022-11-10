@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -319,7 +319,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed.
+     * Get configured max number of reject-request in a time-frame (60 seconds) after which connection will be closed.
      *
      * @return
      */
@@ -328,7 +328,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection.
+     * Set max number of broker-rejected requests in a certain time-frame (60 seconds) after which current connection.
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>
      *

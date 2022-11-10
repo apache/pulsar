@@ -656,12 +656,12 @@ Client client("pulsar+ssl://my-broker.com:6651", config);
 
 ```
 
-For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
+For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
 ## Schema
 
 This section describes some examples about schema. For more information about
-schema, see [Pulsar schema](schema-get-started).
+schema, see [Pulsar schema](schema-get-started.md).
 
 ### Avro schema
 

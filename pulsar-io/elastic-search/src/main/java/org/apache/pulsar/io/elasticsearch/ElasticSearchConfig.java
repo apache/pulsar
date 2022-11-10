@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -293,6 +293,12 @@ public class ElasticSearchConfig implements Serializable {
                     + "the ElasticSearch _id hard limit of 512 bytes."
     )
     private IdHashingAlgorithm idHashingAlgorithm = IdHashingAlgorithm.NONE;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "When the message key schema is AVRO or JSON, copy the message key fields into the Elasticsearch _source."
+    )
+    private boolean copyKeyFields = false;
 
     public enum MalformedDocAction {
         IGNORE,

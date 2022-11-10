@@ -16,9 +16,7 @@ This hands-on tutorial provides step-by-step instructions and examples on how to
 1. Start Pulsar locally.
 
    ```bash
-
    bin/pulsar standalone
-
    ```
 
    All the components (including ZooKeeper, BookKeeper, broker, and so on) of a Pulsar service start in order. You can use the `bin/pulsar-admin brokers healthcheck` command to make sure the Pulsar service is up and running.
@@ -26,77 +24,59 @@ This hands-on tutorial provides step-by-step instructions and examples on how to
 2. Check the Pulsar binary protocol port.
 
    ```bash
-
    telnet localhost 6650
-
    ```
 
 3. Check the Pulsar Function cluster.
 
    ```bash
-
    bin/pulsar-admin functions-worker get-cluster
-
    ```
 
    **Output**
 
    ```json
-
    [{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
-
    ```
 
 4. Make sure a public tenant exists.
 
    ```bash
-   
    bin/pulsar-admin tenants list
-
    ```
 
    **Output**
 
    ```json
-   
    "public"
-
    ```
 
 5. Make sure a default namespace exists.
 
    ```bash
-
    bin/pulsar-admin namespaces list public
-
    ```
 
    **Output**
 
    ```json
-
    "public/default"
-
    ```
 
 6. Make sure the table service is enabled successfully.
 
    ```bash
-
    telnet localhost 4181
-
    ```
 
    **Output**
 
    ```text
-
    Trying ::1...
    telnet: connect to address ::1: Connection refused
    Trying 127.0.0.1...
    Connected to localhost.
    Escape character is '^]'.
-
    ```
 
 ## Start functions
@@ -110,18 +90,14 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
 1. Create a tenant and a namespace.
 
    ```bash
-
    bin/pulsar-admin tenants create test
    bin/pulsar-admin namespaces create test/test-namespace
-
    ```
 
 2. In the same terminal window as step 1, verify the tenant and the namespace.
 
    ```bash
-
    bin/pulsar-admin namespaces list test
-
    ```
  
    **Output**
@@ -129,9 +105,7 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
    This output shows that both tenant and namespace are created successfully.
 
    ```text
-
    "test/test-namespace"
-
    ```
 
 3. In the same terminal window as step 1, create a function named `examples`.
@@ -143,36 +117,29 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
    :::
 
    ```bash
-
    bin/pulsar-admin functions create \
    --function-config-file examples/example-function-config.yaml \
    --jar examples/api-examples.jar
-
    ```
 
    **Output**
 
    ```text
-
    Created Successfully
-
    ```
 
 4. In the same terminal window as step 1, verify the function's configurations.
 
    ```bash
-
    bin/pulsar-admin functions get \
    --tenant test \
    --namespace test-namespace \
    --name example
-
    ```
 
    **Output**
 
    ```text
-
    {
      "tenant": "test",
      "namespace": "test-namespace",
@@ -193,18 +160,15 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
      },
      "resources": {}
    }
-
    ```
 
 5. In the same terminal window as step 1, verify the function's status.
 
    ```bash
-
    bin/pulsar-admin functions status \
    --tenant test \
    --namespace test-namespace \
    --name example
-
    ```
 
    **Output**
@@ -212,7 +176,6 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
    `"running": true` shows that the function is running.
     
    ```text
-
    {
      "numInstances" : 1,
      "numRunning" : 1,
@@ -234,23 +197,18 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
        }
      } ]
    }
-
    ```
 
 6. In the same terminal window as step 1, subscribe to the **output topic** `test_result`.
 
    ```bash
-
    bin/pulsar-client consume -s test-sub -n 0 test_result
-
    ```
 
 7. In a new terminal window, produce messages to the **input topic** `test_src`.
 
    ```bash
-
    bin/pulsar-client produce -m "test-messages-`date`" -n 10 test_src
-
    ```
 
 8.  In the same terminal window as step 1, the messages produced by the `example` function are returned. 
@@ -258,7 +216,6 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
    **Output**
 
    ```text
-
    ----- got message -----
    test-messages-Thu Jul 19 11:59:15 PDT 2021!
    ----- got message -----
@@ -279,7 +236,6 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
    test-messages-Thu Jul 19 11:59:15 PDT 2021!
    ----- got message -----
    test-messages-Thu Jul 19 11:59:15 PDT 2021!
-
    ```
 
 ## Start stateful functions
@@ -297,7 +253,6 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
 1. Create a function named `word_count`.
 
    ```bash
-
    bin/pulsar-admin functions create \
    --function-config-file examples/example-function-config.yaml \
    --jar examples/api-examples.jar \
@@ -305,32 +260,26 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
    --className org.apache.pulsar.functions.api.examples.WordCountFunction \
    --inputs test_wordcount_src \
    --output test_wordcount_dest
-
    ```
 
    **Output**
 
    ```text
-
    Created Successfully
-
    ```
 
 2. In the same terminal window as step 1, get the information of the `word_count` function.
 
    ```bash
-
    bin/pulsar-admin functions get \
    --tenant test \
    --namespace test-namespace \
    --name word_count
-
    ```
 
    **Output**
 
    ```text
-
    {
      "tenant": "test",
      "namespace": "test-namespace",
@@ -357,24 +306,20 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
      },
      "cleanupSubscription": true
    }
-
    ```
 
 3. In the same terminal window as step 1, get the status of the `word_count` function.
 
    ```bash
-
    bin/pulsar-admin functions status \
    --tenant test \
    --namespace test-namespace\
    --name word_count
-
    ```
 
    **Output**
 
    ```text
-
    {
      "numInstances" : 1,
      "numRunning" : 1,
@@ -396,18 +341,15 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
        }
      } ]
    }
-
    ```
 
 4. In the same terminal window as step 1, query the state table for the function with the key `hello`. This operation watches the changes associated with `hello`.
 
    ```bash
-
    bin/pulsar-admin functions querystate \
    --tenant test \
    --namespace test-namespace \
    --name word_count -k hello -w
-
    ```
 
    :::tip
@@ -419,12 +361,10 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
    **Output**
 
    ```text
-
    key 'hello' doesn't exist.
    key 'hello' doesn't exist.
    key 'hello' doesn't exist.
    ...
-
    ```
 
 5. In a new terminal window, produce 10 messages with `hello` to the **input topic** `test_wordcount_src` using one of the following methods. The value of `hello` is updated to 10.
@@ -432,20 +372,16 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
    * **Method 1**
 
      ```bash
-
      bin/pulsar-client produce -m "hello" -n 10 test_wordcount_src
-
      ```
 
    * **Method 2**
 
      ```bash
-
      bin/pulsar-admin functions putstate \
      --tenant test \
      --namespace test-namespace \
      --name word_count hello-word \
-
      ```
 
      :::tip
@@ -461,21 +397,17 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
    **Output**
 
    ```json
-
    {
      "key": "hello",
      "numberValue": 10,
      "version": 9
    }
-
    ```
 
 7. In the terminal window as step 5, produce another 10 messages with `hello`. The value of `hello` is updated to 20.
 
    ```bash
-
    bin/pulsar-client produce -m "hello" -n 10 test_wordcount_src
-
    ```
 
 8. In the same terminal window as step 1, check the result. 
@@ -483,10 +415,8 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
    The result shows that the **output topic** `test_wordcount_dest` receives the value of 20.
 
    ```text
-
    value = 10
    value = 20
-
    ```
 
 ## Start window functions
@@ -502,18 +432,14 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
 1. Create a tenant and a namespace.
 
    ```bash
-
    bin/pulsar-admin tenants create test
    bin/pulsar-admin namespaces create test/test-namespace
-
    ```
 
 2. In the same terminal window as step 1, verify the tenant and the namespace.
 
    ```bash
-
    bin/pulsar-admin namespaces list test
-
    ```
  
    **Output**
@@ -521,9 +447,7 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
    This output shows that both tenant and namespace are created successfully.
 
    ```text
-
    "test/test-namespace"
-
    ```
 
 3. In the same terminal window as step 1, create a function named `example`.
@@ -535,36 +459,29 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
    :::
 
    ```bash
-
    bin/pulsar-admin functions create --function-config-file \
    examples/example-window-function-config.yaml \
    --jar examples/api-examples.jar
-
    ```
 
    **Output**
 
    ```text
-
    Created Successfully
-
    ```
 
 4. In the same terminal window as step 1, verify the function's configurations.
 
    ```bash
-
    bin/pulsar-admin functions get \
    --tenant test \
    --namespace test-namespace \
    --name example
-
    ```
 
    **Output**
 
    ```text
-
    {
      "tenant": "test",
      "namespace": "test-namespace",
@@ -585,18 +502,15 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
      },
      "resources": {}
    }
-
    ```
 
 5. In the same terminal window as step 1, verify the function’s status.
 
    ```bash
-
    bin/pulsar-admin functions status \
    --tenant test \
    --namespace test-namespace \
    --name example
-
    ```
 
    **Output**
@@ -604,7 +518,6 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
    `"running": true` shows that the function is running.
     
    ```text
-
    {
      "numInstances" : 1,
      "numRunning" : 1,
@@ -626,23 +539,18 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
        }
      } ]
    }
-
    ```
 
 6. In the same terminal window as step 1, subscribe to the **output topic** `test_result`.
 
    ```bash
-
    bin/pulsar-client consume -s test-sub -n 0 test_result
-
    ```
 
 7. In a new terminal window, produce messages to the **input topic** `test_src`.
 
    ```bash
-
    bin/pulsar-client produce -m "test-messages-`date`" -n 10 test_src
-
    ```
 
 8. In the same terminal window as step 1, the messages produced by the window function `example` are returned. 
@@ -650,7 +558,6 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
    **Output**
 
    ```text
-
    ----- got message -----
    test-messages-Thu Jul 19 11:59:15 PDT 2021!
    ----- got message -----
@@ -671,5 +578,4 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
    test-messages-Thu Jul 19 11:59:15 PDT 2021!
    ----- got message -----
    test-messages-Thu Jul 19 11:59:15 PDT 2021!
-
    ```

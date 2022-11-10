@@ -128,13 +128,13 @@ long|`statsIntervalSeconds`|Interval between each stats info<br /><br />Stats is
 int|`numIoThreads`| The number of threads used for handling connections to brokers | 1 
 int|`numListenerThreads`|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
 boolean|`useTcpNoDelay`|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
-boolean |`useTls` |Whether to use TLS encryption on the connection| false
+boolean |`enableTls` |Whether to use TLS encryption on the connection. Note that this parameter is **deprecated**. If you want to enable TLS, use `pulsar+ssl://` in `serviceUrl` instead.| false
 string | `tlsTrustCertsFilePath` |Path to the trusted TLS certificate file|None
 boolean|`tlsAllowInsecureConnection`|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
 boolean | `tlsHostnameVerificationEnable` | Whether to enable TLS hostname verification|false
 int|`concurrentLookupRequest`|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
 int|`maxLookupRequest`|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (60 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 int|`keepAliveIntervalSeconds`|Seconds of keeping alive interval for each client broker connection|30
 int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br /><br />If the duration passes without a response from a broker, the connection attempt is dropped|10000
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000
@@ -408,7 +408,7 @@ consumer.acknowledge(messages)
 :::note
 
 Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
-The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
+The batch receive is completed if any of the following conditions are met: enough number of messages, bytes of messages, wait timeout.
 
 ```java
 
@@ -535,13 +535,13 @@ private void receiveMessageFromConsumer(Object consumer) {
 
 ### Subscription types
 
-Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
+Pulsar has various [subscription types](concepts-messaging.md#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
-A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
+A subscription is identical to the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
 Different subscription types have different message distribution modes. This section describes the differences of subscription types and how to use them.
 
-In order to better describe their differences, assuming you have a topic named "my-topic", and the producer has published 10 messages.
+In order to better describe their differences, assume you have a topic named "my-topic", and the producer has published 10 messages.
 
 ```java
 
@@ -758,13 +758,13 @@ Producer producer = client.newProducer()
 
 :::note
 
-If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+If the message key is not specified, messages without keys are dispatched to one consumer in order by default.
 
 :::
 
 ## Reader 
 
-With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and read all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
 
 The following is an example.
 

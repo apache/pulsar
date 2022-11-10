@@ -4,16 +4,16 @@ title: Pulsar client libraries
 sidebar_label: "Overview"
 ---
 
-Pulsar supports the following language specific client libraries:
+Pulsar supports the following language-specific client libraries:
 
-| Language  | Documentation                                                        | Release note                                                                      | Code repo                                                                        |
-| --------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Java      | [User doc](client-libraries-java.md)   <br/> [API doc](/api/client/) | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client)            |
-| C++       | [User doc](client-libraries-cpp.md)    <br/> [API doc](/api/cpp/)    | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp)        |
-| Python    | [User doc](client-libraries-python.md) <br/> [API doc](/api/python/) | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) |
-| Go client | [User doc](client-libraries-go.md)                                   | [Standalone](https://github.com/apache/pulsar-client-go/releases)                 | [Standalone](https://github.com/apache/pulsar-client-go)                         |
-| Node.js   | [User doc](client-libraries-node.md)                                 | [Standalone](https://github.com/apache/pulsar-client-node/releases)               | [Standalone](https://github.com/apache/pulsar-client-node)                       |
-| C#        | [User doc](client-libraries-dotnet.md)                               | [Standalone](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar)                         |
+| Language  | Documentation                                                        | Release note                                                                      | Code repo                                                             |
+| --------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Java      | [User doc](client-libraries-java.md)   <br/> [API doc](/api/client/) | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client) |
+| C++       | [User doc](client-libraries-cpp.md)    <br/> [API doc](/api/cpp/)    | [Bundled](/release-notes/)                                                        | [Standalone](https://github.com/apache/pulsar/pulsar-client-cpp)      |
+| Python    | [User doc](client-libraries-python.md) <br/> [API doc](/api/python/) | [Bundled](/release-notes/)                                                        | [Standalone](https://github.com/apache/pulsar-client-python)          |
+| Go client | [User doc](client-libraries-go.md)                                   | [Standalone](https://github.com/apache/pulsar-client-go/releases)                 | [Standalone](https://github.com/apache/pulsar-client-go)              |
+| Node.js   | [User doc](client-libraries-node.md)                                 | [Standalone](https://github.com/apache/pulsar-client-node/releases)               | [Standalone](https://github.com/apache/pulsar-client-node)            |
+| C#        | [User doc](client-libraries-dotnet.md)                               | [Standalone](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar)              |
 
 Pulsar supports the following language-agnostic client libraries:
 
@@ -28,7 +28,7 @@ Pulsar client feature matrix for different languages is listed on [Pulsar Featur
 
 ## Third-party clients
 
-Besides the official released clients, multiple projects on developing Pulsar clients are available in different languages.
+Besides the officially released clients, multiple projects on developing Pulsar clients are available in different languages.
 
 > Want your repository listed here? Just submit a PR to the [pulsar repository](https://github.com/apache/pulsar/edit/master/site2/docs/client-libraries.md).
 

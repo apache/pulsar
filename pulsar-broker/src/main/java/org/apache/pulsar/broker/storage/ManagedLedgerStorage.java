@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -87,8 +88,9 @@ public interface ManagedLedgerStorage extends AutoCloseable {
                                        MetadataStoreExtended metadataStore,
                                        BookKeeperClientFactory bkProvider,
                                        EventLoopGroup eventLoopGroup) throws Exception {
-        final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
-        final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
+        ManagedLedgerStorage storage =
+                Reflections.createInstance(conf.getManagedLedgerStorageClassName(), ManagedLedgerStorage.class,
+                        Thread.currentThread().getContextClassLoader());
         storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
         return storage;
     }
