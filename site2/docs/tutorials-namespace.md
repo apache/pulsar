@@ -2,7 +2,8 @@
 Id: tutorials-namespace
 title: How to create a namespace
 sidebar_label: “Tutorials”
-—
+---
+
 
 Pulsar namespaces are logical groupings of topics.
 
