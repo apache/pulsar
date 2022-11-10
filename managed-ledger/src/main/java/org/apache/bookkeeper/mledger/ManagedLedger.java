@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -442,6 +443,8 @@ public interface ManagedLedger {
 
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
+    CompletableFuture<Position> asyncMigrate();
+
     /**
      * Terminate the managed ledger and return the last committed entry.
      *
@@ -532,6 +535,11 @@ public interface ManagedLedger {
      * Returns whether the managed ledger was terminated.
      */
     boolean isTerminated();
+
+    /**
+     * Returns whether the managed ledger was migrated.
+     */
+    boolean isMigrated();
 
     /**
      * Returns managed-ledger config.
@@ -648,6 +656,12 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * Get basic ledger summary.
+     * will get {@link Optional#empty()} if corresponding ledger not exists.
+     */
+    Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId);
 
     /**
      * Truncate ledgers

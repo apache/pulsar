@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,9 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORD
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import io.netty.util.internal.PlatformDependent;
 import java.io.File;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -39,7 +39,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
@@ -223,6 +222,10 @@ public class PulsarStandalone implements AutoCloseable {
             description = "Directory for storing metadata")
     private String metadataDir = "data/metadata";
 
+    @Parameter(names = { "--metadata-url" },
+            description = "Metadata store url")
+    private String metadataStoreUrl = "";
+
     @Parameter(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
             hidden = true)
     private int zkPort = 2181;
@@ -265,6 +268,11 @@ public class PulsarStandalone implements AutoCloseable {
 
     private boolean usingNewDefaultsPIP117;
 
+    private final String writeCacheMaxSizeMb = "dbStorage_writeCacheMaxSizeMb";
+
+    private final String readAheadCacheMaxSizeMb = "dbStorage_readAheadCacheMaxSizeMb";
+
+
     public void start() throws Exception {
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
 
@@ -290,7 +298,7 @@ public class PulsarStandalone implements AutoCloseable {
 
         if (!this.isOnlyBroker()) {
             if (usingNewDefaultsPIP117) {
-                startBookieWithRocksDB();
+                startBookieWithMetadataStore();
             } else {
                 startBookieWithZookeeper();
             }
@@ -390,9 +398,7 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         if (!nsr.namespaceExists(ns)) {
-            Policies nsp = new Policies();
-            nsp.replication_clusters = Collections.singleton(config.getClusterName());
-            nsr.createPolicies(ns, nsp);
+            broker.getAdminClient().namespaces().createNamespace(ns.toString());
         }
     }
 
@@ -434,11 +440,29 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
+    @VisibleForTesting
+    void startBookieWithMetadataStore() throws Exception {
+        if (StringUtils.isBlank(metadataStoreUrl)){
+            log.info("Starting BK with RocksDb metadata store");
+            metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+        } else {
+            log.info("Starting BK with metadata store: {}", metadataStoreUrl);
+        }
 
-    private void startBookieWithRocksDB() throws Exception {
-        log.info("Starting BK with RocksDb metadata store");
-        String metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+        ServerConfiguration bkServerConf = new ServerConfiguration();
+        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        Object writeCache = bkServerConf.getProperty(writeCacheMaxSizeMb);
+        Object readCache = bkServerConf.getProperty(readAheadCacheMaxSizeMb);
+        // we need add one broker to calculate the default cache
+        long defaultCacheMB = PlatformDependent.maxDirectMemory() / (1024 * 1024) / (1 + numOfBk) / 4;
+        if (writeCache == null || writeCache.equals("")) {
+            bkServerConf.setProperty(writeCacheMaxSizeMb, defaultCacheMB);
+        }
+        if (readCache == null || readCache.equals("")) {
+            bkServerConf.setProperty(readAheadCacheMaxSizeMb, defaultCacheMB);
+        }
         bkCluster = BKCluster.builder()
+                .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)
                 .bkPort(bkPort)
                 .numBookies(numOfBk)

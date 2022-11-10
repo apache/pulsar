@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -221,23 +221,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     redeliveryTracker, epoch)
             .addListener(future -> {
                 if (future.isSuccess()) {
-                    int permits = dispatchThrottlingOnBatchMessageEnabled ? entries.size()
-                            : sendMessageInfo.getTotalMessages();
-                    // acquire message-dispatch permits for already delivered messages
-                    if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                        if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                            topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(permits,
-                                    sendMessageInfo.getTotalBytes());
-                        }
-
-                        if (topic.getDispatchRateLimiter().isPresent()) {
-                            topic.getDispatchRateLimiter().get().tryDispatchPermit(permits,
-                                    sendMessageInfo.getTotalBytes());
-                        }
-                        dispatchRateLimiter.ifPresent(rateLimiter ->
-                                rateLimiter.tryDispatchPermit(permits,
-                                        sendMessageInfo.getTotalBytes()));
-                    }
+                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
+                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket.
                     topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName,
@@ -501,7 +486,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
-                consumers.forEach(Consumer::reachedEndOfTopic);
+                checkAndApplyReachedEndOfTopicOrTopicMigration(consumers);
             }
         } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
                 || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
@@ -520,7 +505,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             }
         }
 
-        checkNotNull(c);
+        Objects.requireNonNull(c);
 
         // Reduce read batch size to avoid flooding bookies with retries
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();

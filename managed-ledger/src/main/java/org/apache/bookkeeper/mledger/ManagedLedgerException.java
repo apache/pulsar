@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -143,6 +143,12 @@ public class ManagedLedgerException extends Exception {
 
     public static class NonRecoverableLedgerException extends ManagedLedgerException {
         public NonRecoverableLedgerException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class LedgerNotExistException extends NonRecoverableLedgerException {
+        public LedgerNotExistException(String msg) {
             super(msg);
         }
     }

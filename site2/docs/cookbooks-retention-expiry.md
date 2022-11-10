@@ -21,7 +21,7 @@ In Pulsar, you can modify this behavior, with namespace granularity, in two ways
 * You can persistently store messages that are not within a backlog (because they've been acknowledged by every existing subscription, or because there are no subscriptions) by setting [retention policies](#retention-policies).
 * Messages that are not acknowledged within a specified timeframe can be automatically acknowledged, by specifying the [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
+Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#clusters) cluster).
 
 
 > #### Retention and TTL solve two different problems
@@ -58,7 +58,7 @@ When a retention limit on a topic is exceeded, the oldest message is marked for 
 
 ### Defaults
 
-You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
+You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. By default, both parameters are set to `0`, which means disabling message retention.
 
 For more information on the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
 

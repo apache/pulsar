@@ -89,12 +89,13 @@ RUN pip3 install pyyaml==5.4.1
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-ADD target/python-client/ /pulsar/pulsar-client
-
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
+
+ARG PULSAR_CLIENT_PYTHON_VERSION
+ENV PULSAR_CLIENT_PYTHON_VERSION ${PULSAR_CLIENT_PYTHON_VERSION}
 
 # This script is intentionally run as the root user to make the dependencies available for all UIDs.
 RUN /pulsar/bin/install-pulsar-client.sh

@@ -160,6 +160,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
     </dependency>
@@ -173,6 +179,11 @@
       <groupId>com.github.seancfoley</groupId>
       <artifactId>ipaddress</artifactId>
       <version>${seancfoley.ipaddress.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <build>

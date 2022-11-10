@@ -119,6 +119,23 @@
                   </resources>
                 </configuration>
               </execution>
+              <execution>
+                <id>copy-pulsar-certificate-authority</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.build.directory}/certificate-authority</outputDirectory>
+                  <overwrite>true</overwrite>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/../../certificate-authority</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
           <plugin>

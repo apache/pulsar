@@ -19,8 +19,8 @@ Cluster mode | The function runs *inside of* your Pulsar cluster, on the same ma
 
 In order to deploy and manage Pulsar Functions, you need to have a Pulsar cluster running. There are several options for this:
 
-* You can run a [standalone cluster](getting-started-standalone) locally on your own machine
-* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal), [DC/OS](https://dcos.io/), and more
+* You can run a [standalone cluster](getting-started-standalone.md) locally on your own machine
+* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](https://dcos.io/), and more
 
 If you're running a non-[standalone](reference-terminology.md#standalone) cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 
@@ -52,7 +52,7 @@ Function name | Whichever value is specified for the class name (minus org, libr
 Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
 Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
 Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
-Subscription type | For at-least-once and at-most-once [processing guarantees](functions-guarantees), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
+Subscription type | For at-least-once and at-most-once [processing guarantees](functions-guarantees.md), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
 Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees.md)
 Pulsar service URL | `pulsar://localhost:6650`
 

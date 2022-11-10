@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -998,7 +998,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         admin.topics().deleteSubscription(topicName, subName);
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceGraceFully(namespaceName, false);
     }
 
     @Test
@@ -1090,7 +1090,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.close();
             admin.topics().deleteSubscription(topicName, subName);
             admin.topics().delete(topicName);
-            admin.namespaces().deleteNamespace(namespaceName, true);
+            deleteNamespaceGraceFully(namespaceName, true);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 500);
         }
