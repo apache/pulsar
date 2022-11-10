@@ -2,7 +2,8 @@
 Id: tutorials-tenant
 title: How to set up a tenant
 sidebar_label: “Tutorials”
-—
+---
+
 
 Pulsar is a powerful messaging system you can use  to process and route high volumes of data. Each tenant provides a distinct unit of isolation with its own set of roles, permissions, configuration settings, and bookmarks. 
 
