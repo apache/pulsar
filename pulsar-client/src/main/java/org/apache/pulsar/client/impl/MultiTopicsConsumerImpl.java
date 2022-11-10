@@ -461,7 +461,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             Consumer individualConsumer = consumers.get(topicMessageId.getTopicPartitionName());
             if (individualConsumer != null) {
                 MessageId innerId = topicMessageId.getInnerMessageId();
-                return individualConsumer.acknowledgeCumulativeAsync(innerId);
+                return individualConsumer.acknowledgeCumulativeAsync(innerId)
+                        .thenAccept(__ -> unAckedMessageTracker.remove(topicMessageId));
             } else {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }

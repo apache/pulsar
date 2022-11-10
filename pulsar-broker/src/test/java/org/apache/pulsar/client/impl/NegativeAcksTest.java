@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
 import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
@@ -453,10 +454,10 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         @Cleanup
         MultiTopicsConsumerImpl<Integer> consumer =
                 (MultiTopicsConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub")
-                .receiverQueueSize(receiverQueueSize)
-                .subscribe();
+                        .topic(topic)
+                        .subscriptionName("sub")
+                        .receiverQueueSize(receiverQueueSize)
+                        .subscribe();
         ExecutorService internalPinnedExecutor =
                 WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
 
@@ -466,7 +467,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .create();
 
-        for (int i = 0; i < receiverQueueSize; i++){
+        for (int i = 0; i < receiverQueueSize; i++) {
             producer.send(i);
         }
 
@@ -477,12 +478,13 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Thread.sleep(1000L);
         internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
         // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
-        internalPinnedExecutor.submit(() -> {}).get();
+        internalPinnedExecutor.submit(() -> {
+        }).get();
 
         Set<Integer> receivedMsgs = new HashSet<>();
-        for (;;){
+        for (; ; ) {
             Message<Integer> msg = consumer.receive(2, TimeUnit.SECONDS);
-            if (msg == null){
+            if (msg == null) {
                 break;
             }
             receivedMsgs.add(msg.getValue());
@@ -492,5 +494,29 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
+    }
+
+    @Test
+    public void testFailOverConsumerCumulativeAck() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/testFailOverConsumerCumulativeAck")
+                .create();
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic("persistent://my-property/my-ns/testFailOverConsumerCumulativeAck")
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .ackTimeout(5, TimeUnit.SECONDS)
+                .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
+                .subscribe();
+        final MessageId msgId = producer.send("1".getBytes());
+        log.info("msgId : {}", msgId);
+        final Message<byte[]> message = consumer.receive();
+        CountDownLatch latch = new CountDownLatch(1);
+        consumer.acknowledgeCumulativeAsync(message).whenComplete((r, e) -> latch.countDown());
+        latch.await(3, TimeUnit.SECONDS);
+        final UnAckedMessageTracker unAckedMessageTracker = consumer.getUnAckedMessageTracker();
+        assertEquals(unAckedMessageTracker.size(), 0);
     }
 }
