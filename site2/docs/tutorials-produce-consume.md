@@ -56,7 +56,8 @@ Related Topics
 [Set up a tenant](tutorials-tenant)
 [Create a topic](tutorials-topic)
 [Create a namespace](tutorials-namespace)
-[Managing Clusters](admin-api-clusters)
+[Manage clusters](admin-api-clusters.md)
+
 
 
 
