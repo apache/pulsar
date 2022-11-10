@@ -704,12 +704,14 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         }
         Assert.assertTrue(multiNumberFlag);
 
+        number  = 1000;
         // test default batch policy can receive the multi topics messages
-        while (true) {
+        while (number != 0) {
             Messages<String> messages = multiTopicBatchReceiveConsumer.batchReceive();
             if (messages.size() > 0) {
                 String topicName = null;
                 for (Message<String> message : messages) {
+                    number--;
                     if (topicName != null) {
                         // receive the different topic messages in one batch receive
                         if (!topicName.equals(message.getTopicName())) {
@@ -720,6 +722,9 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 }
             }
         }
+        // if BatchReceivePolicy.DEFAULT_MULTI_TOPICS_DISABLE_POLICY can not receive the multi topics messages,
+        // the test should fail
+        Assert.fail();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBatchReceiveTest.class);
