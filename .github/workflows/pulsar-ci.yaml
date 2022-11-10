@@ -954,7 +954,7 @@ jobs:
   # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
   pulsar-ci-checks-completed:
     name: "Pulsar CI checks completed"
-    if: !cancelled()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
