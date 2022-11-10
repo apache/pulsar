@@ -2,7 +2,8 @@
 Id: tutorials-produce-consume
 title: Produce and consume messages
 sidebar_label: “Tutorials”
-—
+---
+
 
 :::note
 This tutorial has the following prerequisites:
