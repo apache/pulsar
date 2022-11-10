@@ -23,6 +23,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -55,4 +58,12 @@ public class ServiceUnitStateDataTest {
         new ServiceUnitStateData(Owned, null);
     }
 
+    @Test
+    public void jsonWriteAndReadTest() throws JsonProcessingException {
+        ObjectMapper mapper = ObjectMapperFactory.create();
+        final ServiceUnitStateData src = new ServiceUnitStateData(Assigned, "A", "B");
+        String json = mapper.writeValueAsString(src);
+        ServiceUnitStateData dst = mapper.readValue(json, ServiceUnitStateData.class);
+        assertEquals(dst, src);
+    }
 }

@@ -23,11 +23,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Defines the information required for a bundle split.
+ * Defines the information required for a service unit split(e.g. bundle split).
  */
-public record Split(String bundle, String sourceBroker, Map<String, Optional<String>> splitBundleToDestBroker) {
+public record Split(
+        String serviceUnit, String sourceBroker, Map<String, Optional<String>> splitServiceUnitToDestBroker) {
 
     public Split {
-        Objects.requireNonNull(bundle);
+        Objects.requireNonNull(serviceUnit);
     }
 }

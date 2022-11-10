@@ -34,9 +34,9 @@ public class SplitTest {
         map.put("C", Optional.of("test"));
 
         Split split = new Split("A", "B", map);
-        assertEquals(split.bundle(), "A");
+        assertEquals(split.serviceUnit(), "A");
         assertEquals(split.sourceBroker(), "B");
-        assertEquals(split.splitBundleToDestBroker(), map);
+        assertEquals(split.splitServiceUnitToDestBroker(), map);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
