@@ -16,18 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensible.models;
-
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-
-/**
- * Defines the information required for a bundle split.
- */
-public record Split(String bundle, String sourceBroker, Map<String, Optional<String>> splitBundleToDestBroker) {
-
-    public Split {
-        Objects.requireNonNull(bundle);
-    }
-}
+package org.apache.pulsar.broker.loadbalance.extensions.models;

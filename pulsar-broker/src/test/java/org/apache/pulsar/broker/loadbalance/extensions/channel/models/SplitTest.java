@@ -16,38 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensible.channel.models;
+package org.apache.pulsar.broker.loadbalance.extensions.channel.models;
 
 import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import org.apache.pulsar.broker.loadbalance.extensible.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class UnloadTest {
+public class SplitTest {
 
     @Test
-    public void testConstructors() {
+    public void testConstructor() {
+        Map<String, Optional<String>> map = new HashMap<>();
+        map.put("C", Optional.of("test"));
 
-        Unload unload1 = new Unload("A", "B");
-        assertEquals(unload1.sourceBroker(), "A");
-        assertEquals(unload1.serviceUnit(), "B");
-        assertEquals(unload1.destBroker(), Optional.empty());
-
-        Unload unload2 = new Unload("A", "B", Optional.of("C"));
-        assertEquals(unload2.sourceBroker(), "A");
-        assertEquals(unload2.serviceUnit(), "B");
-        assertEquals(unload2.destBroker(), Optional.of("C"));
+        Split split = new Split("A", "B", map);
+        assertEquals(split.bundle(), "A");
+        assertEquals(split.sourceBroker(), "B");
+        assertEquals(split.splitBundleToDestBroker(), map);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
-    public void testNullSourceBroker() {
-        new Unload(null, "A");
-    }
-
-    @Test(expectedExceptions = NullPointerException.class)
-    public void testNullServiceUnit() {
-        new Unload("A", null);
+    public void testNullBundle() {
+        new Split(null, "A", Map.of());
     }
 
 }

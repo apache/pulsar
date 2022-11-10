@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensible.channel;
+package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 
 import java.util.Objects;

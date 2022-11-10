@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensible.channel;
+package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
-import static org.apache.pulsar.broker.loadbalance.extensible.channel.ServiceUnitState.Assigned;
-import static org.apache.pulsar.broker.loadbalance.extensible.channel.ServiceUnitState.Free;
-import static org.apache.pulsar.broker.loadbalance.extensible.channel.ServiceUnitState.Owned;
-import static org.apache.pulsar.broker.loadbalance.extensible.channel.ServiceUnitState.Released;
-import static org.apache.pulsar.broker.loadbalance.extensible.channel.ServiceUnitState.Splitting;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;

@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensible.channel;
+package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.loadbalance.extensible.models.Split;
-import org.apache.pulsar.broker.loadbalance.extensible.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 

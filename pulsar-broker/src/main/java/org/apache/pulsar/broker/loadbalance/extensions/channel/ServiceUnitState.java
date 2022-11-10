@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensible.channel;
+package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +32,7 @@ import java.util.Set;
  *       │                                │
  *       │                                │
  *       ▼                                │
- *    ┌────────┐    assign          ┌─────┴────┐
+ *    ┌────────┐  assign(transfer)  ┌─────┴────┐
  *    │        ├───────────────────►│          │
  *    │ owned  │                    │ assigned │
  *    │        │◄───────────────────┤          │
@@ -41,7 +41,7 @@ import java.util.Set;
  *       │  │  │                         │
  *       │  │  └──────────────┐          │
  *       │  │                 │          │
- *       │  │        unload   │          │ assign
+ *       │  │        unload   │          │ assign(assignment)
  * split │  │                 │          │
  *       │  │                 │          │
  *       │  │ create(child)   │          │
