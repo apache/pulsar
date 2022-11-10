@@ -41,6 +41,7 @@ jobs:
   preconditions:
     name: Preconditions
     runs-on: ubuntu-20.04
+    if: (github.event_name != 'schedule') || (github.repository == 'apache/pulsar')
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
