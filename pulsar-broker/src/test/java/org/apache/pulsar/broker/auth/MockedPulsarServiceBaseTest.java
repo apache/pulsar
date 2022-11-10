@@ -93,20 +93,20 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public final static String BROKER_KEYSTORE_FILE_PATH =
-            ResourceUtils.getPath("certificate-authority/jks/broker.keystore.jks");
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
     public final static String BROKER_TRUSTSTORE_FILE_PATH =
-            ResourceUtils.getPath("certificate-authority/jks/broker.truststore.jks");
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
     public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            ResourceUtils.getPath("certificate-authority/jks/broker.truststore.nopassword.jks");
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
     public final static String BROKER_KEYSTORE_PW = "111111";
     public final static String BROKER_TRUSTSTORE_PW = "111111";
 
     public final static String CLIENT_KEYSTORE_FILE_PATH =
-            ResourceUtils.getPath("certificate-authority/jks/client.keystore.jks");
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
     public final static String CLIENT_TRUSTSTORE_FILE_PATH =
-            ResourceUtils.getPath("certificate-authority/jks/client.truststore.jks");
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
     public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            ResourceUtils.getPath("certificate-authority/jks/client.truststore.nopassword.jks");
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
     public final static String CLIENT_KEYSTORE_PW = "111111";
     public final static String CLIENT_TRUSTSTORE_PW = "111111";
 

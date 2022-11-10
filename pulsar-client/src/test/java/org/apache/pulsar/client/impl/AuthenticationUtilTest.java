@@ -16,16 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils;
+package org.apache.pulsar.client.impl;
 
-import com.google.common.io.Resources;
-import java.io.File;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import java.util.Map;
+import org.testng.annotations.Test;
 
-public class ResourceUtils {
+public class AuthenticationUtilTest {
 
-    public static String getAbsolutePath(String resourceName) {
-        // On Windows, URL#getPath might return a string that starts with a disk name, e.g. "/C:/"
-        // It's invalid to use this path to open a file, so we need to get the absolute path via File.
-        return new File(Resources.getResource(resourceName).getPath()).getAbsolutePath();
+    @Test
+    public void testConfigureAuthParamString() {
+        Map<String, String> params = AuthenticationUtil.configureFromPulsar1AuthParamString(
+                "key:value,path:C:\\path\\to\\file,null-key:,:null-value,:,key:value-2");
+        assertEquals(params.size(), 2);
+        assertEquals(params.get("key"), "value-2");
+        assertEquals(params.get("path"), "C:\\path\\to\\file");
+        assertFalse(params.containsKey("null-key"));
     }
 }
