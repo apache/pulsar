@@ -1295,9 +1295,9 @@ public class ClientCnx extends PulsarHandler {
                 // if there is no request that is timed out then exit the loop
                 break;
             }
-            request = requestTimeoutQueue.poll();
-            if (request == null) {
-                break;
+            if (!requestTimeoutQueue.remove(request)) {
+                // the request has been removed by another thread
+                continue;
             }
             TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
