@@ -496,16 +496,22 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
     }
 
-    @Test
-    public void testFailOverConsumerCumulativeAck() throws Exception {
+    @DataProvider(name = "subscriptionType")
+    public static Object[][] subscriptionType() {
+        return new Object[][] {{SubscriptionType.Failover}, {SubscriptionType.Exclusive}};
+    }
+
+    @Test(dataProvider = "subscriptionType")
+    public void testFailOverConsumerCumulativeAck(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testFailOverConsumerCumulativeAck");
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/testFailOverConsumerCumulativeAck")
+                .topic(topicName)
                 .create();
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/testFailOverConsumerCumulativeAck")
+                .topic(topicName)
                 .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Failover)
+                .subscriptionType(type)
                 .ackTimeout(5, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
