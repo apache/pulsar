@@ -81,28 +81,12 @@ public abstract class TransactionsBase extends AdminResource {
         Map<Integer, TransactionCoordinatorInfo> result = new HashMap<>();
         admin.lookups()
                 .lookupPartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName())
-                .thenCompose(map -> {
+                .thenAccept(map -> {
                     map.forEach((topicPartition, brokerServiceUrl) -> {
                         final int coordinatorId = TopicName.getPartitionIndex(topicPartition);
                         result.put(coordinatorId, new TransactionCoordinatorInfo(coordinatorId, brokerServiceUrl));
                     });
 
-                    return getPulsarResources()
-                            .getTopicResources()
-                            .getExistingPartitions(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
-                })
-                .thenAccept(allPartitions -> {
-                    allPartitions
-                            .stream()
-                            .filter(partition -> SystemTopicNames
-                                    .isTransactionCoordinatorAssign(TopicName.get(partition)))
-                            .forEach(partition -> {
-                                final int coordinatorId = TopicName.getPartitionIndex(partition);
-                                if (!result.containsKey(coordinatorId)) {
-                                    result.put(coordinatorId,
-                                            new TransactionCoordinatorInfo(coordinatorId, null));
-                                }
-                            });
                     asyncResponse.resume(result.values());
                 })
                 .exceptionally(ex -> {

@@ -23,8 +23,11 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on transactions")
@@ -223,7 +226,15 @@ public class CmdTransactions extends CmdBase {
     private class ListTransactionCoordinators extends CliCommand {
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().listTransactionCoordinators());
+            print(getAdmin()
+                    .transactions()
+                    .listTransactionCoordinators()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            TransactionCoordinatorInfo::getId,
+                            TransactionCoordinatorInfo::getBrokerServiceUrl
+                    ))
+            );
         }
     }
 
