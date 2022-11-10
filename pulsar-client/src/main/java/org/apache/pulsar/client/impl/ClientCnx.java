@@ -1296,6 +1296,9 @@ public class ClientCnx extends PulsarHandler {
                 break;
             }
             request = requestTimeoutQueue.poll();
+            if (request == null){
+                break;
+            }
             TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
                     && !requestFuture.hasGotResponse()) {
