@@ -23,6 +23,7 @@ Verify the results
 
 In the ${PULSAR_HOME}/conf/client.conf file, replace webServiceUrl and brokerServiceUrl with your service URL.
 Create a subscription to consume messages from apache/pulsar/test-topic.
+```bash
 bin/pulsar-client consume -s sub apache/pulsar/test-topic  -n 0
 In a new terminal, create a producer and send 10 messages to test-topic.
 bin/pulsar-client produce apache/pulsar/test-topic  -m "---------hello apache pulsar-------" -n 10
