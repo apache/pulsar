@@ -395,7 +395,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
                         AtomicInteger remainingCount = new AtomicInteger(entries.size());
                         for (Entry entry : entries) {
-                            ((EntryImpl) entry).onDellocate(() -> {
+                            ((EntryImpl) entry).onDeallocate(() -> {
                                 if (remainingCount.decrementAndGet() <= 0) {
                                     pendingReadsLimiter.release(newHandle);
                                 }
