@@ -38,9 +38,10 @@ env:
   ARTIFACT_RETENTION_DAYS: 3
 
 jobs:
-  changed_files_job:
+  preconditions:
     name: Preconditions
     runs-on: ubuntu-20.04
+    if: (github.event_name != 'schedule') || (github.repository == 'apache/pulsar')
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
@@ -70,11 +71,11 @@ jobs:
           build/pulsar_ci_tool.sh check_ready_to_test
 
   build-and-license-check:
-    needs: changed_files_job
+    needs: preconditions
     name: Build and License check
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -144,8 +145,8 @@ jobs:
     name: CI - Unit - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
-    needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -214,7 +215,7 @@ jobs:
 
       - name: Run unit test group '${{ matrix.group }}'
         run: |
-          CHANGED_TESTS="${{ needs.changed_files_job.outputs.tests_files }}" ./build/run_unit_group.sh ${{ matrix.group }}
+          CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./build/run_unit_group.sh ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -267,8 +268,8 @@ jobs:
     name: Build Pulsar java-test-image docker image
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true'}}
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
     env:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
@@ -332,8 +333,8 @@ jobs:
     name: CI - Integration - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
-    needs: ['changed_files_job', 'pulsar-java-test-image']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'pulsar-java-test-image']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
     strategy:
@@ -472,10 +473,10 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
-      'changed_files_job',
+      'preconditions',
       'integration-tests'
     ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -494,8 +495,8 @@ jobs:
     name: Build Pulsar docker image
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
@@ -558,23 +559,23 @@ jobs:
           #
           echo "::group::Available diskspace before cleaning"
           time df -BM / /mnt
-          echo "::endgroup::"          
+          echo "::endgroup::"
           echo "::group::Clean build directory"
           # docker build changes some files to root ownership, fix this before deleting files
           sudo chown -R $USER:$GROUP .
           # clean build directories
           time git clean -fdx
-          echo "::endgroup::"          
+          echo "::endgroup::"
           echo "::group::Available diskspace after cleaning build directory"
           time df -BM / /mnt
           echo "::endgroup::"
           echo "::group::Delete maven repository"
           # delete maven repository
           time rm -rf ~/.m2/repository
-          echo "::endgroup::"          
+          echo "::endgroup::"
           echo "::group::Available diskspace after cleaning maven repository"
           time df -BM / /mnt
-          echo "::endgroup::"          
+          echo "::endgroup::"
 
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
         run: |
@@ -592,8 +593,8 @@ jobs:
     name: CI - System - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: ['changed_files_job', 'pulsar-test-latest-version-image']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'pulsar-test-latest-version-image']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
     strategy:
@@ -720,8 +721,8 @@ jobs:
     name: CI Flaky - System - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [ 'changed_files_job', 'pulsar-test-latest-version-image' ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: [ 'preconditions', 'pulsar-test-latest-version-image' ]
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
     strategy:
@@ -832,11 +833,11 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
-      'changed_files_job',
+      'preconditions',
       'system-tests',
       'flaky-system-tests'
     ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -855,8 +856,8 @@ jobs:
     name: Build Pulsar on MacOS
     runs-on: macos-11
     timeout-minutes: 120
-    needs: ['changed_files_job', 'integration-tests']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'integration-tests']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -887,8 +888,8 @@ jobs:
     name: OWASP dependency check
     runs-on: ubuntu-20.04
     timeout-minutes: 120
-    needs: [ 'changed_files_job', 'integration-tests' ]
-    if: ${{ needs.changed_files_job.outputs.need_owasp == 'true' }}
+    needs: [ 'preconditions', 'integration-tests' ]
+    if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -953,11 +954,11 @@ jobs:
   # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
   pulsar-ci-checks-completed:
     name: "Pulsar CI checks completed"
-    if: always()
+    if: ${{ always() && ((github.event_name != 'schedule') || (github.repository == 'apache/pulsar')) }}
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
-      'changed_files_job',
+      'preconditions',
       'unit-tests',
       'integration-tests',
       'system-tests',
@@ -966,7 +967,7 @@ jobs:
     ]
     steps:
       - name: Check that all required jobs were completed successfully
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
         run: |
           if [[ ! ( \
                    "${{ needs.unit-tests.result }}" == "success" \
@@ -975,23 +976,23 @@ jobs:
                 && "${{ needs.macos-build.result }}" == "success" \
                ) ]]; then
             echo "Required jobs haven't been completed successfully."
-            exit 1            
+            exit 1
           fi
 
       - name: checkout
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
         uses: actions/checkout@v3
 
       - name: Tune Runner VM
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
         uses: ./.github/actions/tune-runner-vm
 
       - name: Install gh-actions-artifact-client.js
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
       - name: Delete maven repository binaries from GitHub Actions Artifacts
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
         run: |
           gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst || true
           gh-actions-artifact-client.js delete pulsar-server-distribution.tar.zst || true
