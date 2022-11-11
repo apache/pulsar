@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
 public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers
     implements StreamingDispatcher {
 
+    private int sendingTaskCounter = 0;
     private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
 
@@ -138,8 +139,23 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized void sendInProgressAcquire() {
+        sendingTaskCounter++;
+    }
+
+    @Override
+    protected synchronized void sendInProgressRelease() {
+        sendingTaskCounter--;
+    }
+
+    @Override
+    protected synchronized boolean sendInProgress() {
+        return sendingTaskCounter > 0;
+    }
+
+    @Override
     public synchronized void readMoreEntries() {
-        if (haveSendingTask()) {
+        if (sendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;

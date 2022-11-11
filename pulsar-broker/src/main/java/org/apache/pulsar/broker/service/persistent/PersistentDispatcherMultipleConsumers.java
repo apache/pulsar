@@ -94,7 +94,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile PositionImpl minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
-    private int sendingTaskCounter = 0;
+    private boolean sendInProgress = false;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -255,7 +255,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (haveSendingTask()) {
+        if (sendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -552,6 +552,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
        sendMessagesToConsumers(readType, entries);
     }
 
+    protected synchronized void sendInProgressAcquire() {
+        sendInProgress = true;
+    }
+
+    protected synchronized void sendInProgressRelease() {
+        sendInProgress = false;
+    }
+
+    protected synchronized boolean sendInProgress() {
+        return sendInProgress;
+    }
+
     protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         java.util.function.Consumer<Boolean> consumer = asyncRead -> {
             boolean canReadMore;
@@ -559,7 +571,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 try {
                     canReadMore = trySendMessagesToConsumers(readType, entries);
                 } finally {
-                    sendingTaskCounter--;
+                    sendInProgressRelease();
                 }
             }
             if (canReadMore) {
@@ -577,16 +589,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendingTaskCounter++;
+            sendInProgressAcquire();
             dispatchMessagesThread.execute(safeRun(() -> consumer.accept(false)));
         } else {
-            sendingTaskCounter++;
+            sendInProgressAcquire();
             consumer.accept(true);
         }
-    }
-
-    protected synchronized boolean haveSendingTask() {
-        return sendingTaskCounter > 0;
     }
 
     /**
