@@ -90,7 +90,6 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
-import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -768,8 +767,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName, boolean force) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName);
+        WebTarget path = topicPath(tn, "subscription", subName);
         path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
@@ -782,8 +780,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> skipAllMessagesAsync(String topic, String subName) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName, "skip_all");
+        WebTarget path = topicPath(tn, "subscription", subName, "skip_all");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -795,8 +792,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> skipMessagesAsync(String topic, String subName, long numMessages) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName, "skip", String.valueOf(numMessages));
+        WebTarget path = topicPath(tn, "subscription", subName, "skip", String.valueOf(numMessages));
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -808,9 +804,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> expireMessagesAsync(String topic, String subName, long expireTimeInSeconds) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                "expireMessages", String.valueOf(expireTimeInSeconds));
+        WebTarget path = topicPath(tn, "subscription", subName, "expireMessages", String.valueOf(expireTimeInSeconds));
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -824,10 +818,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
                                                        MessageId messageId, boolean isExcluded) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subscriptionName);
         ResetCursorData resetCursorData = new ResetCursorData(messageId);
         resetCursorData.setExcluded(isExcluded);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName, "expireMessages");
+        WebTarget path = topicPath(tn, "subscription", subscriptionName, "expireMessages");
         return asyncPostRequest(path, Entity.entity(resetCursorData, MediaType.APPLICATION_JSON));
     }
 
@@ -846,9 +839,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                "position", String.valueOf(messagePosition));
+        WebTarget path = topicPath(tn, "subscription", subName, "position", String.valueOf(messagePosition));
         final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
@@ -1037,8 +1028,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
             MessageId messageId, boolean replicated, Map<String, String> properties) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subscriptionName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName);
+        WebTarget path = topicPath(tn, "subscription", subscriptionName);
         path = path.queryParam("replicated", replicated);
         Object payload = messageId;
         if (properties != null && !properties.isEmpty()) {
@@ -1054,9 +1044,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public void resetCursor(String topic, String subName, long timestamp) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
-            String encodedSubName = Codec.encode(subName);
-            WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                    "resetcursor", String.valueOf(timestamp));
+            WebTarget path = topicPath(tn, "subscription", subName, "resetcursor", String.valueOf(timestamp));
             request(path).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -1066,9 +1054,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> resetCursorAsync(String topic, String subName, long timestamp) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                "resetcursor", String.valueOf(timestamp));
+        WebTarget path = topicPath(tn, "subscription", subName, "resetcursor", String.valueOf(timestamp));
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -1093,9 +1079,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> updateSubscriptionPropertiesAsync(String topic, String subName,
                                                                      Map<String, String> subscriptionProperties) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                "properties");
+        WebTarget path = topicPath(tn, "subscription", subName, "properties");
         if (subscriptionProperties == null) {
             subscriptionProperties = new HashMap<>();
         }
@@ -1105,9 +1089,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Map<String, String>> getSubscriptionPropertiesAsync(String topic, String subName) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                "properties");
+        WebTarget path = topicPath(tn, "subscription", subName, "properties");
         return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 
@@ -1126,8 +1108,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> resetCursorAsync(String topic, String subName
             , MessageId messageId, boolean isExcluded) {
         TopicName tn = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        final WebTarget path = topicPath(tn, "subscription", encodedSubName, "resetcursor");
+        final WebTarget path = topicPath(tn, "subscription", subName, "resetcursor");
         ResetCursorData resetCursorData = new ResetCursorData(messageId);
         resetCursorData.setExcluded(isExcluded);
         return asyncPostRequest(path, Entity.entity(resetCursorData, MediaType.APPLICATION_JSON));
@@ -1492,8 +1473,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                                                                                 String subscriptionName,
                                                                                 Optional<MessageId> startPosition) {
         TopicName topicName = validateTopic(topic);
-        String encodedSubName = Codec.encode(subscriptionName);
-        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "analyzeBacklog");
+        WebTarget path = topicPath(topicName, "subscription", subscriptionName, "analyzeBacklog");
 
         final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
         Entity entity = null;
@@ -2595,8 +2575,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled) {
         TopicName topicName = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
+        WebTarget path = topicPath(topicName, "subscription", subName, "replicatedSubscriptionStatus");
         return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
     }
 
@@ -2607,8 +2586,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     public CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName) {
         TopicName topicName = validateTopic(topic);
-        String encodedSubName = Codec.encode(subName);
-        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
+        WebTarget path = topicPath(topicName, "subscription", subName, "replicatedSubscriptionStatus");
         return asyncGetRequest(path, new FutureCallback<Map<String, Boolean>>(){});
     }
 
