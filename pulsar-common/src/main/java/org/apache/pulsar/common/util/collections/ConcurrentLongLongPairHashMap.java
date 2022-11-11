@@ -325,32 +325,18 @@ public class ConcurrentLongLongPairHashMap {
         LongPair get(long key1, long key2, int keyHash) {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
-            int bucket = signSafeMod(keyHash, capacity);
+            // add local variable here, so OutOfBound won't happen
+            long[] table = this.table;
+            // calculate table.length / 4 as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(keyHash, table.length / 4);
 
             try {
                 while (true) {
                     // First try optimistic locking
-                    long storedKey1 = 0;
-                    long storedKey2 = 0;
-                    long storedValue1 = 0;
-                    long storedValue2 = 0;
-                    try {
-                        storedKey1 = table[bucket];
-                        storedKey2 = table[bucket + 1];
-                        storedValue1 = table[bucket + 2];
-                        storedValue2 = table[bucket + 3];
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        // read a dirty capacity, cause ArrayIndexOutOfBoundsException
-                        if (validate(stamp)) {
-                            throw e;
-                        }
-                        if (logger.isDebugEnabled()) {
-                            logger.debug(
-                                    "Read a dirty capacity, fallback to Pessimistic Read. capacity:{}, bucket:{}, "
-                                            + "cause:{}",
-                                    capacity, bucket, e.getMessage());
-                        }
-                    }
+                    long storedKey1 = table[bucket];
+                    long storedKey2 = table[bucket + 1];
+                    long storedValue1 = table[bucket + 2];
+                    long storedValue2 = table[bucket + 3];
 
                     if (!acquiredLock && validate(stamp)) {
                         // The values we have read are consistent
@@ -365,7 +351,8 @@ public class ConcurrentLongLongPairHashMap {
                         if (!acquiredLock) {
                             stamp = readLock();
                             acquiredLock = true;
-
+                            // update local variable
+                            table = this.table;
                             bucket = signSafeMod(keyHash, capacity);
                             storedKey1 = table[bucket];
                             storedKey2 = table[bucket + 1];
