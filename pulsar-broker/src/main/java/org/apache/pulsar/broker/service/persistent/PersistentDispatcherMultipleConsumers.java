@@ -558,9 +558,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, entries)) {
+                if (sendMessagesToConsumers(readType, entries, false)) {
                     updatePendingBytesToDispatch(-size);
                     readMoreEntries();
                 } else {
@@ -568,7 +568,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, entries)) {
+            if (sendMessagesToConsumers(readType, entries, true)) {
                 updatePendingBytesToDispatch(-size);
                 readMoreEntriesAsync();
             } else {
@@ -589,12 +589,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return sendInProgress;
     }
 
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        sendInProgress = true;
+    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
+                                                                 boolean needAcquireSendInProgress) {
+        if (needAcquireSendInProgress) {
+            acquireSendInProgress();
+        }
         try {
             return trySendMessagesToConsumers(readType, entries);
         } finally {
-            sendInProgress = false;
+            releaseSendInProgress();
         }
     }
 

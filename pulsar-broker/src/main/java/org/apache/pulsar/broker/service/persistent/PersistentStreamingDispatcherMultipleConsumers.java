@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -102,16 +101,16 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), false)) {
                     readMoreEntries();
                 } else {
                     updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), true)) {
                 readMoreEntriesAsync();
             } else {
                 updatePendingBytesToDispatch(-size);

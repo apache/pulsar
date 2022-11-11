@@ -39,6 +39,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import io.netty.channel.EventLoopGroup;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -286,7 +286,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Change slowConsumer availablePermits to 1
         // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
         // and then stop to dispatch to slowConsumer
-        persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, redeliverEntries);
+        persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal,
+                redeliverEntries, true);
 
         Awaitility.await().untilAsserted(() -> {
             verify(consumerMock, times(1)).sendMessages(
@@ -427,7 +428,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // (5) Run sendMessagesToConsumers internally
         // (6) Attempts to send message3 to consumer2 but skipped because redeliveryMessages contains message2
         persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay,
-                redeliverEntries);
+                redeliverEntries, true);
         while (remainingEntriesNum.get() > 0) {
             // (7) Run readMoreEntries and resend message1 to consumer1 and message2-3 to consumer2
             persistentDispatcher.readMoreEntries();
