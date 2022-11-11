@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -271,7 +270,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 }
 
                 int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                        .getRedeliveryCount(entry.getLedgerId(), entry.getEntryId());
 
                 ctx.write(
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
