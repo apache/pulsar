@@ -255,7 +255,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (sendInProgress()) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -552,48 +552,48 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
        sendMessagesToConsumers(readType, entries);
     }
 
-    protected synchronized void sendInProgressAcquire() {
+    protected synchronized void acquireSendInProgress() {
         sendInProgress = true;
     }
 
-    protected synchronized void sendInProgressRelease() {
+    protected synchronized void releaseSendInProgress() {
         sendInProgress = false;
     }
 
-    protected synchronized boolean sendInProgress() {
+    protected synchronized boolean isSendInProgress() {
         return sendInProgress;
     }
 
     protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        java.util.function.Consumer<Boolean> consumer = asyncRead -> {
-            boolean canReadMore;
-            synchronized (PersistentDispatcherMultipleConsumers.this) {
-                try {
-                    canReadMore = trySendMessagesToConsumers(readType, entries);
-                } finally {
-                    sendInProgressRelease();
-                }
-            }
-            if (canReadMore) {
-                if (asyncRead) {
-                    readMoreEntriesAsync();
-                } else {
-                    readMoreEntries();
-                }
-            }
-        };
-
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgressAcquire();
-            dispatchMessagesThread.execute(safeRun(() -> consumer.accept(false)));
+            acquireSendInProgress();
+            dispatchMessagesThread.execute(safeRun(() -> sendMessagesToConsumers(readType, entries, false)));
         } else {
-            sendInProgressAcquire();
-            consumer.accept(true);
+            acquireSendInProgress();
+            sendMessagesToConsumers(readType, entries, true);
+        }
+    }
+
+    private void sendMessagesToConsumers(ReadType readType, List<Entry> entries, boolean asyncRead) {
+        final boolean canReadMore;
+        synchronized (PersistentDispatcherMultipleConsumers.this) {
+            try {
+                canReadMore = trySendMessagesToConsumers(readType, entries);
+            } finally {
+                releaseSendInProgress();
+            }
+        }
+        if (canReadMore) {
+            if (asyncRead) {
+                readMoreEntriesAsync();
+            } else {
+                readMoreEntries();
+            }
         }
     }
 

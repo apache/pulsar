@@ -139,23 +139,23 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    protected synchronized void sendInProgressAcquire() {
+    protected synchronized void acquireSendInProgress() {
         sendingTaskCounter++;
     }
 
     @Override
-    protected synchronized void sendInProgressRelease() {
+    protected synchronized void releaseSendInProgress() {
         sendingTaskCounter--;
     }
 
     @Override
-    protected synchronized boolean sendInProgress() {
+    protected synchronized boolean isSendInProgress() {
         return sendingTaskCounter > 0;
     }
 
     @Override
     public synchronized void readMoreEntries() {
-        if (sendInProgress()) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
