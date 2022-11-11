@@ -174,8 +174,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals(admin.topics().getStats(inputTopicName).getSubscriptions().size(), 1);
 
             // publish and consume result
-            if (Runtime.JAVA == runtime) {
-                // java supports schema
+            if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
+                // java and python supports schema
                 @Cleanup PulsarClient client = PulsarClient.builder()
                         .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                         .build();
@@ -208,7 +208,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 assertEquals(expectedMessages.size(), 0);
 
             } else {
-                // python doesn't support schema
+                // golang doesn't support schema
 
                 @Cleanup PulsarClient client = PulsarClient.builder()
                         .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -355,7 +355,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
 
         Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             schema = Schema.STRING;
         } else {
             schema = Schema.BYTES;
@@ -388,8 +388,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionStatsEmpty(functionName);
 
         // publish and consume result
-        if (Runtime.JAVA == runtime) {
-            // java supports schema
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
+            // java and python supports schema
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
@@ -420,7 +420,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals(expectedMessages.size(), 0);
 
         } else {
-            // python doesn't support schema
+            // golang doesn't support schema
 
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -530,7 +530,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             schema = Schema.STRING;
         } else {
             schema = Schema.BYTES;
@@ -594,11 +594,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // publish and consume result
 
-        if (Runtime.JAVA == runtime) {
-            // java supports schema
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
+            // java and python supports schema
             publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
         } else {
-            // python doesn't support schema. Does Go? Maybe we need a switch instead for the Go case.
+            // Does Go support schema? Maybe we need a switch instead for the Go case.
 
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -663,7 +663,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
 
         Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             schema = Schema.STRING;
         } else {
             schema = Schema.BYTES;
@@ -707,11 +707,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionStatsEmpty(functionName);
 
         // publish and consume result
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             // java supports schema
             publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
         } else {
-            // python doesn't support schema
+            // golang doesn't support schema
             publishAndConsumeMessagesBytes(inputTopicName, outputTopicName, numMessages);
         }
 
