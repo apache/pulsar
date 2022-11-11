@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
 import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.Gauge;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,6 +59,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
+
+    private static final Gauge PENDING_BYTES_TO_DISPATCH = Gauge
+            .build()
+            .name("pulsar_broker_pending_bytes_to_dispatch")
+            .help("Amount of bytes loaded in memory to be dispatched to Consumers")
+            .register();
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
@@ -396,5 +403,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
+    }
+    protected final void updatePendingBytesToDispatch(long size) {
+        PENDING_BYTES_TO_DISPATCH.inc(size);
     }
 }

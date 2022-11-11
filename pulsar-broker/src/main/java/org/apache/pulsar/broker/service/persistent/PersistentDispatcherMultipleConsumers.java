@@ -525,9 +525,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (log.isDebugEnabled()) {
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
-
-        sendMessagesToConsumers(readType, entries);
-    }
+        long size = entries.stream().mapToLong(Entry::getLength).sum();
+        updatePendingBytesToDispatch(size);
+        if (sendMessagesToConsumers(readType, entries)) {
+            updatePendingBytesToDispatch(-size);
+            readMoreEntriesAsync();
+        } else {
+            updatePendingBytesToDispatch(-size);
+        }    }
 
     protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         sendInProgress = true;
