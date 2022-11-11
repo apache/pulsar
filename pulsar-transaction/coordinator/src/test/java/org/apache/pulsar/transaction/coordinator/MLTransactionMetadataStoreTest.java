@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +29,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -55,6 +57,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -181,6 +185,17 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
+        //Mock a rateLimiter to avoid the internalMarkDelete call onCursorMarkDeletePositionUpdated
+        Field cursorField = MLTransactionLogImpl.class.getDeclaredField("cursor");
+        cursorField.setAccessible(true);
+        ManagedCursor cursor = (ManagedCursor) cursorField.get(mlTransactionLog);
+        Field rateLimiterFiled = ManagedCursorImpl.class.getDeclaredField("markDeleteLimiter");
+        rateLimiterFiled.setAccessible(true);
+
+        RateLimiter rateLimiter = mock(RateLimiter.class);
+        doReturn(false).when(rateLimiter).tryAcquire();
+        rateLimiterFiled.set(cursor, rateLimiter);
+
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
         if (isUseManagedLedgerProperties) {
