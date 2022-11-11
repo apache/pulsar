@@ -1,7 +1,7 @@
 ---
 id: deploy-aws
-title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
-sidebar_label: "Amazon Web Services"
+title: Deploy a Pulsar cluster on AWS using Terraform and Ansible
+sidebar_label: "Terraform (AWS)"
 ---
 
 > For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](deploy-bare-metal.md). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](deploy-bare-metal-multi-cluster.md).
