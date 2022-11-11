@@ -98,24 +98,25 @@ public class CassandraSinkTester extends SinkTester<CassandraContainer> {
     public void prepareSink() {
         // build the sink
         cluster = Cluster.builder()
-            .addContactPoint("localhost")
-            .withPort(serviceContainer.getCassandraPort())
-            .build();
+                .addContactPoint("localhost")
+                .withPort(serviceContainer.getCassandraPort())
+                .withoutJMXReporting()
+                .build();
 
         // connect to the cluster
         session = cluster.connect();
         log.info("Connecting to cassandra cluster at localhost:{}", serviceContainer.getCassandraPort());
 
         String createKeySpace =
-            "CREATE KEYSPACE " + keySpace
-                + " WITH replication = {'class':'SimpleStrategy', 'replication_factor':1}; ";
+                "CREATE KEYSPACE " + keySpace
+                        + " WITH replication = {'class':'SimpleStrategy', 'replication_factor':1}; ";
         log.info(createKeySpace);
         session.execute(createKeySpace);
         session.execute("USE " + keySpace);
 
         String createTable = "CREATE TABLE " + tableName
-            + "(" + KEY + " text PRIMARY KEY, "
-            + COLUMN + " text);";
+                + "(" + KEY + " text PRIMARY KEY, "
+                + COLUMN + " text);";
         log.info(createTable);
         session.execute(createTable);
     }
