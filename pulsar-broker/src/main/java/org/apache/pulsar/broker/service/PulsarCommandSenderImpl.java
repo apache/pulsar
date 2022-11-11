@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -229,6 +230,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
         ctx.channel().eventLoop().execute(() -> {
+            // this list is always accessed in the same thread (the eventLoop here)
+            // and in the completion of the writePromise
+            // it is safe to use a simple ArrayList
+            List<Entry> entriesToRelease = new ArrayList<>(entries.size());
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 if (entry == null) {
@@ -277,11 +282,20 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                                 redeliveryCount, metadataAndPayload,
                                 batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch),
                         ctx.voidPromise());
-                entry.release();
+                entriesToRelease.add(entry);
             }
 
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
+            writePromise.addListener((future) -> {
+                // release the entries only after flushing the channel
+                //
+                // InflightReadsLimiter tracks the amount of memory retained by in-flight data to the
+                // consumer. It counts the memory as being released when the entry is deallocated
+                // that is that it reaches refcnt=0.
+                // so we need to call release only when we are sure that Netty released the internal ByteBuf
+                entriesToRelease.forEach(Entry::release);
+            });
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
