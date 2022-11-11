@@ -149,14 +149,6 @@ images:
   functions:
     repository: apachepulsar/pulsar-all
     tag: @pulsar:version@
-  prometheus:
-    repository: prom/prometheus
-    tag: v2.17.2
-    pullPolicy: IfNotPresent
-  grafana:
-    repository: streamnative/apache-pulsar-grafana-dashboard-k8s
-    tag: 0.0.16
-    pullPolicy: IfNotPresent
   pulsar_manager:
     repository: apachepulsar/pulsar-manager
     tag: v0.3.0
@@ -331,7 +323,7 @@ The `prepare_helm_release` creates the following resources:
 
 ## Deploy Pulsar cluster using Helm
 
-Once you have finished the above three steps, you can install a Helm release.
+Once you have finished the above steps, you can install a Helm release.
 
 In this example, the Helm release is named `pulsar`.
 
@@ -345,13 +337,15 @@ helm install pulsar apache/pulsar \
 
 You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm Chart.
 
-### Monitor deployment
+:::tip
 
 A list of installed resources is output once the Pulsar cluster is deployed. This may take 5-10 minutes.
 
-The status of the deployment can be checked by running the `helm status pulsar` command, which can also be done while the deployment is taking place if you run the command in another terminal.
+To check the status of the deployment, run the `helm status pulsar` command. It can also be done while the deployment is taking place if you run the command in another terminal.
 
-### Access Pulsar cluster
+:::
+
+## Access Pulsar cluster
 
 The default values will create a `ClusterIP` for the following resources, which you can use to interact with the cluster.
 
