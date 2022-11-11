@@ -1129,6 +1129,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return 0;
     }
 
+    public ManagedCursor getCursor() {
+        return cursor;
+    }
+
     protected int getStickyKeyHash(Entry entry) {
         return StickyKeyConsumerSelector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
     }

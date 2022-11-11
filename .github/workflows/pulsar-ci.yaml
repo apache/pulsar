@@ -167,6 +167,8 @@ jobs:
             group: PROXY
           - name: Pulsar IO
             group: PULSAR_IO
+          - name: Pulsar Client
+            group: CLIENT
 
     steps:
       - name: checkout

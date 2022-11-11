@@ -163,7 +163,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceTxnMessage() throws InterruptedException, PulsarClientException {
-        String argString = "%s -r 10 -u %s -m %d -txn";
+        String argString = "%s -r 50 -u %s -m %d -txn";
         String topic = testTopic + UUID.randomUUID();
         int totalMessage = 100;
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), totalMessage);
@@ -174,7 +174,6 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         Thread thread = new Thread(() -> {
             try {
-                log.info("");
                 PerformanceProducer.main(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -182,6 +181,13 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
+
+        Awaitility.await().untilAsserted(() -> {
+            admin.transactions().getCoordinatorStats().forEach((integer, transactionCoordinatorStats) -> {
+                Assert.assertEquals(transactionCoordinatorStats.ongoingTxnSize, 0);
+            });
+        });
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName("subName").topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -198,7 +204,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testConsumeTxnMessage() throws Exception {
-        String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 5";
+        String argString = "%s -r 50 -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 5";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), subName,

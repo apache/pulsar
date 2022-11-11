@@ -263,14 +263,15 @@ The message redelivery behavior should be as follows.
 
 Redelivery count | Redelivery delay
 :--------------------|:-----------
-1 | 10 + 1 seconds
-2 | 10 + 2 seconds
-3 | 10 + 4 seconds
-4 | 10 + 8 seconds
-5 | 10 + 16 seconds
-6 | 10 + 32 seconds
-7 | 10 + 60 seconds
-8 | 10 + 60 seconds
+1 | 1 seconds
+2 | 2 seconds
+3 | 4 seconds
+4 | 8 seconds
+5 | 16 seconds
+6 | 32 seconds
+7 | 60 seconds
+8 | 60 seconds
+
 :::note
 
 If batching is enabled, all messages in one batch are redelivered to the consumer.
