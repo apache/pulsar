@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -93,8 +94,29 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
 
-        sendMessagesToConsumers(readType, Lists.newArrayList(entry));
-
+        long size = entry.getLength();
+        updatePendingBytesToDispatch(size);
+        // dispatch messages to a separate thread, but still in order for this subscription
+        // sendMessagesToConsumers is responsible for running broker-side filters
+        // that may be quite expensive
+        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
+            // setting sendInProgress here, because sendMessagesToConsumers will be executed
+            // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
+            dispatchMessagesThread.execute(safeRun(() -> {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+                    readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
+                }
+            }));
+        } else {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+                readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
+            }
+        }
         ctx.recycle();
     }
 

@@ -549,7 +549,32 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
-       sendMessagesToConsumers(readType, entries);
+        long size = entries.stream().mapToLong(Entry::getLength).sum();
+        updatePendingBytesToDispatch(size);
+
+        // dispatch messages to a separate thread, but still in order for this subscription
+        // sendMessagesToConsumers is responsible for running broker-side filters
+        // that may be quite expensive
+        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
+            // setting sendInProgress here, because sendMessagesToConsumers will be executed
+            // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
+            dispatchMessagesThread.execute(safeRun(() -> {
+                if (sendMessagesToConsumers(readType, entries)) {
+                    updatePendingBytesToDispatch(-size);
+                    readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
+                }
+            }));
+        } else {
+            if (sendMessagesToConsumers(readType, entries)) {
+                updatePendingBytesToDispatch(-size);
+                readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
+            }
+        }
     }
 
     protected synchronized void acquireSendInProgress() {
@@ -564,36 +589,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return sendInProgress;
     }
 
-    protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        // dispatch messages to a separate thread, but still in order for this subscription
-        // sendMessagesToConsumers is responsible for running broker-side filters
-        // that may be quite expensive
-        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
-            // setting sendInProgress here, because sendMessagesToConsumers will be executed
-            // in a separate thread, and we want to prevent more reads
-            acquireSendInProgress();
-            dispatchMessagesThread.execute(safeRun(() -> sendMessagesToConsumers(readType, entries, false)));
-        } else {
-            acquireSendInProgress();
-            sendMessagesToConsumers(readType, entries, true);
-        }
-    }
-
-    private void sendMessagesToConsumers(ReadType readType, List<Entry> entries, boolean asyncRead) {
-        final boolean canReadMore;
-        synchronized (PersistentDispatcherMultipleConsumers.this) {
-            try {
-                canReadMore = trySendMessagesToConsumers(readType, entries);
-            } finally {
-                releaseSendInProgress();
-            }
-        }
-        if (canReadMore) {
-            if (asyncRead) {
-                readMoreEntriesAsync();
-            } else {
-                readMoreEntries();
-            }
+    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+        sendInProgress = true;
+        try {
+            return trySendMessagesToConsumers(readType, entries);
+        } finally {
+            sendInProgress = false;
         }
     }
 
@@ -1138,6 +1139,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         return 0;
+    }
+
+    public ManagedCursor getCursor() {
+        return cursor;
     }
 
     protected int getStickyKeyHash(Entry entry) {

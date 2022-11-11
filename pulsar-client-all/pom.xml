@@ -176,6 +176,7 @@
                   <include>io.perfmark:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
