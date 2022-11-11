@@ -26,9 +26,9 @@ Each time a function receives a message, it completes the following consume-appl
 1. Consumes the message from one or more **input topics**. 
 2. Applies the customized (user-supplied) processing logic to the message.
 3. Publishes the output of the message, including:
-    a) writes output messages to an **output topic** in Pulsar
-    b) writes logs to a **log topic** (if it is configured)for debugging
-    c) writes [state](functions-develop-state.md) updates to BookKeeper (if it is configured) 
+    1. writes output messages to an **output topic** in Pulsar
+    2. writes logs to a **log topic** (if it is configured)for debugging
+    3. writes [state](functions-develop-state.md) updates to BookKeeper (if it is configured) 
     
 You can write functions in Java, Python, and Go. For example, you can use Pulsar Functions to set up the following processing chain:
 * A Python function listens for the `raw-sentences` topic and "sanitizes" incoming strings (removing extraneous white space and converting all characters to lowercase) and then publishes the results to a `sanitized-sentences` topic.

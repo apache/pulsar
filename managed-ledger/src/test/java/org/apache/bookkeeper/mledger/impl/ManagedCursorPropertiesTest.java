@@ -247,13 +247,13 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         map.put("c", "3");
 
         futures.add(executeWithRetry(() -> c1.setCursorProperties(map),
-                ManagedLedgerException.BadVersionException.class));
+                ManagedLedgerException.BadVersionException.class, 3));
 
         futures.add(executeWithRetry(() -> c1.putCursorProperty("a", "2"),
-                ManagedLedgerException.BadVersionException.class));
+                ManagedLedgerException.BadVersionException.class, 3));
 
         futures.add(executeWithRetry(() -> c1.removeCursorProperty("c"),
-                ManagedLedgerException.BadVersionException.class));
+                ManagedLedgerException.BadVersionException.class, 3));
 
         for (CompletableFuture<Void> future : futures) {
             future.get();

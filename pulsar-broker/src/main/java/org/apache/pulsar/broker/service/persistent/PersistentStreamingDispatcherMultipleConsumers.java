@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,18 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription) {
         super(topic, cursor, subscription);
+    }
+
+    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
+                                                                 boolean isLastEntryInBatch) {
+        sendInProgress = true;
+        try {
+            return trySendMessagesToConsumers(readType, entries);
+        } finally {
+            if (isLastEntryInBatch) {
+                sendInProgress = false;
+            }
+        }
     }
 
     /**
@@ -100,12 +113,12 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             // in a separate thread, and we want to prevent more reads
             sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
                     readMoreEntries();
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
                 readMoreEntriesAsync();
             }
         }

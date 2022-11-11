@@ -38,10 +38,10 @@
       "type": "category",
       "label": "Pulsar Schema",
       "items": [
-        "schema-get-started",
+        "schema-overview",
         "schema-understand",
-        "schema-evolution-compatibility",
-        "schema-manage"
+        "schema-get-started",
+        "schema-evolution-compatibility"
       ]
     },
     {
@@ -324,6 +324,7 @@
         "admin-api-topics",
         "admin-api-functions",
         "admin-api-packages",
+        "admin-api-schemas",
         "admin-api-transactions"
       ]
     },

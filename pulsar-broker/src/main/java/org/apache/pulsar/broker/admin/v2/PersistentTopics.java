@@ -69,6 +69,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
@@ -4477,6 +4478,94 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("deleteShadowTopic", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
+    @ApiOperation(value = "Override namespace's allowAutoSubscriptionCreation setting for a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Settings for automatic subscription creation")
+            AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetAutoSubscriptionCreation(autoSubscriptionCreationOverride, isGlobal))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
+    @ApiOperation(value = "Get autoSubscriptionCreation info in a topic")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetAutoSubscriptionCreation(applied, isGlobal))
+                .thenApply(asyncResponse::resume).exceptionally(ex -> {
+                    handleTopicPolicyException("getAutoSubscriptionCreation", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
+    @ApiOperation(value = "Remove autoSubscriptionCreation ina a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeAutoSubscriptionCreation(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetAutoSubscriptionCreation(null, isGlobal))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully remove topic removeAutoSubscriptionCreation: "
+                                    + "tenant={}, namespace={}, topic={}, isGlobal={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            isGlobal);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeAutoSubscriptionCreation", ex, asyncResponse);
                     return null;
                 });
     }

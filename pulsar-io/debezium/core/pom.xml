@@ -36,18 +36,24 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-original</artifactId>
-      <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>io.debezium</groupId>
       <artifactId>debezium-core</artifactId>
       <version>${debezium.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -100,6 +106,13 @@
       <groupId>io.debezium</groupId>
       <artifactId>debezium-connector-mysql</artifactId>
       <version>${debezium.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
