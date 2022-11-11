@@ -341,6 +341,9 @@ public class ConcurrentLongLongPairHashMap {
                         storedValue2 = table[bucket + 3];
                     } catch (ArrayIndexOutOfBoundsException e) {
                         // read a dirty capacity, cause ArrayIndexOutOfBoundsException
+                        if (validate(stamp)) {
+                            throw e;
+                        }
                         if (logger.isDebugEnabled()) {
                             logger.debug(
                                     "Read a dirty capacity, fallback to Pessimistic Read. capacity:{}, bucket:{}, "
