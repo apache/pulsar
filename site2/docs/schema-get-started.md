@@ -45,7 +45,7 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
    );
    ```
 
-2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
+   Alternatively, construct a key/value schema with `SEPARATED` encoding type.
 
    ```java
    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
@@ -55,7 +55,7 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
    );
    ```
 
-3. Produce messages using a key/value schema.
+2. Produce messages using a key/value schema.
 
    ```java
    Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
@@ -71,7 +71,7 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
    .send();
    ```
 
-4. Consume messages using a key/value schema.
+3. Consume messages using a key/value schema.
 
    ```java
    Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
@@ -357,6 +357,19 @@ The following example shows how to create a producer and a consumer with a Proto
    user2.ParseFromArray(msg.getData(), msg.getLength());
    ```
 
+### Construct a native Avro schema
+
+This example shows how to construct a [native Avro schema](schema-understand.md#struct-schema).
+
+```java
+org.apache.avro.Schema nativeAvroSchema = … ;
+
+Producer<byte[]> producer = pulsarClient.newProducer().topic("ingress").create();
+
+byte[] content = … ;
+
+producer.newMessage(Schema.NATIVE_AVRO(nativeAvroSchema)).value(content).send();
+```
 
 ## Construct an AUTO_PRODUCE schema
 
@@ -387,20 +400,6 @@ Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME(
 
 Message<GenericRecord> msg = consumer.receive() ; 
 GenericRecord record = msg.getValue();
-```
-
-## Construct a native Avro schema
-
-This example shows how to construct a [native Avro schema](schema-understand.md#native-avro-schema).
-
-```java
-org.apache.avro.Schema nativeAvroSchema = … ;
-
-Producer<byte[]> producer = pulsarClient.newProducer().topic("ingress").create();
-
-byte[] content = … ;
-
-producer.newMessage(Schema.NATIVE_AVRO(nativeAvroSchema)).value(content).send();
 ```
 
 ## Customize schema storage
