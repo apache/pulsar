@@ -612,7 +612,7 @@ All the metadata store metrics are labeled with the following labels:
 
 | Name                                               | Type      | Description                                                                                  |
 |----------------------------------------------------|-----------|----------------------------------------------------------------------------------------------|
-| pulsar_metadata_store_ops_latency                  | Histogram | The latency of getting/deleting/putting data fail/success operations from/to metadata store. |
+| pulsar_metadata_store_ops_latency                  | Histogram | The latency of getting/deleting/putting data from/to metadata store.                         |
 | pulsar_metadata_store_put_bytes_total              | Counter   | The number of data put to metadata store.                                                    |
 | pulsar_batch_metadata_store_executor_queue_size    | Gauge     | The number of blocking operations in metadata store executor.                                |
 | pulsar_batch_metadata_store_queue_wait_time_ms     | Histogram | The waiting time of batch operations.                                                        |
