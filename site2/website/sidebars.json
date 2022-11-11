@@ -222,6 +222,10 @@
     {
       "type": "category",
       "label": "Deployment",
+      "link": {
+        "type": "doc",
+        "id": "install-deploy-upgrade-landing"
+      },
       "items": [
         "deploy-aws",
         "deploy-kubernetes",
