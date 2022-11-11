@@ -154,6 +154,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -174,6 +175,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
 
     private final ConcurrentOpenHashMap<String, Replicator> replicators;
+
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<SchemaType>> subscriptionsOnlyIncludedAutoSchema;
 
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
     private static final String TOPIC_EPOCH_PROPERTY_NAME = "pulsar.topic.epoch";
@@ -260,6 +263,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
+        this.subscriptionsOnlyIncludedAutoSchema =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<SchemaType>>newBuilder().build();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         registerTopicPolicyListener();
@@ -361,6 +366,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
+        this.subscriptionsOnlyIncludedAutoSchema =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<SchemaType>>newBuilder().build();
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
@@ -671,13 +678,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, SchemaType schemaType) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(), option.isDurable(),
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
-                option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch());
+                option.getSubscriptionProperties().orElse(Collections.emptyMap()),
+                option.getConsumerEpoch(), schemaType);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -690,7 +698,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           boolean replicatedSubscriptionStateArg,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
-                                                          long consumerEpoch) {
+                                                          long consumerEpoch,
+                                                          SchemaType schemaType) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -805,6 +814,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return FutureUtil.failedFuture(
                                 new BrokerServiceException("Connection was closed while the opening the cursor "));
                     } else {
+                        addConsumerSchemaTypeForSubscriptions(subscriptionName, schemaType);
                         checkReplicatedSubscriptionControllerState();
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
@@ -852,10 +862,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
-                                                 KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta,
+                                                 SchemaType schemaType) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, schemaType);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -2847,22 +2858,41 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
-        return hasSchema()
-            .thenCompose((hasSchema) -> {
-                int numActiveConsumers = subscriptions.values().stream()
-                        .mapToInt(subscription -> subscription.getConsumers().size())
-                        .sum();
-                if (hasSchema
-                        || (!producers.isEmpty())
-                        || (numActiveConsumers != 0 && schema.getType() == SchemaType.AUTO_CONSUME)
-                        || (ledger.getTotalSize() != 0)) {
-                    return checkSchemaCompatibleForConsumer(schema);
-                } else {
-                    return addSchema(schema).thenCompose(schemaVersion ->
-                            CompletableFuture.completedFuture(null));
-                }
-            });
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema, String subscriptionName) {
+        return hasSchema().thenCompose((hasSchema) -> {
+            int numActiveConsumers = subscriptions.values().stream()
+                    .mapToInt(subscription -> subscription.getConsumers().size())
+                    .sum();
+            if (hasSchema
+                    || (!producers.isEmpty())
+                    || (numActiveConsumers != 0 && !subscriptionsOnlyIncludedAutoSchema.containsKey(subscriptionName))
+                    || (ledger.getTotalSize() != 0)) {
+                return checkSchemaCompatibleForConsumer(schema);
+            } else {
+                return addSchema(schema).thenCompose(schemaVersion ->
+                        CompletableFuture.completedFuture(null));
+            }
+        });
+    }
+
+    private synchronized void addConsumerSchemaTypeForSubscriptions(String subscriptionName, SchemaType schemaType) {
+        if (null == schemaType) {
+            schemaType = SchemaType.AUTO_CONSUME;
+        }
+
+        ConcurrentOpenHashSet<SchemaType> consumerSchemaTypeSet =
+                ConcurrentOpenHashSet.<SchemaType>newBuilder().build();
+        if (subscriptionsOnlyIncludedAutoSchema.containsKey(subscriptionName)) {
+            consumerSchemaTypeSet = subscriptionsOnlyIncludedAutoSchema.get(subscriptionName);
+        }
+        consumerSchemaTypeSet.add(schemaType);
+        subscriptionsOnlyIncludedAutoSchema.put(subscriptionName, consumerSchemaTypeSet);
+
+        // map saves only the subscription that contains only AUTO Schema
+        if (consumerSchemaTypeSet.size() > 1 || (consumerSchemaTypeSet.size() == 1
+                && !consumerSchemaTypeSet.contains(SchemaType.AUTO_CONSUME))) {
+            subscriptionsOnlyIncludedAutoSchema.remove(subscriptionName);
+        }
     }
 
     public synchronized void checkReplicatedSubscriptionControllerState() {

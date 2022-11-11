@@ -90,6 +90,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
@@ -102,6 +103,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     private final ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptions;
 
     private final ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators;
+
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<SchemaType>> subscriptionsOnlyIncludedAutoSchema;
 
     // Ever increasing counter of entries added
     private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
@@ -151,6 +154,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         .expectedItems(16)
                         .concurrencyLevel(1)
                         .build();
+        this.subscriptionsOnlyIncludedAutoSchema =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<SchemaType>>newBuilder().build();
         this.isFenced = false;
         registerTopicPolicyListener();
     }
@@ -240,13 +245,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, SchemaType schemaType) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
                 option.isDurable(), option.getStartMessageId(), option.getMetadata(),
                 option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
-                option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null));
+                option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null), schemaType);
     }
 
     @Override
@@ -256,10 +261,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  Map<String, String> metadata, boolean readCompacted,
                                                  InitialPosition initialPosition,
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
-                                                 KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta,
+                                                 SchemaType schemaType) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
-                replicateSubscriptionState, keySharedMeta, null);
+                replicateSubscriptionState, keySharedMeta, null, schemaType);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -270,7 +276,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
-                                                          Map<String, String> subscriptionProperties) {
+                                                          Map<String, String> subscriptionProperties,
+                                                          SchemaType schemaType) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -339,6 +346,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     future.completeExceptionally(
                             new BrokerServiceException("Connection was closed while the opening the cursor "));
                 } else {
+                    addConsumerSchemaTypeForSubscriptions(subscriptionName, schemaType);
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
@@ -1120,20 +1128,40 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
-    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema, String subscriptionName) {
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumers = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().size())
                     .sum();
             if (hasSchema
                     || (!producers.isEmpty())
-                    || (numActiveConsumers != 0 && schema.getType() == SchemaType.AUTO_CONSUME)
+                    || (numActiveConsumers != 0 && !subscriptionsOnlyIncludedAutoSchema.containsKey(subscriptionName))
                     || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
                 return checkSchemaCompatibleForConsumer(schema);
             } else {
                 return addSchema(schema).thenCompose(schemaVersion -> CompletableFuture.completedFuture(null));
             }
         });
+    }
+
+    private synchronized void addConsumerSchemaTypeForSubscriptions(String subscriptionName, SchemaType schemaType) {
+        if (null == schemaType) {
+            schemaType = SchemaType.AUTO_CONSUME;
+        }
+
+        ConcurrentOpenHashSet<SchemaType> consumerSchemaTypeSet =
+                ConcurrentOpenHashSet.<SchemaType>newBuilder().build();
+        if (subscriptionsOnlyIncludedAutoSchema.containsKey(subscriptionName)) {
+            consumerSchemaTypeSet = subscriptionsOnlyIncludedAutoSchema.get(subscriptionName);
+        }
+        consumerSchemaTypeSet.add(schemaType);
+        subscriptionsOnlyIncludedAutoSchema.put(subscriptionName, consumerSchemaTypeSet);
+
+        // map saves only the subscription that contains only AUTO Schema
+        if (consumerSchemaTypeSet.size() > 1 || (consumerSchemaTypeSet.size() == 1
+                && !consumerSchemaTypeSet.contains(SchemaType.AUTO_CONSUME))) {
+            subscriptionsOnlyIncludedAutoSchema.remove(subscriptionName);
+        }
     }
 
     @Override

@@ -1220,14 +1220,14 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     public void testSubscribeWithSchemaAfterAutoConsumeNewTopic(String domain) throws Exception {
         final String topic = domain + "my-property/my-ns/testSubscribeWithSchemaAfterAutoConsume-1";
 
-        Consumer autoConsumer1 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> autoConsumer1 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
                 .consumerName("autoConsumer1")
                 .subscribe();
 
-        Consumer autoConsumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> autoConsumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
@@ -1242,24 +1242,32 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             assertEquals(e.getStatusCode(), 404);
         }
 
-        Consumer<V1Data> consumerWithSchema = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+        Consumer<V1Data> consumerWithSchema1 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
-                .consumerName("consumerWithSchema")
+                .consumerName("consumerWithSchema-1")
+                .subscribe();
+        Consumer<V1Data> consumerWithSchema2 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerWithSchema-2")
                 .subscribe();
         try {
             log.info(admin.schemas().getSchemaInfo(topic).toString());
             log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
             log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
-            log.info("The consumerWithSchema isConnected: " + consumerWithSchema.isConnected());
+            log.info("The consumerWithSchema-1 isConnected: " + consumerWithSchema1.isConnected());
+            log.info("The consumerWithSchema-2 isConnected: " + consumerWithSchema2.isConnected());
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
         }
 
         autoConsumer1.close();
         autoConsumer2.close();
-        consumerWithSchema.close();
+        consumerWithSchema1.close();
+        consumerWithSchema2.close();
     }
 
     @DataProvider(name = "keyEncodingType")
