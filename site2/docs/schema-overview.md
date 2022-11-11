@@ -54,14 +54,14 @@ This diagram illustrates how Pulsar schema works on the Producer side.
 2. The producer requests to connect to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
 3. The broker looks up the schema registry to check if it is a registered schema. 
-   * If the schema is registered, the broker skips the [schema validation](understand-schema.md#schema-validation) and returns the schema version to the producer.
+   * If the schema is registered, the broker skips the [schema validation](schema-understand.md#schema-validation) and returns the schema version to the producer.
    * Otherwise, go to step4.
 
 4. The broker checks whether the schema can be auto-updated. 
    * If it’s not allowed to be auto-updated, then the schema cannot be registered, and the broker rejects the producer.
    * Otherwise, go to step5.
 
-5. The broker performs the [schema compatibility check](understand-schema.md#schema-compatibility-check) defined for the topic.
+5. The broker performs the [schema compatibility check](schema-understand.md#schema-compatibility-check) defined for the topic.
    * If the schema passes the compatibility check, the broker stores it in the schema registry and returns the schema version to the producer. All the messages produced by this producer are tagged with the schema version. 
    * Otherwise, the broker rejects the producer.
 
@@ -83,7 +83,7 @@ This diagram illustrates how schema works on the consumer side.
      * If the schema can be auto-updated, the broker registers the schema and connects the consumer.
      * Otherwise, the broker rejects the consumer.
        
-5. The broker performs the [schema compatibility check](understand-schema.md#schema-compatibility-check).
+5. The broker performs the [schema compatibility check](schema-understand.md#schema-compatibility-check).
      * If the schema passes the compatibility check, the broker connects the consumer.
      * Otherwise, the broker rejects the consumer. 
 

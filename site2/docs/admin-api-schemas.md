@@ -357,7 +357,7 @@ bin/pulsar-admin namespaces set-schema-validation-enforce --disable tenant/names
 
 ## Manage schema compatibility strategy 
 
-The [schema compatibility check strategy](understand-schema.md#schema-compatibility-check-strategy) configured at different levels has priority: topic level > namespace level > cluster level. In other words:
+The [schema compatibility check strategy](schema-understand.md#schema-compatibility-check-strategy) configured at different levels has priority: topic level > namespace level > cluster level. In other words:
   * If you set the strategy at both topic and namespace levels, the topic-level strategy is used. 
   * If you set the strategy at both namespace and cluster levels, the namespace-level strategy is used. 
 
