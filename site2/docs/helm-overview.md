@@ -5,7 +5,8 @@ sidebar_label: "Overview"
 ---
 
 ````mdx-code-block
+import useLocationParentPath from '@site/src/libs/useLocationParentPath';
 import {Redirect} from '@docusaurus/router';
 
-<Redirect to="deploy-kubernetes" />
+<Redirect to={useLocationParentPath() + "deploy-kubernetes"} />
 ````

@@ -5,7 +5,8 @@ sidebar_label: "Install "
 ---
 
 ````mdx-code-block
+import useLocationParentPath from '@site/src/libs/useLocationParentPath';
 import {Redirect} from '@docusaurus/router';
 
-<Redirect to="helm-deploy" />
+<Redirect to={useLocationParentPath() + "helm-deploy"} />
 ````
