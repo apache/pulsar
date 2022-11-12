@@ -70,7 +70,9 @@ public class RangeSetWrapperTest {
 
     @Test
     public void testDirtyLedger() {
-        RangeSetWrapper<LongPair> rangeSetWrapper = new RangeSetWrapper<>(consumer, reverseConvert, managedCursor);
+        RangeSetWrapper<LongPair> rangeSetWrapper = new RangeSetWrapper<>(consumer,
+                reverseConvert,
+                managedCursor);
         // Test add range
         rangeSetWrapper.addOpenClosed(10, 0, 20, 0);
         assertEquals(rangeSetWrapper.size(), 1);

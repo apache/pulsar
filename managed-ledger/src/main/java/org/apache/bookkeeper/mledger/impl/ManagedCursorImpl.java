@@ -2843,15 +2843,27 @@ public class ManagedCursorImpl implements ManagedCursor {
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
                     .newBuilder();
 
-            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
+            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange
+                    .newBuilder();
+
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
 
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
-                MLDataFormats.NestedPositionInfo lowerPosition = nestedPositionBuilder.setLedgerId(lowerKey).setEntryId(lowerValue).build();
-                MLDataFormats.NestedPositionInfo upperPosition = nestedPositionBuilder.setLedgerId(lowerKey).setEntryId(lowerValue).build();
+                MLDataFormats.NestedPositionInfo lowerPosition = nestedPositionBuilder
+                        .setLedgerId(lowerKey)
+                        .setEntryId(lowerValue)
+                        .build();
 
-                MessageRange messageRange = messageRangeBuilder.setLowerEndpoint(lowerPosition).setUpperEndpoint(upperPosition).build();
+                MLDataFormats.NestedPositionInfo upperPosition = nestedPositionBuilder
+                        .setLedgerId(lowerKey)
+                        .setEntryId(lowerValue)
+                        .build();
+
+                MessageRange messageRange = messageRangeBuilder
+                        .setLowerEndpoint(lowerPosition)
+                        .setUpperEndpoint(upperPosition)
+                        .build();
 
                 acksSerializedSize.addAndGet(messageRange.getSerializedSize());
                 rangeList.add(messageRange);

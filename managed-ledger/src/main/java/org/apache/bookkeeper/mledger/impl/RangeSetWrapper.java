@@ -48,7 +48,9 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
             (LongPairConsumer<Long>) (key, value) -> key,
             (RangeBoundConsumer<Long>) key -> new LongPair(key, 0));
 
-    public RangeSetWrapper(LongPairConsumer<T> rangeConverter, RangeBoundConsumer<T> rangeBoundConsumer, ManagedCursorImpl managedCursor) {
+    public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
+                           RangeBoundConsumer<T> rangeBoundConsumer,
+                           ManagedCursorImpl managedCursor) {
         requireNonNull(managedCursor);
         this.config = managedCursor.getConfig();
         this.rangeConverter = rangeConverter;

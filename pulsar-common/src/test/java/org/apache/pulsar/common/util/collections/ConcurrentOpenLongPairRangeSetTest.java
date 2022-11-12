@@ -486,8 +486,11 @@ public class ConcurrentOpenLongPairRangeSetTest {
 
     @Test
     public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
-        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
-        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet = new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set =
+                new ConcurrentOpenLongPairRangeSet<>(consumer);
+
+        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet =
+                new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
 
         set.addOpenClosed(1, 10, 1, 15);
         set.addOpenClosed(2, 25, 2, 28);

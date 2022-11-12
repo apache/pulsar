@@ -109,13 +109,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * or action returns "false". Unless otherwise specified by the implementing class,
      * actions are performed in the order of entry set iteration (if an iteration order is specified.)
      *
-     * This method is optimized for reduce `Range` and `PositionImpl` object creation.
-     * Caller of this method can use either {@param rawRangeBoundConsumer}
-     * or {@param rangeBoundConvertFunction} to apply conversion directly
-     * on the raw LongPair like (long, long)
-     * or on the `T` (PositionImpl).
-     *
-     * Those convert function will apply on both bound of the range, then the result will pass to
+     * This method is optimized on reducing intermediate object creation.
      * {@param action} to do iteration jobs.
      *
      */
