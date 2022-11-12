@@ -354,6 +354,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         admin.topics().skipAllMessages(topic, "sub");
         Awaitility.await().untilAsserted(() -> {
+            Assert.assertFalse(consumer.isConnected());
+            Assert.assertFalse(consumer2.isConnected());
             Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic));
             Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic2));
         });
