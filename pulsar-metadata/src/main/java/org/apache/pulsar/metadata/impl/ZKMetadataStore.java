@@ -76,7 +76,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
-    private Optional<ZKSessionWatcher> sessionWatcher;
+    private Optional<ZKSessionWatcher> sessionWatcher = Optional.empty();
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
             throws MetadataStoreException {
@@ -96,17 +96,12 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
-                    .watchers(Collections.singleton(event -> {
-                        if (sessionWatcher != null) {
-                            sessionWatcher.ifPresent(sw -> executor.execute(() -> sw.process(event)));
-                        }
-                    }))
+                    .watchers(Collections.singleton(event ->
+                            sessionWatcher.ifPresent(sw -> executor.execute(() -> sw.process(event)))))
                     .build();
             zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
             if (enableSessionWatcher) {
                 sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
-            } else {
-                sessionWatcher = Optional.empty();
             }
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
