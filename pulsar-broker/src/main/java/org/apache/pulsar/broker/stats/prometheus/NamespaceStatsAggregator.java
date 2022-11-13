@@ -115,6 +115,8 @@ public class NamespaceStatsAggregator {
                                             AggregatedSubscriptionStats subsStats) {
         stats.subscriptionsCount++;
         stats.msgBacklog += subscriptionStats.msgBacklog;
+        subsStats.bytesOutCounter = subscriptionStats.bytesOutCounter;
+        subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
@@ -133,8 +135,6 @@ public class NamespaceStatsAggregator {
             subsStats.msgRateOut += cStats.msgRateOut;
             subsStats.messageAckRate += cStats.messageAckRate;
             subsStats.msgThroughputOut += cStats.msgThroughputOut;
-            subsStats.bytesOutCounter += cStats.bytesOutCounter;
-            subsStats.msgOutCounter += cStats.msgOutCounter;
             if (!subsStats.blockedSubscriptionOnUnackedMsgs && cStats.blockedConsumerOnUnackedMsgs) {
                 subsStats.blockedSubscriptionOnUnackedMsgs = true;
             }
