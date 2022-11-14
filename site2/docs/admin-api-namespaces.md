@@ -479,12 +479,14 @@ A namespace bundle is a virtual group of topics that belong to the same namespac
 
 ```shell
 pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/namespace1
+pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/namespace1   
+pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff --destinationBroker broker1.use.org.com:8080 test-tenant/namespace1 
 ```
 
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/:bundle/unload|operation/unloadNamespaceBundle?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/:bundle/unload|operation/unloadNamespaceBundle?version=@pulsar:version_number@&destinationBroker=broker1.use.org.com:8080}
 
 </TabItem>
 <TabItem value="Java">

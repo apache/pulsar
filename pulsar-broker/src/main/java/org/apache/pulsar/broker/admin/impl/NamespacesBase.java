@@ -878,28 +878,35 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
     }
+    
+    private void validateLeaderBroker() {
+        if (!this.isLeaderBroker()) {
+            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
+            String leaderBrokerUrl = leaderBroker.getServiceUrl();
+            try {
+                URL redirectUrl = new URL(leaderBrokerUrl);
+                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(redirectUrl.getHost())
+                        .port(redirectUrl.getPort()).replaceQueryParam("authoritative",
+                                false).build();
+
+                // Redirect
+                if (log.isDebugEnabled()) {
+                    log.debug("Redirecting the rest call to leader - {}", redirect);
+                }
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            } catch (MalformedURLException exception) {
+                log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
+                throw new RestException(exception);
+            }
+        }
+    }
 
     public void setNamespaceBundleAffinity (String bundleRange, String destinationBroker) {
-        if (destinationBroker != null) {
-            if (!this.isLeaderBroker()) {
-                LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
-                String leaderBrokerUrl = leaderBroker.getServiceUrl();
-                try {
-                    URL redirectUrl = new URL(leaderBrokerUrl);
-                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(redirectUrl.getHost())
-                            .port(redirectUrl.getPort()).replaceQueryParam("authoritative",
-                                    false).build();
-
-                    // Redirect
-                    log.debug("Redirecting the rest call to leader - {}, bundleRange - {}", redirect, bundleRange);
-                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                } catch (MalformedURLException exception) {
-                    log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
-                    throw new RestException(exception);
-                }
-            }
-            pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
+        if (StringUtils.isBlank(destinationBroker)) {
+            return;
         }
+        validateLeaderBroker();
+        pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
     }
 
     public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange, boolean authoritative) {
