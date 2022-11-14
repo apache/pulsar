@@ -426,7 +426,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Thread.sleep(500);
         count = 0;
         while(true) {
-            Message<Integer> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<Integer> msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
