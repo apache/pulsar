@@ -105,6 +105,8 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
 
+        long size = entry.getLength();
+        updatePendingBytesToDispatch(size);
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
@@ -115,11 +117,15 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             dispatchMessagesThread.execute(safeRun(() -> {
                 if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
                     readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
             if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
                 readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
             }
         }
         ctx.recycle();

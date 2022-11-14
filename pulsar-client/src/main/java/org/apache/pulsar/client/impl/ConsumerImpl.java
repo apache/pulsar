@@ -192,7 +192,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ConcurrentOpenHashMap.<String, ChunkedMessageCtx>newBuilder().build();
     private int pendingChunkedMessageCount = 0;
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
-    private boolean expireChunkMessageTaskScheduled = false;
+    private final AtomicBoolean expireChunkMessageTaskScheduled = new AtomicBoolean(false);
     private final int maxPendingChunkedMessage;
     // if queue size is reasonable (most of the time equal to number of producers try to publish messages concurrently
     // on the topic) then it guards against broken chunked message which was not fully published
@@ -1389,14 +1389,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             MessageIdData messageId, ClientCnx cnx) {
 
         // Lazy task scheduling to expire incomplete chunk message
-        if (!expireChunkMessageTaskScheduled && expireTimeOfIncompleteChunkedMessageMillis > 0) {
+        if (expireTimeOfIncompleteChunkedMessageMillis > 0 && expireChunkMessageTaskScheduled.compareAndSet(false,
+                true)) {
             ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).scheduleAtFixedRate(
                     () -> internalPinnedExecutor
                             .execute(catchingAndLoggingThrowables(this::removeExpireIncompleteChunkedMessages)),
                     expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
                     TimeUnit.MILLISECONDS
             );
-            expireChunkMessageTaskScheduled = true;
         }
 
         if (msgMetadata.getChunkId() == 0) {
@@ -2277,11 +2277,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
-                if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                    completehasMessageAvailableWithValue(booleanFuture, true);
-                } else {
-                    completehasMessageAvailableWithValue(booleanFuture, false);
-                }
+                completehasMessageAvailableWithValue(booleanFuture,
+                        hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead));
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
                 booleanFuture.completeExceptionally(e.getCause());
@@ -2297,11 +2294,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
-                if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
-                    completehasMessageAvailableWithValue(booleanFuture, true);
-                } else {
-                    completehasMessageAvailableWithValue(booleanFuture, false);
-                }
+                completehasMessageAvailableWithValue(booleanFuture,
+                        hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false));
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
                 booleanFuture.completeExceptionally(e.getCause());
@@ -2324,12 +2318,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return true;
         }
 
-        if (!inclusive && lastMessageIdInBroker.compareTo(messageId) > 0
-                && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() != -1) {
-            return true;
-        }
-
-        return false;
+        return !inclusive && lastMessageIdInBroker.compareTo(messageId) > 0
+                && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() != -1;
     }
 
     private static final class GetLastMessageIdResponse {
@@ -2385,7 +2375,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             long requestId = client.newRequestId();
             ByteBuf getLastIdCmd = Commands.newGetLastMessageId(consumerId, requestId);
-            log.info("[{}][{}] Get topic last message Id", topic, subscription);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Get topic last message Id", topic, subscription);
+            }
 
             cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept(cmd -> {
                 MessageIdData lastMessageId = cmd.getLastMessageId();
@@ -2394,8 +2386,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     markDeletePosition = new MessageIdImpl(cmd.getConsumerMarkDeletePosition().getLedgerId(),
                             cmd.getConsumerMarkDeletePosition().getEntryId(), -1);
                 }
-                log.info("[{}][{}] Successfully getLastMessageId {}:{}",
-                    topic, subscription, lastMessageId.getLedgerId(), lastMessageId.getEntryId());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Successfully getLastMessageId {}:{}",
+                        topic, subscription, lastMessageId.getLedgerId(), lastMessageId.getEntryId());
+                }
 
                 MessageId lastMsgId = lastMessageId.getBatchIndex() <= 0
                         ? new MessageIdImpl(lastMessageId.getLedgerId(),

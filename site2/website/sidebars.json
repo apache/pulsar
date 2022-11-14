@@ -209,22 +209,22 @@
     },
     {
       "type": "category",
-      "label": "Kubernetes (Helm)",
-      "items": [
-        "helm-overview",
-        "helm-prepare",
-        "helm-install",
-        "helm-deploy",
-        "helm-upgrade",
-        "helm-tools"
-      ]
-    },
-    {
-      "type": "category",
       "label": "Deployment",
       "items": [
         "deploy-aws",
-        "deploy-kubernetes",
+        {
+          "type": "category",
+          "label": "Kubernetes",
+          "link": {
+            "type": "doc",
+            "id": "deploy-kubernetes"
+          },
+          "items": [
+            "helm-prepare",
+            "helm-deploy",
+            "helm-upgrade"
+          ]
+        },
         "deploy-bare-metal",
         "deploy-bare-metal-multi-cluster",
         "deploy-docker",

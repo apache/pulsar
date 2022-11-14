@@ -16,39 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.common.policies.data;
 
-import java.util.List;
-import org.apache.bookkeeper.mledger.Position;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-public class RedeliveryTrackerDisabled implements RedeliveryTracker {
-
-    public static final RedeliveryTrackerDisabled REDELIVERY_TRACKER_DISABLED = new RedeliveryTrackerDisabled();
-
-    private RedeliveryTrackerDisabled() {}
-
-    @Override
-    public int incrementAndGetRedeliveryCount(Position position) {
-        return 0;
-    }
-
-    @Override
-    public int getRedeliveryCount(long ledgerId, long entryId) {
-        return 0;
-    }
-
-    @Override
-    public void remove(Position position) {
-        // no-op
-    }
-
-    @Override
-    public void removeBatch(List<Position> positions) {
-        // no-op
-    }
-
-    @Override
-    public void clear() {
-        // no-op
-    }
+/**
+ * Transaction coordinator information.
+ */
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class TransactionCoordinatorInfo {
+    private long id;
+    private String brokerServiceUrl;
 }
