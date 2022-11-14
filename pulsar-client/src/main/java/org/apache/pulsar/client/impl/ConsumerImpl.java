@@ -1862,55 +1862,54 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     public CompletableFuture<Void> internalRedeliverUnacknowledgedMessages() {
-        return CompletableFuture.runAsync(() -> {
-            // First : synchronized in order to handle consumer reconnect produce race condition, when broker receive
-            // redeliverUnacknowledgedMessages and consumer have not be created and then receive reconnect epoch
-            // change the broker is smaller than the client epoch, this will cause client epoch smaller
-            // than broker epoch forever. client will not receive message anymore.
-            // Second : we should synchronized `ClientCnx cnx = cnx()` to  prevent use old cnx to
-            // send redeliverUnacknowledgedMessages to a old broker
-            synchronized (ConsumerImpl.this) {
-                ClientCnx cnx = cnx();
-                // V1 don't support redeliverUnacknowledgedMessages
-                if (cnx != null && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v2.getValue()) {
-                    if ((getState() == State.Connecting)) {
-                        log.warn("[{}] Client Connection needs to be established "
-                                + "for redelivery of unacknowledged messages", this);
-                    } else {
-                        log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
-                        cnx.ctx().close();
-                    }
-
-                    return;
-                }
-
-                // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
-                // we need to keep both epochs the same
-                if (conf.getSubscriptionType() == SubscriptionType.Failover
-                        || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-                    CONSUMER_EPOCH.incrementAndGet(this);
-                }
-                // clear local message
-                int currentSize = incomingMessages.size();
-                clearIncomingMessages();
-                unAckedMessageTracker.clear();
-                // is channel is connected, we should send redeliver command to broker
-                if (cnx != null && isConnected(cnx)) {
-                    cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
-                            consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
-                    if (currentSize > 0) {
-                        increaseAvailablePermits(cnx, currentSize);
-                    }
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
-                                consumerName, currentSize);
-                    }
+        // First : synchronized in order to handle consumer reconnect produce race condition, when broker receive
+        // redeliverUnacknowledgedMessages and consumer have not be created and then receive reconnect epoch
+        // change the broker is smaller than the client epoch, this will cause client epoch smaller
+        // than broker epoch forever. client will not receive message anymore.
+        // Second : we should synchronized `ClientCnx cnx = cnx()` to  prevent use old cnx to
+        // send redeliverUnacknowledgedMessages to a old broker
+        synchronized (ConsumerImpl.this) {
+            ClientCnx cnx = cnx();
+            // V1 don't support redeliverUnacknowledgedMessages
+            if (cnx != null && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v2.getValue()) {
+                if ((getState() == State.Connecting)) {
+                    log.warn("[{}] Client Connection needs to be established "
+                            + "for redelivery of unacknowledged messages", this);
                 } else {
-                    log.warn("[{}] Send redeliver messages command but the client is reconnect or close, "
-                            + "so don't need to send redeliver command to broker", this);
+                    log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
+                    cnx.ctx().close();
                 }
+
+                return CompletableFuture.completedFuture(null);
             }
-        }, internalPinnedExecutor);
+
+            // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
+            // we need to keep both epochs the same
+            if (conf.getSubscriptionType() == SubscriptionType.Failover
+                    || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+                CONSUMER_EPOCH.incrementAndGet(this);
+            }
+            // clear local message
+            int currentSize = incomingMessages.size();
+            clearIncomingMessages();
+            unAckedMessageTracker.clear();
+            // is channel is connected, we should send redeliver command to broker
+            if (cnx != null && isConnected(cnx)) {
+                cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
+                        consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
+                if (currentSize > 0) {
+                    increaseAvailablePermits(cnx, currentSize);
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
+                            consumerName, currentSize);
+                }
+            } else {
+                log.warn("[{}] Send redeliver messages command but the client is reconnect or close, "
+                        + "so don't need to send redeliver command to broker", this);
+            }
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     @SneakyThrows
