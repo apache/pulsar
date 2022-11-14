@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
 public class MessageIdSerializationTest {
 
     @Test
@@ -32,6 +30,7 @@ public class MessageIdSerializationTest {
         MessageId id = new MessageIdImpl(1, 2, 3);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
+        assertEquals(MessageId.fromByteArrayWithTopic(serializedId, "my-topic"), id);
     }
 
     @Test
@@ -39,6 +38,16 @@ public class MessageIdSerializationTest {
         MessageId id = new MessageIdImpl(1, 2, -1);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
+        assertEquals(MessageId.fromByteArrayWithTopic(serializedId, "my-topic"), id);
+    }
+
+    @Test
+    public void testBatchSizeNotSet() throws Exception {
+        MessageId id = new BatchMessageIdImpl(1L, 2L, 3, 4, -1,
+                BatchMessageAckerDisabled.INSTANCE);
+        byte[] serialized = id.toByteArray();
+        assertEquals(MessageId.fromByteArray(serialized), id);
+        assertEquals(MessageId.fromByteArrayWithTopic(serialized, "my-topic"), id);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
