@@ -20,17 +20,13 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import org.apache.pulsar.broker.service.BrokerServiceException;
 
-public class BucketSnapshotException extends BrokerServiceException {
-
-    public BucketSnapshotException(String msg) {
-        super(msg);
-    }
+public class BucketSnapshotException extends BrokerServiceException.PersistenceException {
 
     public BucketSnapshotException(Throwable t) {
         super(t);
     }
 
-    public BucketSnapshotException(String message, Throwable cause) {
-        super(message, cause);
+    public BucketSnapshotException(String msg) {
+        super(msg);
     }
 }

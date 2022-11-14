@@ -66,7 +66,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
         return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntry(ledgerHandle, 0, 0).
+                ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, 0, 0).
                         thenCompose(
                         entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
     }
@@ -75,7 +75,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
         return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntry(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId).thenCompose(
+                ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId).thenCompose(
                         this::parseSnapshotSegmentEntries));
     }
 
@@ -95,6 +95,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public void start() throws Exception {
+        pulsar.getBookKeeperClient();
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
                 pulsar.getConfiguration(),
                 pulsar.getLocalMetadataStore(),
@@ -210,8 +211,8 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return future;
     }
 
-    CompletableFuture<Enumeration<LedgerEntry>> getLedgerEntry(LedgerHandle ledger,
-                                                               long firstEntryId, long lastEntryId) {
+    CompletableFuture<Enumeration<LedgerEntry>> getLedgerEntryThenCloseLedger(LedgerHandle ledger,
+                                                                              long firstEntryId, long lastEntryId) {
         final CompletableFuture<Enumeration<LedgerEntry>> future = new CompletableFuture<>();
         ledger.asyncReadEntries(firstEntryId, lastEntryId,
                 (rc, handle, entries, ctx) -> {
