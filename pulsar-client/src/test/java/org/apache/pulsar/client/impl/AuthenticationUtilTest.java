@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import java.util.Map;
 import org.testng.annotations.Test;
 
