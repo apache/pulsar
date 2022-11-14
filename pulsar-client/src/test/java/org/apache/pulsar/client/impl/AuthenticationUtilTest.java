@@ -29,9 +29,9 @@ public class AuthenticationUtilTest {
     public void testConfigureAuthParamString() {
         Map<String, String> params = AuthenticationUtil.configureFromPulsar1AuthParamString(
                 "key:value,path:C:\\path\\to\\file,null-key:,:null-value,:,key:value-2");
-        assertEquals(params.size(), 2);
+        assertEquals(params.size(), 3);
         assertEquals(params.get("key"), "value-2");
         assertEquals(params.get("path"), "C:\\path\\to\\file");
-        assertFalse(params.containsKey("null-key"));
+        assertEquals(params.get("null-key"), "");
     }
 }
