@@ -176,7 +176,6 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private transient MessageCrypto messageCrypto = null;
 
-    @JsonIgnore
     private Set<String> encryptionKeys = new TreeSet<>();
 
     @ApiModelProperty(

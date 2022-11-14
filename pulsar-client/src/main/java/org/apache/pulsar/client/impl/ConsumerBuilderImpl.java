@@ -184,11 +184,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> topic(String... topicNames) {
         checkArgument(topicNames != null && topicNames.length > 0,
                 "Passed in topicNames should not be null or empty.");
-        Arrays.stream(topicNames).forEach(topicName ->
-                checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Arrays.stream(topicNames).map(StringUtils::trim)
-                .collect(Collectors.toList()));
-        return this;
+        return topics(Arrays.stream(topicNames).collect(Collectors.toList()));
     }
 
     @Override
@@ -210,9 +206,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> topicsPattern(String topicsPattern) {
-        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
-        conf.setTopicsPattern(Pattern.compile(topicsPattern));
-        return this;
+        return topicsPattern(Pattern.compile(topicsPattern));
     }
 
     @Override

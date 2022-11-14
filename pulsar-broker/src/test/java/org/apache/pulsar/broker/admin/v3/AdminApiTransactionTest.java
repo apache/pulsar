@@ -62,6 +62,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -107,6 +108,18 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test(timeOut = 20000)
+    public void testListTransactionCoordinators() throws Exception {
+        initTransaction(4);
+        final List<TransactionCoordinatorInfo> result = admin
+                .transactions().listTransactionCoordinatorsAsync().get();
+        assertEquals(result.size(), 4);
+        final String expectedUrl = pulsar.getBrokerServiceUrl();
+        for (int i = 0; i < 4; i++) {
+            assertEquals(result.get(i).getBrokerServiceUrl(), expectedUrl);
+        }
     }
 
     @Test(timeOut = 20000)

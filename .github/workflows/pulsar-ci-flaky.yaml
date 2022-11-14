@@ -36,7 +36,7 @@ env:
   ARTIFACT_RETENTION_DAYS: 3
 
 jobs:
-  changed_files_job:
+  preconditions:
     name: Preconditions
     runs-on: ubuntu-20.04
     outputs:
@@ -67,11 +67,11 @@ jobs:
           build/pulsar_ci_tool.sh check_ready_to_test
 
   build-and-test:
-    needs: changed_files_job
+    needs: preconditions
     name: Flaky tests suite
     runs-on: ubuntu-20.04
     timeout-minutes: 100
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -108,7 +108,7 @@ jobs:
 
       - name: Run unit test group BROKER_FLAKY
         run: |
-          CHANGED_TESTS="${{ needs.changed_files_job.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_FLAKY
+          CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_FLAKY
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()

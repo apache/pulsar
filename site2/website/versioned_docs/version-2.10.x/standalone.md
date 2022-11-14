@@ -6,7 +6,8 @@ original_id: standalone
 ---
 
 ````mdx-code-block
-import {Redirect} from '@docusaurus/router';
+import useLocationParentPath from '@site/src/libs/useLocationParentPath';
+import {Redirect} from "@docusaurus/router";
 
-<Redirect to="getting-started-standalone" />
+<Redirect to={useLocationParentPath() + "getting-started-standalone"} />
 ````
