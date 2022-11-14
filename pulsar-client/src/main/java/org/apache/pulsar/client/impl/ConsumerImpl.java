@@ -2353,7 +2353,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             long requestId = client.newRequestId();
             ByteBuf getLastIdCmd = Commands.newGetLastMessageId(consumerId, requestId);
-            log.info("[{}][{}] Get topic last message Id", topic, subscription);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Get topic last message Id", topic, subscription);
+            }
 
             cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept(cmd -> {
                 MessageIdData lastMessageId = cmd.getLastMessageId();
@@ -2362,8 +2364,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     markDeletePosition = new MessageIdImpl(cmd.getConsumerMarkDeletePosition().getLedgerId(),
                             cmd.getConsumerMarkDeletePosition().getEntryId(), -1);
                 }
-                log.info("[{}][{}] Successfully getLastMessageId {}:{}",
-                    topic, subscription, lastMessageId.getLedgerId(), lastMessageId.getEntryId());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Successfully getLastMessageId {}:{}",
+                        topic, subscription, lastMessageId.getLedgerId(), lastMessageId.getEntryId());
+                }
 
                 MessageId lastMsgId = lastMessageId.getBatchIndex() <= 0
                         ? new MessageIdImpl(lastMessageId.getLedgerId(),
