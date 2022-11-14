@@ -32,6 +32,7 @@ import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
