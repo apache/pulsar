@@ -286,8 +286,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Change slowConsumer availablePermits to 1
         // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
         // and then stop to dispatch to slowConsumer
-        persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal,
-                redeliverEntries, true);
+        if (persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal,
+                redeliverEntries, true)) {
+            persistentDispatcher.readMoreEntriesAsync();
+        }
 
         Awaitility.await().untilAsserted(() -> {
             verify(consumerMock, times(1)).sendMessages(
