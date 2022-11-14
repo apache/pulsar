@@ -549,6 +549,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
+        long size = entries.stream().mapToLong(Entry::getLength).sum();
+        updatePendingBytesToDispatch(size);
+
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
@@ -558,12 +561,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
                 if (sendMessagesToConsumers(readType, entries)) {
+                    updatePendingBytesToDispatch(-size);
                     readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
             if (sendMessagesToConsumers(readType, entries)) {
+                updatePendingBytesToDispatch(-size);
                 readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
             }
         }
     }

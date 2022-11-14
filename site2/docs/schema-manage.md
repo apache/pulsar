@@ -5,7 +5,8 @@ sidebar_label: "Manage schema"
 ---
 
 ````mdx-code-block
-import {Redirect} from '@docusaurus/router';
+import useLocationParentPath from '@site/src/libs/useLocationParentPath';
+import {Redirect} from "@docusaurus/router";
 
-<Redirect to="admin-api-schemas" />
+<Redirect to={useLocationParentPath() + "admin-api-schemas"} />
 ````
