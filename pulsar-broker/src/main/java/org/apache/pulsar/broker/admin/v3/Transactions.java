@@ -53,6 +53,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class Transactions extends TransactionsBase {
 
     @GET
+    @Path("/coordinators")
+    @ApiOperation(value = "List transaction coordinators.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true.")})
+    public void listCoordinators(@Suspended final AsyncResponse asyncResponse) {
+        checkTransactionCoordinatorEnabled();
+        internalListCoordinators(asyncResponse);
+    }
+
+    @GET
     @Path("/coordinatorStats")
     @ApiOperation(value = "Get transaction coordinator stats.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
