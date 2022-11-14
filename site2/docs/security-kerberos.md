@@ -56,7 +56,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 saslJaasClientAllowedIds=.*client.* ## regex for principals that are allowed to connect to brokers
 saslJaasServerSectionName=PulsarBroker ## corresponds to the section in the JAAS configuration file for brokers
 
-## Authentication settings of the broker itself. Used when the broker connects to other brokers
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, or when the proxy connects to brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
 brokerClientAuthenticationParameters={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
 ```

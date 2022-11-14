@@ -40,11 +40,13 @@ The way how each client passes its authentication data to brokers varies dependi
 
 ### Authentication data limitations on the proxies
 
-When you use proxies between clients and brokers, there are two authentication data, one from proxies, one from clients, brokers only authenticate proxies (known as **self-authentication**) by default. To forward the authentication data from clients to brokers for client authentication (known as **original authentication**).
+When you use proxies between clients and brokers, there are two authentication data:
+* authentication data from proxies that brokers default to authenticate - known as **self-authentication**.
+* authentication data from clients that proxies forward to brokers for authenticating - known as **original authentication**.
 
-**Important:** If your authentication data contains an expiration time, or your authorization provider depends on the authentication data, you must to:
+**Important:** If your authentication data contains an expiration time, or your authorization provider depends on the authentication data, you must:
 
-1. Ensure your authentication data of proxies no expiration time, brokers don't support refreshing this authentication data.
+1. Ensure your authentication data of proxies has no expiration time since brokers don't support refreshing this authentication data.
 2. Set `forwardAuthorizationCredentials` to `true` in the `conf/proxy.conf` file.
 3. Set `authenticateOriginalAuthData` to `true` in the `conf/broker.conf` file, which ensures that brokers recheck the client authentication.
 
@@ -61,7 +63,7 @@ When you use proxies between clients and brokers, there are two authentication d
 
 :::note
 
-Starting from 2.11.0, if you can configure [Mutual TLS](security-tls-transport.md) with any one of the above authentication providers.
+Starting from 2.11.0, you can configure [Mutual TLS](security-tls-transport.md) with any one of the above authentication providers.
 
 :::
 

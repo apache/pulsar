@@ -70,7 +70,7 @@ basicAuthConf=file:///path/to/.htpasswd
 # basicAuthConf=data:;base64,YOUR-BASE64
 # basicAuthConf=YOUR-BASE64
 
-# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, or when the proxy connects to brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationBasic
 brokerClientAuthenticationParameters={"userId":"superuser","password":"admin"}
 ```
