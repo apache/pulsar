@@ -367,7 +367,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test
     public void testFailoverConsumerBatchCumulateAck() throws Exception {
-        final String topic = "my-topic";
+        final String topic = BrokerTestUtil.newUniqueName("my-topic");
         admin.topics().createPartitionedTopic(topic, 2);
 
         @Cleanup
