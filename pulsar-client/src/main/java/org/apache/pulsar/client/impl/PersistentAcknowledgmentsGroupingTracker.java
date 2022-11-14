@@ -412,7 +412,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             newMessageAckCommandAndWrite(cnx, consumer.consumerId, messageId.getLedgerId(), messageId.getEntryId(),
                     lastCumulativeAckToFlush.getBitSetRecyclable(), AckType.Cumulative,
                     Collections.emptyMap(), false,
-                    (TimedCompletableFuture<Void>) this.currentCumulativeAckFuture, null);
+                    this.currentCumulativeAckFuture, null);
             this.consumer.unAckedChunkedMessageIdSequenceMap.remove(messageId);
         }
 
@@ -473,7 +473,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
             newMessageAckCommandAndWrite(cnx, consumer.consumerId, 0L, 0L,
                     null, AckType.Individual, null, true,
-                    (TimedCompletableFuture<Void>) currentIndividualAckFuture, entriesToAck);
+                    currentIndividualAckFuture, entriesToAck);
             shouldFlush = true;
         }
 
@@ -539,7 +539,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             ClientCnx cnx, long consumerId, long ledgerId,
             long entryId, BitSetRecyclable ackSet, AckType ackType,
             Map<String, Long> properties, boolean flush,
-            TimedCompletableFuture<Void> timedCompletableFuture,
+            CompletableFuture<Void> future,
             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
         if (consumer.isAckReceiptEnabled()) {
             final long requestId = consumer.getClient().newRequestId();
@@ -550,13 +550,14 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             } else {
                 cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, requestId);
             }
-            if (timedCompletableFuture == null) {
+            if (future == null) {
                 return cnx.newAckForReceipt(cmd, requestId);
             } else {
+                TimedCompletableFuture<Void> timedCompletableFuture = new TimedCompletableFuture<>();
                 if (ackType == AckType.Individual) {
-                    this.currentIndividualAckFuture = new TimedCompletableFuture<>();
+                    this.currentIndividualAckFuture = timedCompletableFuture;
                 } else {
-                    this.currentCumulativeAckFuture = new TimedCompletableFuture<>();
+                    this.currentCumulativeAckFuture = timedCompletableFuture;
                 }
                 cnx.newAckForReceiptWithFuture(cmd, requestId, timedCompletableFuture);
                 return timedCompletableFuture;
