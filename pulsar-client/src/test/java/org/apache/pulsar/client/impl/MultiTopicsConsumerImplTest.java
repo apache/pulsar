@@ -31,6 +31,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
@@ -258,14 +259,13 @@ public class MultiTopicsConsumerImplTest {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES, null);
         msg.setMessageId(messageId);
-        Throwable cause1 = null;
         try {
             consumer.reconsumeLater(msg, null, 1, TimeUnit.MINUTES);
+            fail("Should failed with PulsarClientException.NotSupportedException");
+        } catch (PulsarClientException.NotSupportedException ignore) {
         } catch (PulsarClientException e) {
-            cause1 = e;
+            fail("Should failed with PulsarClientException.NotSupportedException");
         }
-        assertNotNull(cause1);
-        assertEquals(cause1.getClass(), PulsarClientException.NotSupportedException.class);
 
         CompletableFuture<Void> future2 = consumer.reconsumeLaterAsync(msg, null, 1, TimeUnit.MINUTES);
         Throwable cause2 = getExceptionallyFutureCause(future2);
