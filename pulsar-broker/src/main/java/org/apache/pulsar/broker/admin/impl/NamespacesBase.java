@@ -878,7 +878,7 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
     }
-    
+
     private void validateLeaderBroker() {
         if (!this.isLeaderBroker()) {
             LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
