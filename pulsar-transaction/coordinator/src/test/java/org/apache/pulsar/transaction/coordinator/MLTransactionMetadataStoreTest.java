@@ -185,17 +185,18 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
-        //Mock a rateLimiter to avoid the internalMarkDelete call onCursorMarkDeletePositionUpdated
-        Field cursorField = MLTransactionLogImpl.class.getDeclaredField("cursor");
-        cursorField.setAccessible(true);
-        ManagedCursor cursor = (ManagedCursor) cursorField.get(mlTransactionLog);
-        Field rateLimiterFiled = ManagedCursorImpl.class.getDeclaredField("markDeleteLimiter");
-        rateLimiterFiled.setAccessible(true);
+        if (isUseManagedLedgerProperties) {
+            //Mock a rateLimiter to avoid the internalMarkDelete call onCursorMarkDeletePositionUpdated
+            Field cursorField = MLTransactionLogImpl.class.getDeclaredField("cursor");
+            cursorField.setAccessible(true);
+            ManagedCursor cursor = (ManagedCursor) cursorField.get(mlTransactionLog);
+            Field rateLimiterFiled = ManagedCursorImpl.class.getDeclaredField("markDeleteLimiter");
+            rateLimiterFiled.setAccessible(true);
 
-        RateLimiter rateLimiter = mock(RateLimiter.class);
-        doReturn(false).when(rateLimiter).tryAcquire();
-        rateLimiterFiled.set(cursor, rateLimiter);
-
+            RateLimiter rateLimiter = mock(RateLimiter.class);
+            doReturn(false).when(rateLimiter).tryAcquire();
+            rateLimiterFiled.set(cursor, rateLimiter);
+        }
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
         if (isUseManagedLedgerProperties) {
