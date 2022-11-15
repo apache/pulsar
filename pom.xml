@@ -102,7 +102,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
-    <snakeyaml.version>1.31</snakeyaml.version>
+    <snakeyaml.version>1.32</snakeyaml.version>
     <bookkeeper.version>4.14.5</bookkeeper.version>
     <zookeeper.version>3.6.3</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
