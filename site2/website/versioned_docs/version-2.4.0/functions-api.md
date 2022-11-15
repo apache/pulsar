@@ -607,7 +607,7 @@ There is one example Python native function in this {@inject: github:folder:/pul
 
 ### Python SDK functions
 
-To get started developing Pulsar Functions using the Python SDK, you'll need to install the [`pulsar-client`](/api/python) library using the instructions [above](#getting-started).
+To get started developing Pulsar Functions using the Python SDK, you'll need to install the [`pulsar-client`](@pulsar:apidoc:python@) library using the instructions [above](#getting-started).
 
 #### Python SDK examples
 
