@@ -94,6 +94,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
 
+    protected final Object incomingQueueLock = new Object();
+
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
 
@@ -836,12 +838,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         int messageSize = message.size();
-        if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
-            // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance
-            // anymore, since for pooled messages, this instance was possibly already been released and recycled.
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
-            getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
-            updateAutoScaleReceiverQueueHint();
+        synchronized (incomingQueueLock) {
+            if (isValidConsumerEpoch((MessageImpl<T>) message) && canEnqueueMessage(message)
+                    && incomingMessages.offer(message)) {
+                // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
+                // instance anymore, since for pooled messages, this instance was possibly already been released
+                // and recycled.
+                INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+                getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
+                updateAutoScaleReceiverQueueHint();
+            }
         }
         return hasEnoughMessagesForBatchReceive();
     }
@@ -907,7 +913,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (opBatchReceive == null) {
             return;
         }
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
+        notifyPendingBatchReceivedCallBack(opBatchReceive.future);
     }
 
     private boolean hasNextBatchReceive() {
@@ -932,20 +938,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return opBatchReceive;
     }
 
-    protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+    protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
+                if (!isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                    msgPeeked = incomingMessages.peek();
+                    continue;
+                }
                 Message<T> interceptMsg = beforeConsume(msg);
                 messages.add(interceptMsg);
             }
             msgPeeked = incomingMessages.peek();
         }
-
-        completePendingBatchReceive(opBatchReceive.future, messages);
+        completePendingBatchReceive(batchReceiveFuture, messages);
     }
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
@@ -957,7 +966,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected abstract void messageProcessed(Message<?> msg);
-
 
     private void pendingBatchReceiveTask(Timeout timeout) {
         internalPinnedExecutor.execute(() -> doPendingBatchReceiveTask(timeout));
@@ -1173,7 +1181,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 || getSubType() == CommandSubscribe.SubType.Exclusive)
                 && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
                 && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
-            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
+            log.info("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
                     + "consumerEpoch : [{}]", topic, message.getMessageId(), message.getConsumerEpoch(), consumerEpoch);
             message.release();
             message.recycle();
