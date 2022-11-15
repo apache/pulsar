@@ -33,7 +33,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
@@ -314,30 +317,54 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoBacklogs";
-
+        final String topic2 = "persistent://prop/ns-abc/testDeleteWhenNoBacklogsB";
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
             .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic2)
+                .create();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topic(topic)
             .subscriptionName("sub")
             .subscribe();
 
-        for (int i = 0; i < 10; i++) {
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://prop/ns-abc/test.*")
+                .subscriptionName("sub2")
+                .subscribe();
+
+        int producedCount = 10;
+        for (int i = 0; i < producedCount; i++) {
             producer.send("Pulsar".getBytes());
+            producer2.send("Pulsar".getBytes());
         }
 
         producer.close();
+        producer2.close();
+        int receivedCount = 0;
+        Message<byte[]> msg;
+        while((msg = consumer2.receive(1, TimeUnit.SECONDS)) != null) {
+            consumer2.acknowledge(msg);
+            receivedCount ++;
+        }
+        assertEquals(producedCount * 2, receivedCount);
 
         Thread.sleep(2000);
-        Assert.assertTrue(admin.topics().getList("prop/ns-abc")
-            .contains(topic));
+        Assert.assertTrue(admin.topics().getList("prop/ns-abc").contains(topic));
 
         admin.topics().skipAllMessages(topic, "sub");
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic)));
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertFalse(consumer.isConnected());
+            final List<ConsumerImpl> consumers = ((MultiTopicsConsumerImpl) consumer2).getConsumers();
+            consumers.forEach(c -> Assert.assertFalse(c.isConnected()));
+            Assert.assertFalse(consumer2.isConnected());
+            Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic));
+            Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic2));
+        });
         consumer.close();
+        consumer2.close();
     }
 
     @Test
