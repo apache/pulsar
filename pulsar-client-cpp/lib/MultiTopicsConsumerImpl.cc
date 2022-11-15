@@ -458,7 +458,8 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
             lock.unlock();
         }
 
-        if (messages_.push(msg) && messageListener_) {
+        messages_.push(msg);
+        if (messageListener_) {
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
         }
