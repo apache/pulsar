@@ -19,17 +19,25 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
+import static org.powermock.api.mockito.PowerMockito.when;
+
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Properties;
 
-public class AdditionalServletsTest {
+@PrepareForTest({
+        AdditionalServletUtils.class
+})
+@PowerMockIgnore({"org.apache.logging.log4j.*", "javax.xml.*", "com.sun.org.apache.xerces.*"})
+public class AdditionalServletsTest extends PowerMockTestCase {
 
 
     @Test
@@ -53,13 +61,15 @@ public class AdditionalServletsTest {
         AdditionalServletWithClassLoader as2 = mock(AdditionalServletWithClassLoader.class);
 
         String originalTmpDirectory = System.getProperty("java.io.tmpdir");
-        try (MockedStatic<AdditionalServletUtils> utils = mockStatic(AdditionalServletUtils.class)) {
+
+        try {
+            PowerMockito.mockStatic(AdditionalServletUtils.class);
             String tmpDirectory = "/my/tmp/directory";
             System.setProperty("java.io.tmpdir", tmpDirectory);
-            utils.when(() -> AdditionalServletUtils.searchForServlets(
+            when(AdditionalServletUtils.searchForServlets(
                     "/additionalServletDirectory", tmpDirectory)).thenReturn(definitions);
-            utils.when(() -> AdditionalServletUtils.load(asm1, tmpDirectory)).thenReturn(as1);
-            utils.when(() -> AdditionalServletUtils.load(asm2, tmpDirectory)).thenReturn(as2);
+            when(AdditionalServletUtils.load(asm1, tmpDirectory)).thenReturn(as1);
+            when(AdditionalServletUtils.load(asm2, tmpDirectory)).thenReturn(as2);
 
             AdditionalServlets servlets = AdditionalServlets.load(config);
 
