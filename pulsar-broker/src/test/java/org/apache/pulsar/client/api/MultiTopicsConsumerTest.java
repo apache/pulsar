@@ -193,42 +193,4 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         }
         Assert.assertEquals(numPartitions * numMessages, receivedCount);
     }
-
-    @Test
-    public void testBatchReceiveAckTimeout()
-            throws PulsarAdminException, PulsarClientException {
-        String topicName = newTopicName();
-        int numPartitions = 2;
-        int numMessages = 100000;
-        admin.topics().createPartitionedTopic(topicName, numPartitions);
-
-        @Cleanup
-        Producer<Long> producer = pulsarClient.newProducer(Schema.INT64)
-                .topic(topicName)
-                .enableBatching(false)
-                .blockIfQueueFull(true)
-                .create();
-
-        @Cleanup
-        Consumer<Long> consumer = pulsarClient
-                .newConsumer(Schema.INT64)
-                .topic(topicName)
-                .receiverQueueSize(numMessages)
-                .batchReceivePolicy(
-                        BatchReceivePolicy.builder().maxNumMessages(1).timeout(2, TimeUnit.SECONDS).build()
-                ).ackTimeout(1000, TimeUnit.MILLISECONDS)
-                .subscriptionName(methodName)
-                .subscribe();
-
-        producer.newMessage()
-                .value(1l)
-                .send();
-
-        // first batch receive
-        Assert.assertEquals(consumer.batchReceive().size(), 1);
-        // Not ack, trigger redelivery this message.
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(consumer.batchReceive().size(), 1);
-        });
-    }
 }
