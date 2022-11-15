@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.functions.windowing;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.ThreadContext;
-import org.apache.pulsar.functions.api.Context;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +29,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.ThreadContext;
+import org.apache.pulsar.functions.api.Context;
 
 /**
  * Tracks tuples across input topics and periodically emits watermark events.
@@ -53,6 +53,7 @@ public class WaterMarkEventGenerator<T> implements Runnable {
 
     /**
      * Creates a new WatermarkEventGenerator.
+     *
      * @param windowManager The window manager this generator will submit watermark events to
      * @param intervalMs The generator will check if it should generate a watermark event with this intervalMs
      * @param eventTsLagMs The max allowed lag behind the last watermark event before an event is considered late
@@ -107,7 +108,7 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     }
 
     /**
-     * Computes the min ts across all intput topics.
+     * Computes the min ts across all input topics.
      */
     private long computeWaterMarkTs() {
         long ts = 0;
@@ -133,7 +134,9 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     }
 
     public void start() {
-        this.executorFuture = executorService.scheduleAtFixedRate(this, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        this.executorFuture =
+                executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this), intervalMs, intervalMs,
+                        TimeUnit.MILLISECONDS);
     }
 
     public void shutdown() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,28 +18,22 @@
  */
 package org.apache.pulsar.common.naming;
 
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.util.Codec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.Codec;
 
 /**
  * Encapsulate the parsing of the completeTopicName name.
  */
 public class TopicName implements ServiceUnitId {
-
-    private static final Logger log = LoggerFactory.getLogger(TopicName.class);
 
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
@@ -77,7 +71,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String domain, String tenant, String cluster, String namespace,
-            String topic) {
+                                String topic) {
         String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
@@ -85,11 +79,17 @@ public class TopicName implements ServiceUnitId {
     public static TopicName get(String topic) {
         try {
             return cache.get(topic);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        } catch (UncheckedExecutionException e) {
+        } catch (ExecutionException | UncheckedExecutionException e) {
             throw (RuntimeException) e.getCause();
         }
+    }
+
+    public static TopicName getPartitionedTopicName(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPartitioned()) {
+            return TopicName.get(topicName.getPartitionedTopicName());
+        }
+        return topicName;
     }
 
     public static boolean isValid(String topic) {
@@ -113,7 +113,8 @@ public class TopicName implements ServiceUnitId {
                 if (parts.length == 3) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
-                    completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                    completeTopicName = TopicDomain.persistent.name() + "://"
+                        + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
                 } else {
                     throw new IllegalArgumentException(
                         "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
@@ -134,8 +135,8 @@ public class TopicName implements ServiceUnitId {
             // new:    tenant/namespace/<localName>
             // legacy: tenant/cluster/namespace/<localName>
             // Examples of localName:
-            // 1. some/name/xyz//
-            // 2. /xyz-123/feeder-2
+            // 1. some, name, xyz
+            // 2. xyz-123, feeder-2
 
 
             parts = Splitter.on("/").limit(4).splitToList(rest);
@@ -184,7 +185,7 @@ public class TopicName implements ServiceUnitId {
     /**
      * Extract the namespace portion out of a completeTopicName name.
      *
-     * Works both with old & new convention.
+     * <p>Works both with old & new convention.
      *
      * @return the namespace
      */
@@ -193,7 +194,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * Get the namespace object that this completeTopicName belongs to
+     * Get the namespace object that this completeTopicName belongs to.
      *
      * @return namespace object
      */
@@ -236,7 +237,8 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * @return partition index of the completeTopicName. It returns -1 if the completeTopicName (topic) is not partitioned.
+     * @return partition index of the completeTopicName.
+     * It returns -1 if the completeTopicName (topic) is not partitioned.
      */
     public int getPartitionIndex() {
         return partitionIndex;
@@ -247,10 +249,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * For partitions in a topic, return the base partitioned topic name
+     * For partitions in a topic, return the base partitioned topic name.
      * Eg:
      * <ul>
-     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
+     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> -->
+     *  <code>persistent://prop/cluster/ns/my-topic</code>
      *  <li><code>persistent://prop/cluster/ns/my-topic</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
      * </ul>
      */
@@ -263,15 +266,24 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * @return partition index of the completeTopicName. It returns -1 if the completeTopicName (topic) is not partitioned.
+     * @return partition index of the completeTopicName.
+     * It returns -1 if the completeTopicName (topic) is not partitioned.
      */
     public static int getPartitionIndex(String topic) {
         int partitionIndex = -1;
         if (topic.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
-                partitionIndex = Integer.parseInt(topic.substring(topic.lastIndexOf('-') + 1));
+                String idx = StringUtils.substringAfterLast(topic, PARTITIONED_TOPIC_SUFFIX);
+                partitionIndex = Integer.parseInt(idx);
+                if (partitionIndex < 0) {
+                    // for the "topic-partition--1"
+                    partitionIndex = -1;
+                } else if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                    // for the "topic-partition-01"
+                    partitionIndex = -1;
+                }
             } catch (NumberFormatException nfe) {
-                log.warn("Could not get the partition index from the topic {}", topic);
+                // ignore exception
             }
         }
 
@@ -279,19 +291,23 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * Returns the http rest path for use in the admin web service
+     * Returns the http rest path for use in the admin web service.
      * Eg:
-     *
      *   * "persistent/my-tenant/my-namespace/my-topic"
      *   * "non-persistent/my-tenant/my-namespace/my-topic"
      *
      * @return topic rest path
      */
     public String getRestPath() {
+        return getRestPath(true);
+    }
+
+    public String getRestPath(boolean includeDomain) {
+        String domainName = includeDomain ? domain + "/" : "";
         if (isV2()) {
-            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
+            return String.format("%s%s/%s/%s", domainName, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
+            return String.format("%s%s/%s/%s/%s", domainName, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
 
@@ -314,11 +330,12 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * Get a string suitable for completeTopicName lookup
-     * <p>
-     * Example:
-     * <p>
-     * persistent://tenant/cluster/namespace/completeTopicName -> persistent/tenant/cluster/namespace/completeTopicName
+     * Get a string suitable for completeTopicName lookup.
+     *
+     * <p>Example:
+     *
+     * <p>persistent://tenant/cluster/namespace/completeTopicName ->
+     *   persistent/tenant/cluster/namespace/completeTopicName
      *
      * @return
      */
@@ -337,7 +354,7 @@ public class TopicName implements ServiceUnitId {
     public String getSchemaName() {
         return getTenant()
             + "/" + getNamespacePortion()
-            + "/" + getEncodedLocalName();
+            + "/" + TopicName.get(getPartitionedTopicName()).getEncodedLocalName();
     }
 
     @Override
@@ -349,7 +366,7 @@ public class TopicName implements ServiceUnitId {
     public boolean equals(Object obj) {
         if (obj instanceof TopicName) {
             TopicName other = (TopicName) obj;
-            return Objects.equal(completeTopicName, other.completeTopicName);
+            return Objects.equals(completeTopicName, other.completeTopicName);
         }
 
         return false;
@@ -366,7 +383,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * Returns true if this a V2 topic name prop/ns/topic-name
+     * Returns true if this a V2 topic name prop/ns/topic-name.
      * @return true if V2
      */
     public boolean isV2() {

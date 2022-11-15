@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.util.netty;
 
-import java.util.concurrent.ThreadFactory;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SelectStrategy;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollDatagramChannel;
@@ -36,15 +35,61 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.incubator.channel.uring.IOUring;
+import io.netty.incubator.channel.uring.IOUringDatagramChannel;
+import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
+import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
+import io.netty.incubator.channel.uring.IOUringSocketChannel;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.util.affinity.CpuAffinity;
+import org.apache.commons.lang3.StringUtils;
 
+@SuppressWarnings("checkstyle:JavadocType")
+@Slf4j
 public class EventLoopUtil {
+
+    private static final String ENABLE_IO_URING = "enable.io_uring";
 
     /**
      * @return an EventLoopGroup suitable for the current platform
      */
-    public static EventLoopGroup newEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
+    public static EventLoopGroup newEventLoopGroup(int nThreads, boolean enableBusyWait, ThreadFactory threadFactory) {
         if (Epoll.isAvailable()) {
-            return new EpollEventLoopGroup(nThreads, threadFactory);
+            String enableIoUring = System.getProperty(ENABLE_IO_URING);
+
+            // By default, io_uring will not be enabled, even if available. The environment variable will be used:
+            // enable.io_uring=1
+            if (StringUtils.equalsAnyIgnoreCase(enableIoUring, "1", "true")) {
+                // Throw exception if IOUring cannot be used
+                IOUring.ensureAvailability();
+                return new IOUringEventLoopGroup(nThreads, threadFactory);
+            } else {
+                if (!enableBusyWait) {
+                    // Regular Epoll based event loop
+                    return new EpollEventLoopGroup(nThreads, threadFactory);
+                }
+
+                // With low latency setting, put the Netty event loop on busy-wait loop to reduce cost of
+                // context switches
+                EpollEventLoopGroup eventLoopGroup = new EpollEventLoopGroup(nThreads, threadFactory,
+                        () -> (selectSupplier, hasTasks) -> SelectStrategy.BUSY_WAIT);
+
+                // Enable CPU affinity on IO threads
+                for (int i = 0; i < nThreads; i++) {
+                    eventLoopGroup.next().submit(() -> {
+                        try {
+                            CpuAffinity.acquireCore();
+                        } catch (Throwable t) {
+                            log.warn("Failed to acquire CPU core for thread {} {}", Thread.currentThread().getName(),
+                                    t.getMessage(), t);
+                        }
+                    });
+                }
+
+                return eventLoopGroup;
+            }
         } else {
             // Fallback to NIO
             return new NioEventLoopGroup(nThreads, threadFactory);
@@ -52,13 +97,15 @@ public class EventLoopUtil {
     }
 
     /**
-     * Return a SocketChannel class suitable for the given EventLoopGroup implementation
+     * Return a SocketChannel class suitable for the given EventLoopGroup implementation.
      *
      * @param eventLoopGroup
      * @return
      */
     public static Class<? extends SocketChannel> getClientSocketChannelClass(EventLoopGroup eventLoopGroup) {
-        if (eventLoopGroup instanceof EpollEventLoopGroup) {
+        if (eventLoopGroup instanceof IOUringEventLoopGroup) {
+            return IOUringSocketChannel.class;
+        } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollSocketChannel.class;
         } else {
             return NioSocketChannel.class;
@@ -66,7 +113,9 @@ public class EventLoopUtil {
     }
 
     public static Class<? extends ServerSocketChannel> getServerSocketChannelClass(EventLoopGroup eventLoopGroup) {
-        if (eventLoopGroup instanceof EpollEventLoopGroup) {
+        if (eventLoopGroup instanceof IOUringEventLoopGroup) {
+            return IOUringServerSocketChannel.class;
+        } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollServerSocketChannel.class;
         } else {
             return NioServerSocketChannel.class;
@@ -74,7 +123,9 @@ public class EventLoopUtil {
     }
 
     public static Class<? extends DatagramChannel> getDatagramChannelClass(EventLoopGroup eventLoopGroup) {
-        if (eventLoopGroup instanceof EpollEventLoopGroup) {
+        if (eventLoopGroup instanceof IOUringEventLoopGroup) {
+            return IOUringDatagramChannel.class;
+        } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollDatagramChannel.class;
         } else {
             return NioDatagramChannel.class;
@@ -85,5 +136,14 @@ public class EventLoopUtil {
         if (Epoll.isAvailable()) {
             bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
+    }
+
+    /**
+     * Shutdowns the EventLoopGroup gracefully. Returns a {@link CompletableFuture}
+     * @param eventLoopGroup the event loop to shutdown
+     * @return CompletableFuture that completes when the shutdown has completed
+     */
+    public static CompletableFuture<Void> shutdownGracefully(EventLoopGroup eventLoopGroup) {
+        return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully());
     }
 }

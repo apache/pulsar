@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.functions.worker.dlog;
 
+import java.io.IOException;
+import java.io.InputStream;
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.LogReader;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
 
-import java.io.IOException;
-import java.io.InputStream;
-
+/**
+ * DistributedLog Input Stream.
+ */
 public class DLInputStream extends InputStream {
 
   private LogRecordWithInputStream currentLogRecord = null;
@@ -37,10 +39,8 @@ public class DLInputStream extends InputStream {
   // Cache the input stream for a log record.
   private static class LogRecordWithInputStream {
     private final InputStream payloadStream;
-    private final LogRecordWithDLSN logRecord;
 
     LogRecordWithInputStream(LogRecordWithDLSN logRecord) {
-      this.logRecord = logRecord;
       this.payloadStream = logRecord.getPayLoadInputStream();
     }
 
@@ -48,19 +48,10 @@ public class DLInputStream extends InputStream {
       return payloadStream;
     }
 
-    LogRecordWithDLSN getLogRecord() {
-      return logRecord;
-    }
-
-    // The last txid of the log record is the position of the next byte in the stream.
-    // Subtract length to get starting offset.
-    long getOffset() {
-      return logRecord.getTransactionId() - logRecord.getPayload().length;
-    }
   }
 
   /**
-   * Construct distributedlog input stream
+   * Construct DistributedLog input stream.
    *
    * @param dlm the Distributed Log Manager to access the stream
    */

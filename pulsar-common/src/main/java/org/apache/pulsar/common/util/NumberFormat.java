@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,9 @@ package org.apache.pulsar.common.util;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * Custom number formatter for {@code io.netty.buffer.ByteBuf}.
+ */
 public class NumberFormat {
 
     static void format(ByteBuf out, long num) {

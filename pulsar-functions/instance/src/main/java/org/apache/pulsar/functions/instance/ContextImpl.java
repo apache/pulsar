@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,97 +18,165 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.ProducerBuilderImpl;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
-import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
-import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
-import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
-import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
-import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.core.SourceContext;
-import org.slf4j.Logger;
-
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static com.google.common.base.Preconditions.checkState;
-import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
+import java.util.stream.Stream;
+import lombok.ToString;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.api.utils.FunctionRecord;
+import org.apache.pulsar.functions.instance.state.DefaultStateStore;
+import org.apache.pulsar.functions.instance.state.StateManager;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
+import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
+import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.source.PulsarFunctionRecord;
+import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
+import org.slf4j.Logger;
 
 /**
  * This class implements the Context interface exposed to the user.
  */
-
-class ContextImpl implements Context, SinkContext, SourceContext {
+@ToString(exclude = {"pulsarAdmin"})
+class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
 
     // Per Message related
     private Record<?> record;
 
+    private final ClientBuilder clientBuilder;
+    private final PulsarClient client;
+    private final PulsarAdmin pulsarAdmin;
     private Map<String, Producer<?>> publishProducers;
+    private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
-
-    private final List<String> inputTopics;
 
     private final TopicSchema topicSchema;
 
     private final SecretsProvider secretsProvider;
     private final Map<String, Object> secretsMap;
 
-    @Getter
-    @Setter
-    private StateContextImpl stateContext;
+    @VisibleForTesting
+    StateManager stateManager;
+    @VisibleForTesting
+    DefaultStateStore defaultStateStore;
+
     private Map<String, Object> userConfigs;
+
+    private ComponentStatsManager statsManager;
 
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
 
-    private final static String[] userMetricsLabelNames;
+    private final SubscriptionType subscriptionType;
+
+    private static final String[] userMetricsLabelNames;
+
+    private boolean exposePulsarAdminClientEnabled;
+
+    private List<Consumer<?>> inputConsumers;
+    private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
+
     static {
         // add label to indicate user metric
-        userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
-        userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
+        userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.METRICS_LABEL_NAMES,
+                ComponentStatsManager.METRICS_LABEL_NAMES.length + 1);
+        userMetricsLabelNames[ComponentStatsManager.METRICS_LABEL_NAMES.length] = "metric";
     }
-    private final Utils.ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
-                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Utils.ComponentType componentType) {
+    private final Function.FunctionDetails.ComponentType componentType;
+
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
+                       String[] metricsLabels,
+                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder)
+            throws PulsarClientException {
         this.config = config;
         this.logger = logger;
-        this.publishProducers = new HashMap<>();
-        this.inputTopics = inputTopics;
+        this.clientBuilder = clientBuilder;
+        this.client = client;
+        this.pulsarAdmin = pulsarAdmin;
         this.topicSchema = new TopicSchema(client);
+        this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+        boolean useThreadLocalProducers = false;
+        Function.ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
+        if (producerSpec != null) {
+            if (producerSpec.getMaxPendingMessages() != 0) {
+                this.producerBuilder.maxPendingMessages(producerSpec.getMaxPendingMessages());
+            }
+            if (producerSpec.getMaxPendingMessagesAcrossPartitions() != 0) {
+                this.producerBuilder
+                        .maxPendingMessagesAcrossPartitions(producerSpec.getMaxPendingMessagesAcrossPartitions());
+            }
+            if (producerSpec.getBatchBuilder() != null) {
+                if (producerSpec.getBatchBuilder().equals("KEY_BASED")) {
+                    this.producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                } else {
+                    this.producerBuilder.batcherBuilder(BatcherBuilder.DEFAULT);
+                }
+            }
+            useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
+        }
+        if (useThreadLocalProducers) {
+            tlPublishProducers = new ThreadLocal<>();
+        } else {
+            publishProducers = new ConcurrentHashMap<>();
+        }
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -141,16 +209,38 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             default:
                 throw new RuntimeException("Unknown component type: " + componentType);
         }
-        this.userMetricsSummary = Summary.build()
-                .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
-                .help("User defined metric.")
-                .labelNames(userMetricsLabelNames)
-                .quantile(0.5, 0.01)
-                .quantile(0.9, 0.01)
-                .quantile(0.99, 0.01)
-                .quantile(0.999, 0.01)
-                .register(collectorRegistry);
+        this.userMetricsSummary = collectorRegistry.registerIfNotExist(
+                prefix + ComponentStatsManager.USER_METRIC_PREFIX,
+                Summary.build()
+                        .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
+                        .help("User defined metric.")
+                        .labelNames(userMetricsLabelNames)
+                        .quantile(0.5, 0.01)
+                        .quantile(0.9, 0.01)
+                        .quantile(0.99, 0.01)
+                        .quantile(0.999, 0.01)
+                        .create());
         this.componentType = componentType;
+        this.stateManager = stateManager;
+        this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
+                config.getFunctionDetails().getTenant(),
+                config.getFunctionDetails().getNamespace(),
+                config.getFunctionDetails().getName()
+        );
+        this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
+
+        Function.SourceSpec sourceSpec = config.getFunctionDetails().getSource();
+        switch (sourceSpec.getSubscriptionType()) {
+            case FAILOVER:
+                subscriptionType = SubscriptionType.Failover;
+                break;
+            case KEY_SHARED:
+                subscriptionType = SubscriptionType.Key_Shared;
+                break;
+            default:
+                subscriptionType = SubscriptionType.Shared;
+                break;
+        }
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -159,17 +249,27 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Record<?> getCurrentRecord() {
-        return record;
+        return new PulsarFunctionRecord(record, config.getFunctionDetails());
     }
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputTopics;
+        return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
+    }
+
+    @Override
+    public SinkConfig getSinkConfig() {
+        return SinkConfigUtils.convertFromDetails(config.getFunctionDetails());
     }
 
     @Override
     public String getOutputTopic() {
         return config.getFunctionDetails().getSink().getTopic();
+    }
+
+    @Override
+    public SourceConfig getSourceConfig() {
+        return SourceConfigUtils.convertFromDetails(config.getFunctionDetails());
     }
 
     @Override
@@ -209,7 +309,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public String getFunctionId() {
-        return config.getFunctionId().toString();
+        return config.getFunctionId();
     }
 
     @Override
@@ -234,8 +334,20 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Optional<Object> getUserConfigValue(String key) {
+        Object value = userConfigs.getOrDefault(key, null);
 
-        return Optional.ofNullable(userConfigs.getOrDefault(key, null));
+        if (value instanceof String && ((String) value).startsWith("$")) {
+            // any string starts with '$' is considered as system env symbol and will be
+            // replaced with the actual env value
+            try {
+                String actualValue = System.getenv(((String) value).substring(1));
+                return Optional.ofNullable(actualValue);
+            } catch (SecurityException ex) {
+                throw new RuntimeException("Access to environment variable " + value + " is not allowed.", ex);
+            }
+        } else {
+            return Optional.ofNullable(value);
+        }
     }
 
     @Override
@@ -257,96 +369,144 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
+    @Override
+    public PulsarAdmin getPulsarAdmin() {
+        if (exposePulsarAdminClientEnabled) {
+            return pulsarAdmin;
+        } else {
+            throw new IllegalStateException("PulsarAdmin is not enabled in function worker");
+        }
+    }
+
+    @Override
+    public <T extends StateStore> T getStateStore(String name) {
+        return getStateStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            name);
+    }
+
+    @Override
+    public <T extends StateStore> T getStateStore(String tenant, String ns, String name) {
+        return (T) stateManager.getStore(tenant, ns, name);
+    }
+
     private void ensureStateEnabled() {
-        checkState(null != stateContext, "State is not enabled.");
+        checkState(null != defaultStateStore, "State %s/%s/%s is not enabled.",
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName());
+    }
+
+    @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+        ensureStateEnabled();
+        return defaultStateStore.incrCounterAsync(key, amount);
     }
 
     @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
-        try {
-            stateContext.incr(key, amount);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
-        }
+        defaultStateStore.incrCounter(key, amount);
+    }
+
+    @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        ensureStateEnabled();
+        return defaultStateStore.getCounterAsync(key);
     }
 
     @Override
     public long getCounter(String key) {
         ensureStateEnabled();
-        try {
-            return stateContext.getAmount(key);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
-        }
+        return defaultStateStore.getCounter(key);
+    }
+
+    @Override
+    public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+        ensureStateEnabled();
+        return defaultStateStore.putAsync(key, value);
     }
 
     @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
-        try {
-            stateContext.put(key, value);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
-        }
+        defaultStateStore.put(key, value);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteStateAsync(String key) {
+        ensureStateEnabled();
+        return defaultStateStore.deleteAsync(key);
+    }
+
+    @Override
+    public void deleteState(String key) {
+        ensureStateEnabled();
+        defaultStateStore.delete(key);
+    }
+
+    @Override
+    public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+        ensureStateEnabled();
+        return defaultStateStore.getAsync(key);
     }
 
     @Override
     public ByteBuffer getState(String key) {
         ensureStateEnabled();
-        try {
-            return stateContext.getValue(key);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
-        }
+        return defaultStateStore.get(key);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object) {
+    public <T> CompletableFuture<Void> publish(String topicName, T object) {
         return publish(topicName, object, "");
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+    public <T> CompletableFuture<Void> publish(String topicName, T object, String schemaOrSerdeClassName) {
+        return publish(topicName, object,
+                (Schema<T>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
-    @SuppressWarnings("unchecked")
-    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
-        Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
-
-        if (producer == null) {
-            try {
-                Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
-                        .schema(schema)
-                        .topic(topicName)
-                        .properties(InstanceUtils.getProperties(componentType,
-                                FunctionDetailsUtils.getFullyQualifiedName(
-                                        this.config.getFunctionDetails().getTenant(),
-                                        this.config.getFunctionDetails().getNamespace(),
-                                        this.config.getFunctionDetails().getName()),
-                                this.config.getInstanceId()))
-                        .create();
-
-                Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
-
-                if (existingProducer != null) {
-                    // The value in the map was not updated after the concurrent put
-                    newProducer.close();
-                    producer = existingProducer;
-                } else {
-                    producer = newProducer;
-                }
-
-            } catch (PulsarClientException e) {
-                logger.error("Failed to create Producer while doing user publish", e);
-                return FutureUtil.failedFuture(e);
-            }
+    @Override
+    public <T> TypedMessageBuilder<T> newOutputMessage(String topicName, Schema<T> schema)
+            throws PulsarClientException {
+        MessageBuilderImpl<T> messageBuilder = new MessageBuilderImpl<>();
+        TypedMessageBuilder<T> typedMessageBuilder;
+        Producer<T> producer = getProducer(topicName, schema);
+        if (schema != null) {
+            typedMessageBuilder = producer.newMessage(schema);
+        } else {
+            typedMessageBuilder = producer.newMessage();
         }
+        messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
+        return messageBuilder;
+    }
 
-        return producer.sendAsync(object).thenApply(msgId -> null);
+    @Override
+    public <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException {
+        return this.client.newConsumer(schema);
+    }
+
+    @Override
+    public <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema) {
+        return FunctionRecord.from(this, schema);
+    }
+
+    @Override
+    public SubscriptionType getSubscriptionType() {
+        return subscriptionType;
+    }
+
+    public <T> CompletableFuture<Void> publish(String topicName, T object, Schema<T> schema) {
+        try {
+            return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
+        } catch (PulsarClientException e) {
+            logger.error("Failed to create Producer while doing user publish", e);
+            return FutureUtil.failedFuture(e);
+        }
     }
 
     @Override
@@ -362,6 +522,69 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         } else {
             userMetricsSummary.labels(userMetricLabels).observe(value);
         }
+    }
+
+    @Override
+    public PulsarClient getPulsarClient() {
+        return client;
+    }
+
+    @Override
+    public ClientBuilder getPulsarClientBuilder() {
+        return clientBuilder;
+    }
+
+    private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
+        Producer<T> producer;
+        if (tlPublishProducers != null) {
+            Map<String, Producer<?>> producerMap = tlPublishProducers.get();
+            if (producerMap == null) {
+                producerMap = new HashMap<>();
+                tlPublishProducers.set(producerMap);
+            }
+            producer = (Producer<T>) producerMap.get(topicName);
+        } else {
+            producer = (Producer<T>) publishProducers.get(topicName);
+        }
+
+        if (producer == null) {
+
+            Producer<T> newProducer = ((ProducerBuilderImpl<T>) producerBuilder.clone())
+                    .schema(schema)
+                    .blockIfQueueFull(true)
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                    .compressionType(CompressionType.LZ4)
+                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                    .messageRouter(FunctionResultRouter.of())
+                    // set send timeout to be infinity to prevent potential deadlock with consumer
+                    // that might happen when consumer is blocked due to unacked messages
+                    .sendTimeout(0, TimeUnit.SECONDS)
+                    .topic(topicName)
+                    .properties(InstanceUtils.getProperties(componentType,
+                            FunctionCommon.getFullyQualifiedName(
+                                    this.config.getFunctionDetails().getTenant(),
+                                    this.config.getFunctionDetails().getNamespace(),
+                                    this.config.getFunctionDetails().getName()),
+                            this.config.getInstanceId()))
+                    .create();
+
+            if (tlPublishProducers != null) {
+                tlPublishProducers.get().put(topicName, newProducer);
+            } else {
+                Producer<T> existingProducer = (Producer<T>) publishProducers.putIfAbsent(topicName, newProducer);
+
+                if (existingProducer != null) {
+                    // The value in the map was not updated after the concurrent put
+                    newProducer.close();
+                    producer = existingProducer;
+                } else {
+                    producer = newProducer;
+                }
+            }
+        }
+        return producer;
     }
 
     public Map<String, Double> getAndResetMetrics() {
@@ -389,5 +612,213 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
         return metricsMap;
+    }
+
+    class MessageBuilderImpl<T> implements TypedMessageBuilder<T> {
+        private TypedMessageBuilder<T> underlyingBuilder;
+
+        @Override
+        public MessageId send() throws PulsarClientException {
+            try {
+                return sendAsync().get();
+            } catch (Exception e) {
+                throw PulsarClientException.unwrap(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<MessageId> sendAsync() {
+            return underlyingBuilder.sendAsync()
+                    .whenComplete((result, cause) -> {
+                        if (null != cause) {
+                            statsManager.incrSysExceptions(cause);
+                            logger.error("Failed to publish to topic with error", cause);
+                        }
+                    });
+        }
+
+        @Override
+        public TypedMessageBuilder<T> key(String key) {
+            underlyingBuilder.key(key);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> keyBytes(byte[] key) {
+            underlyingBuilder.keyBytes(key);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
+            underlyingBuilder.orderingKey(orderingKey);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> value(T value) {
+            underlyingBuilder.value(value);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> property(String name, String value) {
+            underlyingBuilder.property(name, value);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> properties(Map<String, String> properties) {
+            underlyingBuilder.properties(properties);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> eventTime(long timestamp) {
+            underlyingBuilder.eventTime(timestamp);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> sequenceId(long sequenceId) {
+            underlyingBuilder.sequenceId(sequenceId);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> replicationClusters(List<String> clusters) {
+            underlyingBuilder.replicationClusters(clusters);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> disableReplication() {
+            underlyingBuilder.disableReplication();
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
+            underlyingBuilder.loadConf(config);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> deliverAfter(long delay, TimeUnit unit) {
+            underlyingBuilder.deliverAfter(delay, unit);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<T> deliverAt(long timestamp) {
+            underlyingBuilder.deliverAt(timestamp);
+            return this;
+        }
+
+        public void setUnderlyingBuilder(TypedMessageBuilder<T> underlyingBuilder) {
+            this.underlyingBuilder = underlyingBuilder;
+        }
+    }
+
+    @Override
+    public void close() {
+        List<CompletableFuture> futures = new LinkedList<>();
+
+        if (publishProducers != null) {
+            for (Producer<?> producer : publishProducers.values()) {
+                futures.add(producer.closeAsync());
+            }
+        }
+
+        if (tlPublishProducers != null) {
+            for (Producer<?> producer : tlPublishProducers.get().values()) {
+                futures.add(producer.closeAsync());
+            }
+        }
+
+        if (pulsarAdmin != null) {
+            pulsarAdmin.close();
+        }
+
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.warn("Failed to close producers", e);
+        }
+    }
+
+    @Override
+    public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        Consumer<?> consumer = getConsumer(topic, partition);
+        consumer.seek(messageId);
+    }
+
+    @Override
+    public void pause(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).pause();
+    }
+
+    @Override
+    public void resume(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).resume();
+    }
+
+    public void setInputConsumers(List<Consumer<?>> inputConsumers) {
+        this.inputConsumers = inputConsumers;
+        inputConsumers.stream()
+                .flatMap(consumer ->
+                        consumer instanceof MultiTopicsConsumerImpl
+                                ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
+                                : Stream.of(consumer))
+                .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
+    }
+
+    private void reloadConsumersFromMultiTopicsConsumers() {
+        // MultiTopicsConsumer in the list of inputConsumers could change its nested consumers
+        // if ne partition was created or a new topic added that matches subscription pattern.
+        // Let's update topicConsumers map to match.
+        inputConsumers
+                .stream()
+                .flatMap(c ->
+                        c instanceof MultiTopicsConsumerImpl
+                                ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
+                                : Stream.empty() // no changes expected in regular consumers
+                ).forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+    }
+
+    // returns null if consumer not found
+    private Consumer<?> tryGetConsumer(String topic, int partition) {
+        if (partition == 0) {
+            // maybe a non-partitioned topic
+            Consumer<?> consumer = topicConsumers.get(TopicName.get(topic));
+
+            if (consumer != null) {
+                return consumer;
+            }
+        }
+        // maybe partitioned topic
+        return topicConsumers.get(TopicName.get(topic).getPartition(partition));
+    }
+
+    @VisibleForTesting
+    Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
+        if (inputConsumers == null) {
+            throw new PulsarClientException("Getting consumer is not supported");
+        }
+
+        Consumer<?> consumer = tryGetConsumer(topic, partition);
+        if (consumer == null) {
+            // MultiTopicsConsumer's list of consumers could change
+            // if partitions changed or pattern(s) used to subscribe.
+            // Reload and try one more time.
+            reloadConsumersFromMultiTopicsConsumers();
+            consumer = tryGetConsumer(topic, partition);
+        }
+
+        if (consumer != null) {
+            return consumer;
+        }
+        throw new PulsarClientException("Consumer for topic " + topic
+                + " partition " + partition + " is not found");
     }
 }

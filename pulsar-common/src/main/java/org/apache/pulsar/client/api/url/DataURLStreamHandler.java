@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,12 +27,19 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Extension of the {@code URLStreamHandler} class to handle all stream protocol handlers.
+ */
 public class DataURLStreamHandler extends URLStreamHandler {
 
+    /**
+     * Representation of a communications link between the application and a URL.
+     */
     static class DataURLConnection extends URLConnection {
         private boolean parsed = false;
         private String contentType;
@@ -70,7 +77,7 @@ public class DataURLStreamHandler extends URLStreamHandler {
 
                 if (matcher.group("base64") == null) {
                     // Support Urlencode but not decode here because already decoded by URI class.
-                    this.data = matcher.group("data").getBytes();
+                    this.data = matcher.group("data").getBytes(StandardCharsets.UTF_8);
                 } else {
                     this.data = Base64.getDecoder().decode(matcher.group("data"));
                 }

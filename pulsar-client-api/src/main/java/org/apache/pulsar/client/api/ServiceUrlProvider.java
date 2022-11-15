@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * The provider to provide the service url.
  *
- * This allows applications to retrieve the service URL from an external configuration provider and, more importantly,
- * to force the Pulsar client to reconnect if the service URL has been changed.
+ * <p>This allows applications to retrieve the service URL from an external configuration provider and,
+ * more importantly, to force the Pulsar client to reconnect if the service URL has been changed.
  *
- * It can be passed with {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
+ * <p>It can be passed with {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
  */
-public interface ServiceUrlProvider {
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface ServiceUrlProvider extends AutoCloseable {
 
     /**
      * Initialize the service url provider with Pulsar client instance.
      *
-     * This can be used by the provider to force the Pulsar client to reconnect whenever the service url might have
+     * <p>This can be used by the provider to force the Pulsar client to reconnect whenever the service url might have
      * changed. See {@link PulsarClient#updateServiceUrl(String)}.
      *
      * @param client
@@ -46,4 +51,12 @@ public interface ServiceUrlProvider {
      */
     String getServiceUrl();
 
+    /**
+     * Close the resource that the provider allocated.
+     *
+     */
+    @Override
+    default void close() {
+        // do nothing
+    }
 }

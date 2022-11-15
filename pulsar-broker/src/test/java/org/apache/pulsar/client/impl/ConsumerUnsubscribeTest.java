@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.bookkeeper.test.PortManager;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -28,37 +28,35 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker-impl")
 public class ConsumerUnsubscribeTest {
 
     MockBrokerService mockBrokerService;
-    private static final int WEB_SERVICE_PORT = PortManager.nextFreePort();
-    private static final int WEB_SERVICE_TLS_PORT = PortManager.nextFreePort();
-    private static final int BROKER_SERVICE_PORT = PortManager.nextFreePort();
-    private static final int BROKER_SERVICE_TLS_PORT = PortManager.nextFreePort();
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() {
-        mockBrokerService = new MockBrokerService(WEB_SERVICE_PORT, WEB_SERVICE_TLS_PORT, BROKER_SERVICE_PORT,
-                BROKER_SERVICE_TLS_PORT);
+        mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
-        mockBrokerService.stop();
+        if (mockBrokerService != null) {
+            mockBrokerService.stop();
+            mockBrokerService = null;
+        }
     }
 
     @Test
     public void testConsumerUnsubscribeReference() throws Exception {
+        @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
-                .serviceUrl("pulsar://127.0.0.1:" + BROKER_SERVICE_PORT).build();
+                .serviceUrl(mockBrokerService.getBrokerAddress())
+                .build();
 
         Consumer<?> consumer = client.newConsumer().topic("persistent://public/default/t1").subscriptionName("sub1").subscribe();
         consumer.unsubscribe();
 
         assertEquals(client.consumersCount(), 0);
-        client.close();
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
@@ -28,13 +29,14 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PerMessageUnAcknowledgedRedeliveryTest.class);
@@ -47,7 +49,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -148,6 +150,48 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testUnAckedMessageTrackerSize() throws Exception {
+        String key = "testUnAckedMessageTrackerSize";
+        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+        final int totalMessages = 15;
+
+        // 1. producer connect
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        // 2. Create consumer,doesn't set the ackTimeout
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(50).subscriptionType(SubscriptionType.Shared).subscribe();
+
+        // 3. producer publish messages
+        for (int i = 0; i < totalMessages / 3; i++) {
+            String message = messagePredicate + i;
+            log.info("Producer produced: " + message);
+            producer.send(message.getBytes());
+        }
+
+        // 4. Receiver receives the message, doesn't ack
+        Message<byte[]> message = consumer.receive();
+        while (message != null) {
+            String data = new String(message.getData());
+            log.info("Consumer received : " + data);
+            message = consumer.receive(100, TimeUnit.MILLISECONDS);
+        }
+        UnAckedMessageTracker unAckedMessageTracker = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker();
+        long size = unAckedMessageTracker.size();
+        log.info(key + " Unacked Message Tracker size is " + size);
+        // 5. If ackTimeout is not set, UnAckedMessageTracker is a disabled method
+        assertEquals(size, 0);
+        assertTrue(unAckedMessageTracker.add(null));
+        assertTrue(unAckedMessageTracker.remove(null));
+        assertEquals(unAckedMessageTracker.removeMessagesTill(null), 0);
     }
 
     @Test(timeOut = testTimeout)
@@ -360,7 +404,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
         final int numberOfPartitions = 3;
-        admin.tenants().createTenant("prop", new TenantInfo());
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect

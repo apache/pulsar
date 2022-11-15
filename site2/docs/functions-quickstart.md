@@ -1,336 +1,581 @@
 ---
 id: functions-quickstart
 title: Getting started with Pulsar Functions
-sidebar_label: Getting started
+sidebar_label: "Get started"
 ---
 
-This tutorial will walk you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second will run in cluster mode (inside your cluster).
-
-> In local run mode, your Pulsar Function will communicate with your Pulsar cluster but will run outside of the cluster.
+This hands-on tutorial provides step-by-step instructions and examples on how to create and validate functions in a [standalone Pulsar](getting-started-standalone.md), including stateful functions and window functions.
 
 ## Prerequisites
 
-In order to follow along with this tutorial, you'll need to have [Maven](https://maven.apache.org/download.cgi) installed on your machine.
+- JDK 8+. For more details, refer to [Pulsar runtime Java version recommendation](https://github.com/apache/pulsar#pulsar-runtime-java-version-recommendation).
+- Windows OS is not supported.
 
-## Run a standalone Pulsar cluster
+## Start standalone Pulsar 
 
-In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in [standalone](reference-terminology.md#standalone) mode. Follow these steps to start up a standalone cluster:
+1. Start Pulsar locally.
 
-```bash
-$ wget pulsar:binary_release_url
-$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
-$ cd apache-pulsar-{{pulsar:version}}
-$ bin/pulsar standalone \
-  --advertised-address 127.0.0.1
-```
+   ```bash
+   bin/pulsar standalone
+   ```
 
-When running Pulsar in standalone mode, the `public` tenant and `default` namespace will be created automatically for you. That tenant and namespace will be used throughout this tutorial.
+   All the components (including ZooKeeper, BookKeeper, broker, and so on) of a Pulsar service start in order. You can use the `bin/pulsar-admin brokers healthcheck` command to make sure the Pulsar service is up and running.
 
-## Run a Pulsar Function in local run mode
+2. Check the Pulsar binary protocol port.
 
-Let's start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes that new string to another Pulsar topic. Here's the code for the function:
+   ```bash
+   telnet localhost 6650
+   ```
 
-```java
-package org.apache.pulsar.functions.api.examples;
+3. Check the Pulsar Function cluster.
 
-import java.util.function.Function;
+   ```bash
+   bin/pulsar-admin functions-worker get-cluster
+   ```
 
-public class ExclamationFunction implements Function<String, String> {
-    @Override
-    public String apply(String input) {
-        return String.format("%s!", input);
-    }
-}
-```
+   **Output**
 
-A JAR file containing this and several other functions (written in Java) is included with the binary distribution you downloaded above (in the `examples` folder). To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:
+   ```json
+   [{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
+   ```
 
-```bash
-$ bin/pulsar-admin functions localrun \
-  --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --inputs persistent://public/default/exclamation-input \
-  --output persistent://public/default/exclamation-output \
-  --name exclamation
-```
+4. Make sure a public tenant exists.
 
-> #### Multiple input topics allowed
->
-> In the example above, a single topic was specified using the `--inputs` flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here's an example:
->
-> ```bash
-> --inputs topic1,topic2
-> ```
-
-We can open up another shell and use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool to listen for messages on the output topic:
-
-```bash
-$ bin/pulsar-client consume persistent://public/default/exclamation-output \
-  --subscription-name my-subscription \
-  --num-messages 0
-```
-
-> Setting the `--num-messages` flag to 0 means that the consumer will listen on the topic indefinitely (rather than only accepting a certain number of messages).
-
-With a listener up and running, we can open up another shell and produce a message on the input topic that we specified:
-
-```bash
-$ bin/pulsar-client produce persistent://public/default/exclamation-input \
-  --num-produce 1 \
-  --messages "Hello world"
-```
-
-In the output, you should see the following:
-
-```
------ got message -----
-Hello world!
-```
-
-Success! As you can see, the message has been successfully processed by the exclamation function. To shut down the function, simply hit **Ctrl+C**.
-
-Here's what happened:
-
-* The `Hello world` message that we published to the input topic (`persistent://public/default/exclamation-input`) was passed to the exclamation function that we ran on our machine
-* The exclamation function processed the message (providing a result of `Hello world!`) and published the result to the output topic (`persistent://public/default/exclamation-output`).
-* If our exclamation function *hadn't* been running, Pulsar would have durably stored the message data published to the input topic in [Apache BookKeeper](https://bookkeeper.apache.org) until a consumer consumed and acknowledged the message
-
-## Run a Pulsar Function in cluster mode
-
-[Local run mode](#run-a-pulsar-function-in-local-run-mode) is useful for development and experimentation, but if you want to use Pulsar Functions in a real Pulsar deployment, you'll want to run them in **cluster mode**. In this mode, Pulsar Functions run *inside* your Pulsar cluster and are managed using the same [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface that we've been using thus far.
-
-This command, for example, would deploy the same exclamation function we ran locally above *in our Pulsar cluster* (rather than outside it):
-
-```bash
-$ bin/pulsar-admin functions create \
-  --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --inputs persistent://public/default/exclamation-input \
-  --output persistent://public/default/exclamation-output \
-  --name exclamation
-```
-
-You should see `Created successfully` in the output. Now, let's see a list of functions running in our cluster:
-
-```bash
-$ bin/pulsar-admin functions list \
-  --tenant public \
-  --namespace default
-```
-
-We should see just the `exclamation` function listed there. We can also check the status of our deployed function using the `getstatus` command:
-
-```bash
-$ bin/pulsar-admin functions getstatus \
-  --tenant public \
-  --namespace default \
-  --name exclamation
-```
-
-You should see this JSON output:
-
-```json
-{
-  "functionStatusList": [
-    {
-      "running": true,
-      "instanceId": "0"
-    }
-  ]
-}
-```
-
-As we can see, (a) the instance is currently running and (b) there is one instance, with an ID of 0, running. We can get other information about the function (topics, tenant, namespace, etc.) using the `get` command instead of `getstatus`:
-
-```bash
-$ bin/pulsar-admin functions get \
-  --tenant public \
-  --namespace default \
-  --name exclamation
-```
-
-You should see this JSON output:
-
-```json
-{
-  "tenant": "public",
-  "namespace": "default",
-  "name": "exclamation",
-  "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
-  "output": "persistent://public/default/exclamation-output",
-  "autoAck": true,
-  "inputs": [
-    "persistent://public/default/exclamation-input"
-  ],
-  "parallelism": 1
-}
-```
-
-As we can see, the parallelism of the function is 1, meaning that only one instance of the function is running in our cluster. Let's update our function to a parallelism of 3 using the `update` command:
-
-```bash
-$ bin/pulsar-admin functions update \
-  --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --inputs persistent://public/default/exclamation-input \
-  --output persistent://public/default/exclamation-output \
-  --tenant public \
-  --namespace default \
-  --name exclamation \
-  --parallelism 3
-```
-
-You should see `Updated successfully` in the output. If you run the `get` command from above for the function, you can see that the parallelism has increased to 3, meaning that there are now three instances of the function running in our cluster:
-
-```json
-{
-  "tenant": "public",
-  "namespace": "default",
-  "name": "exclamation",
-  "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
-  "output": "persistent://public/default/exclamation-output",
-  "autoAck": true,
-  "inputs": [
-    "persistent://public/default/exclamation-input"
-  ],
-  "parallelism": 3
-}
-```
-
-Finally, we can shut down our running function using the `delete` command:
-
-```bash
-$ bin/pulsar-admin functions delete \
-  --tenant public \
-  --namespace default \
-  --name exclamation
-```
-
-If you see `Deleted successfully` in the output, then you've succesfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.
-
-## Writing and running a new function
-
-> In order to write and run the [Python](functions-api.md#functions-for-python) function below, you'll need to install a few dependencies:
-> ```bash
-> $ pip install pulsar-client
-> ```
-
-In the above examples, we ran and managed a pre-written Pulsar Function and saw how it worked. To really get our hands dirty, let's write and our own function from scratch, using the Python API. This simple function will also take a string as input but it will reverse the string and publish the resulting, reversed string to the specified topic.
-
-First, create a new Python file:
-
-```bash
-$ touch reverse.py
-```
-
-In that file, add the following:
-
-```python
-def process(input):
-    return input[::-1]
-```
-
-Here, the `process` method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using `create`:
-
-```bash
-$ bin/pulsar-admin functions create \
-  --py reverse.py \
-  --classname reverse \
-  --inputs persistent://public/default/backwards \
-  --output persistent://public/default/forwards \
-  --tenant public \
-  --namespace default \
-  --name reverse
-```
+   ```bash
+   bin/pulsar-admin tenants list
+   ```
 
-If you see `Created successfully`, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can **trigger** the function using the [`trigger`](reference-pulsar-admin.md#trigger) command. This command will send a message that we specify to the function and also give us the function's output. Here's an example:
+   **Output**
 
-```bash
-$ bin/pulsar-admin functions trigger \
-  --name reverse \
-  --tenant public \
-  --namespace default \
-  --trigger-value "sdrawrof won si tub sdrawkcab saw gnirts sihT"
-```
+   ```json
+   "public"
+   ```
 
-You should get this output:
+5. Make sure a default namespace exists.
 
-```
-This string was backwards but is now forwards
-```
+   ```bash
+   bin/pulsar-admin namespaces list public
+   ```
 
-Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode) and successfully triggered the function. If you're ready for more, check out one of these docs:
+   **Output**
 
-## Packaging python dependencies
+   ```json
+   "public/default"
+   ```
 
-For python functions requiring dependencies to be deployable in pulsar worker instances in an offline manner, we need to package the artifacts as below.
+6. Make sure the table service is enabled successfully.
 
+   ```bash
+   telnet localhost 4181
+   ```
 
-#### Client Requirements
+   **Output**
 
-Following programs are required to be installed on the client machine
+   ```text
+   Trying ::1...
+   telnet: connect to address ::1: Connection refused
+   Trying 127.0.0.1...
+   Connected to localhost.
+   Escape character is '^]'.
+   ```
 
-```
-pip \\ rquired for getting python dependencies
-zip \\ for building zip archives
-```
+## Start functions
 
-#### Python Dependencies
+:::note
 
-A file named **requirements.txt** is needed with required dependencies for the python function
+Before starting functions, you need to [start Pulsar](#start-standalone-pulsar).
 
+:::
 
-```
-sh==1.12.14
-```
+1. Create a tenant and a namespace.
 
-Prepare the pulsar function in folder called **src**.
+   ```bash
+   bin/pulsar-admin tenants create test
+   bin/pulsar-admin namespaces create test/test-namespace
+   ```
 
-Run the following command to gather the python dependencies in the folder caller **deps**
+2. In the same terminal window as step 1, verify the tenant and the namespace.
 
-```
-pip download \
---only-binary :all: \
---platform manylinux1_x86_64 \
---python-version 27 \
---implementation cp \
---abi cp27m -r requirements.txt -d deps
+   ```bash
+   bin/pulsar-admin namespaces list test
+   ```
+ 
+   **Output**
 
-```
+   This output shows that both tenant and namespace are created successfully.
 
-Sample ouptut
+   ```text
+   "test/test-namespace"
+   ```
 
-```
-Collecting sh==1.12.14 (from -r requirements.txt (line 1))
-  Using cached https://files.pythonhosted.org/packages/4a/22/17b22ef5b049f12080f5815c41bf94de3c229217609e469001a8f80c1b3d/sh-1.12.14-py2.py3-none-any.whl
-  Saved ./deps/sh-1.12.14-py2.py3-none-any.whl
-Successfully downloaded sh
-```
-
-**Note** pulsar-client is not needed as a dependency as it already installed in the worker node.
-
-
-#### Packaging
-Create a destination folder with the desired pacaking name eg : **exclamation**, copy **src** and **deps** folder into it and finally compress the folder into a zip archive.
-
-Sample sequence
-
-```
-cp -R deps exclamation/
-cp -R src exclamation/
-
-ls -la exclamation/
-total 7
-drwxr-xr-x   5 a.ahmed  staff  160 Nov  6 17:51 .
-drwxr-xr-x  12 a.ahmed  staff  384 Nov  6 17:52 ..
-drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 deps
-drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 src
-
-zip -r exclamation.zip exclamation
-```
-
-Archive **exclamation.zip** can we deployed as function into a pulsar worker, the worker does not need internet connectivity to download packages as they are all included in the zip file.
-
-
-* [The Pulsar Functions API](functions-api.md)
-* [Deploying Pulsar Functions](functions-deploying.md)
+3. In the same terminal window as step 1, create a function named `examples`.
+
+   :::tip
+
+   You can see both the `example-function-config.yaml` and `api-examples.jar` files under the `examples` folder of the Pulsar’s directory on your local machine.
+
+   :::
+
+   ```bash
+   bin/pulsar-admin functions create \
+   --function-config-file examples/example-function-config.yaml \
+   --jar examples/api-examples.jar
+   ```
+
+   **Output**
+
+   ```text
+   Created Successfully
+   ```
+
+4. In the same terminal window as step 1, verify the function's configurations.
+
+   ```bash
+   bin/pulsar-admin functions get \
+   --tenant test \
+   --namespace test-namespace \
+   --name example
+   ```
+
+   **Output**
+
+   ```text
+   {
+     "tenant": "test",
+     "namespace": "test-namespace",
+     "name": "example",
+     "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
+     "userConfig": "{\"PublishTopic\":\"test_result\"}",
+     "autoAck": true,
+     "parallelism": 1,
+     "source": {
+       "topicsToSerDeClassName": {
+         "test_src": ""
+       },
+       "typeClassName": "java.lang.String"
+     },
+     "sink": {
+       "topic": "test_result",
+       "typeClassName": "java.lang.String"
+     },
+     "resources": {}
+   }
+   ```
+
+5. In the same terminal window as step 1, verify the function's status.
+
+   ```bash
+   bin/pulsar-admin functions status \
+   --tenant test \
+   --namespace test-namespace \
+   --name example
+   ```
+
+   **Output**
+
+   `"running": true` shows that the function is running.
+    
+   ```text
+   {
+     "numInstances" : 1,
+     "numRunning" : 1,
+     "instances" : [ {
+       "instanceId" : 0,
+       "status" : {
+         "running" : true,
+         "error" : "",
+         "numRestarts" : 0,
+         "numReceived" : 0,
+         "numSuccessfullyProcessed" : 0,
+         "numUserExceptions" : 0,
+         "latestUserExceptions" : [ ],
+         "numSystemExceptions" : 0,
+         "latestSystemExceptions" : [ ],
+         "averageLatency" : 0.0,
+         "lastInvocationTime" : 0,
+         "workerId" : "c-standalone-fw-localhost-8080"
+       }
+     } ]
+   }
+   ```
+
+6. In the same terminal window as step 1, subscribe to the **output topic** `test_result`.
+
+   ```bash
+   bin/pulsar-client consume -s test-sub -n 0 test_result
+   ```
+
+7. In a new terminal window, produce messages to the **input topic** `test_src`.
+
+   ```bash
+   bin/pulsar-client produce -m "test-messages-`date`" -n 10 test_src
+   ```
+
+8.  In the same terminal window as step 1, the messages produced by the `example` function are returned. 
+
+   **Output**
+
+   ```text
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ```
+
+## Start stateful functions
+
+The standalone mode of Pulsar enables BookKeeper table service for stateful functions. For more information, see [Configure state storage](functions-develop-state.md).
+
+The following example provides instructions to validate counter functions.
+
+:::note
+
+Before starting stateful functions, you need to [start Pulsar](#start-standalone-pulsar).
+
+:::
+
+1. Create a function named `word_count`.
+
+   ```bash
+   bin/pulsar-admin functions create \
+   --function-config-file examples/example-function-config.yaml \
+   --jar examples/api-examples.jar \
+   --name word_count \
+   --className org.apache.pulsar.functions.api.examples.WordCountFunction \
+   --inputs test_wordcount_src \
+   --output test_wordcount_dest
+   ```
+
+   **Output**
+
+   ```text
+   Created Successfully
+   ```
+
+2. In the same terminal window as step 1, get the information of the `word_count` function.
+
+   ```bash
+   bin/pulsar-admin functions get \
+   --tenant test \
+   --namespace test-namespace \
+   --name word_count
+   ```
+
+   **Output**
+
+   ```text
+   {
+     "tenant": "test",
+     "namespace": "test-namespace",
+     "name": "word_count",
+     "className": "org.apache.pulsar.functions.api.examples.WordCountFunction",
+     "inputSpecs": {
+       "test_wordcount_src": {
+         "isRegexPattern": false
+       }
+     },
+     "output": "test_wordcount_dest",
+     "processingGuarantees": "ATLEAST_ONCE",
+     "retainOrdering": false,
+     "userConfig": {
+       "PublishTopic": "test_result"
+     },
+     "runtime": "JAVA",
+     "autoAck": true,
+     "parallelism": 1,
+     "resources": {
+       "cpu": 1.0,
+       "ram": 1073741824,
+       "disk": 10737418240
+     },
+     "cleanupSubscription": true
+   }
+   ```
+
+3. In the same terminal window as step 1, get the status of the `word_count` function.
+
+   ```bash
+   bin/pulsar-admin functions status \
+   --tenant test \
+   --namespace test-namespace\
+   --name word_count
+   ```
+
+   **Output**
+
+   ```text
+   {
+     "numInstances" : 1,
+     "numRunning" : 1,
+     "instances" : [ {
+       "instanceId" : 0,
+       "status" : {
+         "running" : true,
+          "error" : "",
+          "numRestarts" : 0,
+          "numReceived" : 0,
+          "numSuccessfullyProcessed" : 0,
+          "numUserExceptions" : 0,
+          "latestUserExceptions" : [ ],
+          "numSystemExceptions" : 0,
+          "latestSystemExceptions" : [ ],
+          "averageLatency" : 0.0,
+          "lastInvocationTime" : 0,
+          "workerId" : "c-standalone-fw-localhost-8080"
+       }
+     } ]
+   }
+   ```
+
+4. In the same terminal window as step 1, query the state table for the function with the key `hello`. This operation watches the changes associated with `hello`.
+
+   ```bash
+   bin/pulsar-admin functions querystate \
+   --tenant test \
+   --namespace test-namespace \
+   --name word_count -k hello -w
+   ```
+
+   :::tip
+    
+   For more information about the `pulsar-admin functions querystate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](/tools/pulsar-admin/).
+
+   :::
+
+   **Output**
+
+   ```text
+   key 'hello' doesn't exist.
+   key 'hello' doesn't exist.
+   key 'hello' doesn't exist.
+   ...
+   ```
+
+5. In a new terminal window, produce 10 messages with `hello` to the **input topic** `test_wordcount_src` using one of the following methods. The value of `hello` is updated to 10.
+
+   * **Method 1**
+
+     ```bash
+     bin/pulsar-client produce -m "hello" -n 10 test_wordcount_src
+     ```
+
+   * **Method 2**
+
+     ```bash
+     bin/pulsar-admin functions putstate \
+     --tenant test \
+     --namespace test-namespace \
+     --name word_count hello-word \
+     ```
+
+     :::tip
+      
+     For more information about the `pulsar-admin functions putstate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](/tools/pulsar-admin/).
+    
+     :::
+
+6. In the same terminal window as step 1, check the result. 
+
+   The result shows that the **output topic** `test_wordcount_dest` receives the messages.
+
+   **Output**
+
+   ```json
+   {
+     "key": "hello",
+     "numberValue": 10,
+     "version": 9
+   }
+   ```
+
+7. In the terminal window as step 5, produce another 10 messages with `hello`. The value of `hello` is updated to 20.
+
+   ```bash
+   bin/pulsar-client produce -m "hello" -n 10 test_wordcount_src
+   ```
+
+8. In the same terminal window as step 1, check the result. 
+
+   The result shows that the **output topic** `test_wordcount_dest` receives the value of 20.
+
+   ```text
+   value = 10
+   value = 20
+   ```
+
+## Start window functions
+
+Window functions are a special form of Pulsar Functions. For more information, see [concepts](functions-concepts.md#window-function).
+
+:::note
+
+Before starting window functions, you need to [start Pulsar](#start-standalone-pulsar).
+
+:::
+
+1. Create a tenant and a namespace.
+
+   ```bash
+   bin/pulsar-admin tenants create test
+   bin/pulsar-admin namespaces create test/test-namespace
+   ```
+
+2. In the same terminal window as step 1, verify the tenant and the namespace.
+
+   ```bash
+   bin/pulsar-admin namespaces list test
+   ```
+ 
+   **Output**
+
+   This output shows that both tenant and namespace are created successfully.
+
+   ```text
+   "test/test-namespace"
+   ```
+
+3. In the same terminal window as step 1, create a function named `example`.
+
+   :::tip
+
+   You can see both `example-window-function-config.yaml` and `api-examples.jar` files under the `examples` folder of the Pulsar’s directory on your local machine.
+
+   :::
+
+   ```bash
+   bin/pulsar-admin functions create --function-config-file \
+   examples/example-window-function-config.yaml \
+   --jar examples/api-examples.jar
+   ```
+
+   **Output**
+
+   ```text
+   Created Successfully
+   ```
+
+4. In the same terminal window as step 1, verify the function's configurations.
+
+   ```bash
+   bin/pulsar-admin functions get \
+   --tenant test \
+   --namespace test-namespace \
+   --name example
+   ```
+
+   **Output**
+
+   ```text
+   {
+     "tenant": "test",
+     "namespace": "test-namespace",
+     "name": "example",
+     "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
+     "userConfig": "{\"PublishTopic\":\"test_result\"}",
+     "autoAck": true,
+     "parallelism": 1,
+     "source": {
+       "topicsToSerDeClassName": {
+         "test_src": ""
+       },
+       "typeClassName": "java.lang.String"
+     },
+     "sink": {
+       "topic": "test_result",
+       "typeClassName": "java.lang.String"
+     },
+     "resources": {}
+   }
+   ```
+
+5. In the same terminal window as step 1, verify the function’s status.
+
+   ```bash
+   bin/pulsar-admin functions status \
+   --tenant test \
+   --namespace test-namespace \
+   --name example
+   ```
+
+   **Output**
+
+   `"running": true` shows that the function is running.
+    
+   ```text
+   {
+     "numInstances" : 1,
+     "numRunning" : 1,
+     "instances" : [ {
+       "instanceId" : 0,
+       "status" : {
+         "running" : true,
+         "error" : "",
+         "numRestarts" : 0,
+         "numReceived" : 0,
+         "numSuccessfullyProcessed" : 0,
+         "numUserExceptions" : 0,
+         "latestUserExceptions" : [ ],
+         "numSystemExceptions" : 0,
+         "latestSystemExceptions" : [ ],
+         "averageLatency" : 0.0,
+         "lastInvocationTime" : 0,
+         "workerId" : "c-standalone-fw-localhost-8080"
+       }
+     } ]
+   }
+   ```
+
+6. In the same terminal window as step 1, subscribe to the **output topic** `test_result`.
+
+   ```bash
+   bin/pulsar-client consume -s test-sub -n 0 test_result
+   ```
+
+7. In a new terminal window, produce messages to the **input topic** `test_src`.
+
+   ```bash
+   bin/pulsar-client produce -m "test-messages-`date`" -n 10 test_src
+   ```
+
+8. In the same terminal window as step 1, the messages produced by the window function `example` are returned. 
+
+   **Output**
+
+   ```text
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ----- got message -----
+   test-messages-Thu Jul 19 11:59:15 PDT 2021!
+   ```

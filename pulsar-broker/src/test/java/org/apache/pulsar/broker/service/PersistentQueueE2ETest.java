@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,20 +31,26 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,21 +58,18 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-
-/**
- */
+@Test(groups = "broker")
 public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
@@ -104,7 +107,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertTrue(subRef.getDispatcher().isConsumerConnected());
         assertEquals(subRef.getDispatcher().getType(), SubType.Shared);
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMsgs * 2);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -117,7 +120,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
 
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs * 2);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs * 2);
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         // both consumers will together consumer all messages
@@ -141,7 +144,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         // 3. messages deleted on individual acks
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
 
         // 4. shared consumer unsubscribe not allowed
         try {
@@ -187,7 +190,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final String subName = "sub3";
         final int numMsgs = 100;
 
-        final List<String> messagesProduced = Lists.newArrayListWithCapacity(numMsgs);
+        final List<String> messagesProduced = new ArrayList<>(numMsgs);
         final List<String> messagesConsumed = new BlockingArrayQueue<>(numMsgs);
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -204,10 +207,10 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
-                    // do notthing
+                    // do nothing
                 }).subscribe();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMsgs * 2);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "msg-" + i;
@@ -280,7 +283,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             }
         }).subscribe();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMsgs);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs * 3; i++) {
             String message = "msg-" + i;
@@ -296,8 +299,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
          * i.e. each consumer will get 130 messages. In the 14th round, the balance is 411 - 130*3 = 21. Two consumers
          * will get another batch of 10 messages (Total: 140) and the 3rd one will get the last one (Total: 131)
          */
-        assertTrue(CollectionUtils.subtract(Lists.newArrayList(140, 140, 131),
-                Lists.newArrayList(counter1.get(), counter2.get(), counter3.get())).isEmpty());
+        assertTrue(CollectionUtils.subtract(List.of(140, 140, 131),
+                List.of(counter1.get(), counter2.get(), counter3.get())).isEmpty());
 
         consumer1.close();
         consumer2.close();
@@ -493,15 +496,15 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             consumer1.acknowledge(msgId);
         }
 
-        TopicStats stats = admin.topics().getStats(topicName);
-
-        // Unacked messages count should be 0 for both consumers at this point
-        SubscriptionStats subStats = stats.subscriptions.get(subName);
-        assertEquals(subStats.msgBacklog, 0);
-
-        for (ConsumerStats cs : subStats.consumers) {
-            assertEquals(cs.unackedMessages, 0);
-        }
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats stats = admin.topics().getStats(topicName);
+            // Unacked messages count should be 0 for both consumers at this point
+            SubscriptionStats subStats = stats.getSubscriptions().get(subName);
+            assertEquals(subStats.getMsgBacklog(), 0);
+            for (ConsumerStats cs : subStats.getConsumers()) {
+                assertEquals(cs.getUnackedMessages(), 0);
+            }
+        });
 
         producer.close();
         consumer1.close();

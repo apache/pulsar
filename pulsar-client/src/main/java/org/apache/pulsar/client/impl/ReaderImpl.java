@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,43 +21,76 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
+@Slf4j
 public class ReaderImpl<T> implements Reader<T> {
-
+    private static final BatchReceivePolicy DISABLED_BATCH_RECEIVE_POLICY = BatchReceivePolicy.builder()
+            .timeout(0, TimeUnit.MILLISECONDS)
+            .maxNumMessages(1)
+            .build();
     private final ConsumerImpl<T> consumer;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                      ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
-
-        String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
-        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
-            subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
+                      ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture,
+                      Schema<T> schema) {
+        String subscription;
+        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
+            subscription = readerConfiguration.getSubscriptionName();
+        } else {
+            subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+            if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
+                subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
+            }
         }
 
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
+        consumerConfiguration.setSubscriptionMode(SubscriptionMode.NonDurable);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+        consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
+
+        // chunking configuration
+        consumerConfiguration.setMaxPendingChunkedMessage(readerConfiguration.getMaxPendingChunkedMessage());
+        consumerConfiguration.setAutoAckOldestChunkedMessageOnQueueFull(
+                readerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull());
+        consumerConfiguration.setExpireTimeOfIncompleteChunkedMessageMillis(
+                readerConfiguration.getExpireTimeOfIncompleteChunkedMessageMillis());
+
+        // Reader doesn't need any batch receiving behaviours
+        // disable the batch receive timer for the ConsumerImpl instance wrapped by the ReaderImpl
+        consumerConfiguration.setBatchReceivePolicy(DISABLED_BATCH_RECEIVE_POLICY);
+
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
+        }
+
+        if (readerConfiguration.isResetIncludeHead()) {
+            consumerConfiguration.setResetIncludeHead(true);
         }
 
         if (readerConfiguration.getReaderListener() != null) {
@@ -83,9 +116,22 @@ public class ReaderImpl<T> implements Reader<T> {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
+        if (readerConfiguration.getKeyHashRanges() != null) {
+            consumerConfiguration.setKeySharedPolicy(
+                KeySharedPolicy
+                    .stickyHashRange()
+                    .ranges(readerConfiguration.getKeyHashRanges())
+            );
+        }
+
+        ConsumerInterceptors<T> consumerInterceptors =
+                ReaderInterceptorUtil.convertToConsumerInterceptors(
+                        this, readerConfiguration.getReaderInterceptorList());
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
-        consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
-                partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null);
+        consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
+                executorProvider, partitionIdx, false, false, consumerFuture,
+                readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
+                schema, consumerInterceptors, true /* createTopicIfDoesNotExist */);
     }
 
     @Override
@@ -108,7 +154,11 @@ public class ReaderImpl<T> implements Reader<T> {
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
-        consumer.acknowledgeCumulativeAsync(msg);
+        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+            log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                    getConsumer().getSubscription(), msg.getMessageId(), ex);
+            return null;
+        });
         return msg;
     }
 
@@ -117,17 +167,31 @@ public class ReaderImpl<T> implements Reader<T> {
         Message<T> msg = consumer.receive(timeout, unit);
 
         if (msg != null) {
-            consumer.acknowledgeCumulativeAsync(msg);
+            consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                        getConsumer().getSubscription(), msg.getMessageId(), ex);
+                return null;
+            });
         }
         return msg;
     }
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        return consumer.receiveAsync().thenApply(msg -> {
-            consumer.acknowledgeCumulativeAsync(msg);
+        CompletableFuture<Message<T>> originalFuture = consumer.receiveAsync();
+        CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
+            consumer.acknowledgeCumulativeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.error("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                                getConsumer().getSubscription(), msg.getMessageId(), ex);
+                        return null;
+                    });
             return msg;
         });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
     }
 
     @Override
@@ -153,5 +217,35 @@ public class ReaderImpl<T> implements Reader<T> {
     @Override
     public boolean isConnected() {
         return consumer.isConnected();
+    }
+
+    @Override
+    public void seek(MessageId messageId) throws PulsarClientException {
+        consumer.seek(messageId);
+    }
+
+    @Override
+    public void seek(long timestamp) throws PulsarClientException {
+        consumer.seek(timestamp);
+    }
+
+    @Override
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        consumer.seek(function);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return consumer.seekAsync(function);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(MessageId messageId) {
+        return consumer.seekAsync(messageId);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(long timestamp) {
+        return consumer.seekAsync(timestamp);
     }
 }

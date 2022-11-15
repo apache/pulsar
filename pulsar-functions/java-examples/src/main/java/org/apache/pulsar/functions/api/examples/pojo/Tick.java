@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,11 @@
 package org.apache.pulsar.functions.api.examples.pojo;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 /**
- * Pojo to represent a stock tick
+ * Pojo to represent a stock tick.
  */
 @Data
-@ToString
-@EqualsAndHashCode
 public class Tick {
 
     private long timeStamp;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,34 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 /**
  * Unit tests of {@link ConsumerBuilderImpl}.
@@ -42,7 +55,7 @@ public class ConsumerBuilderImplTest {
     private static final String TOPIC_NAME = "testTopicName";
     private ConsumerBuilderImpl consumerBuilderImpl;
 
-    @BeforeTest
+    @BeforeMethod(alwaysRun = true)
     public void setup() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
@@ -52,11 +65,29 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test
+    public void testMaxAcknowledgmentGroupSizeInvalid() {
+        try {
+            consumerBuilderImpl.maxAcknowledgmentGroupSize(0);
+            fail("Should throw exception");
+        } catch (IllegalArgumentException e) {
+            // expect exception
+            assertEquals(e.getMessage(), "acknowledgementsGroupSize needs to be > 0");
+        }
+    }
+
+    @Test
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
         when(consumerBuilderImpl.subscribeAsync())
                 .thenReturn(CompletableFuture.completedFuture(consumer));
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenSchemaIsNull() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
+        new ConsumerBuilderImpl(client, consumerConfigurationData, null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -118,6 +149,29 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoKeyReader(null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullString() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader((String) null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyString() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName").defaultCryptoKeyReader("");
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader((Map<String, String>) null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader(new HashMap<String, String>());
     }
 
     @Test(expectedExceptions = NullPointerException.class)
@@ -198,7 +252,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testConsumerBuilderImplWhenPropertiesIsEmpty() {
         Map<String, String> properties = new HashMap<>();
 
@@ -220,4 +274,100 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionTopicsMode(null);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenNegativeAckRedeliveryDelayPropertyIsNegative() {
+        consumerBuilderImpl.negativeAckRedeliveryDelay(-1, TimeUnit.MILLISECONDS);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPriorityLevelPropertyIsNegative() {
+        consumerBuilderImpl.priorityLevel(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenMaxTotalReceiverQueueSizeAcrossPartitionsPropertyIsNegative() {
+        consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodInMinutesIsNegative() {
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodIsNegative() {
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(-1, TimeUnit.MINUTES);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenBatchReceivePolicyIsNull() {
+        consumerBuilderImpl.batchReceivePolicy(null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenBatchReceivePolicyIsNotValid() {
+        consumerBuilderImpl.batchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(0)
+                .maxNumBytes(0)
+                .timeout(0, TimeUnit.MILLISECONDS)
+                .build());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testRedeliverCountOfDeadLetterPolicy() {
+        consumerBuilderImpl.deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(0)
+                .deadLetterTopic("test-dead-letter-topic")
+                .retryLetterTopic("test-retry-letter-topic")
+                .build());
+    }
+
+    @Test
+    public void testNullDeadLetterPolicy() {
+        consumerBuilderImpl.deadLetterPolicy(null);
+        verify(consumerBuilderImpl.getConf()).setDeadLetterPolicy(null);
+    }
+
+    @Test
+    public void testConsumerBuilderImplWhenNumericPropertiesAreValid() {
+        consumerBuilderImpl.negativeAckRedeliveryDelay(1, TimeUnit.MILLISECONDS);
+        consumerBuilderImpl.priorityLevel(1);
+        consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(1);
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(1);
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testConsumerMode() {
+        consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+    }
+
+    @Test
+    public void testNegativeAckRedeliveryBackoff() {
+        consumerBuilderImpl.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(10 * 1000)
+                .build());
+    }
+
+    @Test
+    public void testStartPaused() {
+        consumerBuilderImpl.startPaused(true);
+        verify(consumerBuilderImpl.getConf()).setStartPaused(true);
+    }
+
+    @Test
+    public void testTopicConsumerBuilder() {
+        List<TopicConsumerConfigurationData> topicConsumerConfigurationDataList = new ArrayList<>();
+        when(consumerBuilderImpl.getConf().getTopicConfigurations()).thenReturn(topicConsumerConfigurationDataList);
+
+        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern.compile("foo")).priorityLevel(1).build();
+
+        assertThat(consumerBuilder).isSameAs(consumerBuilderImpl);
+        assertThat(topicConsumerConfigurationDataList).hasSize(1);
+        TopicConsumerConfigurationData topicConsumerConfigurationData = topicConsumerConfigurationDataList.get(0);
+        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo")).isTrue();
+        assertThat(topicConsumerConfigurationData.getPriorityLevel()).isEqualTo(1);
+    }
 }

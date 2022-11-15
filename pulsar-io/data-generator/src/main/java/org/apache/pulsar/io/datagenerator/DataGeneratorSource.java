@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,35 +19,26 @@
 package org.apache.pulsar.io.datagenerator;
 
 import io.codearte.jfairy.Fairy;
+import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.util.Map;
-import java.util.Optional;
-
-
 public class DataGeneratorSource implements Source<Person> {
+
+    private Fairy fairy;
+    private DataGeneratorSourceConfig dataGeneratorSourceConfig;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-
+        dataGeneratorSourceConfig = DataGeneratorSourceConfig.loadOrGetDefault(config);
+        this.fairy = Fairy.create();
     }
 
     @Override
     public Record<Person> read() throws Exception {
-        Thread.sleep(50);
-        return new Record<Person>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.empty();
-            }
-
-            @Override
-            public Person getValue() {
-                return new Person(Fairy.create().person());
-            }
-        };
+        Thread.sleep(dataGeneratorSourceConfig.getSleepBetweenMessages());
+        return () -> new Person(fairy.person());
     }
 
     @Override

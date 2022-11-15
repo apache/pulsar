@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,39 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
-
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
+import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
+ *
  */
-public abstract class AbstractDispatcherMultipleConsumers {
+public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDispatcher {
 
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
     protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
-    protected int currentConsumerRoundRobinIndex = 0;
+    protected volatile int currentConsumerRoundRobinIndex = 0;
 
     protected static final int FALSE = 0;
     protected static final int TRUE = 1;
-    protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
+    protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER =
+            AtomicIntegerFieldUpdater
+                    .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+
+    private Random random = new Random(42);
+
+    protected AbstractDispatcherMultipleConsumers(Subscription subscription, ServiceConfiguration serviceConfig) {
+        super(subscription, serviceConfig);
+    }
+
     public boolean isConsumerConnected() {
         return !consumerList.isEmpty();
     }
@@ -51,11 +63,17 @@ public abstract class AbstractDispatcherMultipleConsumers {
         return consumerList.size() == 1 && consumerSet.contains(consumer);
     }
 
+    public boolean isClosed() {
+        return isClosed == TRUE;
+    }
+
     public SubType getType() {
         return SubType.Shared;
     }
 
     public abstract boolean isConsumerAvailable(Consumer consumer);
+
+    protected void cancelPendingRead() {}
 
     /**
      * <pre>
@@ -66,7 +84,8 @@ public abstract class AbstractDispatcherMultipleConsumers {
      * have permits, else broker will consider next priority level consumers.
      * Also on the same priority-level, it selects consumer in round-robin manner.
      * <p>
-     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2 then broker will dispatch
+     * If subscription has consumer-A with  priorityLevel 1 and Consumer-B with priorityLevel 2
+     * then broker will dispatch
      * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
      * <p>
      * Consumer PriorityLevel Permits
@@ -85,8 +104,10 @@ public abstract class AbstractDispatcherMultipleConsumers {
      *
      * Each time getNextConsumer() is called:<p>
      * 1. It always starts to traverse from the max-priority consumer (first element) from sorted-list
-     * 2. Consumers on same priority-level will be treated equally and it tries to pick one of them in round-robin manner
-     * 3. If consumer is not available on given priority-level then only it will go to the next lower priority-level consumers
+     * 2. Consumers on same priority-level will be treated equally and it tries to pick one of them in
+     *    round-robin manner
+     * 3. If consumer is not available on given priority-level then only it will go to the next lower priority-level
+     *    consumers
      * 4. Returns null in case it doesn't find any available consumer
      * </pre>
      *
@@ -126,8 +147,23 @@ public abstract class AbstractDispatcherMultipleConsumers {
     }
 
     /**
-     * Finds index of first available consumer which has higher priority then given targetPriority
-     * 
+     * Get random consumer from consumerList.
+     *
+     * @return null if no consumer available, else return random consumer from consumerList
+     */
+    public Consumer getRandomConsumer() {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
+            // abort read if no consumers are connected of if disconnect is initiated
+            return null;
+        }
+
+        return consumerList.get(random.nextInt(consumerList.size()));
+    }
+
+
+    /**
+     * Finds index of first available consumer which has higher priority then given targetPriority.
+     *
      * @param targetPriority
      * @return -1 if couldn't find any available consumer
      */
@@ -146,9 +182,10 @@ public abstract class AbstractDispatcherMultipleConsumers {
     }
 
     /**
-     * Finds index of round-robin available consumer that present on same level as consumer on currentRoundRobinIndex if
-     * doesn't find consumer on same level then it finds first available consumer on lower priority level else returns
-     * index=-1 if couldn't find any available consumer in the list
+     * Finds index of round-robin available consumer that present on same level as consumer on
+     * currentRoundRobinIndex if doesn't find consumer on same level then it finds first available consumer on lower
+     * priority level else returns
+     * index=-1 if couldn't find any available consumer in the list.
      *
      * @param currentRoundRobinIndex
      * @return
@@ -186,8 +223,8 @@ public abstract class AbstractDispatcherMultipleConsumers {
     }
 
     /**
-     * Finds index of first consumer in list which has same priority as given targetPriority
-     * 
+     * Finds index of first consumer in list which has same priority as given targetPriority.
+     *
      * @param targetPriority
      * @return
      */
@@ -199,5 +236,8 @@ public abstract class AbstractDispatcherMultipleConsumers {
         }
         return -1;
     }
+
+    private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
+
 
 }

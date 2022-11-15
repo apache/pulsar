@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,39 +18,45 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyDataTest {
 
     @Test
     public void testAutoFailoverPolicyData() {
-        AutoFailoverPolicyData policy0 = new AutoFailoverPolicyData();
-        AutoFailoverPolicyData policy1 = new AutoFailoverPolicyData();
-        policy0.policy_type = AutoFailoverPolicyType.min_available;
-        policy0.parameters = new HashMap<>();
-        policy0.parameters.put("min_limit", "3");
-        policy0.parameters.put("usage_threshold", "10");
-        policy1.policy_type = AutoFailoverPolicyType.min_available;
-        policy1.parameters = new HashMap<>();
-        policy1.parameters.put("min_limit", "3");
-        policy1.parameters.put("usage_threshold", "10");
+        Map<String, String> p1parameters = new HashMap<>();
+        p1parameters.put("min_limit", "3");
+        p1parameters.put("usage_threshold", "10");
+
+        Map<String, String> p2parameters = new HashMap<>();
+        p2parameters.put("min_limit", "3");
+        p2parameters.put("usage_threshold", "10");
+
+        AutoFailoverPolicyData policy0 = AutoFailoverPolicyData.builder()
+                .policyType(AutoFailoverPolicyType.min_available)
+                .parameters(p1parameters)
+                .build();
+        AutoFailoverPolicyData policy1 = AutoFailoverPolicyData.builder()
+                .policyType(AutoFailoverPolicyType.min_available)
+                .parameters(p2parameters)
+                .build();
+
         try {
             policy0.validate();
             policy1.validate();
         } catch (Exception e) {
             fail("Should not happen");
         }
-        assertTrue(policy0.equals(policy1));
-        policy1.parameters.put("min_limit", "5");
-        assertFalse(policy0.equals(policy1));
-        assertFalse(policy1.equals(new OldPolicies()));
+        assertEquals(policy1, policy0);
+        p1parameters.put("min_limit", "5");
+        assertNotEquals(policy1, policy0);
+        assertNotEquals(new OldPolicies(), policy1);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import lombok.experimental.UtilityClass;
 
 /**
@@ -31,7 +30,7 @@ public class NamedEntity {
     // allowed characters for property, namespace, cluster and topic names are
     // alphanumeric (a-zA-Z_0-9) and these special chars -=:.
     // % is allowed as part of valid URL encoding
-    private static final Pattern NAMED_ENTITY_PATTERN = Pattern.compile("^[-=:.\\w]*$");
+    public static final Pattern NAMED_ENTITY_PATTERN = Pattern.compile("^[-=:.\\w]*$");
 
     public static void checkName(String name) throws IllegalArgumentException {
         Matcher m = NAMED_ENTITY_PATTERN.matcher(name);

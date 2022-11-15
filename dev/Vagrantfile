@@ -82,6 +82,7 @@ Vagrant.configure("2") do |config|
     yum update -y
     yum install -y kernel-devel
     yum install -y kernel-headers
+    yum install -y unzip zip
     yum install -y wget vim java-1.8.0-openjdk-devel maven docker gcc-c++
   SHELL
 end

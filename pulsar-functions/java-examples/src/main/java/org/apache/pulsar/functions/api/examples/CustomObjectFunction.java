@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 
 /**
- * Function that deals with custom objects
+ * Function that deals with custom objects.
  */
 public class CustomObjectFunction implements Function<CustomObject, CustomObject> {
 

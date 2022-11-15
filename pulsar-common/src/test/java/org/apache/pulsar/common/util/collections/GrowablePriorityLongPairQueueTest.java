@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -33,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 import org.testng.annotations.Test;
 
@@ -161,6 +163,7 @@ public class GrowablePriorityLongPairQueueTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -188,13 +191,12 @@ public class GrowablePriorityLongPairQueueTest {
         }
 
         assertEquals(queue.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         GrowablePriorityLongPairQueue map = new GrowablePriorityLongPairQueue();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -222,8 +224,6 @@ public class GrowablePriorityLongPairQueueTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
@@ -234,7 +234,7 @@ public class GrowablePriorityLongPairQueueTest {
 
         queue.add(0l, 0l);
 
-        assertTrue(queue.items().iterator().next().equals(new LongPair(0l, 0l)));
+        assertEquals(new LongPair(0l, 0l), queue.items().iterator().next());
 
         queue.remove(0l, 0l);
 
@@ -267,7 +267,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
                 new LongPair(6, 6), new LongPair(7, 7)));
 
-        List<LongPair> removeList = Lists.newArrayList();
+        List<LongPair> removeList = new ArrayList<>();
         queue.forEach((first, second) -> {
             System.out.println(first + "," + second);
             if (first < 5) {
@@ -334,8 +334,8 @@ public class GrowablePriorityLongPairQueueTest {
         long t2 = 2;
         long t1_b = 1;
         assertEquals(t1, t1_b);
-        assertFalse(t1 == t2);
-        assertFalse(t1_b == t2);
+        assertNotEquals(t2, t1);
+        assertNotEquals(t2, t1_b);
         queue.add(t1, t1);
         assertTrue(queue.remove(t1_b, t1_b));
     }
@@ -382,5 +382,5 @@ public class GrowablePriorityLongPairQueueTest {
         assertFalse(queue.exists(7, 1));
 
     }
-    
+
 }

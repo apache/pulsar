@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,6 +39,9 @@ import log
 import util
 import InstanceCommunication_pb2
 
+# state dependencies
+import state_context
+
 from functools import partial
 from collections import namedtuple
 from function_stats import Stats
@@ -67,15 +69,28 @@ def base64ify(bytes_or_str):
         return output_bytes
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples,
-               expected_healthcheck_interval, user_code, pulsar_client, secrets_provider, cluster_name):
+  def __init__(self,
+               instance_id,
+               function_id,
+               function_version,
+               function_details,
+               max_buffered_tuples,
+               expected_healthcheck_interval,
+               user_code,
+               pulsar_client,
+               secrets_provider,
+               cluster_name,
+               state_storage_serviceurl):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
-    self.queue = queue.Queue(max_buffered_tuples)
+    # set queue size to one since consumers already have internal queues. Just use queue to communicate message from
+    # consumers to processing thread
+    self.queue = queue.Queue(1)
     self.log_topic_handler = None
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
+    self.state_storage_serviceurl = state_storage_serviceurl
     self.input_serdes = {}
     self.consumers = {}
     self.output_serde = None
@@ -85,12 +100,14 @@ class PythonInstance(object):
     self.execution_thread = None
     self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
     self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.manual = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('MANUAL')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
     self.secrets_provider = secrets_provider
+    self.state_context = state_context.NullStateContext()
     self.metrics_labels = [function_details.tenant,
                            "%s/%s" % (function_details.tenant, function_details.namespace),
                            function_details.name,
@@ -111,14 +128,20 @@ class PythonInstance(object):
       sys.exit(1)
 
   def run(self):
+    # Setup state
+    self.state_context = self.setup_state()
+
     # Setup consumers and input deserializers
     mode = pulsar._pulsar.ConsumerType.Shared
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
-    subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
-                        str(self.instance_config.function_details.namespace) + "/" + \
-                        str(self.instance_config.function_details.name)
+    subscription_name = self.instance_config.function_details.source.subscriptionName    
+
+    if not (subscription_name and subscription_name.strip()):
+      subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
+                          str(self.instance_config.function_details.namespace) + "/" + \
+                          str(self.instance_config.function_details.name)
 
     properties = util.get_properties(util.getFullyQualifiedFunctionName(
                         self.instance_config.function_details.tenant,
@@ -133,6 +156,7 @@ class PythonInstance(object):
         serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
       Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
@@ -148,21 +172,25 @@ class PythonInstance(object):
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
       Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
+      consumer_args = {
+        "consumer_type": mode,
+        "message_listener": partial(self.message_listener, self.input_serdes[topic]),
+        "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
+        "properties": properties
+      }
+      if consumer_conf.HasField("receiverQueueSize"):
+        consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
+
       if consumer_conf.isRegexPattern:
         self.consumers[topic] = self.pulsar_client.subscribe(
           re.compile(str(topic)), subscription_name,
-          consumer_type=mode,
-          message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
-          properties=properties
+          **consumer_args
         )
       else:
         self.consumers[topic] = self.pulsar_client.subscribe(
           str(topic), subscription_name,
-          consumer_type=mode,
-          message_listener=partial(self.message_listener, self.input_serdes[topic]),
-          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
-          properties=properties
+          **consumer_args
         )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
@@ -176,7 +204,8 @@ class PythonInstance(object):
 
     self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client,
                                                self.user_code, self.consumers,
-                                               self.secrets_provider, self.metrics_labels)
+                                               self.secrets_provider, self.metrics_labels,
+                                               self.state_context, self.stats)
     # Now launch a thread that does execution
     self.execution_thread = threading.Thread(target=self.actual_execution)
     self.execution_thread.start()
@@ -223,6 +252,8 @@ class PythonInstance(object):
         except Exception as e:
           Log.exception("Exception while executing user method")
           self.stats.incr_total_user_exceptions(e)
+          # If function throws exception then send neg ack for input message back to broker
+          msg.consumer.negative_acknowledge(msg.message)
 
         if self.log_topic_handler is not None:
           log.remove_all_handlers()
@@ -234,10 +265,20 @@ class PythonInstance(object):
       except Exception as e:
         Log.error("Uncaught exception in Python instance: %s" % e);
         self.stats.incr_total_sys_exceptions(e)
+        if msg:
+          msg.consumer.negative_acknowledge(msg.message)
 
-  def done_producing(self, consumer, orig_message, result, sent_message):
-    if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
-      consumer.acknowledge(orig_message)
+  def done_producing(self, consumer, orig_message, topic, result, sent_message):
+    if result == pulsar.Result.Ok:
+      if self.auto_ack and self.atleast_once:
+        consumer.acknowledge(orig_message)
+    else:
+      error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, orig_message.message_id())
+      Log.error(error_msg)
+      self.stats.incr_total_sys_exceptions(Exception(error_msg))
+      # If producer fails send output then send neg ack for input message back to broker
+      consumer.negative_acknowledge(orig_message)
+
 
   def process_result(self, output, msg):
     if output is not None and self.instance_config.function_details.sink.topic != None and \
@@ -252,7 +293,7 @@ class PythonInstance(object):
 
       if output_bytes is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
+        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
 
@@ -271,21 +312,36 @@ class PythonInstance(object):
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
 
+      batch_type = pulsar.BatchingType.Default
+      if self.instance_config.function_details.sink.producerSpec.batchBuilder != None and \
+            len(self.instance_config.function_details.sink.producerSpec.batchBuilder) > 0:
+        batch_builder = self.instance_config.function_details.sink.producerSpec.batchBuilder
+        if batch_builder == "KEY_BASED":
+          batch_type = pulsar.BatchingType.KeyBased
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
-        batching_max_publish_delay_ms=1,
+        batching_type=batch_type,
+        batching_max_publish_delay_ms=10,
+        compression_type=pulsar.CompressionType.LZ4,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
-        max_pending_messages=100000,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
                         self.instance_config.function_details.tenant,
                         self.instance_config.function_details.namespace,
                         self.instance_config.function_details.name),
                         self.instance_config.instance_id)
       )
+
+  def setup_state(self):
+    table_ns = "%s_%s" % (str(self.instance_config.function_details.tenant),
+                          str(self.instance_config.function_details.namespace))
+    table_ns = table_ns.replace("-", "_")
+    table_name = str(self.instance_config.function_details.name)
+    return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
 
   def message_listener(self, serde, consumer, message):
     # increment number of received records from source

@@ -1,51 +1,84 @@
 ---
 id: admin-api-namespaces
 title: Managing Namespaces
-sidebar_label: Namespaces
+sidebar_label: "Namespaces"
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
+
+:::tip
+
+ This page only shows **some frequently used operations**.
+
+ - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
+ 
+ - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+ 
+ - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+ 
+:::
 
 Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of [topics](reference-terminology.md#topic).
 
 Namespaces can be managed via:
 
-* The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
+* The `namespaces` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool
 * The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
-* The `namespaces` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
+* The `namespaces` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 ## Namespaces resources
 
-### Create
+### Create namespaces
 
 You can create new namespaces under a given [tenant](reference-terminology.md#tenant).
 
-#### pulsar-admin
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`create`](reference-pulsar-admin.md#namespaces-create) subcommand and specify the namespace by name:
+Use the [`create`](/tools/pulsar-admin/) subcommand and specify the namespace by name:
 
 ```shell
-$ pulsar-admin namespaces create test-tenant/test-namespace
+pulsar-admin namespaces create test-tenant/test-namespace
 ```
 
-#### REST API
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace?version=@pulsar:version_number@}
 
-#### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().createNamespace(namespace);
 ```
 
+</TabItem>
+
+</Tabs>
+````
+
 ### Get policies
 
 You can fetch the current policies associated with a namespace at any time.
 
-#### pulsar-admin
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`policies`](reference-pulsar-admin.md#namespaces-policies) subcommand and specify the namespace:
+Use the [`policies`](/tools/pulsar-admin/) subcommand and specify the namespace:
 
 ```shell
-$ pulsar-admin namespaces policies test-tenant/test-namespace
+pulsar-admin namespaces policies test-tenant/test-namespace
 {
   "auth_policies": {
     "namespace_auth": {},
@@ -69,155 +102,213 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 }
 ```
 
-#### REST API
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies?version=@pulsar:version_number@}
 
-#### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getPolicies(namespace);
 ```
 
-### List namespaces within a tenant
+</TabItem>
+
+</Tabs>
+````
+
+### List namespaces
 
 You can list all namespaces within a given Pulsar [tenant](reference-terminology.md#tenant).
 
-#### pulsar-admin
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`list`](reference-pulsar-admin.md#namespaces-list) subcommand and specify the tenant:
+Use the [`list`](/tools/pulsar-admin/) subcommand and specify the tenant:
 
 ```shell
-$ pulsar-admin namespaces list test-tenant
+pulsar-admin namespaces list test-tenant
 test-tenant/ns1
 test-tenant/ns2
 ```
 
-#### REST API
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces?version=@pulsar:version_number@}
 
-#### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getNamespaces(tenant);
 ```
 
+</TabItem>
 
-### Delete
+</Tabs>
+````
+
+### Delete namespaces
 
 You can delete existing namespaces from a tenant.
 
-#### pulsar-admin
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`delete`](reference-pulsar-admin.md#namespaces-delete) subcommand and specify the namespace:
+Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the namespace:
 
 ```shell
-$ pulsar-admin namespaces delete test-tenant/ns1
+pulsar-admin namespaces delete test-tenant/ns1
 ```
 
-#### REST
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace?version=@pulsar:version_number@}
 
-#### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().deleteNamespace(namespace);
 ```
 
+</TabItem>
 
-#### set replication cluster
+</Tabs>
+````
 
-It sets replication clusters for a namespace, so Pulsar can internally replicate publish message from one colo to another colo.
+### Configure replication clusters
 
-###### CLI
+#### Set replication cluster
 
+You can set replication clusters for a namespace to enable Pulsar to internally replicate the published messages from one colocation facility to another.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-clusters test-tenant/ns1 \
+--clusters cl1
 ```
-$ pulsar-admin namespaces set-clusters test-tenant/ns1 \
-  --clusters cl1
-```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters}
-```
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
 ```
 
-#### get replication cluster
+</TabItem>
 
-It gives a list of replication clusters for a given namespace.
+</Tabs>
+````
 
-###### CLI
+#### Get replication cluster
 
+You can get the list of replication clusters for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-clusters test-tenant/cl1/ns1
 ```
-$ pulsar-admin namespaces get-clusters test-tenant/cl1/ns1
-```
 
-```
+```shell
 cl2
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/replication|operation/getNamespaceReplicationClusters}
-```
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replication|operation/getNamespaceReplicationClusters?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getNamespaceReplicationClusters(namespace)
 ```
 
-#### set backlog quota policies
+</TabItem>
 
-Backlog quota helps broker to restrict bandwidth/storage of a namespace once it reach certain threshold limit . Admin can set this limit and one of the following action after the limit is reached.
+</Tabs>
+````
 
-  1.  producer_request_hold: broker will hold and not persist produce request payload
+### Configure backlog quota policies
 
-  2.  producer_exception: broker will disconnects with client by giving exception
+#### Set backlog quota policies
 
-  3.  consumer_backlog_eviction: broker will start discarding backlog messages
+Backlog quota helps the broker to restrict bandwidth/storage of a namespace once it reaches a certain threshold limit. Admin can set the limit and take the corresponding action after the limit is reached.
 
-  Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage
+  1.  producer_request_hold: the producer holds the message and retries until client configuration `sendTimeoutMs` is exceeded
 
-###### CLI
+  2.  producer_exception: the producer throws an exception when trying to send a message
 
+  3.  consumer_backlog_eviction: broker starts discarding backlog messages
+
+Backlog quota restriction can be taken care of by defining the restriction of backlog-quota-type: destination_storage.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-backlog-quota --limit 10G --limitTime 36000 --policy producer_request_hold test-tenant/ns1
 ```
-$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-tenant/ns1
-```
 
-```
-N/A
-```
+</TabItem>
+<TabItem value="REST API">
 
-###### REST
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/setBacklogQuota?version=@pulsar:version_number@}
 
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuota|operation/setBacklogQuota}
-```
-
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
-admin.namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, policy))
+admin.namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, limitTime, policy))
 ```
 
-#### get backlog quota policies
+</TabItem>
 
-It shows a configured backlog quota for a given namespace.
+</Tabs>
+````
 
-###### CLI
+#### Get backlog quota policies
 
-```
-$ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
+You can get a configured backlog quota for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 ```
 
 ```json
@@ -229,47 +320,59 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 }
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap|operation/getBacklogQuotaMap}
-```
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getBacklogQuotaMap(namespace);
 ```
 
-#### remove backlog quota policies
+</TabItem>
 
-It removes backlog quota policies for a given namespace
+</Tabs>
+````
 
-###### CLI
+#### Remove backlog quota policies
 
+You can remove backlog quota policies for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces remove-backlog-quota test-tenant/ns1
 ```
-$ pulsar-admin namespaces remove-backlog-quota test-tenant/ns1
-```
 
-```
-N/A
-```
+</TabItem>
+<TabItem value="REST API">
 
-###### REST
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=@pulsar:version_number@}
 
-```
-{@inject: endpoint|DELETE|/admin/v2/namespaces/{tenant}/{namespace}/backlogQuota|operation/removeBacklogQuota}
-```
-
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 ```
 
-#### set persistence policies
+</TabItem>
 
-Persistence policies allow to configure persistency-level for all topic messages under a given namespace.
+</Tabs>
+````
+
+### Configure persistence policies
+
+#### Set persistence policies
+
+Persistence policies allow users to configure persistency-level for all topic messages under a given namespace.
 
   -   Bookkeeper-ack-quorum: Number of acks (guaranteed copies) to wait for each entry, default: 0
 
@@ -279,37 +382,45 @@ Persistence policies allow to configure persistency-level for all topic messages
 
   -   Ml-mark-delete-max-rate: Throttling rate of mark-delete operation (0 means no throttle), default: 0.0
 
-###### CLI
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-```
-$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
-```
-
-```
-N/A
-```
-
-###### REST
-
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/persistence|operation/setPersistence}
+```shell
+pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
 ```
 
-###### Java
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().setPersistence(namespace,new PersistencePolicies(bookkeeperEnsemble, bookkeeperWriteQuorum,bookkeeperAckQuorum,managedLedgerMaxMarkDeleteRate))
 ```
 
+</TabItem>
 
-#### get persistence policies
+</Tabs>
+````
 
-It shows configured persistence policies of a given namespace.
+#### Get persistence policies
 
-###### CLI
+You can get the configured persistence policies of a given namespace.
 
-```
-$ pulsar-admin namespaces get-persistence test-tenant/ns1
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-persistence test-tenant/ns1
 ```
 
 ```json
@@ -321,216 +432,302 @@ $ pulsar-admin namespaces get-persistence test-tenant/ns1
 }
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/persistence|operation/getPersistence}
-```
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getPersistence(namespace)
 ```
 
+</TabItem>
 
-#### unload namespace bundle
+</Tabs>
+````
 
-Namespace bundle is a virtual group of topics which belong to same namespace. If broker gets overloaded with number of bundles then this command can help to unload heavy bundle from that broker, so it can be served by some other less loaded broker. Namespace bundle is defined with it’s start and end range such as 0x00000000 and 0xffffffff.
+### Configure namespace bundles
 
-###### CLI
+#### Unload namespace bundles
 
+A namespace bundle is a virtual group of topics that belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload a bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
 ```
-$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
-```
 
-```
-N/A
-```
+</TabItem>
+<TabItem value="REST API">
 
-###### REST
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/:bundle/unload|operation/unloadNamespaceBundle?version=@pulsar:version_number@}
 
-```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/unload|operation/unloadNamespaceBundle}
-```
-
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 ```
 
+</TabItem>
 
-#### set message-ttl
+</Tabs>
+````
 
-It configures message’s time to live (in seconds) duration.
+#### Split namespace bundles
 
-###### CLI
+One namespace bundle can contain multiple topics but can be served by only one broker. If a single bundle is creating an excessive load on a broker, an admin can split the bundle using the command below, permitting one or more of the new bundles to be unloaded, thus balancing the load across the brokers.
 
-```
-$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/ns1
-```
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-```
-N/A
-```
-
-###### REST
-
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/setNamespaceMessageTTL}
+```shell
+pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
 ```
 
-###### Java
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/:bundle/split|operation/splitNamespaceBundle?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().splitNamespaceBundle(namespace, bundle)
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+### Configure message TTL
+
+#### Set message-ttl
+
+You can configure the time to live (in seconds) duration for messages. In the example below, the message-ttl is set as 100s.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/ns1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().setNamespaceMessageTTL(namespace, messageTTL)
 ```
 
-#### get message-ttl
+</TabItem>
 
-It gives a message ttl of configured namespace.
+</Tabs>
+````
 
-###### CLI
+#### Get message-ttl
 
-```
-$ pulsar-admin namespaces get-message-ttl test-tenant/ns1
+When the message-ttl for a namespace is set, you can use the command below to get the configured value. This example comtinues the example of the command `set message-ttl`, so the returned value is 100(s).
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-message-ttl test-tenant/ns1
 ```
 
 ```
 100
 ```
 
+</TabItem>
+<TabItem value="REST API">
 
-###### REST
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=@pulsar:version_number@}
 
-```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/messageTTL|operation/getNamespaceMessageTTL}
-```
-
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
-
-#### split bundle
-
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. If bundle gets heavy with multiple live topics in it then it creates load on that broker and in order to resolve this issue, admin can split bundle using this command.
-
-###### CLI
-
 ```
-$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
+100
 ```
 
-```
-N/A
+</TabItem>
+
+</Tabs>
+````
+
+#### Remove message-ttl
+
+Remove a message TTL of the configured namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces remove-message-ttl test-tenant/ns1
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split|operation/splitNamespaceBundle}
-```
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
-admin.namespaces().splitNamespaceBundle(namespace, bundle)
+admin.namespaces().removeNamespaceMessageTTL(namespace)
 ```
 
+</TabItem>
 
-#### clear backlog
+</Tabs>
+````
 
-It clears all message backlog for all the topics those belong to specific namespace. You can also clear backlog for a specific subscription as well.
 
-###### CLI
+### Clear backlog
 
+#### Clear namespace backlog
+
+It clears all message backlogs for all the topics that belong to a specific namespace. You can also clear backlogs for a specific subscription as well.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/ns1
 ```
-$ pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/ns1
-```
 
-```
-N/A
-```
+</TabItem>
+<TabItem value="REST API">
 
-###### REST
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/clearBacklog|operation/clearNamespaceBacklogForSubscription?version=@pulsar:version_number@}
 
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/clearBacklog|operation/clearNamespaceBacklogForSubscription}
-```
-
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 ```
 
+</TabItem>
 
-#### clear bundle backlog
+</Tabs>
+````
 
-It clears all message backlog for all the topics those belong to specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
+#### Clear bundle backlog
 
-###### CLI
+It clears all message backlogs for all the topics that belong to a specific NamespaceBundle. You can also clear backlogs for a specific subscription as well.
 
-```
-$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-tenant/ns1
-```
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-```
-N/A
-```
-
-###### REST
-
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription}
+```shell
+pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-tenant/ns1
 ```
 
-###### Java
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/:bundle/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle, subscription)
-```
-
-
-#### set retention
-
-Each namespace contains multiple topics and each topic’s retention size (storage size) should not exceed to a specific threshold or it should be stored till certain time duration. This command helps to configure retention size and time of topics in a given namespace.
-
-###### CLI
 
 ```
-$ pulsar-admin set-retention --size 10 --time 100 test-tenant/ns1
+
+</TabItem>
+
+</Tabs>
+````
+
+### Configure retention
+
+#### Set retention
+
+Each namespace contains multiple topics and the retention size (storage size) of each topic should not exceed a specific threshold or it should be stored for a certain period. This command helps configure the retention size and time of topics in a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-retention --size 100 --time 10 test-tenant/ns1
 ```
 
-```
-N/A
-```
+</TabItem>
+<TabItem value="REST API">
 
-###### REST
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=@pulsar:version_number@}
 
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/retention|operation/setRetention}
-```
-
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().setRetention(namespace, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB))
 ```
 
+</TabItem>
 
-#### get retention
+</Tabs>
+````
 
-It shows retention information of a given namespace.
+#### Get retention
 
-###### CLI
+It shows the retention information of a given namespace.
 
-```
-$ pulsar-admin namespaces get-retention test-tenant/ns1
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-retention test-tenant/ns1
 ```
 
 ```json
@@ -540,54 +737,80 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 }
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/retention|operation/getRetention}
-```
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getRetention(namespace)
 ```
 
-#### set dispatch throttling
+</TabItem>
 
-It sets message dispatch rate for all the topics under a given namespace.
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
-dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
+</Tabs>
+````
+
+### Configure dispatch throttling for topics
+
+#### Set dispatch throttling for topics
+
+It sets the message dispatch rate for all the topics under a given namespace. The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`). The dispatch rate is in second and it can be configured with `dispatch-rate-period`. The default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 
-###### CLI
+:::note
 
-```
-$ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
-  --msg-dispatch-rate 1000 \
-  --byte-dispatch-rate 1048576 \
-  --dispatch-rate-period 1
+- If neither `clusterDispatchRate` nor `topicDispatchRate` is configured, dispatch throttling is disabled.
+- If `topicDispatchRate` is not configured, `clusterDispatchRate` takes effect.
+- If `topicDispatchRate` is configured, `topicDispatchRate` takes effect.
+
+:::
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
+--msg-dispatch-rate 1000 \
+--byte-dispatch-rate 1048576 \
+--dispatch-rate-period 1
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/dispatchRate|operation/setDispatchRate}
-```
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/setDispatchRate?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
-admin.namespaces().setDispatchRate(namespace, 1000, 1048576, 1)
+admin.namespaces().setDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
 ```
 
-#### get configured message-rate
+</TabItem>
 
-It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+</Tabs>
+````
 
-###### CLI
+#### Get configured message-rate for topics
 
-```
-$ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
+It shows the configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 ```
 
 ```json
@@ -598,45 +821,413 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 }
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/dispatchRate|operation/getDispatchRate}
-```
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/getDispatchRate?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().getDispatchRate(namespace)
 ```
 
+</TabItem>
+
+</Tabs>
+````
+
+### Configure dispatch throttling for subscription
+
+#### Set dispatch throttling for subscription
+
+It sets the message dispatch rate for all the subscriptions of topics under a given namespace. The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`). The dispatch rate is in second and it can be configured with `dispatch-rate-period`. The default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
+disables the throttling.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/ns1 \
+--msg-dispatch-rate 1000 \
+--byte-dispatch-rate 1048576 \
+--dispatch-rate-period 1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/setDispatchRate?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().setSubscriptionDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Get configured message-rate for subscription
+
+It shows the configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second).
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
+```
+
+```json
+{
+  "dispatchThrottlingRatePerTopicInMsg" : 1000,
+  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "ratePeriodInSecond" : 1
+}
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/getDispatchRate?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().getSubscriptionDispatchRate(namespace)
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+### Configure dispatch throttling for replicators
+
+#### Set dispatch throttling for replicators
+
+It sets the message dispatch rate for all the replicators between replication clusters under a given namespace. The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`). The dispatch rate is in second and it can be configured with `dispatch-rate-period`. The default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which disables the throttling.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/ns1 \
+--msg-dispatch-rate 1000 \
+--byte-dispatch-rate 1048576 \
+--dispatch-rate-period 1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/setDispatchRate?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().setReplicatorDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Get configured message-rate for replicators
+
+It shows the configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
+```
+
+```json
+{
+  "dispatchThrottlingRatePerTopicInMsg" : 1000,
+  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "ratePeriodInSecond" : 1
+}
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/getDispatchRate?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().getReplicatorDispatchRate(namespace)
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+### Configure deduplication snapshot interval
+
+#### Get deduplication snapshot interval
+
+It shows the configured `deduplicationSnapshotInterval` for a namespace (Each topic under the namespace will take a deduplication snapshot according to this interval)
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces get-deduplication-snapshot-interval test-tenant/ns1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval|operation/getDeduplicationSnapshotInterval?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().getDeduplicationSnapshotInterval(namespace)
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Set deduplication snapshot interval
+
+Set the configured `deduplicationSnapshotInterval` for a namespace. Each topic under the namespace will take a deduplication snapshot according to this interval. `brokerDeduplicationEnabled` must be set to `true` for this property to take effect.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces set-deduplication-snapshot-interval test-tenant/ns1 --interval 1000
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval|operation/setDeduplicationSnapshotInterval?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().setDeduplicationSnapshotInterval(namespace, 1000)
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Remove deduplication snapshot interval
+
+Remove configured `deduplicationSnapshotInterval` of a namespace (Each topic under the namespace will take a deduplication snapshot according to this interval).
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin namespaces remove-deduplication-snapshot-interval test-tenant/ns1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval|operation/deleteDeduplicationSnapshotInterval?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
+```
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Namespace isolation
 
-Coming soon.
+You can use the [Pulsar isolation policy](administration-isolation.md) to allocate resources (broker and bookie) for a namespace. 
 
-### Unloading from a broker
+### Unload namespaces from a broker
 
 You can unload a namespace, or a [namespace bundle](reference-terminology.md#namespace-bundle), from the Pulsar [broker](reference-terminology.md#broker) that is currently responsible for it.
 
 #### pulsar-admin
 
-Use the [`unload`](reference-pulsar-admin.md#unload) subcommand of the [`namespaces`](reference-pulsar-admin.md#namespaces) command.
+Use the [`unload`](/tools/pulsar-admin/) subcommand of the [`namespaces`](/tools/pulsar-admin/) command.
 
-###### CLI
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```shell
-$ pulsar-admin namespaces unload my-tenant/my-ns
+pulsar-admin namespaces unload my-tenant/my-ns
 ```
 
-###### REST
+</TabItem>
+<TabItem value="REST API">
 
-```
-{@inject: endpoint|PUT|/admin/v2/namespaces/{tenant}/{namespace}/unload|operation/unloadNamespace}
-```
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/unload|operation/unloadNamespace?version=@pulsar:version_number@}
 
-###### Java
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.namespaces().unload(namespace)
 ```
+
+</TabItem>
+
+</Tabs>
+````
+### Configure entry filters policy
+
+#### Set entry filters policy
+
+Entry filter helps with filtering message on server side.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```
+
+$ pulsar-admin namespaces set-entry-filters --desc "The description of the entry filter to be used for user help."  
+--entry-filters-name "The class name for the entry filter." --entry-filters-dir "The directory for all the entry filter implementations." test-tenant/ns1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/entryFilters|operation/setEntryFilters?
+version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+admin.namespaces().setEntryFilters(namespace, new EntryFilters("desc", "classes name", "class files localtion"))
+
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Get entry filters policies
+
+You can get a configured entry filter for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```
+
+$ pulsar-admin namespaces get-entry-filters test-tenant/ns1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/entryFilters|operation/getEntryFilters?
+version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+admin.namespaces().getEntryFilters(namespace);
+
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Remove entry filters policies
+
+You can remove entry filters policies for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```
+
+$ pulsar-admin namespaces remove-entry-filters test-tenant/ns1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/entryFilters|operation/removeEntryFilters?
+version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+admin.namespaces().removeEntryFilters(namespace)
+
+```
+
+</TabItem>
+
+</Tabs>
+````

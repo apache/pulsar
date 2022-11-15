@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,64 +18,53 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic avro schema.
  */
-class GenericAvroSchema extends GenericSchema {
+@Slf4j
+public class GenericAvroSchema extends GenericSchemaImpl {
 
-    private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> datumWriter;
-    private BinaryEncoder encoder;
-    private final ByteArrayOutputStream byteArrayOutputStream;
-    private final GenericDatumReader<org.apache.avro.generic.GenericRecord> datumReader;
+    public static final String OFFSET_PROP = "__AVRO_READ_OFFSET__";
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
+        this(schemaInfo, true);
+    }
+
+    GenericAvroSchema(SchemaInfo schemaInfo,
+                      boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo);
-        this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
-        this.datumWriter = new GenericDatumWriter(schema);
-        this.datumReader = new GenericDatumReader(schema);
-    }
+        setReader(new MultiVersionGenericAvroReader(useProvidedSchemaAsReaderSchema, schema));
+        setWriter(new GenericAvroWriter(schema));
 
-    @Override
-    public synchronized byte[] encode(GenericRecord message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericAvroRecord gar = (GenericAvroRecord) message;
-        try {
-            datumWriter.write(gar.getAvroRecord(), this.encoder);
-            this.encoder.flush();
-            return this.byteArrayOutputStream.toByteArray();
-        } catch (Exception e) {
-            throw new SchemaSerializationException(e);
-        } finally {
-            this.byteArrayOutputStream.reset();
+        if (schemaInfo.getProperties().containsKey(GenericAvroSchema.OFFSET_PROP)) {
+            this.schema.addProp(GenericAvroSchema.OFFSET_PROP,
+                    schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
         }
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
-        try {
-            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
-            org.apache.avro.generic.GenericRecord avroRecord = datumReader.read(
-                null,
-                decoder);
-            return new GenericAvroRecord(schema, fields, avroRecord);
-        } catch (IOException e) {
-            throw new SchemaSerializationException(e);
-        }
+    public GenericRecordBuilder newRecordBuilder() {
+        return new AvroRecordBuilderImpl(this);
     }
 
+    @Override
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    @Override
+    public org.apache.pulsar.client.api.Schema<GenericRecord> clone() {
+        org.apache.pulsar.client.api.Schema<GenericRecord> schema =
+                GenericAvroSchema.of(schemaInfo,
+                        ((AbstractMultiVersionGenericReader) reader).useProvidedSchemaAsReaderSchema);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
+    }
 }

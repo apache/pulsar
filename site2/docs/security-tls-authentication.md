@@ -1,111 +1,128 @@
 ---
 id: security-tls-authentication
 title: Authentication using TLS
-sidebar_label: Authentication using TLS
+sidebar_label: "Authentication using TLS"
 ---
 
-## TLS Authentication Overview
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md), but instead of only servers having keys and certs which the client uses to verify the server's identity, clients also have keys and certs which the server uses to verify the client's identity. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
+## TLS authentication overview
 
-### Creating client certificates
+TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
-Client certificates are generated using the same certificate authority as was used to generate the server certificates.
+## Create client certificates
 
-The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client will be authenticated as.
+Client certificates are generated using the certificate authority. Server certificates are also generated with the same certificate authority.
 
-First generate the key.
-```bash
-$ openssl genrsa -out admin.key.pem 2048
-```
+The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** that the client is authenticated as.
 
-Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so convert it.
+To use client certificates, you need to set `tlsRequireTrustedClientCertOnConnect=true` at the broker side. For details, refer to [TLS broker configuration](security-tls-transport.md#configure-brokers).
 
-```bash
-$ openssl pkcs8 -topk8 -inform PEM -outform PEM \
-      -in admin.key.pem -out admin.key-pk8.pem -nocrypt
-```
-
-Generate the certificate request. When asked for a **common name**, enter the **role token** which you want this key pair to authenticate a client as.
+First, you need to enter the following command to generate the key :
 
 ```bash
-$ openssl req -config openssl.cnf \
-      -key admin.key.pem -new -sha256 -out admin.csr.pem
+openssl genrsa -out admin.key.pem 2048
 ```
 
-Sign with request with the certificate authority. Note that that client certs uses the **usr_cert** extension, which allows the cert to be used for client authentication.
+Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so you need to convert it by entering the following command:
 
 ```bash
-$ openssl ca -config openssl.cnf -extensions usr_cert \
-      -days 1000 -notext -md sha256 \
-      -in admin.csr.pem -out admin.cert.pem
+openssl pkcs8 -topk8 -inform PEM -outform PEM \
+    -in admin.key.pem -out admin.key-pk8.pem -nocrypt
 ```
 
-This will give you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`, which, with `ca.cert.pem`, can be used by clients to authenticate themselves to brokers and proxies as the role token ``admin``.
+Next, enter the command below to generate the certificate request. When you are asked for a **common name**, enter the **role token** that you want this key pair to authenticate a client as.
 
-## Enabling TLS Authentication ...
+```bash
+openssl req -config openssl.cnf \
+    -key admin.key.pem -new -sha256 -out admin.csr.pem
+```
 
-### ... on Brokers
+:::note
 
-To configure brokers to authenticate clients, put the following in `broker.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#broker-configuration):
+If `openssl.cnf` is not specified, read [Certificate authority](security-tls-transport.md#create-a-certificate-authority) to get `openssl.cnf`.
+
+:::
+
+Then, enter the command below to sign with a request with the certificate authority. Note that the client certs use the **usr_cert** extension, which allows the cert to be used for client authentication.
+
+```bash
+openssl ca -config openssl.cnf -extensions usr_cert \
+    -days 1000 -notext -md sha256 \
+    -in admin.csr.pem -out admin.cert.pem
+```
+
+You can get a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem` from this command. With `ca.cert.pem`, clients can use this cert and this key to authenticate themselves to brokers and proxies as the role token ``admin``.
+
+:::note
+
+If the "unable to load CA private key" error occurs and the reason for this error is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Try the command below to generate `cakey.pem`.
+
+```bash
+cd /etc/pki/tls/misc/CA
+./CA -newca
+```
+
+:::
+
+## Enable TLS authentication on brokers
+
+To configure brokers to authenticate clients, add the following parameters to `broker.conf`, alongside [the configuration to enable TLS transport](security-tls-transport.md#configure-brokers):
 
 ```properties
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+tlsRequireTrustedClientCertOnConnect=true
+
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters={"tlsCertFile":"/path/my-ca/admin.cert.pem","tlsKeyFile":"/path/my-ca/admin.key-pk8.pem"}
+brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 ```
 
-### ... on Proxies
+## Enable TLS authentication on proxies
 
-To configure proxies to authenticate clients, put the folling in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
+To configure proxies to authenticate clients, add the following parameters to `proxy.conf`, alongside [the configuration to enable TLS transport](security-tls-transport.md#configure-proxies):
 
-The proxy should have its own client key pair for connecting to brokers. The role token for this key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
+The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 # For clients connecting to the proxy
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+tlsRequireTrustedClientCertOnConnect=true
 
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters=tlsCertFile:/path/to/proxy.cert.pem,tlsKeyFile:/path/to/proxy.key-pk8.pem
 ```
 
-## Client configuration
+## Configure TLS authentication in Pulsar clients
 
-When TLS authentication, the client needs to connect via TLS transport, so you need to configure the client to use ```https://``` and port 8443 for the web service URL, and ```pulsar+ssl://``` and port 6651 for the broker service URL.
+When using TLS authentication, clients connect via TLS transport. You need to configure clients to use `https://` and the `8443` port for the web service URL, use `pulsar+ssl://` and the `6651` port for the broker service URL.
 
-### CLI tools
-
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
-
-You'll need to add the following parameters to that file to use TLS authentication with Pulsar's CLI tools:
-
-```properties
-webServiceUrl=https://broker.example.com:8443/
-brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
-useTls=true
-tlsAllowInsecureConnection=false
-tlsTrustCertsFilePath=/path/to/ca.cert.pem
-authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-authParams=tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem
-```
-
-### Java client
+````mdx-code-block
+<Tabs groupId="lang-choice"
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"Go","value":"Go"},{"label":"C#","value":"C#"}]}>
+<TabItem value="Java">
 
 ```java
 import org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-    .enableTls(true)
     .tlsTrustCertsFilePath("/path/to/ca.cert.pem")
     .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                     "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
     .build();
 ```
 
-### Python client
+</TabItem>
+<TabItem value="Python">
 
 ```python
 from pulsar import Client, AuthenticationTLS
@@ -117,9 +134,10 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 				authentication=auth)
 ```
 
-### C++ client
+</TabItem>
+<TabItem value="C++">
 
-```c++
+```cpp
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -134,3 +152,164 @@ config.setAuth(auth);
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 ```
 
+</TabItem>
+<TabItem value="Node.js">
+
+```javascript
+const Pulsar = require('pulsar-client');
+
+(async () => {
+  const auth = new Pulsar.AuthenticationTls({
+    certificatePath: '/path/to/my-role.cert.pem',
+    privateKeyPath: '/path/to/my-role.key-pk8.pem',
+  });
+
+  const client = new Pulsar.Client({
+    serviceUrl: 'pulsar+ssl://broker.example.com:6651/',
+    authentication: auth,
+    tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
+  });
+})();
+```
+
+</TabItem>
+<TabItem value="Go">
+
+```go
+client, err := pulsar.NewClient(ClientOptions{
+		URL:                   "pulsar+ssl://broker.example.com:6651/",
+		TLSTrustCertsFilePath: "/path/to/ca.cert.pem",
+		Authentication:        pulsar.NewAuthenticationTLS("/path/to/my-role.cert.pem", "/path/to/my-role.key-pk8.pem"),
+	})
+```
+
+</TabItem>
+<TabItem value="C#">
+
+```csharp
+var clientCertificate = new X509Certificate2("admin.pfx");
+var client = PulsarClient.Builder()
+                         .AuthenticateUsingClientCertificate(clientCertificate)
+                         .Build();
+```
+
+</TabItem>
+</Tabs>
+````
+
+## Configure TLS authentication in CLI tools
+
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md), and [`pulsar-client`](reference-cli-tools.md) use the `conf/client.conf` config file in a Pulsar installation.
+
+To use TLS authentication with the CLI tools of Pulsar, you need to add the following parameters to the `conf/client.conf` file, alongside [the configuration to enable TLS encryption](security-tls-transport.md#configure-tls-encryption-in-cli-tools):
+
+```properties
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
+authParams=tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem
+```
+
+## Configure TLS authentication with KeyStore 
+
+Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication.md) between clients and Apache Pulsar service. By default, it uses PEM format file configuration. This section tries to describe how to use [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) type to configure TLS.
+
+### Configure brokers
+
+Configure the `broker.conf` file as follows.
+
+```properties
+# Configuration to enable authentication
+authenticationEnabled=true
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+
+# Enable KeyStore type
+tlsEnabledWithKeyStore=true
+tlsRequireTrustedClientCertOnConnect=true
+
+# key store
+tlsKeyStoreType=JKS
+tlsKeyStore=/var/private/tls/broker.keystore.jks
+tlsKeyStorePassword=brokerpw
+
+# trust store
+tlsTrustStoreType=JKS
+tlsTrustStore=/var/private/tls/broker.truststore.jks
+tlsTrustStorePassword=brokerpw
+
+# internal client/admin-client config
+brokerClientTlsEnabled=true
+brokerClientTlsEnabledWithKeyStore=true
+brokerClientTlsTrustStoreType=JKS
+brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
+brokerClientTlsTrustStorePassword=clientpw
+# internal auth config
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
+brokerClientAuthenticationParameters={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
+```
+
+### Configure clients
+
+Besides configuring [TLS encryption](security-tls-transport.md), you need to configure the KeyStore, which contains a valid CN as client role, for clients.
+
+For example:
+
+1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client), set the `conf/client.conf` file in a Pulsar installation.
+
+   ```properties
+   webServiceUrl=https://broker.example.com:8443/
+   brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
+   useKeyStoreTls=true
+   tlsTrustStoreType=JKS
+   tlsTrustStorePath=/var/private/tls/client.truststore.jks
+   tlsTrustStorePassword=clientpw
+   authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
+   authParams={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
+   ```
+
+1. for Java client
+
+   ```java
+   import org.apache.pulsar.client.api.PulsarClient;
+
+   PulsarClient client = PulsarClient.builder()
+       .serviceUrl("pulsar+ssl://broker.example.com:6651/")
+       .useKeyStoreTls(true)
+       .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+       .tlsTrustStorePassword("clientpw")
+       .allowTlsInsecureConnection(false)
+       .enableTlsHostnameVerification(false)
+       .authentication(
+               "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
+               "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
+       .build();
+   ```
+
+1. for Java admin client
+
+   ```java
+       PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
+           .useKeyStoreTls(true)
+           .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+           .tlsTrustStorePassword("clientpw")
+           .allowTlsInsecureConnection(false)
+           .enableTlsHostnameVerification(false)
+           .authentication(
+                  "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
+                  "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
+           .build();
+   ```
+
+:::note
+
+Configure `tlsTrustStorePath` when you set `useKeyStoreTls` to `true`.
+
+:::
+
+## Enable TLS Logging
+
+You can enable TLS debug logging at the JVM level by starting the brokers and/or clients with `javax.net.debug` system property. For example:
+
+```shell
+-Djavax.net.debug=all
+```
+
+You can find more details on this in [Oracle documentation](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html) on [debugging SSL/TLS connections](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html).

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
@@ -26,19 +25,22 @@ package org.apache.pulsar.common.nar;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -124,12 +126,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarClassLoader extends URLClassLoader {
 
-    private static final FileFilter JAR_FILTER = new FileFilter() {
-        @Override
-        public boolean accept(File pathname) {
-            final String nameToTest = pathname.getName().toLowerCase();
-            return nameToTest.endsWith(".jar") && pathname.isFile();
-        }
+    private static final FileFilter JAR_FILTER = pathname -> {
+        final String nameToTest = pathname.getName().toLowerCase();
+        return nameToTest.endsWith(".jar") && pathname.isFile();
     };
 
     /**
@@ -139,15 +138,24 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    private static final File NAR_CACHE_DIR = new File(System.getProperty("java.io.tmpdir") + "/" + TMP_DIR_PREFIX);
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir") != null
+            ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
-        try {
-            return new NarClassLoader(unpacked, additionalJars);
-        } catch (ClassNotFoundException e) {
-            throw new IOException(e);
-        }
+    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+                                                String narExtractionDirectory)
+        throws IOException {
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
+        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
+            @SneakyThrows
+            @Override
+            public NarClassLoader run() {
+                return new NarClassLoader(unpacked, additionalJars, parent);
+            }
+        });
+    }
+
+    private static File getNarExtractionDirectory(String configuredDirectory) {
+        return new File(configuredDirectory + "/" + TMP_DIR_PREFIX);
     }
 
     /**
@@ -155,6 +163,7 @@ public class NarClassLoader extends URLClassLoader {
      *
      * @param narWorkingDirectory
      *            directory to explode nar contents to
+     * @param parent
      * @throws IllegalArgumentException
      *             if the NAR is missing the Java Services API file for <tt>FlowFileProcessor</tt> implementations.
      * @throws ClassNotFoundException
@@ -163,26 +172,22 @@ public class NarClassLoader extends URLClassLoader {
      * @throws IOException
      *             if an error occurs while loading the NAR.
      */
-    private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars)
+    private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars, ClassLoader parent)
             throws ClassNotFoundException, IOException {
-        super(new URL[0]);
+        super(new URL[0], parent);
         this.narWorkingDirectory = narWorkingDirectory;
 
         // process the classpath
         updateClasspath(narWorkingDirectory);
 
-        for (String jar : additionalJars) {
-            if (jar.startsWith("/")) {
-                addURL(new URL("file://" + jar));
-            } else {
-                Path currentRelativePath = Paths.get("");
-                String cwd = currentRelativePath.toAbsolutePath().toString();
-                addURL(new URL("file://" + cwd + "/" + jar));
+        if (additionalJars != null) {
+            for (String jar : additionalJars) {
+                addURL(Paths.get(jar).toUri().toURL());
             }
         }
 
         if (log.isDebugEnabled()) {
-            log.info("Created class loader with paths: {}", Arrays.toString(getURLs()));
+            log.debug("Created class loader with paths: {}", Arrays.toString(getURLs()));
         }
     }
 
@@ -191,11 +196,11 @@ public class NarClassLoader extends URLClassLoader {
     }
 
     /**
-     * Read a service definition as a String
+     * Read a service definition as a String.
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
-        return new String(Files.readAllBytes(Paths.get(serviceDefPath)));
+        return new String(Files.readAllBytes(Paths.get(serviceDefPath)), StandardCharsets.UTF_8);
     }
 
     public List<String> getServiceImplementation(String serviceName) throws IOException {
@@ -203,7 +208,8 @@ public class NarClassLoader extends URLClassLoader {
 
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(serviceDefPath))) {
+        try (BufferedReader reader = new BufferedReader(
+            new InputStreamReader(new FileInputStream(serviceDefPath), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();

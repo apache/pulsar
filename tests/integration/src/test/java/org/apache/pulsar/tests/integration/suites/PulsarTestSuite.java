@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,45 @@
  */
 package org.apache.pulsar.tests.integration.suites;
 
+import java.util.function.Predicate;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
-public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
+public abstract class PulsarTestSuite extends PulsarClusterTestBase {
 
-    @BeforeSuite
-    @Override
-    public void setupCluster() throws Exception {
-        super.setupCluster();
+    @BeforeClass(alwaysRun = true)
+    public final void setupBeforeClass() throws Exception {
+        setup();
     }
 
-    @AfterSuite
-    @Override
-    public void tearDownCluster() {
-        super.tearDownCluster();
+    @AfterClass(alwaysRun = true)
+    public final void tearDownAfterClass() throws Exception {
+        cleanup();
     }
 
-    @Override
-    public String getTestName() {
-        return "pulsar-test-suite";
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis) throws Exception {
+        retryStrategically(predicate, retryCount, intSleepTimeInMillis, false);
+    }
+
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis, boolean throwException)
+            throws Exception {
+
+        for (int i = 0; i < retryCount; i++) {
+            if (throwException) {
+                if (i == (retryCount - 1)) {
+                    throw new RuntimeException("Action was not successful after " + retryCount + " retries");
+                }
+                if (predicate.test(null)) {
+                    break;
+                }
+            } else {
+                if (predicate.test(null) || i == (retryCount - 1)) {
+                    break;
+                }
+            }
+
+           Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+        }
     }
 }

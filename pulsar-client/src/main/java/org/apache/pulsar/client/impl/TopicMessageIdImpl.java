@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
 
 public class TopicMessageIdImpl implements MessageId {
@@ -28,7 +27,7 @@ public class TopicMessageIdImpl implements MessageId {
     private final String topicName;
     private final MessageId messageId;
 
-    TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
+    public TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
         this.messageId = messageId;
         this.topicPartitionName = topicPartitionName;
         this.topicName = topicName;
@@ -55,18 +54,23 @@ public class TopicMessageIdImpl implements MessageId {
     }
 
     @Override
+    public String toString() {
+        return messageId.toString();
+    }
+
+    @Override
     public byte[] toByteArray() {
         return messageId.toByteArray();
     }
 
     @Override
+    public int hashCode() {
+        return messageId.hashCode();
+    }
+
+    @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof TopicMessageIdImpl)) {
-            return false;
-        }
-        TopicMessageIdImpl other = (TopicMessageIdImpl) obj;
-        return Objects.equals(topicPartitionName, other.topicPartitionName)
-            && Objects.equals(messageId, other.messageId);
+        return messageId.equals(obj);
     }
 
     @Override

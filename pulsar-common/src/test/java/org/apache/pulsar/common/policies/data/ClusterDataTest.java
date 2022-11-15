@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,47 +19,94 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.Test;
 
-@Test
 public class ClusterDataTest {
 
     @Test
-    void simple() {
+    public void simple() {
         String s1 = "http://broker.messaging.c1.example.com:8080";
         String s2 = "http://broker.messaging.c2.example.com:8080";
         String s3 = "https://broker.messaging.c1.example.com:4443";
         String s4 = "https://broker.messaging.c2.example.com:4443";
-        ClusterData c = new ClusterData(s1);
-        c.setServiceUrl(null);
-        c.setServiceUrlTls(null);
+        ClusterData c = ClusterData.builder()
+                .serviceUrl(null)
+                .serviceUrlTls(null)
+                .build();
 
-        assertEquals(new ClusterData(s1), new ClusterData(s1));
-        assertEquals(new ClusterData(s1).getServiceUrl(), s1);
+        assertEquals(ClusterData.builder().serviceUrl(s1).build(), ClusterData.builder().serviceUrl(s1).build());
+        assertEquals(ClusterData.builder().serviceUrl(s1).build().getServiceUrl(), s1);
 
-        assertFalse(new ClusterData(s1).equals(new ClusterData()));
-        assertFalse(new ClusterData(s1).equals(new ClusterData(s2)));
-        assertFalse(new ClusterData(s1).equals(s1));
+        assertNotEquals(ClusterData.builder().build(),
+                ClusterData.builder().serviceUrl(s1).build());
+        assertNotEquals(ClusterData.builder().serviceUrl(s2).build(),
+                ClusterData.builder().serviceUrl(s1).build());
+        assertNotEquals(s1, ClusterData.builder().serviceUrl(s1).build());
 
-        assertEquals(new ClusterData(s1).hashCode(), new ClusterData(s1).hashCode());
+        assertEquals(ClusterData.builder().serviceUrl(s1).build().hashCode(),
+                ClusterData.builder().serviceUrl(s1).build().hashCode());
 
-        assertFalse(new ClusterData(s1).hashCode() == new ClusterData(s2).hashCode());
+        assertNotEquals(ClusterData.builder().serviceUrl(s2).build().hashCode(),
+                ClusterData.builder().serviceUrl(s1).build().hashCode());
 
-        assertFalse(new ClusterData(s1).hashCode() == c.hashCode());
+        assertNotEquals(c.hashCode(), ClusterData.builder().serviceUrl(s1).build().hashCode());
 
-        assertEquals(new ClusterData(s1, s3), new ClusterData(s1, s3));
-        assertEquals(new ClusterData(s1, s3).getServiceUrl(), s1);
-        assertEquals(new ClusterData(s1, s3).getServiceUrlTls(), s3);
+        assertEquals(ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build(),
+                ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build());
+        assertEquals(ClusterData.builder()
+                .serviceUrl(s1)
+                .serviceUrlTls(s3)
+                .build().getServiceUrl(), s1);
+        assertEquals(ClusterData.builder()
+                .serviceUrl(s1)
+                .serviceUrlTls(s3)
+                .build().getServiceUrlTls(), s3);
 
-        assertFalse(new ClusterData(s1, s3).equals(new ClusterData()));
-        assertFalse(new ClusterData(s1, s3).equals(new ClusterData(s2, s4)));
+        assertNotEquals(ClusterData.builder().build(), ClusterData.builder()
+                .serviceUrl(s1)
+                .serviceUrlTls(s3)
+                .build());
+        assertNotEquals(ClusterData.builder()
+                        .serviceUrl(s2)
+                        .serviceUrlTls(s4)
+                        .build(),
+                ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build());
 
-        assertEquals(new ClusterData(s1, s3).hashCode(), new ClusterData(s1, s3).hashCode());
-        assertFalse(new ClusterData(s1, s3).hashCode() == new ClusterData(s2, s4).hashCode());
-        assertFalse(new ClusterData(s1, s3).hashCode() == new ClusterData(s1, s4).hashCode());
+        assertEquals(ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build().hashCode(),
+                ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build().hashCode());
+        assertNotEquals(ClusterData.builder()
+                        .serviceUrl(s2)
+                        .serviceUrlTls(s4)
+                        .build().hashCode(),
+                ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build().hashCode());
+        assertNotEquals(ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s4)
+                        .build().hashCode(),
+                ClusterData.builder()
+                        .serviceUrl(s1)
+                        .serviceUrlTls(s3)
+                        .build().hashCode());
 
     }
 }

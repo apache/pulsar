@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
@@ -31,11 +30,9 @@ import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
-
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
@@ -44,7 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Simple abstract class for Aerospike sink
+ * A Simple abstract class for Aerospike sink.
  * Users need to implement extractKeyValue function to use this sink
  */
 public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
@@ -71,14 +68,13 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
         writePolicy = new WritePolicy();
         writePolicy.maxRetries = aerospikeSinkConfig.getRetries();
         writePolicy.setTimeout(aerospikeSinkConfig.getTimeoutMs());
-        createClient();
+        eventLoops = new NioEventLoops(new EventPolicy(), 1);
+        eventLoop = eventLoops.next();
+        createClient(eventLoops);
         queue = new LinkedBlockingDeque<>(aerospikeSinkConfig.getMaxConcurrentRequests());
         for (int i = 0; i < aerospikeSinkConfig.getMaxConcurrentRequests(); ++i) {
             queue.put(new AWriteListener(queue));
         }
-
-        eventLoops = new NioEventLoops(new EventPolicy(), 1);
-        eventLoop = eventLoops.next();
     }
 
     @Override
@@ -96,7 +92,8 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> record) {
         KeyValue<K, V> keyValue = extractKeyValue(record);
-        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), keyValue.getKey().toString());
+        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(),
+                keyValue.getKey().toString());
         Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(keyValue.getValue()));
         AWriteListener listener = null;
         try {
@@ -109,7 +106,7 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
         client.put(eventLoop, listener, writePolicy, key, bin);
     }
 
-    private void createClient() {
+    private void createClient(NioEventLoops eventLoops) {
         String[] hosts = aerospikeSinkConfig.getSeedHosts().split(",");
         if (hosts.length <= 0) {
             throw new RuntimeException("Invalid Seed Hosts");
@@ -117,7 +114,7 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
         Host[] aeroSpikeHosts = new Host[hosts.length];
         for (int i = 0; i < hosts.length; ++i) {
             String[] hostPort = hosts[i].split(":");
-            aeroSpikeHosts[i] = new Host(hostPort[0], Integer.valueOf(hostPort[1]));
+            aeroSpikeHosts[i] = new Host(hostPort[0], Integer.parseInt(hostPort[1]));
         }
         ClientPolicy policy = new ClientPolicy();
         if (aerospikeSinkConfig.getUserName() != null && !aerospikeSinkConfig.getUserName().isEmpty()
@@ -125,6 +122,7 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
             policy.user = aerospikeSinkConfig.getUserName();
             policy.password = aerospikeSinkConfig.getPassword();
         }
+        policy.eventLoops = eventLoops;
         client = new AerospikeClient(policy, aeroSpikeHosts);
     }
 
@@ -148,7 +146,7 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
             try {
                 queue.put(this);
             } catch (InterruptedException ex) {
-                throw new RuntimeException("Interrupted while being added to the queue" ,ex);
+                throw new RuntimeException("Interrupted while being added to the queue", ex);
             }
         }
 

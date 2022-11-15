@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.Collections;
@@ -103,10 +105,10 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
         Position p1 = ledger.addEntry("entry-1".getBytes());
-        assertEquals(ledger.isTerminated(), false);
+        assertFalse(ledger.isTerminated());
 
         Position lastPosition = ledger.terminate();
-        assertEquals(ledger.isTerminated(), true);
+        assertTrue(ledger.isTerminated());
         assertEquals(lastPosition, p1);
 
         List<Entry> entries = c1.readEntries(10);
@@ -133,13 +135,13 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
         Position p1 = ledger.addEntry("entry-1".getBytes());
-        assertEquals(ledger.isTerminated(), false);
+        assertFalse(ledger.isTerminated());
 
         Position lastPosition = ledger.terminate();
-        assertEquals(ledger.isTerminated(), true);
+        assertTrue(ledger.isTerminated());
         assertEquals(lastPosition, p1);
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
 
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 2);

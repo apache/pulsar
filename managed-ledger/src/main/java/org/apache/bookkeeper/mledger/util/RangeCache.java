@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,15 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
-import com.google.common.collect.Lists;
 import io.netty.util.ReferenceCounted;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -43,12 +43,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     private final ConcurrentNavigableMap<Key, Value> entries;
     private AtomicLong size; // Total size of values stored in cache
     private final Weighter<Value> weighter; // Weighter object used to extract the size from values
+    private final TimestampExtractor<Value> timestampExtractor; // Extract the timestamp associated with a value
 
     /**
      * Construct a new RangeLruCache with default Weighter.
      */
     public RangeCache() {
-        this(new DefaultWeighter<Value>());
+        this(new DefaultWeighter<>(), (x) -> System.nanoTime());
     }
 
     /**
@@ -57,10 +58,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @param weighter
      *            a custom weighter to compute the size of each stored value
      */
-    public RangeCache(Weighter<Value> weighter) {
+    public RangeCache(Weighter<Value> weighter, TimestampExtractor<Value> timestampExtractor) {
         this.size = new AtomicLong(0);
         this.entries = new ConcurrentSkipListMap<>();
         this.weighter = weighter;
+        this.timestampExtractor = timestampExtractor;
     }
 
     /**
@@ -72,12 +74,17 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @return whether the entry was inserted in the cache
      */
     public boolean put(Key key, Value value) {
-        if (entries.putIfAbsent(key, value) == null) {
+        MutableBoolean flag = new MutableBoolean();
+        entries.computeIfAbsent(key, (k) -> {
             size.addAndGet(weighter.getSize(value));
-            return true;
-        } else {
-            return false;
-        }
+            flag.setValue(true);
+            return value;
+        });
+        return flag.booleanValue();
+    }
+
+    public boolean exists(Key key) {
+        return key != null ? entries.containsKey(key) : true;
     }
 
     public Value get(Key key) {
@@ -104,7 +111,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @return a collections of the value found in cache
      */
     public Collection<Value> getRange(Key first, Key last) {
-        List<Value> values = Lists.newArrayList();
+        List<Value> values = new ArrayList();
 
         // Return the values of the entries found in cache
         for (Value value : entries.subMap(first, true, last, true).values()) {
@@ -176,6 +183,35 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
+    *
+    * @param maxTimestamp the max timestamp of the entries to be evicted
+    * @return the tota
+    */
+   public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
+       long removedSize = 0;
+       int removedCount = 0;
+
+       while (true) {
+           Map.Entry<Key, Value> entry = entries.firstEntry();
+           if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
+               break;
+           }
+           Value value = entry.getValue();
+           boolean removeHits = entries.remove(entry.getKey(), value);
+           if (!removeHits) {
+               break;
+           }
+
+           removedSize += weighter.getSize(value);
+           removedCount++;
+           value.release();
+       }
+
+       size.addAndGet(-removedSize);
+       return Pair.of(removedCount, removedSize);
+   }
+
+    /**
      * Just for testing. Getting the number of entries is very expensive on the conncurrent map
      */
     protected long getNumberOfEntries() {
@@ -189,10 +225,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     /**
      * Remove all the entries from the cache.
      *
-     * @return the old size
+     * @return size of removed entries
      */
-    public synchronized long clear() {
+    public synchronized Pair<Integer, Long> clear() {
         long removedSize = 0;
+        int removedCount = 0;
 
         while (true) {
             Map.Entry<Key, Value> entry = entries.pollFirstEntry();
@@ -201,11 +238,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             }
             Value value = entry.getValue();
             removedSize += weighter.getSize(value);
+            removedCount++;
             value.release();
         }
 
         entries.clear();
-        return size.getAndAdd(-removedSize);
+        size.getAndAdd(-removedSize);
+        return Pair.of(removedCount, removedSize);
     }
 
     /**
@@ -218,11 +257,21 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
+     * Interface of a object that is able to the extract the "timestamp" of the cached values.
+     *
+     * @param <ValueT>
+     */
+    public interface TimestampExtractor<ValueT> {
+        long getTimestamp(ValueT value);
+    }
+
+    /**
      * Default cache weighter, every value is assumed the same cost.
      *
      * @param <Value>
      */
     private static class DefaultWeighter<Value> implements Weighter<Value> {
+        @Override
         public long getSize(Value value) {
             return 1;
         }

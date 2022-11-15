@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,33 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Listener on the consumer state changes.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerEventListener extends Serializable {
 
     /**
      * Notified when the consumer group is changed, and the consumer becomes the active consumer.
+     *
+     * @param consumer
+     *            the consumer that originated the event
+     * @param partitionId
+     *            the id of the partition that became active
      */
     void becameActive(Consumer<?> consumer, int partitionId);
 
     /**
      * Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.
+     *
+     * @param consumer
+     *            the consumer that originated the event
+     * @param partitionId
+     *            the id of the partition that became inactive
      */
     void becameInactive(Consumer<?> consumer, int partitionId);
 

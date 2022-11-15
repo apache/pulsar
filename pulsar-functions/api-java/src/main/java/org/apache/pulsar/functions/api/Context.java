@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.functions.api;
 
-import java.nio.ByteBuffer;
-import org.slf4j.Logger;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.utils.FunctionRecord;
 
 /**
  * Context provides contextual information to the executing function.
@@ -32,166 +37,142 @@ import java.util.concurrent.CompletableFuture;
  * message, what are our operating constraints, etc can be accessed by the
  * executing function
  */
-public interface Context {
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface Context extends BaseContext {
     /**
-     * Access the record associated with the current input value
-     * @return
-     */
-    Record<?> getCurrentRecord();
-
-    /**
-     * Get a list of all input topics
+     * Get a list of all input topics.
+     *
      * @return a list of all input topics
      */
     Collection<String> getInputTopics();
 
     /**
-     * Get the output topic of the function
+     * Get the output topic of the source.
+     *
      * @return output topic name
      */
     String getOutputTopic();
 
     /**
-     * Get output schema builtin type or custom class name
+     * Access the record associated with the current input value.
+     *
+     * @return the current record
+     */
+    Record<?> getCurrentRecord();
+
+    /**
+     * Get output schema builtin type or custom class name.
+     *
      * @return output schema builtin type or custom class name
      */
     String getOutputSchemaType();
 
     /**
-     * The tenant this function belongs to
-     * @return the tenant this function belongs to
-     */
-    String getTenant();
-
-    /**
-     * The namespace this function belongs to
-     * @return the namespace this function belongs to
-     */
-    String getNamespace();
-
-    /**
-     * The name of the function that we are executing
+     * The name of the function that we are executing.
+     *
      * @return The Function name
      */
     String getFunctionName();
 
     /**
-     * The id of the function that we are executing
+     * The id of the function that we are executing.
+     *
      * @return The function id
      */
     String getFunctionId();
 
     /**
-     * The id of the instance that invokes this function.
+     * The version of the function that we are executing.
      *
-     * @return the instance id
-     */
-    int getInstanceId();
-
-    /**
-     * Get the number of instances that invoke this function.
-     *
-     * @return the number of instances that invoke this function.
-     */
-    int getNumInstances();
-
-    /**
-     * The version of the function that we are executing
      * @return The version id
      */
     String getFunctionVersion();
 
     /**
-     * The logger object that can be used to log in a function
-     * @return the logger object
-     */
-    Logger getLogger();
-
-    /**
-     * Increment the builtin distributed counter refered by key
-     * @param key The name of the key
-     * @param amount The amount to be incremented
-     */
-    void incrCounter(String key, long amount);
-
-    /**
-     * Retrieve the counter value for the key.
+     * Get a map of all user-defined key/value configs for the function.
      *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    long getCounter(String key);
-
-    /**
-     * Updare the state value for the key.
-     *
-     * @param key name of the key
-     * @param value state value of the key
-     */
-    void putState(String key, ByteBuffer value);
-
-    /**
-     * Retrieve the state value for the key.
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    ByteBuffer getState(String key);
-
-    /**
-     * Get a map of all user-defined key/value configs for the function
      * @return The full map of user-defined config values
      */
     Map<String, Object> getUserConfigMap();
 
     /**
-     * Get any user-defined key/value
+     * Get any user-defined key/value.
+     *
      * @param key The key
      * @return The Optional value specified by the user for that key.
      */
     Optional<Object> getUserConfigValue(String key);
 
     /**
-     * Get any user-defined key/value or a default value if none is present
-     * @param key
-     * @param defaultValue
+     * Get any user-defined key/value or a default value if none is present.
+     *
+     * @param key the config key to retrieve
+     * @param defaultValue value returned if the key is not found
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
 
     /**
-     * Get the secret associated with this key
-     * @param secretName The name of the secret
-     * @return The secret if anything was found or null
-     */
-    String getSecret(String secretName);
-
-    /**
-     * Record a user defined metric
-     * @param metricName The name of the metric
-     * @param value The value of the metric
-     */
-    void recordMetric(String metricName, double value);
-
-    /**
-     * Publish an object using serDe for serializing to the topic
+     * Get the pulsar admin client.
      *
-     * @param topicName
-     *            The name of the topic for publishing
-     * @param object
-     *            The object that needs to be published
-     * @param schemaOrSerdeClassName
-     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
-     * @return A future that completes when the framework is done publishing the message
+     * @return The instance of pulsar admin client
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
+    PulsarAdmin getPulsarAdmin();
 
     /**
-     * Publish an object to the topic using default schemas
-     * @param topicName The name of the topic for publishing
-     * @param object The object that needs to be published
+     * Publish an object using serDe or schema class for serializing to the topic.
+     *
+     * @param topicName              The name of the topic for publishing
+     * @param object                 The object that needs to be published
+     * @param schemaOrSerdeClassName Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name
+     *                               of the custom schema class
      * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object);
+    @Deprecated
+    <X> CompletableFuture<Void> publish(String topicName, X object, String schemaOrSerdeClassName);
 
+    /**
+     * Publish an object to the topic using default schemas.
+     *
+     * @param topicName The name of the topic for publishing
+     * @param object    The object that needs to be published
+     * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
+     */
+    @Deprecated
+    <X> CompletableFuture<Void> publish(String topicName, X object);
+
+    /**
+     * New output message using schema for serializing to the topic.
+     *
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <X> the type of message
+     * @return the message builder instance
+     * @throws PulsarClientException if an error occurs
+     */
+    <X> TypedMessageBuilder<X> newOutputMessage(String topicName, Schema<X> schema) throws PulsarClientException;
+
+    /**
+     * Create a ConsumerBuilder with the schema.
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <X> the message type of the consumer
+     * @return the consumer builder instance
+     * @throws PulsarClientException if an error occurs
+     */
+    <X> ConsumerBuilder<X> newConsumerBuilder(Schema<X> schema) throws PulsarClientException;
+
+    /**
+     * Creates a FunctionRecordBuilder initialized with values from this Context.
+     * It can be used in Functions to prepare a Record to return with default values taken from the Context and the
+     * input Record.
+
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <X> the message type of record builder
+     * @return the record builder instance
+     */
+    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema);
 }

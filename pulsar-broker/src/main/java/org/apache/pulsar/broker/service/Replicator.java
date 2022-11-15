@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
 public interface Replicator {
 
     void startProducer();
-    
-    ReplicatorStats getStats();
+
+    ReplicatorStatsImpl getStats();
 
     CompletableFuture<Void> disconnect();
 
@@ -36,4 +37,16 @@ public interface Replicator {
 
     String getRemoteCluster();
 
+    default void initializeDispatchRateLimiterIfNeeded() {
+        //No-op
+    }
+
+    default void updateRateLimiter() {
+    }
+
+    default Optional<DispatchRateLimiter> getRateLimiter() {
+        return Optional.empty();
+    }
+
+    boolean isConnected();
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,32 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.base.MoreObjects;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 
-import com.google.common.base.MoreObjects;
-
 public class SimpleResourceUnit implements ResourceUnit {
 
-    private String resourceId;
-    private ResourceDescription resourceDescription;
+    private final String resourceId;
+    private final ResourceDescription resourceDescription;
+
+    private final Map<String, Object> properties;
 
     public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription) {
         this.resourceId = resourceId;
         this.resourceDescription = resourceDescription;
+        this.properties = Collections.emptyMap();
     }
+
+    public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription,
+                              Map<String, Object> properties) {
+        this.resourceId = resourceId;
+        this.resourceDescription = resourceDescription;
+        this.properties = properties == null ? Collections.emptyMap() : properties;
+    }
+
 
     @Override
     public String getResourceId() {
@@ -52,14 +64,20 @@ public class SimpleResourceUnit implements ResourceUnit {
     }
 
     @Override
+    public Object getProperty(String key) {
+        return properties.get(key);
+    }
+
+    @Override
     public int compareTo(ResourceUnit o) {
         return resourceId.compareTo(o.getResourceId());
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof SimpleResourceUnit))
+        if (!(o instanceof SimpleResourceUnit)) {
             return false;
+        }
         SimpleResourceUnit other = (SimpleResourceUnit) o;
         return this.resourceId.equals(other.resourceId);
     }
@@ -73,5 +91,4 @@ public class SimpleResourceUnit implements ResourceUnit {
     public String toString() {
         return MoreObjects.toStringHelper(this).add("resourceId", resourceId).toString();
     }
-    
 }

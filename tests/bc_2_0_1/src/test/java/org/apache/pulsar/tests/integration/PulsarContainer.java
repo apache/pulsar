@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,8 @@ public class PulsarContainer extends GenericContainer<PulsarContainer> {
 
     public static final int PULSAR_PORT = 6650;
     public static final int BROKER_HTTP_PORT = 8080;
-    public static final String DEFAULT_IMAGE_NAME = "apachepulsar/pulsar-test-latest-version:latest";
+    public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
+            "apachepulsar/pulsar-test-latest-version:latest");
 
     public PulsarContainer() {
         this(DEFAULT_IMAGE_NAME);
@@ -47,7 +48,7 @@ public class PulsarContainer extends GenericContainer<PulsarContainer> {
     }
 
     public String getPlainTextPulsarBrokerUrl() {
-        return String.format("pulsar://%s:%s", this.getContainerIpAddress(), this.getMappedPort(PULSAR_PORT));
+        return String.format("pulsar://%s:%s", this.getHost(), this.getMappedPort(PULSAR_PORT));
     }
 
 }

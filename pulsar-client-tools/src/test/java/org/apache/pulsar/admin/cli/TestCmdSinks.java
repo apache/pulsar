@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,48 +20,40 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-
 import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
-import java.util.*;
-
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
+import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 @Slf4j
-@PrepareForTest({CmdFunctions.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*", "org.apache.pulsar.functions.api.*" })
 public class TestCmdSinks {
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     private static final String TENANT = "test-tenant";
     private static final String NAMESPACE = "test-namespace";
@@ -90,40 +82,59 @@ public class TestCmdSinks {
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
-    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 0000 2018\"}";
+    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\",\"int\":1000,\"int_string\":\"1000\",\"float\":1000.0,\"float_string\":\"1000.0\"}";
+    private static final String TRANSFORM_FUNCTION = "transform";
+    private static final String TRANSFORM_FUNCTION_CLASSNAME = "TransformFunction";
+    private static final String TRANSFORM_FUNCTION_CONFIG = "{\"test_function_config\": \"\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Sink sink;
+    private Sinks sink;
     private CmdSinks cmdSinks;
     private CmdSinks.CreateSink createSink;
     private CmdSinks.UpdateSink updateSink;
     private CmdSinks.LocalSinkRunner localSinkRunner;
     private CmdSinks.DeleteSink deleteSink;
+    private ClassLoader oldContextClassLoader;
+    private ClassLoader jarClassLoader;
+
 
     @BeforeMethod
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        sink = mock(Sink.class);
-        when(pulsarAdmin.sink()).thenReturn(sink);
+        sink = mock(Sinks.class);
+        when(pulsarAdmin.sinks()).thenReturn(sink);
 
-        cmdSinks = spy(new CmdSinks(pulsarAdmin));
+        cmdSinks = spy(new CmdSinks(() -> pulsarAdmin));
         createSink = spy(cmdSinks.getCreateSink());
         updateSink = spy(cmdSinks.getUpdateSink());
         localSinkRunner = spy(cmdSinks.getLocalSinkRunner());
         deleteSink = spy(cmdSinks.getDeleteSink());
 
-        mockStatic(CmdFunctions.class);
-        PowerMockito.doNothing().when(localSinkRunner).runCmd();
+        Mockito.doNothing().when(localSinkRunner).runCmd();
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
             throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
         }
         JAR_FILE_PATH = file.getFile();
-        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
+        jarClassLoader = ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH));
+        oldContextClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(jarClassLoader);
     }
 
-    public SinkConfig getSinkConfig() {
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws IOException {
+        if (jarClassLoader != null && jarClassLoader instanceof Closeable) {
+            ((Closeable) jarClassLoader).close();
+            jarClassLoader = null;
+        }
+        if (oldContextClassLoader != null) {
+            Thread.currentThread().setContextClassLoader(oldContextClassLoader);
+            oldContextClassLoader = null;
+        }
+    }
+
+    public SinkConfig getSinkConfig() throws JsonProcessingException {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant(TENANT);
         sinkConfig.setNamespace(NAMESPACE);
@@ -138,6 +149,11 @@ public class TestCmdSinks {
         sinkConfig.setArchive(JAR_FILE_PATH);
         sinkConfig.setResources(new Resources(CPU, RAM, DISK));
         sinkConfig.setConfigs(createSink.parseConfigs(SINK_CONFIG_STRING));
+
+        sinkConfig.setTransformFunction(TRANSFORM_FUNCTION);
+        sinkConfig.setTransformFunctionClassName(TRANSFORM_FUNCTION_CLASSNAME);
+        sinkConfig.setTransformFunctionConfig(TRANSFORM_FUNCTION_CONFIG);
+
         return sinkConfig;
     }
 
@@ -158,6 +174,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -165,7 +184,6 @@ public class TestCmdSinks {
     @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setInputSpecs(new HashMap<>());
         sinkConfig.setInputs(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
@@ -181,6 +199,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -190,7 +211,6 @@ public class TestCmdSinks {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setTopicToSerdeClassName(null);
         sinkConfig.setTopicToSchemaType(null);
-        sinkConfig.setInputSpecs(new HashMap<>());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -205,6 +225,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -212,7 +235,6 @@ public class TestCmdSinks {
     @Test
     public void testMissingTopicPattern() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.getInputSpecs().clear();
         sinkConfig.setTopicsPattern(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
@@ -228,6 +250,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -250,10 +275,13 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
-    
+
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -272,6 +300,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -296,6 +327,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -318,11 +352,14 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 null,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
 
-    public void testCmdSinkCliMissingArgs(
+    private void testCmdSinkCliMissingArgs(
             String tenant,
             String namespace,
             String name,
@@ -336,6 +373,9 @@ public class TestCmdSinks {
             Long ram,
             Long disk,
             String sinkConfigString,
+            String transformFunction,
+            String transformFunctionClassName,
+            String transformFunctionConfig,
             SinkConfig sinkConfig) throws Exception {
 
         // test create sink
@@ -352,6 +392,9 @@ public class TestCmdSinks {
         createSink.ram = ram;
         createSink.disk = disk;
         createSink.sinkConfigString = sinkConfigString;
+        createSink.transformFunction = transformFunction;
+        createSink.transformFunctionClassName = transformFunctionClassName;
+        createSink.transformFunctionConfig = transformFunctionConfig;
 
         createSink.processArguments();
 
@@ -371,6 +414,9 @@ public class TestCmdSinks {
         updateSink.ram = ram;
         updateSink.disk = disk;
         updateSink.sinkConfigString = sinkConfigString;
+        updateSink.transformFunction = transformFunction;
+        updateSink.transformFunctionClassName = transformFunctionClassName;
+        updateSink.transformFunctionConfig = transformFunctionConfig;
 
         updateSink.processArguments();
 
@@ -390,6 +436,9 @@ public class TestCmdSinks {
         localSinkRunner.ram = ram;
         localSinkRunner.disk = disk;
         localSinkRunner.sinkConfigString = sinkConfigString;
+        localSinkRunner.transformFunction = transformFunction;
+        localSinkRunner.transformFunctionClassName = transformFunctionClassName;
+        localSinkRunner.transformFunctionConfig = transformFunctionConfig;
 
         localSinkRunner.processArguments();
 
@@ -473,7 +522,17 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    public void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Invalid sink type 'foo' " +
+            "-- Available sinks are: \\[\\]")
+    public void testCmdSinkConfigFileInvalidSinkType() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        // sinkType is prior than archive
+        testSinkConfig.setSinkType("foo");
+
+        testCmdSinkConfigFile(testSinkConfig, null);
+    }
+
+    private void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
 
@@ -522,8 +581,11 @@ public class TestCmdSinks {
         testSinkConfig.setParallelism(PARALLELISM + 1);
         testSinkConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSinkConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
-        testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\"}"));
+        testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherConfigProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
 
+        testSinkConfig.setTransformFunction(TRANSFORM_FUNCTION + "-prime");
+        testSinkConfig.setTransformFunction(TRANSFORM_FUNCTION_CLASSNAME + "-prime");
+        testSinkConfig.setTransformFunction("{\"test_function_config\": \"prime\"}");
 
         SinkConfig expectedSinkConfig = getSinkConfig();
 
@@ -548,12 +610,15 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                TRANSFORM_FUNCTION,
+                TRANSFORM_FUNCTION_CLASSNAME,
+                TRANSFORM_FUNCTION_CONFIG,
                 file.getAbsolutePath(),
                 expectedSinkConfig
         );
     }
 
-    public void testMixCliAndConfigFile(
+    private void testMixCliAndConfigFile(
             String tenant,
             String namespace,
             String name,
@@ -568,6 +633,9 @@ public class TestCmdSinks {
             Long ram,
             Long disk,
             String sinkConfigString,
+            String transformFunction,
+            String transformFunctionClassName,
+            String transformFunctionConfig,
             String sinkConfigFile,
             SinkConfig sinkConfig
     ) throws Exception {
@@ -587,6 +655,9 @@ public class TestCmdSinks {
         createSink.ram = ram;
         createSink.disk = disk;
         createSink.sinkConfigString = sinkConfigString;
+        createSink.transformFunction = transformFunction;
+        createSink.transformFunctionClassName = transformFunctionClassName;
+        createSink.transformFunctionConfig = transformFunctionConfig;
         createSink.sinkConfigFile = sinkConfigFile;
 
         createSink.processArguments();
@@ -607,6 +678,9 @@ public class TestCmdSinks {
         updateSink.ram = ram;
         updateSink.disk = disk;
         updateSink.sinkConfigString = sinkConfigString;
+        updateSink.transformFunction = transformFunction;
+        updateSink.transformFunctionClassName = transformFunctionClassName;
+        updateSink.transformFunctionConfig = transformFunctionConfig;
         updateSink.sinkConfigFile = sinkConfigFile;
 
         updateSink.processArguments();
@@ -627,6 +701,9 @@ public class TestCmdSinks {
         localSinkRunner.ram = ram;
         localSinkRunner.disk = disk;
         localSinkRunner.sinkConfigString = sinkConfigString;
+        localSinkRunner.transformFunction = transformFunction;
+        localSinkRunner.transformFunctionClassName = transformFunctionClassName;
+        localSinkRunner.transformFunctionConfig = transformFunctionConfig;
         localSinkRunner.sinkConfigFile = sinkConfigFile;
 
 
@@ -676,5 +753,59 @@ public class TestCmdSinks {
         deleteSink.runCmd();
 
         verify(sink).deleteSink(eq(TENANT), eq(NAMESPACE), null);
+    }
+
+    @Test
+    public void testUpdateSink() throws Exception {
+
+        updateSink.name = "my-sink";
+
+        updateSink.archive = "new-archive";
+
+        updateSink.processArguments();
+
+        updateSink.runCmd();
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .archive(updateSink.archive)
+                .build()), eq(updateSink.archive), eq(new UpdateOptionsImpl()));
+
+
+        updateSink.archive = null;
+
+        updateSink.parallelism = 2;
+
+        updateSink.processArguments();
+
+        updateSink.updateAuthData = true;
+
+        updateSink.runCmd();
+
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+        updateOptions.setUpdateAuthData(true);
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .parallelism(2)
+                .build()), eq(null), eq(updateOptions));
+
+
+
+    }
+
+    @Test
+    public void testParseConfigs() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        Map<String, Object> config = testSinkConfig.getConfigs();
+        Assert.assertEquals(config.get("int"), 1000);
+        Assert.assertEquals(config.get("int_string"), "1000");
+        Assert.assertEquals(config.get("float"), 1000.0);
+        Assert.assertEquals(config.get("float_string"), "1000.0");
+        Assert.assertEquals(config.get("created_at"), "Mon Jul 02 00:33:15 +0000 2018");
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.instance;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import java.time.Clock;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -28,7 +27,7 @@ import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
 
 /**
- * Router for routing function results
+ * Router for routing function results.
  */
 public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
 

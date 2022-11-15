@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.util.HashSet;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -39,10 +41,12 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+
+@Test(groups = "broker-impl")
 public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
-    private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(UnAcknowledgedMessagesTimeoutTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
@@ -53,13 +57,22 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test(timeOut = testTimeout)
-    public void testExclusiveSingleAckedNormalTopic() throws Exception {
+    @DataProvider(name = "variationsRedeliveryTracker")
+    public static Object[][] variationsRedeliveryTracker() {
+        return new Object[][]{
+                // isRedeliveryTracker
+                { false },
+                { true }
+        };
+    }
+
+    @Test(dataProvider = "variationsRedeliveryTracker")
+    public void testExclusiveSingleAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testExclusiveSingleAckedNormalTopic";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -68,14 +81,23 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
-
+        Consumer<byte[]> consumer = null;
+        if (isRedeliveryTracker) {
+            consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(20000).build())
+                    .subscribe();
+        } else {
+            consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
+        }
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 2; i++) {
             String message = messagePredicate + i;
@@ -116,8 +138,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(hSet.size(), totalMessages);
     }
 
-    @Test(timeOut = testTimeout)
-    public void testExclusiveCumulativeAckedNormalTopic() throws Exception {
+    @Test(dataProvider = "variationsRedeliveryTracker")
+    public void testExclusiveCumulativeAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testExclusiveCumulativeAckedNormalTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -126,13 +148,23 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
+        Consumer<byte[]> consumer = null;
+        if (isRedeliveryTracker) {
+            consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(20000).build())
+                    .subscribe();
+        } else {
+            consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
+        }
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -148,22 +180,22 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             lastMessage = message;
             hSet.add(new String(message.getData()));
             log.info("Consumer received " + new String(message.getData()));
-            log.info("Message ID details " + ((MessageIdImpl) message.getMessageId()).toString());
+            log.info("Message ID details " + message.getMessageId().toString());
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
         long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, totalMessages);
         log.info("Comulative Ack sent for " + new String(lastMessage.getData()));
-        log.info("Message ID details " + ((MessageIdImpl) lastMessage.getMessageId()).toString());
+        log.info("Message ID details " + lastMessage.getMessageId().toString());
         consumer.acknowledgeCumulative(lastMessage);
         size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, 0);
         message = consumer.receive((int) (2 * ackTimeOutMillis), TimeUnit.MILLISECONDS);
-        assertEquals(message, null);
+        assertNull(message);
     }
 
-    @Test(timeOut = testTimeout)
-    public void testSharedSingleAckedPartitionedTopic() throws Exception {
+    @Test(dataProvider = "variationsRedeliveryTracker")
+    public void testSharedSingleAckedPartitionedTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testSharedSingleAckedPartitionedTopic";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
@@ -175,18 +207,36 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-            .create();
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-1").subscribe();
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-2").subscribe();
-
+        Consumer<byte[]> consumer1 = null;
+        Consumer<byte[]> consumer2 = null;
+        if (isRedeliveryTracker) {
+            consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(20000).build())
+                    .consumerName("Consumer-1").subscribe();
+            consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(20000).build())
+                    .consumerName("Consumer-2").subscribe();
+        } else {
+            consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-1").subscribe();
+            consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-2").subscribe();
+        }
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
@@ -222,7 +272,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(messageCount1 + messageCount2, totalMessages);
         assertEquals(ackCount1 + messageCount2, totalMessages);
 
-        Thread.sleep((int) (ackTimeOutMillis * 1.1));
+        Thread.sleep((int) (ackTimeOutMillis * 2));
 
         // Since receive is a blocking call hoping that timeout will kick in
         log.info(key + " Timeout should be triggered again");
@@ -250,10 +300,10 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         return messagesReceived;
     }
 
-    @Test(timeOut = testTimeout)
-    public void testFailoverSingleAckedPartitionedTopic() throws Exception {
+    @Test(dataProvider = "variationsRedeliveryTracker")
+    public void testFailoverSingleAckedPartitionedTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testFailoverSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key + UUID.randomUUID().toString();
         final String subscriptionName = "my-failover-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -263,18 +313,58 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-            .create();
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
 
         // 2. Create consumer
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-1").subscribe();
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-2").subscribe();
-
+        Consumer<byte[]> consumer1 = null;
+        Consumer<byte[]> consumer2 = null;
+        if (isRedeliveryTracker) {
+            consumer1 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .receiverQueueSize(7)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(20000).build())
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .consumerName("Consumer-1")
+                    .subscribe();
+            consumer2 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .receiverQueueSize(7)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(20000).build())
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .consumerName("Consumer-2")
+                    .subscribe();
+        } else {
+            consumer1 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .receiverQueueSize(7)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .consumerName("Consumer-1")
+                    .subscribe();
+            consumer2 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .receiverQueueSize(7)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .consumerName("Consumer-2")
+                    .subscribe();
+        }
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
@@ -283,69 +373,73 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
-        Message<byte[]> message1 = consumer1.receive();
-        Message<byte[]> message2 = consumer2.receive();
-        int messageCount1 = 0;
-        int messageCount2 = 0;
-        int ackCount1 = 0;
-        int ackCount2 = 0;
-        do {
-            if (message1 != null) {
-                log.info("Consumer1 received " + new String(message1.getData()));
-                messageCount1 += 1;
+        int messagesReceived = 0;
+        while (true) {
+            Message<byte[]> message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
+            if (message1 == null) {
+                break;
             }
-            if (message2 != null) {
-                log.info("Consumer2 received " + new String(message2.getData()));
-                messageCount2 += 1;
-                consumer2.acknowledge(message2);
-                ackCount2 += 1;
+
+            ++messagesReceived;
+        }
+
+        int ackCount = 0;
+        while (true) {
+            Message<byte[]> message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+            if (message2 == null) {
+                break;
             }
-            message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        } while (message1 != null || message2 != null);
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
-        assertEquals(messageCount1 + messageCount2, totalMessages);
+
+            consumer2.acknowledge(message2);
+            ++messagesReceived;
+            ++ackCount;
+        }
+
+        assertEquals(messagesReceived, totalMessages);
 
         // 5. Check if Messages redelivered again
-        // Since receive is a blocking call hoping that timeout will kick in
+        Thread.sleep(ackTimeOutMillis * 2);
         log.info(key + " Timeout should be triggered now");
-        message1 = consumer1.receive();
-        messageCount1 = 0;
-        do {
-            if (message1 != null) {
-                log.info("Consumer1 received " + new String(message1.getData()));
-                messageCount1 += 1;
-                consumer1.acknowledge(message1);
-                ackCount1 += 1;
+        messagesReceived = 0;
+        while (true) {
+            Message<byte[]> message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
+            if (message1 == null) {
+                break;
             }
-            if (message2 != null) {
-                log.info("Consumer2 received " + new String(message2.getData()));
-                messageCount2 += 1;
+
+            ++messagesReceived;
+        }
+
+        while (true) {
+            Message<byte[]> message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+            if (message2 == null) {
+                break;
             }
-            message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        } while (message1 != null || message2 != null);
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
-        assertEquals(ackCount1 + messageCount2, totalMessages);
+
+            ++messagesReceived;
+        }
+
+        assertEquals(messagesReceived + ackCount, totalMessages);
     }
 
     @Test
-    public void testAckTimeoutMinValue() throws PulsarClientException {
+    public void testAckTimeoutMinValue() {
         try {
             pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
             Assert.fail("Exception should have been thrown since the set timeout is less than min timeout.");
+            pulsarClient.newConsumer().ackTimeout(2000, TimeUnit.MILLISECONDS)
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(60000)
+                            .multiplier(0).build());
+            Assert.fail("multiplier must be > 0.");
+
         } catch (Exception ex) {
             // Ok
         }
     }
 
-    @Test(timeOut = testTimeout)
+    @Test
     public void testCheckUnAcknowledgedMessageTimer() throws PulsarClientException, InterruptedException {
         String key = "testCheckUnAcknowledgedMessageTimer";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
@@ -355,9 +449,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Create consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -370,8 +464,6 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             log.info("Producer produced: " + message);
             producer.send(message.getBytes());
         }
-
-        Thread.sleep((long) (ackTimeOutMillis * 1.1));
 
         for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive();
@@ -391,6 +483,66 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
     }
 
+    @DataProvider(name = "variationsBackoff")
+    public static Object[][] variationsBackoff() {
+        return new Object[][]{
+                // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
+                {2000, 1000, 2000, 2},
+                {3000, 1000, 3000, 3}
+        };
+    }
+
+    @Test(dataProvider = "variationsBackoff")
+    public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
+                                                              long maxDelayMs, int multiplier)
+            throws PulsarClientException, InterruptedException {
+        String key = "testCheckUnAcknowledgedMessageRedeliveryTimer";
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+        final int totalMessages = 3;
+
+        // 1. producer connect
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        // 2. Create consumer
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                        .minDelayMs(minDelayMs)
+                        .maxDelayMs(maxDelayMs)
+                        .multiplier(multiplier).build())
+                .subscribe();
+
+        // 3. producer publish messages
+        for (int i = 0; i < totalMessages; i++) {
+            String message = messagePredicate + i;
+            log.info("Producer produced: " + message);
+            producer.send(message.getBytes());
+        }
+
+        for (int i = 0; i < totalMessages; i++) {
+            Message<byte[]> msg = consumer.receive();
+            if (i != totalMessages - 1) {
+                consumer.acknowledge(msg);
+            }
+        }
+
+        for (int i = 0; i < 5; i++) {
+            int redeliveryCount = i + 1;
+            int redeliveryTime = (int) Math.min(minDelayMs * (int) Math.pow(multiplier, i), maxDelayMs);
+            assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
+            long startTime = System.currentTimeMillis();
+            Message<byte[]> msg = consumer.receive();
+            assertTrue(System.currentTimeMillis() - startTime >= ackTimeOutMillis + redeliveryTime);
+            assertEquals(msg.getRedeliveryCount(), redeliveryCount);
+            assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
+        }
+    }
 
     @Test
     public void testSingleMessageBatch() throws Exception {
@@ -413,6 +565,28 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         producer.flush();
 
         Message<String> message = consumer.receive();
+
+        assertFalse(((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().isEmpty());
+
+        consumer.acknowledge(message);
+
+        assertTrue(((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().isEmpty());
+
+        // Test ackTimeoutRedeliveryBackoff
+        consumer.close();
+        consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("subscription")
+                .ackTimeout(1, TimeUnit.HOURS)
+                .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                        .minDelayMs(1000)
+                        .maxDelayMs(60000).build())
+                .subscribe();
+        // Force the creation of a batch with a single message
+        producer.sendAsync("hello");
+        producer.flush();
+
+        message = consumer.receive();
 
         assertFalse(((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().isEmpty());
 

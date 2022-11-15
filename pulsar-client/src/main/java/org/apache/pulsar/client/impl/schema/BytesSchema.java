@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,29 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A schema for bytes array.
  */
-public class BytesSchema implements Schema<byte[]> {
+public class BytesSchema extends AbstractSchema<byte[]> {
+
+    private static final BytesSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("Bytes")
+            .type(SchemaType.BYTES)
+            .schema(new byte[0]).build();
+        INSTANCE = new BytesSchema();
+    }
 
     public static BytesSchema of() {
         return INSTANCE;
     }
-
-    private static final BytesSchema INSTANCE = new BytesSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Bytes")
-        .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
 
     @Override
     public byte[] encode(byte[] message) {
@@ -44,6 +49,18 @@ public class BytesSchema implements Schema<byte[]> {
 
     @Override
     public byte[] decode(byte[] bytes) {
+        return bytes;
+    }
+
+    @Override
+    public byte[] decode(ByteBuf byteBuf) {
+        if (byteBuf == null) {
+            return null;
+        }
+        int size = byteBuf.readableBytes();
+        byte[] bytes = new byte[size];
+
+        byteBuf.getBytes(byteBuf.readerIndex(), bytes);
         return bytes;
     }
 

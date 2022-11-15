@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
-import java.io.IOException;
+import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,35 +34,28 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
-import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.FastThreadLocal;
-import io.netty.util.internal.PlatformDependent;
 
 /**
  * This class contains code which in shared between the two load manager implementations.
  */
 public class LoadManagerShared {
-    public static final Logger log = LoggerFactory.getLogger(LoadManagerShared.class);
+    public static final Logger LOG = LoggerFactory.getLogger(LoadManagerShared.class);
 
     // Value of prefix "mibi" (e.g., number of bytes in a mibibyte).
     public static final int MIBI = 1024 * 1024;
@@ -82,9 +75,6 @@ public class LoadManagerShared {
             return new HashSet<>();
         }
     };
-
-    // update LoadReport at most every 5 seconds
-    public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
 
     private static final String DEFAULT_DOMAIN = "default";
 
@@ -108,7 +98,7 @@ public class LoadManagerShared {
         boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
                 ? ((NamespaceBundle) serviceUnit).hasNonPersistentTopic() : false;
         if (isIsolationPoliciesPresent) {
-            log.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
+            LOG.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
         }
         for (final String broker : availableBrokers) {
             final String brokerUrlString = String.format("http://%s", broker);
@@ -116,31 +106,29 @@ public class LoadManagerShared {
             try {
                 brokerUrl = new URL(brokerUrlString);
             } catch (MalformedURLException e) {
-                log.error("Unable to parse brokerUrl from ResourceUnitId - [{}]", e);
+                LOG.error("Unable to parse brokerUrl from ResourceUnitId", e);
                 continue;
             }
-            // todo: in future check if the resource unit has resources to take
-            // the namespace
+            // todo: in future check if the resource unit has resources to take the namespace
             if (isIsolationPoliciesPresent) {
-                // note: serviceUnitID is namespace name and ResourceID is
-                // brokerName
+                // note: serviceUnitID is namespace name and ResourceID is brokerName
                 if (policies.isPrimaryBroker(namespace, brokerUrl.getHost())) {
                     primariesCache.add(broker);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Added Primary Broker - [{}] as possible Candidates for"
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Added Primary Broker - [{}] as possible Candidates for"
                                 + " namespace - [{}] with policies", brokerUrl.getHost(), namespace.toString());
                     }
                 } else if (policies.isSecondaryBroker(namespace, brokerUrl.getHost())) {
                     secondaryCache.add(broker);
-                    if (log.isDebugEnabled()) {
-                        log.debug(
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(
                                 "Added Shared Broker - [{}] as possible "
                                         + "Candidates for namespace - [{}] with policies",
                                 brokerUrl.getHost(), namespace.toString());
                     }
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Skipping Broker - [{}] not primary broker and not shared" + " for namespace - [{}] ",
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Skipping Broker - [{}] not primary broker and not shared" + " for namespace - [{}] ",
                                 brokerUrl.getHost(), namespace.toString());
                     }
 
@@ -149,21 +137,21 @@ public class LoadManagerShared {
                 // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
                 if (isNonPersistentTopic
                         && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
                     }
                 } else if (!isNonPersistentTopic
                         && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
                     // persistent topic can be assigned to only brokers that enabled for persistent-topic
-                    if (log.isDebugEnabled()) {
-                        log.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
                     }
                 } else if (policies.isSharedBroker(brokerUrl.getHost())) {
                     secondaryCache.add(broker);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
                     }
                 }
@@ -172,14 +160,14 @@ public class LoadManagerShared {
         if (isIsolationPoliciesPresent) {
             brokerCandidateCache.addAll(primariesCache);
             if (policies.shouldFailoverToSecondaries(namespace, primariesCache.size())) {
-                log.debug(
+                LOG.debug(
                         "Not enough of primaries [{}] available for namespace - [{}], "
                                 + "adding shared [{}] as possible candidate owners",
                         primariesCache.size(), namespace.toString(), secondaryCache.size());
                 brokerCandidateCache.addAll(secondaryCache);
             }
         } else {
-            log.debug(
+            LOG.debug(
                     "Policies not present for namespace - [{}] so only "
                             + "considering shared [{}] brokers for possible owner",
                     namespace.toString(), secondaryCache.size());
@@ -195,11 +183,14 @@ public class LoadManagerShared {
      * @param target
      *            Map to fill.
      */
-    public static void fillNamespaceToBundlesMap(final Set<String> bundles, final Map<String, Set<String>> target) {
+    public static void fillNamespaceToBundlesMap(final Set<String> bundles,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> target) {
         bundles.forEach(bundleName -> {
             final String namespaceName = getNamespaceNameFromBundleName(bundleName);
             final String bundleRange = getBundleRangeFromBundleName(bundleName);
-            target.computeIfAbsent(namespaceName, k -> new HashSet<>()).add(bundleRange);
+            target.computeIfAbsent(namespaceName,
+                    k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                    .add(bundleRange);
         });
     }
 
@@ -208,7 +199,7 @@ public class LoadManagerShared {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
         int pos = bundleName.lastIndexOf("/");
         checkArgument(pos != -1);
-        return bundleName.substring(pos + 1, bundleName.length());
+        return bundleName.substring(pos + 1);
     }
 
     // From a full bundle name, extract the namespace name.
@@ -220,24 +211,25 @@ public class LoadManagerShared {
     }
 
     // Get the system resource usage for this broker.
-    public static SystemResourceUsage getSystemResourceUsage(final BrokerHostUsage brokerHostUsage) throws IOException {
+    public static SystemResourceUsage getSystemResourceUsage(final BrokerHostUsage brokerHostUsage) {
         SystemResourceUsage systemResourceUsage = brokerHostUsage.getBrokerHostUsage();
 
         // Override System memory usage and limit with JVM heap usage and limit
-        long maxHeapMemoryInBytes = Runtime.getRuntime().maxMemory();
-        long memoryUsageInBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        systemResourceUsage.memory.usage = (double) memoryUsageInBytes / MIBI;
-        systemResourceUsage.memory.limit = (double) maxHeapMemoryInBytes / MIBI;
+        double maxHeapMemoryInBytes = Runtime.getRuntime().maxMemory();
+        double memoryUsageInBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        double memoryUsage = memoryUsageInBytes / MIBI;
+        double memoryLimit = maxHeapMemoryInBytes / MIBI;
+        systemResourceUsage.setMemory(new ResourceUsage(memoryUsage, memoryLimit));
 
         // Collect JVM direct memory
-        systemResourceUsage.directMemory.usage = (double) (getJvmDirectMemoryUsed() / MIBI);
-        systemResourceUsage.directMemory.limit = (double) (PlatformDependent.maxDirectMemory() / MIBI);
+        systemResourceUsage.setDirectMemory(new ResourceUsage((double) (getJvmDirectMemoryUsed() / MIBI),
+                (double) (DirectMemoryUtils.jvmMaxDirectMemory() / MIBI)));
 
         return systemResourceUsage;
     }
 
     /**
-     * If load balancing is enabled, load shedding is enabled by default unless forced off by dynamic configuration
+     * If load balancing is enabled, load shedding is enabled by default unless forced off by dynamic configuration.
      *
      * @return true by default
      */
@@ -257,42 +249,43 @@ public class LoadManagerShared {
      * @param brokerToNamespaceToBundleRange
      *            Map from brokers to namespaces to bundle ranges.
      */
-    public static void removeMostServicingBrokersForNamespace(final String assignedBundleName,
-            final Set<String> candidates, final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange) {
+    public static void removeMostServicingBrokersForNamespace(
+            final String assignedBundleName,
+            final Set<String> candidates,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange) {
         if (candidates.isEmpty()) {
             return;
         }
+
         final String namespaceName = getNamespaceNameFromBundleName(assignedBundleName);
         int leastBundles = Integer.MAX_VALUE;
+
         for (final String broker : candidates) {
-            if (brokerToNamespaceToBundleRange.containsKey(broker)) {
-                final Set<String> bundleRanges = brokerToNamespaceToBundleRange.get(broker).get(namespaceName);
-                if (bundleRanges == null) {
-                    // Assume that when the namespace is absent, there are no bundles for this namespace assigned to
-                    // that broker.
-                    leastBundles = 0;
-                    break;
-                }
-                leastBundles = Math.min(leastBundles, bundleRanges.size());
-            } else {
-                // Assume non-present brokers have 0 bundles.
-                leastBundles = 0;
+            int bundles = (int) brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker,
+                            k -> ConcurrentOpenHashMap.<String,
+                                    ConcurrentOpenHashSet<String>>newBuilder().build())
+                    .computeIfAbsent(namespaceName,
+                            k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                    .size();
+            leastBundles = Math.min(leastBundles, bundles);
+            if (leastBundles == 0) {
                 break;
             }
         }
-        if (leastBundles == 0) {
-            // By assumption, the namespace name will not be present if there are no bundles in the namespace
-            // assigned to the broker.
-            candidates.removeIf(broker -> brokerToNamespaceToBundleRange.containsKey(broker)
-                    && brokerToNamespaceToBundleRange.get(broker).containsKey(namespaceName));
-        } else {
-            final int finalLeastBundles = leastBundles;
-            // We may safely assume that each broker has at least one bundle for this namespace.
-            // Note that this case is far less likely since it implies that there are at least as many bundles for this
-            // namespace as brokers.
-            candidates.removeIf(broker -> brokerToNamespaceToBundleRange.get(broker).get(namespaceName)
-                    .size() != finalLeastBundles);
-        }
+
+        // Since `brokerToNamespaceToBundleRange` can be updated by other threads,
+        // `leastBundles` may differ from the actual value.
+
+        final int finalLeastBundles = leastBundles;
+        candidates.removeIf(
+                broker -> brokerToNamespaceToBundleRange.computeIfAbsent(broker,
+                        k -> ConcurrentOpenHashMap.<String,
+                                ConcurrentOpenHashSet<String>>newBuilder().build())
+                        .computeIfAbsent(namespaceName,
+                                k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                        .size() > finalLeastBundles);
     }
 
     /**
@@ -323,8 +316,11 @@ public class LoadManagerShared {
      * @param candidates
      * @param brokerToNamespaceToBundleRange
      */
-    public static void filterAntiAffinityGroupOwnedBrokers(final PulsarService pulsar, final String assignedBundleName,
-            final Set<String> candidates, final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
+    public static void filterAntiAffinityGroupOwnedBrokers(
+            final PulsarService pulsar, final String assignedBundleName,
+            final Set<String> candidates,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange,
             Map<String, String> brokerToDomainMap) {
         if (candidates.isEmpty()) {
             return;
@@ -346,34 +342,34 @@ public class LoadManagerShared {
             // now, "candidates" has list of brokers which are part of domain that can accept this namespace. now,
             // with in these domains, remove brokers which don't have least number of namespaces. so, brokers with least
             // number of namespace can be selected
-            int leastNamaespaceCount = Integer.MAX_VALUE;
+            int leastNamespaceCount = Integer.MAX_VALUE;
             for (final String broker : candidates) {
                 if (brokerToAntiAffinityNamespaceCount.containsKey(broker)) {
                     Integer namespaceCount = brokerToAntiAffinityNamespaceCount.get(broker);
                     if (namespaceCount == null) {
                         // Assume that when the namespace is absent, there are no namespace assigned to
                         // that broker.
-                        leastNamaespaceCount = 0;
+                        leastNamespaceCount = 0;
                         break;
                     }
-                    leastNamaespaceCount = Math.min(leastNamaespaceCount, namespaceCount);
+                    leastNamespaceCount = Math.min(leastNamespaceCount, namespaceCount);
                 } else {
                     // Assume non-present brokers have 0 bundles.
-                    leastNamaespaceCount = 0;
+                    leastNamespaceCount = 0;
                     break;
                 }
             }
             // filter out broker based on namespace distribution
-            if (leastNamaespaceCount == 0) {
+            if (leastNamespaceCount == 0) {
                 candidates.removeIf(broker -> brokerToAntiAffinityNamespaceCount.containsKey(broker)
                         && brokerToAntiAffinityNamespaceCount.get(broker) > 0);
             } else {
-                final int finalLeastNamespaceCount = leastNamaespaceCount;
+                final int finalLeastNamespaceCount = leastNamespaceCount;
                 candidates
                         .removeIf(broker -> brokerToAntiAffinityNamespaceCount.get(broker) != finalLeastNamespaceCount);
             }
         } catch (Exception e) {
-            log.error("Failed to filter anti-affinity group namespace {}", e.getMessage());
+            LOG.error("Failed to filter anti-affinity group namespace {}", e.getMessage());
         }
     }
 
@@ -393,7 +389,7 @@ public class LoadManagerShared {
             return;
         }
 
-        final Map<String, Integer> domainNamespaceCount = Maps.newHashMap();
+        final Map<String, Integer> domainNamespaceCount = new HashMap<>();
         int leastNamespaceCount = Integer.MAX_VALUE;
         candidates.forEach(broker -> {
             final String domain = brokerToDomainMap.getOrDefault(broker, DEFAULT_DOMAIN);
@@ -415,8 +411,7 @@ public class LoadManagerShared {
     }
 
     /**
-     * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given
-     * {@param namespaceName}
+     * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given.
      *
      * @param pulsar
      * @param namespaceName
@@ -424,26 +419,34 @@ public class LoadManagerShared {
      * @return
      */
     public static CompletableFuture<Map<String, Integer>> getAntiAffinityNamespaceOwnedBrokers(
-            final PulsarService pulsar, String namespaceName,
-            Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange) {
+            final PulsarService pulsar, final String namespaceName,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange) {
 
         CompletableFuture<Map<String, Integer>> antiAffinityNsBrokersResult = new CompletableFuture<>();
-        ZooKeeperDataCache<Policies> policiesCache = pulsar.getConfigurationCache().policiesCache();
 
-        policiesCache.getAsync(path(POLICIES, namespaceName)).thenAccept(policies -> {
-            if (!policies.isPresent() || StringUtils.isBlank(policies.get().antiAffinityGroup)) {
+        pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(namespaceName))
+                .thenAccept(policies -> {
+            if (!policies.isPresent() || StringUtils.isBlank(policies.get().namespaceAntiAffinityGroup)) {
                 antiAffinityNsBrokersResult.complete(null);
                 return;
             }
-            final String antiAffinityGroup = policies.get().antiAffinityGroup;
+            final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
-            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
                 nsToBundleRange.forEach((ns, bundleRange) -> {
+                    if (bundleRange.isEmpty()) {
+                        return;
+                    }
+
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     futures.add(future);
-                    policiesCache.getAsync(path(POLICIES, ns)).thenAccept(nsPolicies -> {
-                        if (nsPolicies.isPresent() && antiAffinityGroup.equalsIgnoreCase(nsPolicies.get().antiAffinityGroup)) {
+
+                    pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(ns))
+                            .thenAccept(nsPolicies -> {
+                        if (nsPolicies.isPresent()
+                                && antiAffinityGroup.equalsIgnoreCase(nsPolicies.get().namespaceAntiAffinityGroup)) {
                             brokerToAntiAffinityNamespaceCount.compute(broker,
                                     (brokerName, count) -> count == null ? 1 : count + 1);
                         }
@@ -476,13 +479,16 @@ public class LoadManagerShared {
      * @param currentBroker
      * @param pulsar
      * @param brokerToNamespaceToBundleRange
-     * @param candidateBroekrs
+     * @param candidateBrokers
      * @return
      * @throws Exception
      */
-    public static boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker,
-            final PulsarService pulsar, Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
-            Set<String> candidateBroekrs) throws Exception {
+    public static boolean shouldAntiAffinityNamespaceUnload(
+            String namespace, String bundle, String currentBroker,
+            final PulsarService pulsar,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+                    brokerToNamespaceToBundleRange,
+            Set<String> candidateBrokers) throws Exception {
 
         Map<String, Integer> brokerNamespaceCount = getAntiAffinityNamespaceOwnedBrokers(pulsar, namespace,
                 brokerToNamespaceToBundleRange).get(10, TimeUnit.SECONDS);
@@ -490,7 +496,7 @@ public class LoadManagerShared {
             int leastNsCount = Integer.MAX_VALUE;
             int currentBrokerNsCount = 0;
 
-            for (String broker : candidateBroekrs) {
+            for (String broker : candidateBrokers) {
                 int nsCount = brokerNamespaceCount.getOrDefault(broker, 0);
                 if (currentBroker.equals(broker)) {
                     currentBrokerNsCount = nsCount;
@@ -505,13 +511,13 @@ public class LoadManagerShared {
             }
             // check if all the brokers having same number of ns-count then broker can't unload
             int leastNsOwnerBrokers = 0;
-            for (String broker : candidateBroekrs) {
+            for (String broker : candidateBrokers) {
                 if (leastNsCount == brokerNamespaceCount.getOrDefault(broker, 0)) {
                     leastNsOwnerBrokers++;
                 }
             }
             // if all candidate brokers own same-number of ns then broker can't unload
-            return candidateBroekrs.size() != leastNsOwnerBrokers;
+            return candidateBrokers.size() != leastNsOwnerBrokers;
         }
         return true;
     }
@@ -524,7 +530,7 @@ public class LoadManagerShared {
 
     /**
      * It filters out brokers which owns topic higher than configured threshold at
-     * {@link ServiceConfiguration.loadBalancerBrokerMaxTopics}. <br/>
+     * ServiceConfiguration.loadBalancerBrokerMaxTopics. <br/>
      * if all the brokers own topic higher than threshold then it resets the list with original broker candidates
      *
      * @param brokerCandidateCache

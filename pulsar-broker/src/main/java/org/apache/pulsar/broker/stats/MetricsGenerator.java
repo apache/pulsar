@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,14 @@ package org.apache.pulsar.broker.stats;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Maps;
 
 public class MetricsGenerator {
     private final PulsarService pulsar;
@@ -63,7 +61,7 @@ public class MetricsGenerator {
 
         // map by dimension map -> metrics
         // since dimension map is unique
-        Map<Map<String, String>, Metrics> mergedMetrics = Maps.newHashMap();
+        Map<Map<String, String>, Metrics> mergedMetrics = new HashMap<>();
 
         for (Metrics metrics : metricsCollection) {
             Map<String, String> dimensionKey = metrics.getDimensions();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,27 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
- * intial position at which the cursor will be set when subscribe
- *
+ * When creating a consumer, if the subscription does not exist, a new subscription will be created. By default the
+ * subscription will be created at the end of the topic. See
+ * {@link #subscriptionInitialPosition(SubscriptionInitialPosition)} to configure the initial position behavior.
  *
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SubscriptionInitialPosition {
     /**
-     * the latest position which means the start consuming position will be the last message
+     * The latest position which means the start consuming position will be the last message.
      */
     Latest(0),
 
     /**
-     * the earliest position which means the start consuming position will be the first message
+     * The earliest position which means the start consuming position will be the first message.
      */
-    Earliest(1),
-    ;
+    Earliest(1);
 
 
     private final int value;
@@ -42,6 +47,8 @@ public enum SubscriptionInitialPosition {
         this.value = value;
     }
 
-    public final int getValue() { return value; }
+    public final int getValue() {
+        return value;
+    }
 
 }

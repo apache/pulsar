@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import java.util.Map;
 
 /**
  * {@link JvmUsage} represents set of resources that are specific to JVM and are used by broker, load balancing need to
- * know this detail
+ * know this detail.
  *
  */
 public class JvmUsage {
@@ -45,7 +45,7 @@ public class JvmUsage {
         JvmUsage jvmUsage = null;
         if (metrics.containsKey("jvm_thread_cnt")) {
             jvmUsage = new JvmUsage();
-            jvmUsage.threadCount = ((Long) metrics.get("jvm_thread_cnt")).longValue();
+            jvmUsage.threadCount = Long.valueOf(metrics.get("jvm_thread_cnt").toString());
         }
         return jvmUsage;
     }

@@ -17,13 +17,15 @@
 # under the License.
 #
 
-FROM apachepulsar/pulsar:latest
+FROM busybox as pulsar-all
 
-ARG PULSAR_IO_TARBALL
+ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL
 
-ADD ${PULSAR_IO_TARBALL} /
-RUN mv /apache-pulsar-io-connectors-*/connectors /pulsar/connectors
-
+ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
-RUN mv /apache-pulsar-offloaders-*/offloaders /pulsar/offloaders
+RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
+
+FROM apachepulsar/pulsar:latest
+COPY --from=pulsar-all /connectors /pulsar/connectors
+COPY --from=pulsar-all /offloaders /pulsar/offloaders

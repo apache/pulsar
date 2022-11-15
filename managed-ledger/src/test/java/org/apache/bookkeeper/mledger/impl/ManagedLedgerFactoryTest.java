@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,9 +52,9 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(info.ledgers.size(), 4);
 
         assertEquals(info.ledgers.get(0).ledgerId, 3);
-        assertEquals(info.ledgers.get(1).ledgerId, 5);
-        assertEquals(info.ledgers.get(2).ledgerId, 6);
-        assertEquals(info.ledgers.get(3).ledgerId, 7);
+        assertEquals(info.ledgers.get(1).ledgerId, 4);
+        assertEquals(info.ledgers.get(2).ledgerId, 5);
+        assertEquals(info.ledgers.get(3).ledgerId, 6);
 
         assertEquals(info.cursors.size(), 1);
 
@@ -62,13 +62,13 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(cursorInfo.markDelete.ledgerId, 3);
         assertEquals(cursorInfo.markDelete.entryId, -1);
 
-        assertEquals(cursorInfo.individualDeletedMessages.size(), 1);
+        assertEquals(cursorInfo.individualDeletedMessages.size(), 2);
 
         MessageRangeInfo mri = cursorInfo.individualDeletedMessages.get(0);
-        assertEquals(mri.from.ledgerId, p1.getLedgerId());
-        assertEquals(mri.from.entryId, p1.getEntryId());
-        assertEquals(mri.to.ledgerId, p3.getLedgerId());
-        assertEquals(mri.to.entryId, p3.getEntryId());
+        assertEquals(mri.from.ledgerId, p2.getLedgerId());
+        assertEquals(mri.from.entryId, -1);
+        assertEquals(mri.to.ledgerId, p2.getLedgerId());
+        assertEquals(mri.to.entryId, 0);
     }
 
 }

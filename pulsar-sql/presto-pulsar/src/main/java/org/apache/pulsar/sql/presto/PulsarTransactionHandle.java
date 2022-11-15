@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.ConnectorTransactionHandle;
 
+/**
+ * A handle for transactions.
+ */
 public enum PulsarTransactionHandle implements ConnectorTransactionHandle {
     INSTANCE
 }

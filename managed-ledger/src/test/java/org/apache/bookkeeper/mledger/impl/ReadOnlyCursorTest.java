@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,7 +40,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void notFound() throws Exception {
         try {
-            factory.openReadOnlyCursor("notFound", PositionImpl.earliest, new ManagedLedgerConfig());
+            factory.openReadOnlyCursor("notFound", PositionImpl.EARLIEST, new ManagedLedgerConfig());
             fail("Should have failed");
         } catch (ManagedLedgerNotFoundException e) {
             // Expected
@@ -59,7 +59,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionImpl.earliest, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), N);
         assertTrue(cursor.hasMoreEntries());
@@ -78,7 +78,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         }
 
         // Open a new cursor
-        cursor = factory.openReadOnlyCursor("simple", PositionImpl.earliest, new ManagedLedgerConfig());
+        cursor = factory.openReadOnlyCursor("simple", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), 2 * N);
         assertTrue(cursor.hasMoreEntries());
@@ -103,7 +103,10 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void skip() throws Exception {
         ManagedLedger ledger = factory.open("skip",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(2).setRetentionTime(1, TimeUnit.HOURS));
+                new ManagedLedgerConfig()
+                        .setMaxEntriesPerLedger(2)
+                        .setRetentionTime(1, TimeUnit.HOURS)
+                        .setRetentionSizeInMB(-1));
 
         int N = 10;
 
@@ -111,7 +114,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.earliest, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), N);
         assertTrue(cursor.hasMoreEntries());
@@ -135,7 +138,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip-all", PositionImpl.earliest,
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip-all", PositionImpl.EARLIEST,
                 new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), N);
@@ -152,7 +155,10 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void skipMultiple() throws Exception {
         ManagedLedger ledger = factory.open("skip",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
+                new ManagedLedgerConfig()
+                        .setMaxEntriesPerLedger(7)
+                        .setRetentionTime(1, TimeUnit.HOURS)
+                        .setRetentionSizeInMB(-1));
 
         int N = 30;
 
@@ -160,7 +166,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.earliest, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), N);
         assertTrue(cursor.hasMoreEntries());
@@ -182,7 +188,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     void empty() throws Exception {
         factory.open("empty", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("empty", PositionImpl.earliest, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("empty", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertFalse(cursor.hasMoreEntries());
@@ -200,7 +206,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionImpl.earliest, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionImpl.EARLIEST, new ManagedLedgerConfig());
 
         assertEquals(cursor.getNumberOfEntries(), N);
         assertTrue(cursor.hasMoreEntries());

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
- * A simple KeyValue class
+ * A simple KeyValue class.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class KeyValue<K, V> {
     private K key;
     private V value;

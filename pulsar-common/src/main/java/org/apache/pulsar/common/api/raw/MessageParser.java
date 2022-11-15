@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,30 +19,40 @@
 package org.apache.pulsar.common.api.raw;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static org.apache.pulsar.common.api.Commands.hasChecksum;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
-
+import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
-
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
-
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 
+/**
+ * Helper class to work with a raw Pulsar entry payload.
+ */
 @UtilityClass
 @Slf4j
 public class MessageParser {
+
+    private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
+            new FastThreadLocal<SingleMessageMetadata>() {
+                protected SingleMessageMetadata initialValue() throws Exception {
+                    return new SingleMessageMetadata();
+                };
+            };
+
+    /**
+     * Definition of an interface to process a raw Pulsar entry payload.
+     */
     public interface MessageProcessor {
-        void process(RawMessage message);
+        void process(RawMessage message) throws IOException;
     }
 
     /**
@@ -50,11 +60,10 @@ public class MessageParser {
      * provided {@link MessageProcessor} will be invoked for each individual message.
      */
     public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
-            MessageProcessor processor) throws IOException {
-        MessageMetadata msgMetadata = null;
+            MessageProcessor processor, int maxMessageSize) throws IOException {
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
-        ReferenceCountedObject<MessageMetadata> refCntMsgMetadata = null;
+        ReferenceCountedMessageMetadata refCntMsgMetadata = null;
 
         try {
             if (!verifyChecksum(topicName, headersAndPayload, ledgerId, entryId)) {
@@ -62,10 +71,19 @@ public class MessageParser {
                 return;
             }
 
+            refCntMsgMetadata = ReferenceCountedMessageMetadata.get(headersAndPayload);
+            MessageMetadata msgMetadata = refCntMsgMetadata.getMetadata();
+
             try {
-                msgMetadata = Commands.parseMessageMetadata(payload);
+                Commands.parseMessageMetadata(payload, msgMetadata);
             } catch (Throwable t) {
-                log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring", topicName, ledgerId, entryId);
+                log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring",
+                    topicName, ledgerId, entryId);
+                return;
+            }
+
+            if (msgMetadata.hasMarkerType()) {
+                // Ignore marker messages as they don't contain user data
                 return;
             }
 
@@ -74,7 +92,7 @@ public class MessageParser {
             }
 
             uncompressedPayload = uncompressPayloadIfNeeded(topicName, msgMetadata, headersAndPayload, ledgerId,
-                    entryId);
+                    entryId, maxMessageSize);
 
             if (uncompressedPayload == null) {
                 // Message was discarded on decompression error
@@ -82,14 +100,14 @@ public class MessageParser {
             }
 
             final int numMessages = msgMetadata.getNumMessagesInBatch();
-            refCntMsgMetadata = new ReferenceCountedObject<>(msgMetadata, (x) -> x.recycle());
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
                 processor.process(
-                        RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload, ledgerId, entryId, 0));
+                    RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload.retain(), ledgerId, entryId, 0));
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
-                receiveIndividualMessagesFromBatch(refCntMsgMetadata, uncompressedPayload, ledgerId, entryId, processor);
+                receiveIndividualMessagesFromBatch(
+                    refCntMsgMetadata, uncompressedPayload, ledgerId, entryId, processor);
             }
 
 
@@ -115,11 +133,11 @@ public class MessageParser {
     }
 
     public static ByteBuf uncompressPayloadIfNeeded(TopicName topic, MessageMetadata msgMetadata,
-            ByteBuf payload, long ledgerId, long entryId) {
+            ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(msgMetadata.getCompression());
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        if (payloadSize > PulsarDecoder.MaxMessageSize) {
+        if (payloadSize > maxMessageSize) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error("[{}] Got corrupted payload message size {} at {}:{}", topic, payloadSize,
                     ledgerId, entryId);
@@ -136,25 +154,23 @@ public class MessageParser {
         }
     }
 
-    private static void receiveIndividualMessagesFromBatch(ReferenceCountedObject<MessageMetadata> msgMetadata,
+    private static void receiveIndividualMessagesFromBatch(ReferenceCountedMessageMetadata msgMetadata,
             ByteBuf uncompressedPayload, long ledgerId, long entryId, MessageProcessor processor) {
-        int batchSize = msgMetadata.get().getNumMessagesInBatch();
+        int batchSize = msgMetadata.getMetadata().getNumMessagesInBatch();
 
         try {
             for (int i = 0; i < batchSize; ++i) {
-                PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                        .newBuilder();
+               SingleMessageMetadata singleMessageMetadata = LOCAL_SINGLE_MESSAGE_METADATA.get();
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                        singleMessageMetadataBuilder, i, batchSize);
+                        singleMessageMetadata, i, batchSize);
 
-                if (singleMessageMetadataBuilder.getCompactedOut()) {
+                if (singleMessageMetadata.isCompactedOut()) {
                     // message has been compacted out, so don't send to the user
                     singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
                     continue;
                 }
 
-                processor.process(RawMessageImpl.get(msgMetadata, singleMessageMetadataBuilder, singleMessagePayload,
+                processor.process(RawMessageImpl.get(msgMetadata, singleMessageMetadata, singleMessagePayload,
                         ledgerId, entryId, i));
             }
         } catch (IOException e) {

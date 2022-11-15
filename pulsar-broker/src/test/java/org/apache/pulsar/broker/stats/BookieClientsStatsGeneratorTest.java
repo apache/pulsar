@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.util.Map;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.BookieClientStatsGenerator;
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -33,8 +33,7 @@ import org.testng.annotations.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
-/**
- */
+@Test(groups = "broker")
 public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
 
     @BeforeClass
@@ -43,7 +42,7 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -53,18 +52,17 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
     public void testBookieClientStatsGenerator() throws Exception {
         // should not generate any NPE or other exceptions..
         Map<String, Map<String, PendingBookieOpsStats>> stats = BookieClientStatsGenerator.generate(super.getPulsar());
-        assertEquals((boolean) stats.isEmpty(), true);
+        assertTrue(stats.isEmpty());
     }
 
     @Test
-    public void testJvmDirectMemoryUsedMetric() throws Exception {
+    public void testJvmDirectMemoryUsedMetric() {
         PooledByteBufAllocator allocator = new PooledByteBufAllocator( //
                 true, // preferDirect
                 0, // nHeapArenas,
                 1, // nDirectArena
                 8192, // pageSize
                 11, // maxOrder
-                64, // tinyCacheSize
                 32, // smallCacheSize
                 8, // normalCacheSize
                 true // Cache all threads

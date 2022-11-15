@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,35 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
+/**
+ * Schema serialization exception.
+ */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class SchemaSerializationException extends RuntimeException {
 
+    /**
+     * Constructs an {@code SchemaSerializationException} with the specified detail message.
+     *
+     * @param message
+     *        The detail message (which is saved for later retrieval
+     *        by the {@link #getMessage()} method)
+     */
     public SchemaSerializationException(String message) {
         super(message);
     }
 
+    /**
+     * Constructs an {@code SchemaSerializationException} with the specified cause.
+     *
+     * @param cause
+     *        The cause (which is saved for later retrieval by the
+     *        {@link #getCause()} method).  (A null value is permitted,
+     *        and indicates that the cause is nonexistent or unknown.)
+     */
     public SchemaSerializationException(Throwable cause) {
         super(cause);
     }

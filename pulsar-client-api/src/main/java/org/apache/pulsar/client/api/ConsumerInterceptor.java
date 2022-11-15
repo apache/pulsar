@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,22 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.List;
+import java.util.Set;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A plugin interface that allows you to intercept (and possibly mutate)
  * messages received by the consumer.
- * <p>
- * A primary use case is to hook into consumer applications for custom
+ *
+ * <p>A primary use case is to hook into consumer applications for custom
  * monitoring, logging, etc.
- * <p>
- * Exceptions thrown by interceptor methods will be caught, logged, but
+ *
+ * <p>Exceptions thrown by interceptor methods will be caught, logged, but
  * not propagated further.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerInterceptor<T> extends AutoCloseable {
 
     /**
@@ -42,14 +46,14 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * {@link Consumer#receive()}, {@link MessageListener#received(Consumer,
      * Message)} or the {@link java.util.concurrent.CompletableFuture} returned by
      * {@link Consumer#receiveAsync()} completes.
-     * <p>
-     * This method is allowed to modify message, in which case the new message
+     *
+     * <p>This method is allowed to modify message, in which case the new message
      * will be returned.
-     * <p>
-     * Any exception thrown by this method will be caught by the caller, logged,
+     *
+     * <p>Any exception thrown by this method will be caught by the caller, logged,
      * but not propagated to client.
-     * <p>
-     * Since the consumer may run multiple interceptors, a particular
+     *
+     * <p>Since the consumer may run multiple interceptors, a particular
      * interceptor's
      * <tt>beforeConsume</tt> callback will be called in the order specified by
      * {@link ConsumerBuilder#intercept(ConsumerInterceptor[])}. The first
@@ -96,4 +100,33 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * @param exception the exception on acknowledge.
      */
     void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception);
+
+    /**
+     * This method will be called when a redelivery from a negative acknowledge occurs.
+     *
+     * <p>Any exception thrown by this method will be ignored by the caller.
+     *
+     * @param consumer the consumer which contains the interceptor
+     * @param messageIds message to ack, null if acknowledge fail.
+     */
+    void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> messageIds);
+
+    /**
+     * This method will be called when a redelivery from an acknowledge timeout occurs.
+     *
+     * <p>Any exception thrown by this method will be ignored by the caller.
+     *
+     * @param consumer the consumer which contains the interceptor
+     * @param messageIds message to ack, null if acknowledge fail.
+     */
+    void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds);
+
+    /**
+     * This method is called when partitions of the topic (partitioned-topic) changes.
+     *
+     * @param topicName topic name
+     * @param partitions new updated number of partitions
+     */
+    default void onPartitionsChange(String topicName, int partitions) {
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,35 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
-import com.google.common.base.Objects;
-
+/**
+ * Local policies.
+ */
+@ToString
+@EqualsAndHashCode
 public class LocalPolicies {
 
-    public BundlesData bundles;
+    public final BundlesData bundles;
+    // bookie affinity group for bookie-isolation
+    public final BookieAffinityGroupData bookieAffinityGroup;
+    // namespace anti-affinity-group
+    public final String namespaceAntiAffinityGroup;
 
     public LocalPolicies() {
         bundles = defaultBundle();
+        bookieAffinityGroup = null;
+        namespaceAntiAffinityGroup = null;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof LocalPolicies) {
-            LocalPolicies other = (LocalPolicies) obj;
-            return Objects.equal(bundles, other.bundles);
-        }
-        return false;
+    public LocalPolicies(BundlesData data,
+                         BookieAffinityGroupData bookieAffinityGroup,
+                         String namespaceAntiAffinityGroup) {
+        bundles = data;
+        this.bookieAffinityGroup = bookieAffinityGroup;
+        this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
     }
 
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.collect.Multimap;
 import java.util.Map;
 import java.util.Random;
-
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
 
 /**
  *
@@ -38,9 +35,9 @@ public class WRRPlacementStrategy implements PlacementStrategy {
     private final Random rand = new Random();
 
     /**
-     * <code>
-     * Function : getByWeightedRoundRobin
-     *            returns ResourceUnit selected by WRR algorithm based on available resource on RU
+     * Function : getByWeightedRoundRobin returns ResourceUnit selected by WRR algorithm
+     *              based on available resource on RU.
+     * &lt;code&gt;
      * ^
      * |
      * |
@@ -49,14 +46,14 @@ public class WRRPlacementStrategy implements PlacementStrategy {
      * |                |                        |                                |     |
      * |   Broker 2     |       Broker 3         |         Broker 1               |  B4 |
      * |                |                        |                                |     |
-     * +----------------+------------------------+--------------------------------+--------->
+     * +----------------+------------------------+--------------------------------+---------
      * 0                20                       50                               90    100
      *
      * This is weighted Round robin, we calculate weight based on availability of resources;
      * total availability is taken as a full range then each broker is given range based on
      *  its resource availability, if the number generated within total range happens to be in
      * broker's range, that broker is selected
-     * </code>
+     * &lt;/code&gt;
      */
     public ResourceUnit findBrokerForPlacement(Multimap<Long, ResourceUnit> finalCandidates) {
         if (finalCandidates.isEmpty()) {
@@ -71,7 +68,11 @@ public class WRRPlacementStrategy implements PlacementStrategy {
         if (totalAvailability <= 0) {
             // todo: this means all the brokers are overloaded and we can't assign this namespace to any broker
             // for now, pick anyone and return that one, because when we don't have ranking we put O for each broker
-            return Iterables.get(finalCandidates.get(0L), rand.nextInt(finalCandidates.size()));
+            return finalCandidates.get(0L)
+                    .stream()
+                    .skip(rand.nextInt(finalCandidates.size()))
+                    .findFirst()
+                    .orElse(null);
         }
         int weightedSelector = rand.nextInt(totalAvailability);
         log.debug("Generated Weighted Selector Number - [{}] ", weightedSelector);

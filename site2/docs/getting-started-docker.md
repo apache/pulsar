@@ -1,77 +1,70 @@
 ---
-id: standalone-docker
-title: Start a standalone cluster with Docker
-sidebar_label: Pulsar in Docker
+id: getting-started-docker
+title: Run a standalone Pulsar cluster in Docker
+sidebar_label: "Run Pulsar in Docker"
 ---
 
-For the purposes of local development and testing, you can run Pulsar in standalone
-mode on your own machine within a Docker container.
+For local development and testing, you can run Pulsar in standalone mode on your own machine within a Docker container.
 
-If you don't have Docker installed, you can download the [Community edition](https://www.docker.com/community-edition)
-and follow the instructions for your OS.
+If you have not installed Docker, download the [Community edition](https://www.docker.com/community-edition) and follow the instructions for your OS.
 
-## Starting Pulsar inside Docker
+## Start Pulsar in Docker
 
-```shell
-$ docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:{{site.current_version}} \
-  bin/pulsar standalone
-```
-
-Under Windows, you should use something like the following docker command:
+For macOS, Linux, and Windows, run the following command to start Pulsar within a Docker container.
 
 ```shell
-$ docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  -v "$PWD/data:/pulsar/data".ToLower() \
-  apachepulsar/pulsar:{{site.current_version}} \
-  bin/pulsar standalone
+docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
 ```
 
-A few things to note about this command:
- * `$PWD/data` : The docker host directory under the Windows operating system must be lowercase.`$PWD/data` can provide you with the specified directory, for example: `E:/data`.
- * `-v $PWD/data:/pulsar/data`: This will make the process inside the container to store the
-   data and metadata in the filesystem outside the container, in order to not start "fresh" every
-   time the container is restarted.
+If you want to change Pulsar configurations and start Pulsar, run the following command by passing environment variables with the `PULSAR_PREFIX_` prefix. See [default configuration file](https://github.com/apache/pulsar/blob/e6b12c64b043903eb5ff2dc5186fe8030f157cfc/conf/standalone.conf) for more details.
 
-If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
+```shell
+docker run -it -e PULSAR_PREFIX_xxx=yyy -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.10.0 sh -c "bin/apply-config-from-env.py conf/standalone.conf && bin/pulsar standalone"
+```
+
+:::tip
+
+* The docker container runs as UID 10000 and GID 0 by default. You need to ensure the mounted volumes give write permission to either UID 10000 or GID 0. Note that UID 10000 is arbitrary, so it is recommended to make these mounts writable for the root group (GID 0).
+* The data, metadata, and configuration are persisted on Docker volumes to not start "fresh" every time the container is restarted. For details on the volumes, you can use `docker volume inspect <sourcename>`.
+* For Docker on Windows, make sure to configure it to use Linux containers.
+
+:::
+
+After starting Pulsar successfully, you can see `INFO`-level log messages like this:
 
 ```
-2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
-2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246
+08:18:30.970 [main] INFO  org.apache.pulsar.broker.web.WebService - HTTP Service started at http://0.0.0.0:8080
+...
+07:53:37.322 [main] INFO  org.apache.pulsar.broker.PulsarService - messaging service is ready, bootstrap service port = 8080, broker url= pulsar://localhost:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@98b63c1
 ...
 ```
 
+:::tip
 
-> #### Automatically created namespace
-> When you start a local standalone cluster, Pulsar will automatically create a `public/default`
-namespace that you can use for development purposes. All Pulsar topics are managed within namespaces.
-For more info, see [Topics](concepts-messaging.md#topics).
+* To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
+* When you start a local standalone cluster, a `public/default` namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
 
+:::
 
-## Start publishing and consuming messages
+## Use Pulsar in Docker
 
-Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
-and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
-use one of these root URLs for interacting with your cluster:
+Pulsar offers a variety of [client libraries](client-libraries.md), such as [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md), [C++](client-libraries-cpp.md).
 
+If you're running a local standalone cluster, you can use one of these root URLs to interact with your cluster:
 * `pulsar://localhost:6650`
 * `http://localhost:8080`
 
-Here's an example that lets you quickly get started with Pulsar by using the [Python](client-libraries-python.md)
-client API.
+The following example guides you to get started with Pulsar by using the [Python client API](client-libraries-python.md).
 
-You can install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
+Install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
 
 ```shell
-$ pip install pulsar-client
+pip install pulsar-client
 ```
 
-First create a consumer and subscribe to the topic:
+### Consume a message
+
+Create a consumer and subscribe to the topic:
 
 ```python
 import pulsar
@@ -88,7 +81,9 @@ while True:
 client.close()
 ```
 
-Now we can start a producer to send some test messages:
+### Produce a message
+
+Start a producer to send some test messages:
 
 ```python
 import pulsar
@@ -102,66 +97,107 @@ for i in range(10):
 client.close()
 ```
 
-
 ## Get the topic statistics
 
-In Pulsar you can use REST, Java, or command-line tools to control every aspect of the system.
-You can find detailed documentation of all the APIs in the [Admin API Overview](admin-api-overview.md).
+In Pulsar, you can use REST API, Java, or command-line tools to control every aspect of the system. For details on APIs, refer to [Admin API Overview](admin-api-overview.md).
 
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-$ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
+curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
-The output will be something like this:
+The output is something like this:
 
 ```json
 {
-  "averageMsgSize": 0.0,
-  "msgRateIn": 0.0,
-  "msgRateOut": 0.0,
-  "msgThroughputIn": 0.0,
-  "msgThroughputOut": 0.0,
-  "publishers": [
-    {
-      "address": "/172.17.0.1:35048",
-      "averageMsgSize": 0.0,
-      "clientVersion": "1.19.0-incubating",
-      "connectedSince": "2017-08-09 20:59:34.621+0000",
-      "msgRateIn": 0.0,
-      "msgThroughputIn": 0.0,
-      "producerId": 0,
-      "producerName": "standalone-0-1"
-    }
-  ],
-  "replication": {},
-  "storageSize": 16,
-  "subscriptions": {
-    "my-sub": {
-      "blockedSubscriptionOnUnackedMsgs": false,
-      "consumers": [
+    "msgRateIn": 0.0,
+    "msgThroughputIn": 0.0,
+    "msgRateOut": 1.8332950480217471,
+    "msgThroughputOut": 91.33142602871978,
+    "bytesInCounter": 7097,
+    "msgInCounter": 143,
+    "bytesOutCounter": 6607,
+    "msgOutCounter": 133,
+    "averageMsgSize": 0.0,
+    "msgChunkPublished": false,
+    "storageSize": 7097,
+    "backlogSize": 0,
+    "offloadedStorageSize": 0,
+    "publishers": [
         {
-          "address": "/172.17.0.1:35064",
-          "availablePermits": 996,
-          "blockedConsumerOnUnackedMsgs": false,
-          "clientVersion": "1.19.0-incubating",
-          "connectedSince": "2017-08-09 21:05:39.222+0000",
-          "consumerName": "166111",
-          "msgRateOut": 0.0,
-          "msgRateRedeliver": 0.0,
-          "msgThroughputOut": 0.0,
-          "unackedMessages": 0
+            "accessMode": "Shared",
+            "msgRateIn": 0.0,
+            "msgThroughputIn": 0.0,
+            "averageMsgSize": 0.0,
+            "chunkedMessageRate": 0.0,
+            "producerId": 0,
+            "metadata": {},
+            "address": "/127.0.0.1:35604",
+            "connectedSince": "2021-07-04T09:05:43.04788Z",
+            "clientVersion": "2.8.0",
+            "producerName": "standalone-2-5"
         }
-      ],
-      "msgBacklog": 0,
-      "msgRateExpired": 0.0,
-      "msgRateOut": 0.0,
-      "msgRateRedeliver": 0.0,
-      "msgThroughputOut": 0.0,
-      "type": "Exclusive",
-      "unackedMessages": 0
-    }
-  }
+    ],
+    "waitingPublishers": 0,
+    "subscriptions": {
+        "my-sub": {
+            "msgRateOut": 1.8332950480217471,
+            "msgThroughputOut": 91.33142602871978,
+            "bytesOutCounter": 6607,
+            "msgOutCounter": 133,
+            "msgRateRedeliver": 0.0,
+            "chunkedMessageRate": 0,
+            "msgBacklog": 0,
+            "backlogSize": 0,
+            "msgBacklogNoDelayed": 0,
+            "blockedSubscriptionOnUnackedMsgs": false,
+            "msgDelayed": 0,
+            "unackedMessages": 0,
+            "type": "Exclusive",
+            "activeConsumerName": "3c544f1daa",
+            "msgRateExpired": 0.0,
+            "totalMsgExpired": 0,
+            "lastExpireTimestamp": 0,
+            "lastConsumedFlowTimestamp": 1625389101290,
+            "lastConsumedTimestamp": 1625389546070,
+            "lastAckedTimestamp": 1625389546162,
+            "lastMarkDeleteAdvancedTimestamp": 1625389546163,
+            "consumers": [
+                {
+                    "msgRateOut": 1.8332950480217471,
+                    "msgThroughputOut": 91.33142602871978,
+                    "bytesOutCounter": 6607,
+                    "msgOutCounter": 133,
+                    "msgRateRedeliver": 0.0,
+                    "chunkedMessageRate": 0.0,
+                    "consumerName": "3c544f1daa",
+                    "availablePermits": 867,
+                    "unackedMessages": 0,
+                    "avgMessagesPerEntry": 6,
+                    "blockedConsumerOnUnackedMsgs": false,
+                    "lastAckedTimestamp": 1625389546162,
+                    "lastConsumedTimestamp": 1625389546070,
+                    "metadata": {},
+                    "address": "/127.0.0.1:35472",
+                    "connectedSince": "2021-07-04T08:58:21.287682Z",
+                    "clientVersion": "2.8.0"
+                }
+            ],
+            "isDurable": true,
+            "isReplicated": false,
+            "allowOutOfOrderDelivery": false,
+            "consumersAfterMarkDeletePosition": {},
+            "nonContiguousDeletedMessagesRanges": 0,
+            "nonContiguousDeletedMessagesRangesSerializedSize": 0,
+            "durable": true,
+            "replicated": false
+        }
+    },
+    "replication": {},
+    "deduplicationStatus": "Disabled",
+    "nonContiguousDeletedMessagesRanges": 0,
+    "nonContiguousDeletedMessagesRangesSerializedSize": 0
 }
 ```
+

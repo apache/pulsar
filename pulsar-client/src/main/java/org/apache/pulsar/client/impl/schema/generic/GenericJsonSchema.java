@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,46 +18,44 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic json schema.
  */
-class GenericJsonSchema extends GenericSchema {
-
-    private final ObjectMapper objectMapper;
+@Slf4j
+public class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
+        this(schemaInfo, true);
+    }
+
+    GenericJsonSchema(SchemaInfo schemaInfo,
+                      boolean useProvidedSchemaAsReaderSchema) {
         super(schemaInfo);
-        this.objectMapper = new ObjectMapper();
+        setWriter(new GenericJsonWriter());
+        setReader(new MultiVersionGenericJsonReader(useProvidedSchemaAsReaderSchema, schema, schemaInfo, fields));
     }
 
     @Override
-    public byte[] encode(GenericRecord message) {
-        checkArgument(message instanceof GenericAvroRecord);
-        GenericJsonRecord gjr = (GenericJsonRecord) message;
-        try {
-            return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
-        }
+    public GenericRecordBuilder newRecordBuilder() {
+        return new JsonRecordBuilderImpl(this);
     }
 
-    @Override
-    public GenericRecord decode(byte[] bytes) {
-        try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
-            return new GenericJsonRecord(fields, jn);
-        } catch (IOException ioe) {
-            throw new SchemaSerializationException(ioe);
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    public Schema<GenericRecord> clone() {
+        Schema<GenericRecord> schema = of(this.schemaInfo,
+                ((AbstractMultiVersionGenericReader) this.reader).useProvidedSchemaAsReaderSchema);
+        if (this.schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(this.schemaInfoProvider);
         }
+        return schema;
     }
 }

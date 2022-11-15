@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,34 +18,49 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
+import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -54,17 +69,28 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
@@ -74,22 +100,24 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
 
-        compactionScheduler.shutdownNow();
+        if (compactionScheduler != null) {
+            compactionScheduler.shutdownNow();
+        }
     }
 
     @Test
@@ -121,6 +149,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
+
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
+        // Compacted topic ledger should have same number of entry equals to number of unique key.
+        Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
+        Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
+        Assert.assertFalse(internalStats.compactedLedger.offloaded);
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -785,7 +819,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         // force ledger roll
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         // write a message to avoid issue #1517
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
@@ -812,7 +846,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         ledgersOpened.clear();
 
         // force broker to close resources for topic
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         // write a message to avoid issue #1517
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
@@ -1249,11 +1283,16 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
-    public void testCompactionWithLastDeletedKey() throws Exception {
+    @DataProvider(name = "lastDeletedBatching")
+    public static Object[][] lastDeletedBatching() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
+    public void testCompactionWithLastDeletedKey(boolean batching) throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false)
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(batching)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -1276,11 +1315,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
-    public void testEmptyCompactionLedger() throws Exception {
+    @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
+    public void testEmptyCompactionLedger(boolean batching) throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false)
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(batching)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -1301,4 +1340,412 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
+    public void testAllEmptyCompactionLedger(boolean batchEnabled) throws Exception {
+        final String topic = "persistent://my-property/use/my-ns/testAllEmptyCompactionLedger" + UUID.randomUUID().toString();
+
+        final int messages = 10;
+
+        // 1.create producer and publish message to the topic.
+        ProducerBuilder<byte[]> builder = pulsarClient.newProducer().topic(topic);
+        if (!batchEnabled) {
+            builder.enableBatching(false);
+        } else {
+            builder.batchingMaxMessages(messages / 5);
+        }
+
+        Producer<byte[]> producer = builder.create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().keyBytes("1".getBytes()).value("".getBytes()).sendAsync());
+        }
+
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+            Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(m);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testBatchAndNonBatchWithoutEmptyPayload() throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-property/use/my-ns/testBatchAndNonBatchWithoutEmptyPayload" + UUID.randomUUID().toString();
+
+        // 1.create producer and publish message to the topic.
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.DAYS)
+                .create();
+
+        final String k1 = "k1";
+        final String k2 = "k2";
+        producer.newMessage().key(k1).value("0".getBytes()).send();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(7);
+        for (int i = 0; i < 2; i++) {
+            futures.add(producer.newMessage().key(k1).value((i + 1 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+        producer.newMessage().key(k1).value("3".getBytes()).send();
+        for (int i = 0; i < 2; i++) {
+            futures.add(producer.newMessage().key(k1).value((i + 4 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+
+        for (int i = 0; i < 3; i++) {
+            futures.add(producer.newMessage().key(k2).value((i + "").getBytes()).sendAsync());
+        }
+
+        producer.newMessage().key(k2).value("3".getBytes()).send();
+        producer.flush();
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+            Message<byte[]> m1 = consumer.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> m2 = consumer.receive(2, TimeUnit.SECONDS);
+            assertNotNull(m1);
+            assertNotNull(m2);
+            assertEquals(m1.getKey(), k1);
+            assertEquals(new String(m1.getValue()), "5");
+            assertEquals(m2.getKey(), k2);
+            assertEquals(new String(m2.getValue()), "3");
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+    }
+    @Test(timeOut = 20000)
+    public void testBatchAndNonBatchWithEmptyPayload() throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-property/use/my-ns/testBatchAndNonBatchWithEmptyPayload" + UUID.randomUUID().toString();
+
+        // 1.create producer and publish message to the topic.
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.DAYS)
+                .create();
+
+        final String k1 = "k1";
+        final String k2 = "k2";
+        final String k3 = "k3";
+        producer.newMessage().key(k1).value("0".getBytes()).send();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(7);
+        for (int i = 0; i < 2; i++) {
+            futures.add(producer.newMessage().key(k1).value((i + 1 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+        producer.newMessage().key(k1).value("3".getBytes()).send();
+        for (int i = 0; i < 2; i++) {
+            futures.add(producer.newMessage().key(k1).value((i + 4 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+
+        for (int i = 0; i < 3; i++) {
+            futures.add(producer.newMessage().key(k2).value((i + 10 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+
+        producer.newMessage().key(k2).value("".getBytes()).send();
+
+        producer.newMessage().key(k3).value("0".getBytes()).send();
+
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+            Message<byte[]> m1 = consumer.receive();
+            Message<byte[]> m2 = consumer.receive();
+            assertNotNull(m1);
+            assertNotNull(m2);
+            assertEquals(m1.getKey(), k1);
+            assertEquals(m2.getKey(), k3);
+            assertEquals(new String(m1.getValue()), "5");
+            assertEquals(new String(m2.getValue()), "0");
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testBatchAndNonBatchEndOfEmptyPayload() throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-property/use/my-ns/testBatchAndNonBatchWithEmptyPayload" + UUID.randomUUID().toString();
+
+        // 1.create producer and publish message to the topic.
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.DAYS)
+                .create();
+
+        final String k1 = "k1";
+        final String k2 = "k2";
+        producer.newMessage().key(k1).value("0".getBytes()).send();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(7);
+        for (int i = 0; i < 2; i++) {
+            futures.add(producer.newMessage().key(k1).value((i + 1 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+        producer.newMessage().key(k1).value("3".getBytes()).send();
+        for (int i = 0; i < 2; i++) {
+            futures.add(producer.newMessage().key(k1).value((i + 4 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+
+        for (int i = 0; i < 3; i++) {
+            futures.add(producer.newMessage().key(k2).value((i + 10 + "").getBytes()).sendAsync());
+        }
+        producer.flush();
+
+        producer.newMessage().key(k2).value("".getBytes()).send();
+
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+            Message<byte[]> m1 = consumer.receive();
+            assertNotNull(m1);
+            assertEquals(m1.getKey(), k1);
+            assertEquals(new String(m1.getValue()), "5");
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+    }
+
+    @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
+    public void testCompactMultipleTimesWithoutEmptyMessage(boolean batchEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-property/use/my-ns/testCompactMultipleTimesWithoutEmptyMessage" + UUID.randomUUID().toString();
+
+        final int messages = 10;
+        final String key = "1";
+
+        // 1.create producer and publish message to the topic.
+        ProducerBuilder<byte[]> builder = pulsarClient.newProducer().topic(topic);
+        if (!batchEnabled) {
+            builder.enableBatching(false);
+        } else {
+            builder.batchingMaxMessages(messages / 5);
+        }
+
+        Producer<byte[]> producer = builder.create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().key(key).value((i + "").getBytes()).sendAsync());
+        }
+
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // 3. Send more ten messages
+        futures.clear();
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().key(key).value((i + 10 + "").getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        // 4.compact again.
+        compactor.compact(topic).get();
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+            Message<byte[]> m1 = consumer.receive();
+            assertNotNull(m1);
+            assertEquals(m1.getKey(), key);
+            assertEquals(new String(m1.getValue()), "19");
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+    }
+
+    @Test(timeOut = 2000000, dataProvider = "lastDeletedBatching")
+    public void testReadUnCompacted(boolean batchEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-property/use/my-ns/testReadUnCompacted" + UUID.randomUUID().toString();
+
+        final int messages = 10;
+        final String key = "1";
+
+        // 1.create producer and publish message to the topic.
+        ProducerBuilder<byte[]> builder = pulsarClient.newProducer().topic(topic);
+        if (!batchEnabled) {
+            builder.enableBatching(false);
+        } else {
+            builder.batchingMaxMessages(messages / 5);
+        }
+
+        Producer<byte[]> producer = builder.create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().key(key).value((i + "").getBytes()).sendAsync());
+        }
+
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // 3. Send more ten messages
+        futures.clear();
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().key(key).value((i + 10 + "").getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(futures).get();
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()) {
+            for (int i = 0; i < 11; i++) {
+                Message<byte[]> received = consumer.receive();
+                assertNotNull(received);
+                assertEquals(received.getKey(), key);
+                assertEquals(new String(received.getValue()), i + 9 + "");
+                consumer.acknowledge(received);
+            }
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+
+        // 4.Send empty message to delete the key-value in the compacted topic.
+        producer.newMessage().key(key).value(("").getBytes()).send();
+
+        // 5.compact the topic.
+        compactor.compact(topic).get();
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub2")
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()) {
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().key(key).value((i + 20 + "").getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub3")
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()) {
+            for (int i = 0; i < 10; i++) {
+                Message<byte[]> received = consumer.receive();
+                assertNotNull(received);
+                assertEquals(received.getKey(), key);
+                assertEquals(new String(received.getValue()), i + 20 + "");
+                consumer.acknowledge(received);
+            }
+            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
+            assertNull(none);
+        }
+    }
+
+    @SneakyThrows
+    @Test
+    public void testHealthCheckTopicNotCompacted() {
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicV1).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicV2).create();
+        Optional<Topic> topicReferenceV1 = pulsar.getBrokerService().getTopic(topicV1, false).join();
+        Optional<Topic> topicReferenceV2 = pulsar.getBrokerService().getTopic(topicV2, false).join();
+        assertFalse(((SystemTopic)topicReferenceV1.get()).isCompactionEnabled());
+        assertFalse(((SystemTopic)topicReferenceV2.get()).isCompactionEnabled());
+        producer1.close();
+        producer2.close();
+    }
+
+    @Test(timeOut = 60000)
+    public void testCompactionWithMarker() throws Exception {
+        String namespace = "my-property/use/my-ns";
+        final TopicName dest = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWriteMarker"));
+        admin.topics().createNonPartitionedTopic(dest.toString());
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(dest.toString())
+                .subscriptionName("test-compaction-sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(dest.toString())
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        producer.send("msg-1".getBytes(StandardCharsets.UTF_8));
+        Optional<Topic> topic = pulsar.getBrokerService().getTopic(dest.toString(), true).join();
+        Assert.assertTrue(topic.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+        Random random = new Random();
+        for (int i = 0; i < 100; i++) {
+            int rad = random.nextInt(3);
+            ByteBuf marker;
+            if (rad == 0) {
+                marker = Markers.newTxnCommitMarker(-1L, 0, i);
+            } else if (rad == 1) {
+                marker = Markers.newTxnAbortMarker(-1L, 0, i);
+            } else {
+                marker = Markers.newReplicatedSubscriptionsSnapshotRequest(UUID.randomUUID().toString(), "r1");
+            }
+            persistentTopic.getManagedLedger().asyncAddEntry(marker, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    //
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    //
+                }
+            }, null);
+            marker.release();
+        }
+        producer.send("msg-2".getBytes(StandardCharsets.UTF_8));
+        admin.topics().triggerCompaction(dest.toString());
+        Awaitility.await()
+                .atMost(50, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    long ledgerId = admin.topics().getInternalStats(dest.toString()).compactedLedger.ledgerId;
+                    Assert.assertNotEquals(ledgerId, -1L);
+                });
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,47 +18,42 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import com.google.common.collect.Maps;
-import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import java.util.concurrent.ScheduledExecutorService;
+import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface SchemaRegistryService extends SchemaRegistry {
-    String CreateMethodName = "create";
-    Logger log = LoggerFactory.getLogger(SchemaRegistryService.class);
+    Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
+    long NO_SCHEMA_VERSION = -1L;
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
-        Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
+        Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
         for (String className : checkerClasses) {
-            final Class<?> checkerClass = Class.forName(className);
-            SchemaCompatibilityCheck instance = (SchemaCompatibilityCheck) checkerClass.newInstance();
-            checkers.put(instance.getSchemaType(), instance);
+            SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(className,
+                    SchemaCompatibilityCheck.class, Thread.currentThread().getContextClassLoader());
+            checkers.put(schemaCompatibilityCheck.getSchemaType(), schemaCompatibilityCheck);
         }
         return checkers;
     }
 
-    static SchemaRegistryService create(PulsarService pulsar) {
-        try {
-            ServiceConfiguration config = pulsar.getConfiguration();
-            final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
-            Object factoryInstance = storageClass.newInstance();
-            Method createMethod = storageClass.getMethod(CreateMethodName, PulsarService.class);
-
-            SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, pulsar);
-
-            Map<SchemaType, SchemaCompatibilityCheck> checkers =
-                getCheckers(config.getSchemaRegistryCompatibilityCheckers());
-
-            schemaStorage.start();
-
-            return new SchemaRegistryServiceImpl(schemaStorage, checkers);
-        } catch (Exception e) {
-            log.warn("Unable to create schema registry storage, defaulting to empty storage: {}", e);
+    static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
+                                        ScheduledExecutorService scheduler) {
+        if (schemaStorage != null) {
+            try {
+                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
+                checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+                return SchemaRegistryServiceWithSchemaDataValidator.of(
+                        new SchemaRegistryServiceImpl(schemaStorage, checkers, scheduler));
+            } catch (Exception e) {
+                LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
+            }
         }
         return new DefaultSchemaRegistryService();
     }

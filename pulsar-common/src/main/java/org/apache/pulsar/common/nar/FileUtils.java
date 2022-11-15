@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 /**
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
@@ -30,7 +29,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
 /**
@@ -38,6 +39,7 @@ import org.slf4j.Logger;
  * operations.
  *
  */
+@Slf4j
 public class FileUtils {
 
     public static final long MILLIS_BETWEEN_ATTEMPTS = 50L;
@@ -129,7 +131,8 @@ public class FileUtils {
      * @throws IOException if abstract pathname does not denote a directory, or
      * if an I/O error occurs
      */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger) throws IOException {
+    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter,
+                                              final Logger logger) throws IOException {
         FileUtils.deleteFilesInDirectory(directory, filter, logger, false);
     }
 
@@ -145,7 +148,8 @@ public class FileUtils {
      * @throws IOException if abstract pathname does not denote a directory, or
      * if an I/O error occurs
      */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger, final boolean recurse) throws IOException {
+    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger,
+                                              final boolean recurse) throws IOException {
         FileUtils.deleteFilesInDirectory(directory, filter, logger, recurse, false);
     }
 
@@ -163,7 +167,9 @@ public class FileUtils {
      * @throws IOException if abstract pathname does not denote a directory, or
      * if an I/O error occurs
      */
-    public static void deleteFilesInDirectory(final File directory, final FilenameFilter filter, final Logger logger, final boolean recurse, final boolean deleteEmptyDirectories) throws IOException {
+    public static void deleteFilesInDirectory(
+        final File directory, final FilenameFilter filter, final Logger logger,
+        final boolean recurse, final boolean deleteEmptyDirectories) throws IOException {
         // ensure the specified directory is actually a directory and that it exists
         if (null != directory && directory.isDirectory()) {
             final File ingestFiles[] = directory.listFiles();
@@ -178,7 +184,8 @@ public class FileUtils {
                 }
                 if (ingestFile.isDirectory() && recurse) {
                     FileUtils.deleteFilesInDirectory(ingestFile, filter, logger, recurse, deleteEmptyDirectories);
-                    if (deleteEmptyDirectories && ingestFile.list().length == 0) {
+                    String[] ingestFileList = ingestFile.list();
+                    if (deleteEmptyDirectories && ingestFileList != null && ingestFileList.length == 0) {
                         FileUtils.deleteFile(ingestFile, logger, 3);
                     }
                 }
@@ -215,6 +222,22 @@ public class FileUtils {
             Thread.sleep(millis);
         } catch (final InterruptedException ex) {
             /* do nothing */
+        }
+    }
+
+    public static boolean mayBeANarArchive(File jarFile) {
+        try (ZipFile zipFile = new ZipFile(jarFile);) {
+            ZipEntry entry = zipFile.getEntry("META-INF/bundled-dependencies");
+            if (entry == null || !entry.isDirectory()) {
+                log.info("Jar file {} does not contain META-INF/bundled-dependencies, it is not a NAR file", jarFile);
+                return false;
+            } else {
+                log.info("Jar file {} contains META-INF/bundled-dependencies, it may be a NAR file", jarFile);
+                return true;
+            }
+        } catch (IOException err) {
+            log.info("Cannot safely detect if {} is a NAR archive", jarFile, err);
+            return true;
         }
     }
 }

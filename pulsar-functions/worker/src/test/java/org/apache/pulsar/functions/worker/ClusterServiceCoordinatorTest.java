@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,64 +18,46 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.time.Duration;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.pulsar.functions.worker.executor.MockExecutorController;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ClusterServiceCoordinator}.
  */
-@PrepareForTest({ ClusterServiceCoordinator.class })
-@PowerMockIgnore({ "javax.management.*", "org.apache.logging.log4j.*" })
 public class ClusterServiceCoordinatorTest {
 
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
-
-    private MembershipManager membershipManager;
+    private LeaderService leaderService;
     private ClusterServiceCoordinator coordinator;
     private ScheduledExecutorService mockExecutor;
     private MockExecutorController mockExecutorController;
+    private Supplier<Boolean> checkIsStillLeader;
 
     @BeforeMethod
     public void setup() throws Exception {
-        PowerMockito.mockStatic(Executors.class);
 
-        this.mockExecutor = PowerMockito.mock(ScheduledExecutorService.class);
+        this.mockExecutor = mock(ScheduledExecutorService.class);
         this.mockExecutorController = new MockExecutorController()
-            .controlScheduleAtFixedRate(mockExecutor, 10);
+                .controlScheduleAtFixedRate(mockExecutor, 10);
 
-        PowerMockito.when(
-            Executors.newSingleThreadScheduledExecutor(
-                any(ThreadFactory.class))
-        ).thenReturn(mockExecutor);
-
-        this.membershipManager = mock(MembershipManager.class);
-        this.coordinator = new ClusterServiceCoordinator("test-coordinator", membershipManager);
+        this.leaderService = mock(LeaderService.class);
+        this.checkIsStillLeader = () -> leaderService.isLeader();
+        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader, mockExecutor);
     }
 
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
         coordinator.close();
 
@@ -94,18 +76,18 @@ public class ClusterServiceCoordinatorTest {
             .scheduleAtFixedRate(any(Runnable.class), eq(interval), eq(interval), eq(TimeUnit.MILLISECONDS));
 
         // when task is executed, it is the leader
-        when(membershipManager.isLeader()).thenReturn(true);
+        when(leaderService.isLeader()).thenReturn(true);
         mockExecutorController.advance(Duration.ofMillis(interval));
 
-        verify(membershipManager, times(1)).isLeader();
+        verify(leaderService, times(1)).isLeader();
         verify(mockTask, times(1)).run();
 
         // when task is executed, it is not the leader
-        when(membershipManager.isLeader()).thenReturn(false);
+        when(leaderService.isLeader()).thenReturn(false);
         mockExecutorController.advance(Duration.ofMillis(interval));
 
         // `isLeader` is called twice, however the task is only executed once (when it was leader)
-        verify(membershipManager, times(2)).isLeader();
+        verify(leaderService, times(2)).isLeader();
         verify(mockTask, times(1)).run();
     }
 

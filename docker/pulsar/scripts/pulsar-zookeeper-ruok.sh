@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +20,7 @@
 
 # Check ZK server status
 
-status=$(echo ruok | nc localhost 2181)
+status=$(echo ruok | nc -q 1 localhost 2181)
 if [ "$status" == "imok" ]; then
     exit 0
 else

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,13 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.LogContainerCmd;
-import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.core.command.LogContainerResultCallback;
+
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.GenericContainer;
@@ -47,15 +42,21 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         this.clusterName = clusterName;
     }
 
+    @Override
+    protected void configure() {
+        super.configure();
+        addEnv("MALLOC_ARENA_MAX", "1");
+    }
+
     protected void beforeStop() {
-        if (null == containerId) {
+        if (null == getContainerId()) {
             return;
         }
 
         // dump the container log
         DockerUtils.dumpContainerLogToTarget(
             getDockerClient(),
-            containerId
+            getContainerId()
         );
     }
 
@@ -65,43 +66,8 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         super.stop();
     }
 
-    public void tailContainerLog() {
-        CompletableFuture.runAsync(() -> {
-            while (null == containerId) {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-
-            LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(containerId);
-            logContainerCmd.withStdOut(true).withStdErr(true).withFollowStream(true);
-            logContainerCmd.exec(new LogContainerResultCallback() {
-                @Override
-                public void onNext(Frame item) {
-                    log.info(new String(item.getPayload(), UTF_8));
-                }
-            });
-        });
-    }
-
-    public String getContainerLog() {
-        StringBuilder sb = new StringBuilder();
-
-        LogContainerCmd logContainerCmd = this.dockerClient.logContainerCmd(containerId);
-        logContainerCmd.withStdOut(true).withStdErr(true);
-        try {
-            logContainerCmd.exec(new LogContainerResultCallback() {
-                @Override
-                public void onNext(Frame item) {
-                    sb.append(new String(item.getPayload(), UTF_8));
-                }
-            }).awaitCompletion();
-        } catch (InterruptedException e) {
-
-        }
-        return sb.toString();
+    protected void tailContainerLog() {
+        withLogConsumer(item -> log.info(item.getUtf8String()));
     }
 
     public void putFile(String path, byte[] contents) throws Exception {
@@ -116,13 +82,31 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return DockerUtils.runCommand(client, dockerId, commands);
     }
 
+    public CompletableFuture<ContainerExecResult> execCmdAsync(String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsync(client, dockerId, commands);
+    }
+
+    public ContainerExecResult execCmdAsUser(String userId, String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
+    }
+
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof ChaosContainer)) {
             return false;
         }
 
-        ChaosContainer another = (ChaosContainer) o;
+        ChaosContainer<?> another = (ChaosContainer<?>) o;
         return clusterName.equals(another.clusterName)
             && super.equals(another);
     }

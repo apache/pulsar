@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,41 +19,40 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
@@ -61,21 +60,16 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class WebSocketService implements Closeable {
 
-    public static final int MaxTextFrameSize = 1024 * 1024;
-
     AuthenticationService authenticationService;
     AuthorizationService authorizationService;
     PulsarClient pulsarClient;
 
-    private final ScheduledExecutorService executor = Executors
-            .newScheduledThreadPool(WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS,
-                    new DefaultThreadFactory("pulsar-websocket"));
-    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
-            .numThreads(WebSocketProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-websocket-ordered").build();
-    private GlobalZooKeeperCache globalZkCache;
-    private ZooKeeperClientFactory zkClientFactory;
+    private final ScheduledExecutorService executor;
+    private PulsarResources pulsarResources;
+    private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
-    private ConfigurationCacheService configurationCacheService;
+    @Getter
+    private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
 
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
@@ -89,40 +83,66 @@ public class WebSocketService implements Closeable {
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
+        this.executor = Executors
+                .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
+                        new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
-        this.topicProducerMap = new ConcurrentOpenHashMap<>();
-        this.topicConsumerMap = new ConcurrentOpenHashMap<>();
-        this.topicReaderMap = new ConcurrentOpenHashMap<>();
+        this.topicProducerMap =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
+                        .build();
+        this.topicConsumerMap =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
+                        .build();
+        this.topicReaderMap =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
+                        .build();
         this.proxyStats = new ProxyStats(this);
     }
 
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
 
-        if (isNotBlank(config.getConfigurationStoreServers())) {
-            this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                    (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
-                    this.orderedExecutor, this.executor);
+        if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
-                this.globalZkCache.start();
-            } catch (IOException e) {
+                configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
+                        (int) config.getMetadataStoreSessionTimeoutMillis());
+            } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }
-            this.configurationCacheService = new ConfigurationCacheService(getGlobalZkCache());
-            log.info("Global Zookeeper cache started");
+            pulsarResources = new PulsarResources(null, configMetadataStore);
         }
 
         // start authorizationService
         if (config.isAuthorizationEnabled()) {
-            if (configurationCacheService == null) {
+            if (pulsarResources == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty ConfigurationStoreServers");
             }
-            authorizationService = new AuthorizationService(this.config, configurationCacheService);
+            authorizationService = new AuthorizationService(this.config, pulsarResources);
         }
         // start authentication service
         authenticationService = new AuthenticationService(this.config);
+        // initialize crypto key reader
+        String cryptoFactoryClassName = (String) config.getProperties().get("cryptoKeyReaderFactoryClassName");
+        if (StringUtils.isNotBlank(cryptoFactoryClassName)) {
+            try {
+                CryptoKeyReaderFactory factoryInstance = (CryptoKeyReaderFactory) Class.forName(cryptoFactoryClassName)
+                        .getDeclaredConstructor().newInstance();
+                cryptoKeyReader = Optional.ofNullable(factoryInstance.create());
+            } catch (Exception e) {
+                log.info("Failed to initialize crypto-key reader", e);
+                throw new PulsarServerException(e);
+            }
+        }
+
         log.info("Pulsar WebSocket Service started");
+    }
+
+    public MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs)
+            throws MetadataStoreException {
+        return PulsarResources.createConfigMetadataStore(serverUrls, sessionTimeoutMs);
     }
 
     @Override
@@ -135,12 +155,15 @@ public class WebSocketService implements Closeable {
             authenticationService.close();
         }
 
-        if (globalZkCache != null) {
-            globalZkCache.close();
+        if (configMetadataStore != null) {
+            try {
+                configMetadataStore.close();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
         }
 
         executor.shutdown();
-        orderedExecutor.shutdown();
     }
 
     public AuthenticationService getAuthenticationService() {
@@ -149,18 +172,6 @@ public class WebSocketService implements Closeable {
 
     public AuthorizationService getAuthorizationService() {
         return authorizationService;
-    }
-
-    public ZooKeeperCache getGlobalZkCache() {
-        return globalZkCache;
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperClientFactoryImpl();
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     public synchronized PulsarClient getPulsarClient() throws IOException {
@@ -175,14 +186,26 @@ public class WebSocketService implements Closeable {
         return pulsarClient;
     }
 
+    public synchronized void setLocalCluster(ClusterData clusterData) {
+        this.localCluster = clusterData;
+    }
+
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
+                .memoryLimit(0, SizeUnit.BYTES)
                 .statsInterval(0, TimeUnit.SECONDS) //
                 .enableTls(config.isTlsEnabled()) //
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
                 .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
                 .connectionsPerBroker(config.getWebSocketConnectionsPerBroker());
+
+        // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+        // @Secret on the ClientConfigurationData object because of the way they are serialized.
+        // See https://github.com/apache/pulsar/issues/8509 for more information.
+        clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+        // Disabled auto release useless connection.
+        clientBuilder.connectionMaxIdleSeconds(-1);
 
         if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
@@ -191,40 +214,45 @@ public class WebSocketService implements Closeable {
         }
 
         if (config.isBrokerClientTlsEnabled()) {
-			if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-			} else if (isNotBlank(clusterData.getServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
-			}
+            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
+            }
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
         } else {
             clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
-
         return clientBuilder.build();
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
         if (isNotBlank(config.getBrokerServiceUrl()) || isNotBlank(config.getBrokerServiceUrlTls())) {
-            return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls(), config.getBrokerServiceUrl(),
-                    config.getBrokerServiceUrlTls());
+            return ClusterData.builder()
+                    .serviceUrl(config.getServiceUrl())
+                    .serviceUrlTls(config.getServiceUrlTls())
+                    .brokerServiceUrl(config.getBrokerServiceUrl())
+                    .brokerServiceUrlTls(config.getBrokerServiceUrlTls())
+                    .build();
         } else if (isNotBlank(config.getServiceUrl()) || isNotBlank(config.getServiceUrlTls())) {
-            return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls());
+            return ClusterData.builder()
+                    .serviceUrl(config.getServiceUrl())
+                    .serviceUrlTls(config.getServiceUrlTls())
+                    .build();
         } else {
             return null;
         }
     }
 
     private ClusterData retrieveClusterData() throws PulsarServerException {
-        if (configurationCacheService == null) {
+        if (pulsarResources == null) {
             throw new PulsarServerException(
                 "Failed to retrieve Cluster data due to empty ConfigurationStoreServers");
         }
         try {
-            String path = "/admin/clusters/" + config.getClusterName();
-            return localCluster = configurationCacheService.clustersCache().get(path)
-                    .orElseThrow(() -> new KeeperException.NoNodeException(path));
+            return localCluster = pulsarResources.getClusterResources().getCluster(config.getClusterName())
+                    .orElseThrow(() -> new NotFoundException("Cluster " + config.getClusterName()));
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }
@@ -234,29 +262,28 @@ public class WebSocketService implements Closeable {
         return proxyStats;
     }
 
-    public ConfigurationCacheService getConfigurationCache() {
-        return configurationCacheService;
-    }
-
     public ScheduledExecutorService getExecutor() {
         return executor;
     }
 
     public boolean isAuthenticationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthenticationEnabled();
     }
 
     public boolean isAuthorizationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthorizationEnabled();
     }
 
     public boolean addProducer(ProducerHandler producer) {
         return topicProducerMap
-                .computeIfAbsent(producer.getProducer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(producer.getProducer().getTopic(),
+                        topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder().build())
                 .add(producer);
     }
 
@@ -274,7 +301,8 @@ public class WebSocketService implements Closeable {
 
     public boolean addConsumer(ConsumerHandler consumer) {
         return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(consumer.getConsumer().getTopic(), topic ->
+                        ConcurrentOpenHashSet.<ConsumerHandler>newBuilder().build())
                 .add(consumer);
     }
 
@@ -291,7 +319,8 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic ->
+                ConcurrentOpenHashSet.<ReaderHandler>newBuilder().build())
                 .add(reader);
     }
 

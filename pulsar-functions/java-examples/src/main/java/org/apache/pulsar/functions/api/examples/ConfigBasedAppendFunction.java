@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import java.util.Optional;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-import java.util.Optional;
-
 /**
- * Function that appends something to incoming input based on config supplied
+ * Function that appends something to incoming input based on config supplied.
  */
 public class ConfigBasedAppendFunction implements Function<String, String> {
     @Override
@@ -32,10 +31,6 @@ public class ConfigBasedAppendFunction implements Function<String, String> {
         String key = "config-key";
         Optional<Object> appendValue = context.getUserConfigValue(key);
 
-        if (appendValue.isPresent()) {
-            return input + (String) appendValue.get();
-        } else {
-            return input + "!";
-        }
+        return appendValue.map(o -> input + (String) o).orElseGet(() -> input + "!");
     }
 }

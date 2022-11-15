@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,54 +18,48 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import com.google.common.base.MoreObjects;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import javax.validation.constraints.NotNull;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
+@Data
+@NoArgsConstructor
 public class NamespaceEphemeralData {
     private String nativeUrl;
     private String nativeUrlTls;
     private String httpUrl;
     private String httpUrlTls;
     private boolean disabled;
-
-    public NamespaceEphemeralData() {
-    }
+    private Map<String, AdvertisedListener> advertisedListeners;
 
     public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
             boolean disabled) {
+        this(brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
+    }
+
+    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
+                                  boolean disabled, Map<String, AdvertisedListener> advertisedListeners) {
         this.nativeUrl = brokerUrl;
         this.nativeUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;
         this.httpUrlTls = httpUrlTls;
         this.disabled = disabled;
+        if (advertisedListeners == null) {
+            this.advertisedListeners = Collections.emptyMap();
+        } else {
+            this.advertisedListeners = new HashMap<>(advertisedListeners);
+        }
     }
 
-    public String getNativeUrl() {
-        return nativeUrl;
-    }
-
-    public String getNativeUrlTls() {
-        return nativeUrlTls;
-    }
-
-    public String getHttpUrl() {
-        return httpUrl;
-    }
-
-    public String getHttpUrlTls() {
-        return httpUrlTls;
-    }
-
-    public boolean isDisabled() {
-        return disabled;
-    }
-
-    public void setDisabled(boolean flag) {
-        this.disabled = flag;
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("nativeUrl", nativeUrl).add("httpUrl", httpUrl)
-                .add("disabled", disabled).toString();
+    @NotNull
+    public Map<String, AdvertisedListener> getAdvertisedListeners() {
+        if (this.advertisedListeners == null) {
+            return Collections.emptyMap();
+        }
+        return Collections.unmodifiableMap(this.advertisedListeners);
     }
 }

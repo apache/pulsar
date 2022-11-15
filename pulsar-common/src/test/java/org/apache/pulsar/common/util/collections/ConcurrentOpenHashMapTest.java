@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,9 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -37,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -47,21 +49,29 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void testConstructor() {
         try {
-            new ConcurrentOpenHashMap<String, String>(0);
+            ConcurrentOpenHashMap.<String, String>newBuilder()
+                    .expectedItems(0)
+                    .build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
         }
 
         try {
-            new ConcurrentOpenHashMap<String, String>(16, 0);
+            ConcurrentOpenHashMap.<String, String>newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(0)
+                    .build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
         }
 
         try {
-            new ConcurrentOpenHashMap<String, String>(4, 8);
+            ConcurrentOpenHashMap.<String, String>newBuilder()
+                    .expectedItems(4)
+                    .concurrencyLevel(8)
+                    .build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
@@ -70,7 +80,10 @@ public class ConcurrentOpenHashMapTest {
 
     @Test
     public void simpleInsertions() {
-        ConcurrentOpenHashMap<String, String> map = new ConcurrentOpenHashMap<>(16);
+        ConcurrentOpenHashMap<String, String> map =
+                ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(16)
+                .build();
 
         assertTrue(map.isEmpty());
         assertNull(map.put("1", "one"));
@@ -86,8 +99,8 @@ public class ConcurrentOpenHashMapTest {
 
         assertEquals(map.remove("1"), "one");
         assertEquals(map.size(), 2);
-        assertEquals(map.get("1"), null);
-        assertEquals(map.get("5"), null);
+        assertNull(map.get("1"));
+        assertNull(map.get("5"));
         assertEquals(map.size(), 2);
 
         assertNull(map.put("1", "one"));
@@ -97,8 +110,115 @@ public class ConcurrentOpenHashMapTest {
     }
 
     @Test
+    public void testReduceUnnecessaryExpansions() {
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .build();
+        assertNull(map.put("1", "1"));
+        assertNull(map.put("2", "2"));
+        assertNull(map.put("3", "3"));
+        assertNull(map.put("4", "4"));
+
+        assertEquals(map.remove("1"), "1");
+        assertEquals(map.remove("2"), "2");
+        assertEquals(map.remove("3"), "3");
+        assertEquals(map.remove("4"), "4");
+
+        assertEquals(0, map.getUsedBucketCount());
+    }
+
+    @Test
+    public void testClear() {
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        assertTrue(map.capacity() == 4);
+
+        assertNull(map.put("k1", "v1"));
+        assertNull(map.put("k2", "v2"));
+        assertNull(map.put("k3", "v3"));
+
+        assertTrue(map.capacity() == 8);
+        map.clear();
+        assertTrue(map.capacity() == 4);
+    }
+
+    @Test
+    public void testExpandAndShrink() {
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        assertTrue(map.capacity() == 4);
+
+        assertNull(map.put("k1", "v1"));
+        assertNull(map.put("k2", "v2"));
+        assertNull(map.put("k3", "v3"));
+
+        // expand hashmap
+        assertTrue(map.capacity() == 8);
+
+        assertTrue(map.remove("k1", "v1"));
+        // not shrink
+        assertTrue(map.capacity() == 8);
+        assertTrue(map.remove("k2", "v2"));
+        // shrink hashmap
+        assertTrue(map.capacity() == 4);
+
+        // expand hashmap
+        assertNull(map.put("k4", "v4"));
+        assertNull(map.put("k5", "v5"));
+        assertTrue(map.capacity() == 8);
+
+        //verify that the map does not keep shrinking at every remove() operation
+        assertNull(map.put("k6", "v6"));
+        assertTrue(map.remove("k6", "v6"));
+        assertTrue(map.capacity() == 8);
+    }
+
+    @Test
+    public void testExpandShrinkAndClear() {
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        final long initCapacity = map.capacity();
+        assertTrue(map.capacity() == 4);
+        assertNull(map.put("k1", "v1"));
+        assertNull(map.put("k2", "v2"));
+        assertNull(map.put("k3", "v3"));
+
+        // expand hashmap
+        assertTrue(map.capacity() == 8);
+
+        assertTrue(map.remove("k1", "v1"));
+        // not shrink
+        assertTrue(map.capacity() == 8);
+        assertTrue(map.remove("k2", "v2"));
+        // shrink hashmap
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.remove("k3", "v3"));
+        // Will not shrink the hashmap again because shrink capacity is less than initCapacity
+        // current capacity is equal than the initial capacity
+        assertTrue(map.capacity() == initCapacity);
+        map.clear();
+        // after clear, because current capacity is equal than the initial capacity, so not shrinkToInitCapacity
+        assertTrue(map.capacity() == initCapacity);
+    }
+
+    @Test
     public void testRemove() {
-        ConcurrentOpenHashMap<String, String> map = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, String> map =
+                ConcurrentOpenHashMap.<String, String>newBuilder().build();
 
         assertTrue(map.isEmpty());
         assertNull(map.put("1", "one"));
@@ -115,7 +235,10 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void testRehashing() {
         int n = 16;
-        ConcurrentOpenHashMap<String, Integer> map = new ConcurrentOpenHashMap<>(n / 2, 1);
+        ConcurrentOpenHashMap<String, Integer> map = ConcurrentOpenHashMap.<String, Integer>newBuilder()
+                        .expectedItems(n / 2)
+                        .concurrencyLevel(1)
+                        .build();
         assertEquals(map.capacity(), n);
         assertEquals(map.size(), 0);
 
@@ -130,7 +253,11 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void testRehashingWithDeletes() {
         int n = 16;
-        ConcurrentOpenHashMap<Integer, Integer> map = new ConcurrentOpenHashMap<>(n / 2, 1);
+        ConcurrentOpenHashMap<Integer, Integer> map =
+                ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
+                        .expectedItems(n / 2)
+                        .concurrencyLevel(1)
+                        .build();
         assertEquals(map.capacity(), n);
         assertEquals(map.size(), 0);
 
@@ -152,7 +279,11 @@ public class ConcurrentOpenHashMapTest {
 
     @Test
     public void concurrentInsertions() throws Throwable {
-        ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(16, 1);
+        ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -181,13 +312,13 @@ public class ConcurrentOpenHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
-        ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<Long, String> map =
+                ConcurrentOpenHashMap.<Long, String>newBuilder().build();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -216,13 +347,12 @@ public class ConcurrentOpenHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void testIteration() {
-        ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<Long, String> map =
+                ConcurrentOpenHashMap.<Long, String>newBuilder().build();
 
         assertEquals(map.keys(), Collections.emptyList());
         assertEquals(map.values(), Collections.emptyList());
@@ -266,7 +396,10 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void testHashConflictWithDeletion() {
         final int Buckets = 16;
-        ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(Buckets, 1);
+        ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
+                .expectedItems(Buckets)
+                .concurrencyLevel(1)
+                .build();
 
         // Pick 2 keys that fall into the same bucket
         long key1 = 1;
@@ -276,14 +409,14 @@ public class ConcurrentOpenHashMapTest {
         int bucket2 = ConcurrentOpenHashMap.signSafeMod(ConcurrentOpenHashMap.hash(key2), Buckets);
         assertEquals(bucket1, bucket2);
 
-        assertEquals(map.put(key1, "value-1"), null);
-        assertEquals(map.put(key2, "value-2"), null);
+        assertNull(map.put(key1, "value-1"));
+        assertNull(map.put(key2, "value-2"));
         assertEquals(map.size(), 2);
 
         assertEquals(map.remove(key1), "value-1");
         assertEquals(map.size(), 1);
 
-        assertEquals(map.put(key1, "value-1-overwrite"), null);
+        assertNull(map.put(key1, "value-1-overwrite"));
         assertEquals(map.size(), 2);
 
         assertEquals(map.remove(key1), "value-1-overwrite");
@@ -299,8 +432,9 @@ public class ConcurrentOpenHashMapTest {
 
     @Test
     public void testPutIfAbsent() {
-        ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>();
-        assertEquals(map.putIfAbsent(1l, "one"), null);
+        ConcurrentOpenHashMap<Long, String> map =
+                ConcurrentOpenHashMap.<Long, String>newBuilder().build();
+        assertNull(map.putIfAbsent(1l, "one"));
         assertEquals(map.get(1l), "one");
 
         assertEquals(map.putIfAbsent(1l, "uno"), "one");
@@ -309,7 +443,10 @@ public class ConcurrentOpenHashMapTest {
 
     @Test
     public void testComputeIfAbsent() {
-        ConcurrentOpenHashMap<Integer, Integer> map = new ConcurrentOpenHashMap<>(16, 1);
+        ConcurrentOpenHashMap<Integer, Integer> map = ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
         AtomicInteger counter = new AtomicInteger();
         Function<Integer, Integer> provider = key -> counter.getAndIncrement();
 
@@ -350,15 +487,16 @@ public class ConcurrentOpenHashMapTest {
             }
         }
 
-        ConcurrentOpenHashMap<T, String> map = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<T, String> map =
+                ConcurrentOpenHashMap.<T, String>newBuilder().build();
 
         T t1 = new T(1);
         T t1_b = new T(1);
         T t2 = new T(2);
 
         assertEquals(t1, t1_b);
-        assertFalse(t1.equals(t2));
-        assertFalse(t1_b.equals(t2));
+        assertNotEquals(t2, t1);
+        assertNotEquals(t2, t1_b);
 
         assertNull(map.put(t1, "t1"));
         assertEquals(map.get(t1), "t1");
@@ -370,12 +508,50 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(t1_b));
     }
 
-    final static int Iterations = 1;
-    final static int ReadIterations = 1000;
-    final static int N = 1_000_000;
+    @Test
+    public void testNullValue() {
+        ConcurrentOpenHashMap<String, String> map =
+                ConcurrentOpenHashMap.<String, String>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
+        String key = "a";
+        assertThrows(NullPointerException.class, () -> map.put(key, null));
+
+        //put a null value.
+        assertNull(map.computeIfAbsent(key, k -> null));
+        assertEquals(1, map.size());
+        assertEquals(1, map.keys().size());
+        assertEquals(1, map.values().size());
+        assertNull(map.get(key));
+        assertFalse(map.containsKey(key));
+
+        //test remove null value
+        map.removeNullValue(key);
+        assertTrue(map.isEmpty());
+        assertEquals(0, map.keys().size());
+        assertEquals(0, map.values().size());
+        assertNull(map.get(key));
+        assertFalse(map.containsKey(key));
+
+
+        //test not remove non-null value
+        map.put(key, "V");
+        assertEquals(1, map.size());
+        map.removeNullValue(key);
+        assertEquals(1, map.size());
+
+    }
+
+    static final int Iterations = 1;
+    static final int ReadIterations = 1000;
+    static final int N = 1_000_000;
 
     public void benchConcurrentOpenHashMap() throws Exception {
-        ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(N, 1);
+        ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
+                .expectedItems(N)
+                .concurrencyLevel(1)
+                .build();
 
         for (long i = 0; i < Iterations; i++) {
             for (int j = 0; j < N; j++) {
@@ -414,8 +590,8 @@ public class ConcurrentOpenHashMapTest {
         }
     }
 
-    void benchHashMap() throws Exception {
-        HashMap<Long, String> map = new HashMap<Long, String>(N, 0.66f);
+    void benchHashMap() {
+        HashMap<Long, String> map = new HashMap<>(N, 0.66f);
 
         for (long i = 0; i < Iterations; i++) {
             for (int j = 0; j < N; j++) {

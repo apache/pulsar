@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 @Slf4j
 public class ClusterServiceCoordinator implements AutoCloseable {
@@ -48,13 +49,25 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final String workerId;
     private final Map<String, TimerTaskInfo> tasks = new HashMap<>();
     private final ScheduledExecutorService executor;
-    private final MembershipManager membershipManager;
+    private final LeaderService leaderService;
+    private final Supplier<Boolean> isLeader;
 
-    public ClusterServiceCoordinator(String workerId, MembershipManager membershipManager) {
+    public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
+        this(workerId, leaderService, isLeader, Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("cluster-service-coordinator-timer")));
+    }
+
+    @VisibleForTesting
+    ClusterServiceCoordinator(
+            String workerId,
+            LeaderService leaderService,
+            Supplier<Boolean> isLeader,
+            ScheduledExecutorService executor
+    ) {
         this.workerId = workerId;
-        this.membershipManager = membershipManager;
-        this.executor = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
+        this.leaderService = leaderService;
+        this.isLeader = isLeader;
+        this.executor = executor;
     }
 
     public void addTask(String taskName, long interval, Runnable task) {
@@ -62,19 +75,19 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     }
 
     public void start() {
+        log.info("/** Starting cluster service coordinator **/");
         for (Map.Entry<String, TimerTaskInfo> entry : this.tasks.entrySet()) {
             TimerTaskInfo timerTaskInfo = entry.getValue();
             String taskName = entry.getKey();
-            this.executor.scheduleAtFixedRate(() -> {
-                boolean isLeader = membershipManager.isLeader();
-                if (isLeader) {
+            this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                if (isLeader.get()) {
                     try {
                         timerTaskInfo.getTask().run();
                     } catch (Exception e) {
                         log.error("Cluster timer task {} failed with exception.", taskName, e);
                     }
                 }
-            }, timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
+            }), timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
         }
     }
 
@@ -82,6 +95,6 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     public void close() {
         log.info("Stopping Cluster Service Coordinator for worker {}", this.workerId);
         this.executor.shutdown();
-        log.info("Stopped Cluster Service Coordinator for worker", this.workerId);
+        log.info("Stopped Cluster Service Coordinator for worker {}", this.workerId);
     }
 }

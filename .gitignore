@@ -5,10 +5,14 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+packages-storage
+pulsar-broker/data/
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
 pulsar-functions/worker/test-tenant/
 pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
+pulsar-functions/runtime/src/test/resources/
+pulsar-functions/worker/src/test/resources/
 *.log
 *.nar
 
@@ -22,13 +26,19 @@ pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
 .recommenders/
 .factorypath
 
-# Intellij
-.idea/
+# IntelliJ
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
+.fleet/*
+
+# NetBeans
+nb-configuration.xml
 
 # Mac
 **/.DS_Store
+.java-version
 
 # VisualStudioCode artifacts
 .vscode/
@@ -36,9 +46,11 @@ pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
 # Maven
 log/
 target/
+.mvn/wrapper/maven-wrapper.jar
 
 # Python
 *.pyc
+.python-version
 
 # Perf tools
 *.hgrm
@@ -59,13 +71,6 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 # Vagrant
 **/.vagrant
 
-
-pulsar-client-cpp/python/pkg/osx/**/*.bak
-pulsar-client-cpp/python/pkg/osx/**/build.sh
-pulsar-client-cpp/python/pkg/osx/**/*.whl
-pulsar-client-cpp/python/pkg/osx/**/*.template2
-pulsar-client-cpp/python/wheelhouse
-
 # CI generated files
 .repository
 docker.debug-info
@@ -78,7 +83,12 @@ docker.debug-info
 
 **/website/i18n/*
 **/website/translated_docs*
+**/website/brodocs/index.html
+**/website/brodocs/navData.js
+**/website/brodocs/documents/*.md
 
 # Avro
 examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated
+pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
+/build/

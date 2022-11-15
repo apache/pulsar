@@ -20,3 +20,4 @@
 name: aerospike
 description: Aerospike database sink
 sinkClass: org.apache.pulsar.io.aerospike.AerospikeStringSink
+sinkConfigClass: org.apache.pulsar.io.aerospike.AerospikeSinkConfig

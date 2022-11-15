@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,35 +19,27 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static com.google.common.base.Preconditions.checkState;
-
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
 import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.proto.DataFormats;
-import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
-import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
+import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.proto.DataFormats;
+import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +79,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return block;
     }
 
-    public static OffloadIndexBlockImpl get(InputStream stream) throws IOException {
+    public static OffloadIndexBlockImpl get(int magic, DataInputStream stream) throws IOException {
+        if (magic != INDEX_MAGIC_WORD) {
+            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
+                    magic, INDEX_MAGIC_WORD));
+        }
         OffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         block.fromStream(stream);
@@ -110,8 +106,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         if (messageEntryId > segmentMetadata.getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
                 messageEntryId, segmentMetadata.getLastEntryId());
-            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId +
-                " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
+            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
+                + " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
         return this.indexEntries.floorEntry(messageEntryId).getValue();
@@ -137,32 +133,6 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return this.dataHeaderLength;
     }
 
-    private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
-        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
-        builder.setQuorumSize(metadata.getWriteQuorumSize())
-            .setAckQuorumSize(metadata.getAckQuorumSize())
-            .setEnsembleSize(metadata.getEnsembleSize())
-            .setLength(metadata.getLength())
-            .setState(metadata.isClosed() ? LedgerMetadataFormat.State.CLOSED : LedgerMetadataFormat.State.OPEN)
-            .setLastEntryId(metadata.getLastEntryId())
-            .setCtime(metadata.getCtime())
-            .setDigestType(BookKeeper.DigestType.toProtoDigestType(
-                BookKeeper.DigestType.fromApiDigestType(metadata.getDigestType())));
-
-        for (Map.Entry<String, byte[]> e : metadata.getCustomMetadata().entrySet()) {
-            builder.addCustomMetadataBuilder()
-                .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
-        }
-
-        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
-            builder.addSegmentBuilder()
-                .setFirstEntryId(e.getKey())
-                .addAllEnsembleMember(e.getValue().stream().map(a -> a.toString()).collect(Collectors.toList()));
-        }
-
-        return builder.build().toByteArray();
-    }
-
     /**
      * Get the content of the index block as InputStream.
      * Read out in format:
@@ -184,7 +154,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             + segmentMetadataLength
             + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
-        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
+        ByteBuf out = PulsarByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
 
         out.writeInt(INDEX_MAGIC_WORD)
             .writeInt(indexBlockLength)
@@ -197,15 +167,14 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         // write entries
         this.indexEntries.entrySet().forEach(entry ->
-            out.writeLong(entry.getValue().getEntryId())
+                out.writeLong(entry.getValue().getEntryId())
                 .writeInt(entry.getValue().getPartId())
                 .writeLong(entry.getValue().getOffset()));
 
         return new OffloadIndexBlock.IndexInputStream(new ByteBufInputStream(out, true), indexBlockLength);
     }
 
-    static private class InternalLedgerMetadata implements LedgerMetadata {
-        private LedgerMetadataFormat ledgerMetadataFormat;
+    private static class InternalLedgerMetadata implements LedgerMetadata {
 
         private int ensembleSize;
         private int writeQuorumSize;
@@ -216,7 +185,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         private long ctime;
         private State state;
         private Map<String, byte[]> customMetadata = Maps.newHashMap();
-        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles = new TreeMap<Long, ArrayList<BookieSocketAddress>>();
+        private TreeMap<Long, ArrayList<BookieId>> ensembles =
+                new TreeMap<>();
 
         InternalLedgerMetadata(LedgerMetadataFormat ledgerMetadataFormat) {
             this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
@@ -226,24 +196,30 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             this.length = ledgerMetadataFormat.getLength();
             this.digestType = ledgerMetadataFormat.getDigestType();
             this.ctime = ledgerMetadataFormat.getCtime();
-            this.state = ledgerMetadataFormat.getState();
+            this.state = org.apache.bookkeeper.client.api.LedgerMetadata.State.valueOf(
+                    ledgerMetadataFormat.getState().toString());
 
             if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
                 ledgerMetadataFormat.getCustomMetadataList().forEach(
-                    entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+                        entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
             }
 
             ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-                ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<BookieSocketAddress>();
+                ArrayList<BookieId> addressArrayList = new ArrayList<>();
                 segment.getEnsembleMemberList().forEach(address -> {
                     try {
-                        addressArrayList.add(new BookieSocketAddress(address));
-                    } catch (IOException e) {
+                        addressArrayList.add(BookieId.parse(address));
+                    } catch (IllegalArgumentException e) {
                         log.error("Exception when create BookieSocketAddress. ", e);
                     }
                 });
                 this.ensembles.put(segment.getFirstEntryId(), addressArrayList);
             });
+        }
+
+        @Override
+        public long getLedgerId() {
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -303,13 +279,48 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         }
 
         @Override
-        public List<BookieSocketAddress> getEnsembleAt(long entryId) {
+        public List<BookieId> getEnsembleAt(long entryId) {
             return ensembles.get(ensembles.headMap(entryId + 1).lastKey());
         }
 
         @Override
-        public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
+        public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
             return this.ensembles;
+        }
+
+        @Override
+        public long getCToken() {
+            // TODO Auto-generated method stub
+            return 0;
+        }
+
+        @Override
+        public int getMetadataFormatVersion() {
+            // TODO Auto-generated method stub
+            return 0;
+        }
+
+        @Override
+        public byte[] getPassword() {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public State getState() {
+            return this.state;
+        }
+
+        @Override
+        public boolean hasPassword() {
+            // TODO Auto-generated method stub
+            return false;
+        }
+
+        @Override
+        public String toSafeString() {
+            // TODO Auto-generated method stub
+            return null;
         }
     }
 
@@ -319,33 +330,22 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return new InternalLedgerMetadata(builder.build());
     }
 
-    private OffloadIndexBlock fromStream(InputStream stream) throws IOException {
-        DataInputStream dis = new DataInputStream(stream);
-        int magic = dis.readInt();
-        if (magic != this.INDEX_MAGIC_WORD) {
-            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
-                                                magic, INDEX_MAGIC_WORD));
-        }
-        int indexBlockLength = dis.readInt();
+    private OffloadIndexBlock fromStream(DataInputStream dis) throws IOException {
+        dis.readInt(); // no used index block length
         this.dataObjectLength = dis.readLong();
         this.dataHeaderLength = dis.readLong();
         int indexEntryCount = dis.readInt();
         int segmentMetadataLength = dis.readInt();
 
         byte[] metadataBytes = new byte[segmentMetadataLength];
-
-        if (segmentMetadataLength != dis.read(metadataBytes)) {
-            log.error("Read ledgerMetadata from bytes failed");
-            throw new IOException("Read ledgerMetadata from bytes failed");
-        }
+        dis.readFully(metadataBytes);
         this.segmentMetadata = parseLedgerMetadata(metadataBytes);
 
-        for (int i = 0; i < indexEntryCount; i ++) {
+        for (int i = 0; i < indexEntryCount; i++) {
             long entryId = dis.readLong();
             this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
-                                                                            dis.readLong(), dataHeaderLength));
+                    dis.readLong(), dataHeaderLength));
         }
-
         return this;
     }
 

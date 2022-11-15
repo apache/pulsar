@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public class DefaultSchemaRegistryService implements SchemaRegistryService {
     @Override
@@ -36,25 +38,68 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return completedFuture(Collections.emptyList());
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
+    public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
+        return completedFuture(Collections.emptyList());
+    }
+
+    @Override
+    public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
+        return completedFuture(NO_SCHEMA_VERSION);
+    }
+
+    @Override
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
+                                                              SchemaCompatibilityStrategy strategy) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
+                                                                         SchemaData schemaData) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
+                                                   SchemaCompatibilityStrategy strategy) {
+        return completedFuture(false);
+    }
+
+    @Override
+    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
+                                                   SchemaCompatibilityStrategy strategy) {
         return completedFuture(null);
     }
 
     @Override
     public SchemaVersion versionFromBytes(byte[] version) {
         return null;
-    }
-
-    @Override
-    public CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema,
-                                                                    SchemaCompatibilityStrategy strategy) {
-        return CompletableFuture.completedFuture(true);
     }
 
     @Override

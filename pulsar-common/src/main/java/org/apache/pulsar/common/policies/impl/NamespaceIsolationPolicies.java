@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,28 +21,31 @@ package org.apache.pulsar.common.policies.impl;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedSet;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 
+/**
+ * Namespace isolation policies.
+ */
 public class NamespaceIsolationPolicies {
 
-    private Map<String, NamespaceIsolationData> policies = null;
+    private Map<String, NamespaceIsolationDataImpl> policies = null;
 
     public NamespaceIsolationPolicies() {
-        policies = new HashMap<String, NamespaceIsolationData>();
+        policies = new HashMap<>();
     }
 
-    public NamespaceIsolationPolicies(Map<String, NamespaceIsolationData> policiesMap) {
+    public NamespaceIsolationPolicies(Map<String, NamespaceIsolationDataImpl> policiesMap) {
         policies = policiesMap;
     }
 
     /**
-     * Access method to get the namespace isolation policy by the policy name
-     * 
+     * Access method to get the namespace isolation policy by the policy name.
+     *
      * @param policyName
      * @return
      */
@@ -54,13 +57,11 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Get the namespace isolation policy for the specified namespace
-     * 
-     * <p>
-     * There should only be one namespace isolation policy defined for the specific namespace. If multiple policies
+     * Get the namespace isolation policy for the specified namespace.
+     *
+     * <p>There should only be one namespace isolation policy defined for the specific namespace. If multiple policies
      * match, the first one will be returned.
-     * <p>
-     * 
+     *
      * @param namespace
      * @return
      */
@@ -74,7 +75,7 @@ public class NamespaceIsolationPolicies {
     }
 
     private boolean namespaceMatches(NamespaceName namespace, NamespaceIsolationData nsPolicyData) {
-        for (String nsnameRegex : nsPolicyData.namespaces) {
+        for (String nsnameRegex : nsPolicyData.getNamespaces()) {
             if (namespace.toString().matches(nsnameRegex)) {
                 return true;
             }
@@ -83,19 +84,19 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Set the policy data for a single policy
-     * 
+     * Set the policy data for a single policy.
+     *
      * @param policyName
      * @param policyData
      */
     public void setPolicy(String policyName, NamespaceIsolationData policyData) {
         policyData.validate();
-        policies.put(policyName, policyData);
+        policies.put(policyName, (NamespaceIsolationDataImpl) policyData);
     }
 
     /**
-     * Delete a policy
-     * 
+     * Delete a policy.
+     *
      * @param policyName
      */
     public void deletePolicy(String policyName) {
@@ -103,17 +104,17 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Get the full policy map
-     * 
+     * Get the full policy map.
+     *
      * @return All policy data in a map
      */
-    public Map<String, NamespaceIsolationData> getPolicies() {
+    public Map<String, NamespaceIsolationDataImpl> getPolicies() {
         return this.policies;
     }
 
     /**
-     * Check to see whether a broker is in the shared broker pool or not
-     * 
+     * Check to see whether a broker is in the shared broker pool or not.
+     *
      * @param host
      * @return
      */
@@ -129,12 +130,12 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Get the broker assignment based on the namespace name
-     * 
-     * @param nsname
+     * Get the broker assignment based on the namespace name.
+     *
+     * @param nsPolicy
      *            The namespace name
      * @param brokerAddress
-     *            The broker adderss is the format of host:port
+     *            The broker address is the format of host:port
      * @return The broker assignment: {primary, secondary, shared}
      */
     private BrokerAssignment getBrokerAssignment(NamespaceIsolationPolicy nsPolicy, String brokerAddress) {

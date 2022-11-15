@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,9 @@ import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 
+/**
+ * Wrapper around {@code java.net.URL} to improve usability.
+ */
 public class URL {
     private static final URLStreamHandlerFactory urlStreamHandlerFactory = new PulsarURLStreamHandlerFactory();
     private final java.net.URL url;
@@ -37,6 +40,17 @@ public class URL {
         } else {
             this.url = new java.net.URL(null, spec, urlStreamHandlerFactory.createURLStreamHandler(scheme));
         }
+    }
+
+    /**
+     * Creates java.net.URL with data protocol support.
+     *
+     * @param spec the input URL as String
+     * @return java.net.URL instance
+     */
+    public static final java.net.URL createURL(String spec)
+            throws MalformedURLException, URISyntaxException, InstantiationException, IllegalAccessException {
+        return new URL(spec).url;
     }
 
     public URLConnection openConnection() throws IOException {

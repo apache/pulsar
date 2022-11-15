@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.twitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.Lists;
 import com.twitter.hbc.core.Constants;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,15 +29,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
-
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -47,10 +39,6 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  * Configuration object for the Twitter Firehose Connector.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class TwitterFireHoseConfig implements Serializable {
 
@@ -59,6 +47,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app consumer key. See "
                 + "https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
@@ -67,6 +56,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app consumer secret. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
@@ -75,6 +65,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app token. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )
@@ -83,6 +74,7 @@ public class TwitterFireHoseConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        sensitive = true,
         help = "Your twitter app token secret. "
                 + "See https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens for details"
     )

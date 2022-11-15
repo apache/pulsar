@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkState;
-
+import java.util.Optional;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -32,6 +34,17 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     private boolean requireSchemaValidation = true;
     private Schema<T> schema;
 
+    public AutoProduceBytesSchema() {
+    }
+
+    public AutoProduceBytesSchema(Schema<T> schema) {
+        this.schema = schema;
+        SchemaInfo schemaInfo = schema.getSchemaInfo();
+        this.requireSchemaValidation = schemaInfo != null
+                                       && schemaInfo.getType() != SchemaType.BYTES
+                                       && schemaInfo.getType() != SchemaType.NONE;
+    }
+
     public void setSchema(Schema<T> schema) {
         this.schema = schema;
         this.requireSchemaValidation = schema.getSchemaInfo() != null
@@ -40,7 +53,11 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     }
 
     private void ensureSchemaInitialized() {
-        checkState(null != schema, "Schema is not initialized before used");
+        checkState(schemaInitialized(), "Schema is not initialized before used");
+    }
+
+    public boolean schemaInitialized() {
+        return schema != null;
     }
 
     @Override
@@ -56,19 +73,24 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
         if (requireSchemaValidation) {
             // verify if the message can be decoded by the underlying schema
-            schema.validate(message);
+            if (schema instanceof KeyValueSchema
+                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
+                ((KeyValueSchema) schema).getValueSchema().validate(message);
+            } else {
+                schema.validate(message);
+            }
         }
 
         return message;
     }
 
     @Override
-    public byte[] decode(byte[] bytes) {
+    public byte[] decode(byte[] bytes, byte[] schemaVersion) {
         ensureSchemaInitialized();
 
         if (requireSchemaValidation) {
             // verify the message can be detected by the underlying schema
-            schema.decode(bytes);
+            schema.decode(bytes, schemaVersion);
         }
 
         return bytes;
@@ -79,5 +101,15 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
         ensureSchemaInitialized();
 
         return schema.getSchemaInfo();
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.ofNullable(schema);
+    }
+
+    @Override
+    public Schema<byte[]> clone() {
+        return new AutoProduceBytesSchema<>(schema.clone());
     }
 }

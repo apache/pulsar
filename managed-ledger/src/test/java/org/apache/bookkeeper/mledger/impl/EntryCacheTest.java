@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,53 +18,57 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.Unpooled;
-import java.lang.reflect.Method;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
-import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class EntryCacheTest extends MockedBookKeeperTestCase {
 
     private ManagedLedgerImpl ml;
 
-    @BeforeMethod
-    public void setUp(Method method) throws Exception {
-        super.setUp(method);
+    @Override
+    protected void setUpTestCase() throws Exception {
         ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn("name");
         when(ml.getExecutor()).thenReturn(executor);
-        when(ml.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
+        when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
+        when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
     }
 
     @Test(timeOut = 5000)
-    void testRead() throws Exception {
+    public void testRead() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
@@ -77,7 +81,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 assertEquals(entries.size(), 10);
-                entries.forEach(e -> e.release());
+                entries.forEach(Entry::release);
                 counter.countDown();
             }
 
@@ -92,11 +96,12 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingBefore() throws Exception {
+    public void testReadMissingBefore() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
@@ -120,11 +125,12 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingAfter() throws Exception {
+    public void testReadMissingAfter() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
@@ -148,11 +154,12 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingMiddle() throws Exception {
+    public void testReadMissingMiddle() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
@@ -177,11 +184,12 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingMultiple() throws Exception {
+    public void testReadMissingMultiple() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
@@ -205,8 +213,55 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
+    @Test
+    public void testCachedReadReturnsDifferentByteBuffer() throws Exception {
+        ReadHandle lh = getLedgerHandle();
+        when(lh.getId()).thenReturn((long) 0);
+
+        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
+        EntryCache entryCache = cacheManager.getEntryCache(ml);
+
+        CompletableFuture<List<Entry>> cacheMissFutureEntries = new CompletableFuture<>();
+
+        entryCache.asyncReadEntry(lh, 0, 1, true, new ReadEntriesCallback() {
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                cacheMissFutureEntries.complete(entries);
+            }
+
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                cacheMissFutureEntries.completeExceptionally(exception);
+            }
+        }, null);
+
+        List<Entry> cacheMissEntries = cacheMissFutureEntries.get();
+        // Ensure first entry is 0 and
+        assertEquals(cacheMissEntries.size(), 2);
+        assertEquals(cacheMissEntries.get(0).getEntryId(), 0);
+        assertEquals(cacheMissEntries.get(0).getDataBuffer().readerIndex(), 0);
+
+        // Move the reader index to simulate consumption
+        cacheMissEntries.get(0).getDataBuffer().readerIndex(10);
+
+        CompletableFuture<List<Entry>> cacheHitFutureEntries = new CompletableFuture<>();
+
+        entryCache.asyncReadEntry(lh, 0, 1, true, new ReadEntriesCallback() {
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                cacheHitFutureEntries.complete(entries);
+            }
+
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                cacheHitFutureEntries.completeExceptionally(exception);
+            }
+        }, null);
+
+        List<Entry> cacheHitEntries = cacheHitFutureEntries.get();
+        assertEquals(cacheHitEntries.get(0).getEntryId(), 0);
+        assertEquals(cacheHitEntries.get(0).getDataBuffer().readerIndex(), 0);
+    }
+
     @Test(timeOut = 5000)
-    void testReadWithError() throws Exception {
+    public void testReadWithError() throws Exception {
         final ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
@@ -217,6 +272,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
             }).when(lh).readAsync(anyLong(), anyLong());
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
         byte[] data = new byte[10];
@@ -236,20 +292,16 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
-    private static ReadHandle getLedgerHandle() {
+    static ReadHandle getLedgerHandle() {
         final ReadHandle lh = mock(ReadHandle.class);
-        final LedgerEntry ledgerEntry = mock(LedgerEntry.class, Mockito.CALLS_REAL_METHODS);
-        doReturn(Unpooled.wrappedBuffer(new byte[10])).when(ledgerEntry).getEntryBuffer();
-        doReturn((long) 10).when(ledgerEntry).getLength();
-
         doAnswer((invocation) -> {
                 Object[] args = invocation.getArguments();
                 long firstEntry = (Long) args[0];
                 long lastEntry = (Long) args[1];
 
-                Vector<LedgerEntry> entries = new Vector<LedgerEntry>();
+                List<LedgerEntry> entries = new ArrayList<>();
                 for (int i = 0; i <= (lastEntry - firstEntry); i++) {
-                    entries.add(ledgerEntry);
+                    entries.add(LedgerEntryImpl.create(0, i, 10, Unpooled.wrappedBuffer(new byte[10])));
                 }
                 LedgerEntries ledgerEntries = mock(LedgerEntries.class);
                 doAnswer((invocation2) -> entries.iterator()).when(ledgerEntries).iterator();

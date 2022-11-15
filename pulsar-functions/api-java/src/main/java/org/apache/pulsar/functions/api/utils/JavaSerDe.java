@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,19 +24,23 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.SerDe;
 
 /**
- * Java Serialization based SerDe
+ * Java Serialization based SerDe.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @Slf4j
 public class JavaSerDe implements SerDe<Object> {
+
+    private static final JavaSerDe INSTANCE = new JavaSerDe();
 
     public static JavaSerDe of() {
         return INSTANCE;
     }
-
-    private static final JavaSerDe INSTANCE = new JavaSerDe();
 
     @Override
     public byte[] serialize(Object resultValue) {

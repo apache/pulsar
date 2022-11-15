@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,13 @@ package org.apache.pulsar.broker.service.schema;
 
 import javax.validation.constraints.NotNull;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 @SuppressWarnings("unused")
 public class BookkeeperSchemaStorageFactory implements SchemaStorageFactory {
     @Override
     @NotNull
-    public SchemaStorage create(PulsarService pulsar) throws Exception {
-        BookkeeperSchemaStorage service = new BookkeeperSchemaStorage(pulsar);
-        service.init();
-        return service;
+    public SchemaStorage create(PulsarService pulsar) {
+        return new BookkeeperSchemaStorage(pulsar);
     }
 }

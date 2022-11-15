@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,11 @@ package org.apache.bookkeeper.mledger;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 /**
  * Factory to create {@link LedgerOffloader} to offload ledgers into long-term storage.
@@ -43,15 +44,34 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
     /**
      * Create a ledger offloader with the provided configuration, user-metadata and scheduler.
      *
-     * @param properties service configuration
+     * @param offloadPolicies offload policies
      * @param userMetadata user metadata
      * @param scheduler scheduler
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
-    T create(Properties properties,
+    T create(OffloadPoliciesImpl offloadPolicies,
              Map<String, String> userMetadata,
-             OrderedScheduler scheduler)
+             OrderedScheduler scheduler,
+             LedgerOffloaderStats offloaderStats)
         throws IOException;
 
+    /**
+     * Create a ledger offloader with the provided configuration, user-metadata, schema storage and scheduler.
+     *
+     * @param offloadPolicies offload policies
+     * @param userMetadata user metadata
+     * @param schemaStorage used for schema lookup in offloader
+     * @param scheduler scheduler
+     * @return the offloader instance
+     * @throws IOException when fail to create an offloader
+     */
+    default T create(OffloadPoliciesImpl offloadPolicies,
+                     Map<String, String> userMetadata,
+                     SchemaStorage schemaStorage,
+                     OrderedScheduler scheduler,
+                     LedgerOffloaderStats offloaderStats)
+            throws IOException {
+        return create(offloadPolicies, userMetadata, scheduler, offloaderStats);
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,57 +18,59 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+
 import org.testng.annotations.Test;
 
-import com.google.common.base.Objects;
-
 import org.apache.pulsar.client.impl.ConsumerId;
-import org.testng.Assert;
+
+import java.util.Objects;
 
 public class ConsumerIdTest {
     private static final String TOPIC_TEST = "my-topic-1";
     private static final String TOPIC_TEST_2 = "my-topic-2";
-    private static final String SUBCRIBTION_TEST = "my-sub-1";
+    private static final String SUBSCRIPTION_TEST = "my-sub-1";
 
     @Test
     public void getTopicTest() {
-        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        Assert.assertEquals(TOPIC_TEST, testConsumerId.getTopic());
+        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        assertEquals(TOPIC_TEST, testConsumerId.getTopic());
     }
 
     @Test
-    public void getSubscribtionTest() {
-        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        Assert.assertEquals(SUBCRIBTION_TEST, testConsumerId.getSubscription());
+    public void getSubscriptionTest() {
+        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        assertEquals(SUBSCRIPTION_TEST, testConsumerId.getSubscription());
     }
 
     @Test
     public void hashCodeTest() {
-        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        Assert.assertEquals(Objects.hashCode(TOPIC_TEST, SUBCRIBTION_TEST), testConsumerId.hashCode());
+        ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        assertEquals(Objects.hash(TOPIC_TEST, SUBSCRIPTION_TEST), testConsumerId.hashCode());
     }
 
     @Test
     public void equalTest() {
-        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBCRIBTION_TEST);
+        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBSCRIPTION_TEST);
 
-        Assert.assertTrue(testConsumerId1.equals(testConsumerId2));
+        assertEquals(testConsumerId2, testConsumerId1);
 
-        Assert.assertTrue(!testConsumerId1.equals(testConsumerId3));
+        assertNotEquals(testConsumerId3, testConsumerId1);
 
-        Assert.assertTrue(!testConsumerId1.equals(new String()));
+        assertNotEquals("", testConsumerId1);
     }
 
     @Test
     public void compareToTest() {
-        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBCRIBTION_TEST);
+        ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
+        ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBSCRIPTION_TEST);
 
-        Assert.assertEquals(0, testConsumerId1.compareTo(testConsumerId2));
-        Assert.assertEquals(-1, testConsumerId1.compareTo(testConsumerId3));
+        assertEquals(0, testConsumerId1.compareTo(testConsumerId2));
+        assertEquals(-1, testConsumerId1.compareTo(testConsumerId3));
 
     }
 }

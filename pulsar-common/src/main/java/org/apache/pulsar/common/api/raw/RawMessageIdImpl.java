@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.api.raw;
 
+import lombok.Getter;
+
+@Getter
 public class RawMessageIdImpl implements RawMessageId {
 
     long ledgerId;

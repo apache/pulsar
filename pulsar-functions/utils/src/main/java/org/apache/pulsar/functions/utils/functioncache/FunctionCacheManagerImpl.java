@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils.functioncache;
-
-import org.apache.pulsar.functions.utils.Exceptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,17 +25,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.pulsar.functions.utils.Exceptions;
 
 /**
  * An implementation of {@link FunctionCacheManager}.
  */
 public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
-    /** Registered Functions **/
+    /** Registered Functions. **/
     private final Map<String, FunctionCacheEntry> cacheFunctions;
 
-    public FunctionCacheManagerImpl() {
+    private ClassLoader rootClassLoader;
+
+    public FunctionCacheManagerImpl(ClassLoader rootClassLoader) {
         this.cacheFunctions = new ConcurrentHashMap<>();
+        this.rootClassLoader = rootClassLoader;
     }
 
     Map<String, FunctionCacheEntry> getCacheFunctions() {
@@ -48,7 +49,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     @Override
     public ClassLoader getClassLoader(String fid) {
         if (fid == null) {
-            throw new NullPointerException("FunctionID not set");
+            throw new IllegalArgumentException("FunctionID not set");
         }
 
         synchronized (cacheFunctions) {
@@ -93,7 +94,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                             requiredJarFiles,
                             requiredClasspaths,
                             urls,
-                            eid));
+                            eid, rootClassLoader));
                 } catch (Throwable cause) {
                     Exceptions.rethrowIOException(cause);
                 }
@@ -107,7 +108,9 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void registerFunctionInstanceWithArchive(String fid, String eid, String narArchive) throws IOException {
+    public void registerFunctionInstanceWithArchive(String fid, String eid,
+                                                    String narArchive, String narExtractionDirectory)
+            throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
@@ -122,7 +125,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
             // Create new cache entry
             try {
-                cacheFunctions.put(fid, new FunctionCacheEntry(narArchive, eid));
+                cacheFunctions
+                        .put(fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
             } catch (Throwable cause) {
                 Exceptions.rethrowIOException(cause);
             }

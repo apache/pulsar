@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 
 /**
- *
  * The Index Entry in OffloadIndexBlock.
- *
  */
 public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public static OffloadIndexEntryImpl of(long entryId, int partId, long offset, long blockHeaderSize) {
@@ -39,14 +37,17 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public long getEntryId() {
         return entryId;
     }
+
     @Override
     public int getPartId() {
         return partId;
     }
+
     @Override
     public long getOffset() {
         return offset;
     }
+
     @Override
     public long getDataOffset() {
         return offset + blockHeaderSize;
@@ -57,6 +58,12 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
         this.partId = partId;
         this.offset = offset;
         this.blockHeaderSize = blockHeaderSize;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[eid:%d, part:%d, offset:%d, doffset:%d]",
+                entryId, partId, offset, getDataOffset());
     }
 }
 

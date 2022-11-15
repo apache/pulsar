@@ -1,183 +1,399 @@
 ---
 id: client-libraries-cpp
-title: The Pulsar C++ client
-sidebar_label: C++
+title: Pulsar C++ client
+sidebar_label: "C++"
 ---
 
-## Supported platforms
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
+You can use a Pulsar C++ client to create producers, consumers, and readers. For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
-## Linux
+All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the [API docs](/api/cpp) for the C++ client.
 
-### Install
+## Installation
 
-> Since the 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can choose to download
-> and install those packages instead of building them yourself.
+Use one of the following methods to install a Pulsar C++ client.
 
-#### RPM
+### Brew
 
-| Link | Crypto files |
-|------|--------------|
-| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:dist_rpm:client}}.asc), [sha512]({{pulsar:dist_rpm:client}}.sha512) |
-| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:dist_rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:dist_rpm:client-debuginfo}}.sha512) |
-| [client-devel]({{pulsar:dist_rpm:client-devel}}) | [asc]({{pulsar:dist_rpm:client-devel}}.asc),  [sha512]({{pulsar:dist_rpm:client-devel}}.sha512) |
-
-To install a RPM package, download the RPM packages and install them using the following command:
+Use [Homebrew](http://brew.sh/) to install the latest tagged version with the library and headers:
 
 ```bash
-$ rpm -ivh apache-pulsar-client*.rpm
+brew install libpulsar
 ```
 
-#### DEB
+### Deb
 
-| Link | Crypto files |
-|------|--------------|
-| [client]({{pulsar:deb:client}}) | [asc]({{pulsar:dist_deb:client}}.asc), [sha512]({{pulsar:dist_deb:client}}.sha512) |
-| [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:dist_deb:client-devel}}.asc),  [sha512]({{pulsar:dist_deb:client-devel}}.sha512) |
+1. Download any one of the Deb packages:
 
-To install a DEB package, download the DEB packages and install them using the following command:
+<Tabs>
+<TabItem value="client">
 
 ```bash
-$ apt-install apache-pulsar-client*.deb
+wget @pulsar:deb:client@
 ```
 
-### Build
+This package contains shared libraries `libpulsar.so` and `libpulsarnossl.so`.
 
-> If you want to build RPM and Debian packages off latest master, you can follow the instructions
-> below to do so. All the instructions are run at the root directory of your cloned Pulsar
-> repo.
+</TabItem>
+<TabItem value="client-devel">
 
-There are recipes that build RPM and Debian packages containing a
-statically linked `libpulsar.so` / `libpulsar.a` with all the required
-dependencies.
-
-To build the C++ library packages, first build the Java packages:
-
-```shell
-mvn install -DskipTests
+```bash
+wget @pulsar:deb:client-devel@
 ```
 
-#### RPM
+This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
 
-```shell
-pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
+</TabItem>
+</Tabs>
+
+2. Install the package using the following command:
+
+```bash
+apt install ./apache-pulsar-client*.deb
 ```
 
-This will build the RPM inside a Docker container and it will leave the RPMs
-in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/`.
+Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` directory.
 
-| Package name | Content |
-|-----|-----|
-| pulsar-client | Shared library `libpulsar.so` |
-| pulsar-client-devel | Static library `libpulsar.a` and C++ and C headers |
-| pulsar-client-debuginfo | Debug symbols for `libpulsar.so` |
+### RPM
 
-#### Deb
+1. Download any one of the RPM packages:
 
-To build Debian packages:
+<Tabs>
+<TabItem value="client">
 
-```shell
-pulsar-client-cpp/pkg/deb/docker-build-deb.sh
+```bash
+wget @pulsar:dist_rpm:client@
 ```
 
-Debian packages will be created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`
+This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
 
-| Package name | Content |
-|-----|-----|
-| pulsar-client | Shared library `libpulsar.so` |
-| pulsar-client-dev | Static library `libpulsar.a` and C++ and C headers |
+</TabItem>
+<TabItem value="client-debuginfo">
 
-## MacOS
-
-Use the [Homebrew](https://brew.sh/) supplied recipe to build the Pulsar
-client lib on MacOS.
-
-```shell
-brew install https://raw.githubusercontent.com/apache/pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
+```bash
+wget @pulsar:dist_rpm:client-debuginfo@
 ```
 
-If using Python 3 on MacOS, add the flag `--with-python3` to the above command.
+This package contains debug symbols for `libpulsar.so`.
 
-This will install the package with the library and headers.
+</TabItem>
+<TabItem value="client-devel">
+
+```bash
+wget @pulsar:dist_rpm:client-devel@
+```
+
+This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
+
+</TabItem>
+</Tabs>
+
+2. Install the package using the following command:
+
+```bash
+rpm -ivh apache-pulsar-client*.rpm
+```
+
+Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` directory.
+
+:::note
+
+If you get an error like "libpulsar.so: cannot open shared object file: No such file or directory" when starting a Pulsar client, you need to run `ldconfig` first.
+
+:::
+
+### Source
+
+For how to build Pulsar C++ client on different platforms from source code, see [compliation](https://github.com/apache/pulsar-client-cpp#compilation).
 
 ## Connection URLs
 
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.
-
-Pulsar protocol URLs are assigned to specific clusters, use the pulsar URI scheme and have a default port of 6650. Here’s an example for localhost:
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
 pulsar://localhost:6650
 ```
 
-A URL for a production Pulsar cluster may look something like this:
+If you have multiple brokers, separate `IP:port` by commas:
+
 ```http
-pulsar://pulsar.us-west.example.com:6650
+pulsar://localhost:6550,localhost:6651,localhost:6652
 ```
 
-If you’re using TLS authentication, the URL will look like something like this:
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
+
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Consumer
+## Create a producer
 
-```c++
-Client client("pulsar://localhost:6650");
+To use Pulsar as a producer, you need to create a producer on the C++ client. There are two main ways of using a producer:
+- [Blocking style](#simple-blocking-example) : each call to `send` waits for an ack from the broker.
+- [Non-blocking asynchronous style](#non-blocking-example) : `sendAsync` is called instead of `send` and a callback is supplied for when the ack is received from the broker.
 
-Consumer consumer;
-Result result = client.subscribe("my-topic", "my-subscribtion-name", consumer);
-if (result != ResultOk) {
-    LOG_ERROR("Failed to subscribe: " << result);
-    return -1;
-}
+### Simple blocking example
 
-Message msg;
-
-while (true) {
-    consumer.receive(msg);
-    LOG_INFO("Received: " << msg
-            << "  with payload '" << msg.getDataAsString() << "'");
-
-    consumer.acknowledge(msg);
-}
-
-client.close();
-```
-
-
-## Producer
-
-```c++
-Client client("pulsar://localhost:6650");
-
-Producer producer;
-Result result = client.createProducer("my-topic", producer);
-if (result != ResultOk) {
-    LOG_ERROR("Error creating producer: " << result);
-    return -1;
-}
-
-// Publish 10 messages to the topic
-for (int i = 0; i < 10; i++){
-    Message msg = MessageBuilder().setContent("my-message").build();
-    Result res = producer.send(msg);
-    LOG_INFO("Message sent: " << res);
-}
-client.close();
-```
-
-## Authentication
+This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.
 
 ```cpp
-ClientConfiguration config = ClientConfiguration();
-config.setUseTls(true);
-config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
-config.setTlsAllowInsecureConnection(false);
-config.setAuth(pulsar::AuthTls::create(
-            "/path/to/client-cert.pem", "/path/to/client-key.pem"););
+#include <pulsar/Client.h>
+#include <thread>
 
-Client client("pulsar+ssl://my-broker.com:6651", config);
+using namespace pulsar;
+
+int main() {
+    Client client("pulsar://localhost:6650");
+
+    Producer producer;
+
+    Result result = client.createProducer("persistent://public/default/my-topic", producer);
+    if (result != ResultOk) {
+        std::cout << "Error creating producer: " << result << std::endl;
+        return -1;
+    }
+
+    // Send 100 messages synchronously
+    int ctr = 0;
+    while (ctr < 100) {
+        std::string content = "msg" + std::to_string(ctr);
+        Message msg = MessageBuilder().setContent(content).setProperty("x", "1").build();
+        Result result = producer.send(msg);
+        if (result != ResultOk) {
+            std::cout << "The message " << content << " could not be sent, received code: " << result << std::endl;
+        } else {
+            std::cout << "The message " << content << " sent successfully" << std::endl;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ctr++;
+    }
+
+    std::cout << "Finished producing synchronously!" << std::endl;
+
+    client.close();
+    return 0;
+}
 ```
+
+### Non-blocking example
+
+This example sends 100 messages using the non-blocking style calling `sendAsync` instead of `send`. This allows the producer to have multiple messages in-flight at a time which increases throughput.
+
+The producer configuration `blockIfQueueFull` is useful here to avoid `ResultProducerQueueIsFull` errors when the internal queue for outgoing send requests becomes full. Once the internal queue is full, `sendAsync` becomes blocking which can make your code simpler.
+
+Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
+
+```cpp
+#include <pulsar/Client.h>
+#include <thread>
+#include <atomic>
+
+using namespace pulsar;
+
+std::atomic<uint32_t> acksReceived;
+
+void callback(Result code, const MessageId& msgId, std::string msgContent) {
+    // message processing logic here
+    std::cout << "Received ack for msg: " << msgContent << " with code: "
+        << code << " -- MsgID: " << msgId << std::endl;
+    acksReceived++;
+}
+
+int main() {
+    Client client("pulsar://localhost:6650");
+
+    ProducerConfiguration producerConf;
+    producerConf.setBlockIfQueueFull(true);
+    Producer producer;
+    Result result = client.createProducer("persistent://public/default/my-topic",
+                                          producerConf, producer);
+    if (result != ResultOk) {
+        std::cout << "Error creating producer: " << result << std::endl;
+        return -1;
+    }
+
+    // Send 100 messages asynchronously
+    int ctr = 0;
+    while (ctr < 100) {
+        std::string content = "msg" + std::to_string(ctr);
+        Message msg = MessageBuilder().setContent(content).setProperty("x", "1").build();
+        producer.sendAsync(msg, std::bind(callback,
+                                          std::placeholders::_1, std::placeholders::_2, content));
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ctr++;
+    }
+
+    // wait for 100 messages to be acked
+    while (acksReceived < 100) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    std::cout << "Finished producing asynchronously!" << std::endl;
+
+    client.close();
+    return 0;
+}
+```
+
+### Partitioned topics and lazy producers
+
+When scaling out a Pulsar topic, you may configure a topic to have hundreds of partitions. Likewise, you may have also scaled out your producers so there are hundreds or even thousands of producers. This can put some strain on the Pulsar brokers as when you create a producer on a partitioned topic, internally it creates one internal producer per partition which involves communications to the brokers for each one. So for a topic with 1000 partitions and 1000 producers, it ends up creating 1,000,000 internal producers across the producer applications, each of which has to communicate with a broker to find out which broker it should connect to and then perform the connection handshake.
+
+You can reduce the load caused by this combination of a large number of partitions and many producers by doing the following:
+- use SinglePartition partition routing mode (this ensures that all messages are only sent to a single, randomly selected partition)
+- use non-keyed messages (when messages are keyed, routing is based on the hash of the key and so messages will end up being sent to multiple partitions)
+- use lazy producers (this ensures that an internal producer is only created on demand when a message needs to be routed to a partition)
+
+With our example above, that reduces the number of internal producers spread out over the 1000 producer apps from 1,000,000 to just 1000.
+
+Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.
+
+```cpp
+ProducerConfiguration producerConf;
+producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
+producerConf.setLazyStartPartitionedProducers(true);
+```
+
+### Enable chunking
+
+Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.
+
+The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
+
+```cpp
+ProducerConfiguration conf;
+conf.setBatchingEnabled(false);
+conf.setChunkingEnabled(true);
+Producer producer;
+client.createProducer("my-topic", conf, producer);
+```
+
+:::note
+
+To enable chunking, you need to disable batching (`setBatchingEnabled`=`false`) concurrently.
+
+:::
+
+## Create a consumer
+
+To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer:
+- [Blocking style](#blocking-example): synchronously calling `receive(msg)`.
+- [Non-blocking](#consumer-with-a-message-listener) (event-based) style: using a message listener.
+
+### Blocking example
+
+The benefit of this approach is that it is the simplest code. Simply keeps calling `receive(msg)` which blocks until a message is received.
+
+This example starts a subscription at the earliest offset and consumes 100 messages.
+
+```cpp
+#include <pulsar/Client.h>
+
+using namespace pulsar;
+
+int main() {
+    Client client("pulsar://localhost:6650");
+
+    Consumer consumer;
+    ConsumerConfiguration config;
+    config.setSubscriptionInitialPosition(InitialPositionEarliest);
+    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
+    if (result != ResultOk) {
+        std::cout << "Failed to subscribe: " << result << std::endl;
+        return -1;
+    }
+
+    Message msg;
+    int ctr = 0;
+    // consume 100 messages
+    while (ctr < 100) {
+        consumer.receive(msg);
+        std::cout << "Received: " << msg
+            << "  with payload '" << msg.getDataAsString() << "'" << std::endl;
+
+        consumer.acknowledge(msg);
+        ctr++;
+    }
+
+    std::cout << "Finished consuming synchronously!" << std::endl;
+
+    client.close();
+    return 0;
+}
+```
+
+### Consumer with a message listener
+
+You can avoid running a loop by blocking calls with an event-based style by using a message listener which is invoked for each message that is received.
+
+This example starts a subscription at the earliest offset and consumes 100 messages.
+
+```cpp
+#include <pulsar/Client.h>
+#include <atomic>
+#include <thread>
+
+using namespace pulsar;
+
+std::atomic<uint32_t> messagesReceived;
+
+void handleAckComplete(Result res) {
+    std::cout << "Ack res: " << res << std::endl;
+}
+
+void listener(Consumer consumer, const Message& msg) {
+    std::cout << "Got message " << msg << " with content '" << msg.getDataAsString() << "'" << std::endl;
+    messagesReceived++;
+    consumer.acknowledgeAsync(msg.getMessageId(), handleAckComplete);
+}
+
+int main() {
+    Client client("pulsar://localhost:6650");
+
+    Consumer consumer;
+    ConsumerConfiguration config;
+    config.setMessageListener(listener);
+    config.setSubscriptionInitialPosition(InitialPositionEarliest);
+    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
+    if (result != ResultOk) {
+        std::cout << "Failed to subscribe: " << result << std::endl;
+        return -1;
+    }
+
+    // wait for 100 messages to be consumed
+    while (messagesReceived < 100) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    std::cout << "Finished consuming asynchronously!" << std::endl;
+
+    client.close();
+    return 0;
+}
+```
+
+### Configure chunking
+
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `setMaxPendingChunkedMessage` and `setAutoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later.
+
+The following is an example of how to configure message chunking.
+
+```cpp
+ConsumerConfiguration conf;
+conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
+conf.setMaxPendingChunkedMessage(100);
+Consumer consumer;
+client.subscribe("my-topic", "my-sub", conf, consumer);
+```
+
+## Schema
+
+To work with [Pulsar schema](schema-overview.md) using C++ clients, see [Schema - Get started](schema-get-started.md). For specific schema types that C++ clients support, see [code](https://github.com/apache/pulsar-client-cpp/blob/main/include/pulsar/Schema.h).

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -28,23 +27,34 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 public abstract class ProducerBase<T> extends HandlerState implements Producer<T> {
 
     protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
-    protected final ProducerInterceptors<T> interceptors;
+    protected final ProducerInterceptors interceptors;
+    protected final ConcurrentOpenHashMap<SchemaHash, byte[]> schemaCache;
+    protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors<T> interceptors) {
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors interceptors) {
         super(client, topic);
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
         this.schema = schema;
         this.interceptors = interceptors;
+        this.schemaCache =
+                ConcurrentOpenHashMap.<SchemaHash, byte[]>newBuilder().build();
+        if (!conf.isMultiSchema()) {
+            multiSchemaMode = MultiSchemaMode.Disabled;
+        }
     }
 
     @Override
@@ -61,7 +71,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
+    public CompletableFuture<MessageId> sendAsync(Message<?> message) {
         return internalSendAsync(message);
     }
 
@@ -70,29 +80,37 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return new TypedMessageBuilderImpl<>(this, schema);
     }
 
-    abstract CompletableFuture<MessageId> internalSendAsync(Message<T> message);
+    public <V> TypedMessageBuilder<V> newMessage(Schema<V> schema) {
+        checkArgument(schema != null);
+        return new TypedMessageBuilderImpl<>(this, schema);
+    }
 
-    public MessageId send(Message<T> message) throws PulsarClientException {
+    @Override
+    public TypedMessageBuilder<T> newMessage(Transaction txn) {
+        checkArgument(txn instanceof TransactionImpl);
+
+
+        return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
+    }
+
+    abstract CompletableFuture<MessageId> internalSendAsync(Message<?> message);
+
+    abstract CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn);
+
+    public MessageId send(Message<?> message) throws PulsarClientException {
         try {
             // enqueue the message to the buffer
             CompletableFuture<MessageId> sendFuture = internalSendAsync(message);
 
             if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush
+                // it out
                 triggerFlush();
             }
 
             return sendFuture.get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -100,16 +118,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public void flush() throws PulsarClientException {
         try {
             flushAsync().get();
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof PulsarClientException) {
-                throw (PulsarClientException) cause;
-            } else {
-                throw new PulsarClientException(cause);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -119,21 +129,13 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
     @Override
-    abstract public CompletableFuture<Void> closeAsync();
+    public abstract CompletableFuture<Void> closeAsync();
 
     @Override
     public String getTopic() {
@@ -148,7 +150,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return producerCreatedFuture;
     }
 
-    protected Message<T> beforeSend(Message<T> message) {
+    protected Message<?> beforeSend(Message<?> message) {
         if (interceptors != null) {
             return interceptors.beforeSend(this, message);
         } else {
@@ -156,14 +158,24 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable exception) {
+    protected void onSendAcknowledgement(Message<?> message, MessageId msgId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onSendAcknowledgement(this, message, msgId, exception);
+        }
+    }
+
+    protected void onPartitionsChange(String topicName, int partitions) {
+        if (interceptors != null) {
+            interceptors.onPartitionsChange(topicName, partitions);
         }
     }
 
     @Override
     public String toString() {
         return "ProducerBase{" + "topic='" + topic + '\'' + '}';
+    }
+
+    public enum MultiSchemaMode {
+        Auto, Enabled, Disabled
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,251 +18,119 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
-
-import java.net.URI;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.admin.StorageAdminClient;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.distributedlog.DistributedLogConfiguration;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.functions.worker.service.api.Functions;
+import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
+import org.apache.pulsar.functions.worker.service.api.Sinks;
+import org.apache.pulsar.functions.worker.service.api.Sources;
+import org.apache.pulsar.functions.worker.service.api.Workers;
 
 /**
- * A service component contains everything to run a worker except rest server.
+ * API service provides the ability to manage functions.
  */
-@Slf4j
-@Getter
-public class WorkerService {
+public interface WorkerService {
 
-    private final WorkerConfig workerConfig;
+    /**
+     * Return the worker config.
+     *
+     * @return worker config
+     */
+    WorkerConfig getWorkerConfig();
 
-    private PulsarClient client;
-    private FunctionRuntimeManager functionRuntimeManager;
-    private FunctionMetaDataManager functionMetaDataManager;
-    private ClusterServiceCoordinator clusterServiceCoordinator;
-    // dlog namespace for storing function jars in bookkeeper
-    private Namespace dlogNamespace;
-    // storage client for accessing state storage for functions
-    private StorageAdminClient stateStoreAdminClient;
-    private MembershipManager membershipManager;
-    private SchedulerManager schedulerManager;
-    private boolean isInitialized = false;
-    private final ScheduledExecutorService statsUpdater;
-    private AuthenticationService authenticationService;
-    private ConnectorsManager connectorsManager;
-    private PulsarAdmin brokerAdmin;
-    private PulsarAdmin functionAdmin;
-    private final MetricsGenerator metricsGenerator;
-    private final ScheduledExecutorService executor;
-    @VisibleForTesting
-    private URI dlogUri;
+    /**
+     * Initialize the worker API service using the provided config.
+     *
+     * @param workerConfig the worker config
+     * @throws Exception when fail to initialize the worker API service.
+     */
+    void initAsStandalone(WorkerConfig workerConfig)
+        throws Exception;
 
-    public WorkerService(WorkerConfig workerConfig) {
-        this.workerConfig = workerConfig;
-        this.statsUpdater = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
-        this.executor = Executors.newScheduledThreadPool(10, new DefaultThreadFactory("pulsar-worker"));
-        this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
-    }
+    /**
+     * Initialize the worker service in broker.
+     *
+     * @param brokerConfig broker config
+     * @param workerConfig worker config
+     * @param pulsarResources configuration metadata-store
+     * @param internalConf pulsar internal configuration data
+     * @throws Exception when failed to initialize the worker service in broker.
+     */
+    void initInBroker(ServiceConfiguration brokerConfig,
+                      WorkerConfig workerConfig,
+                      PulsarResources pulsarResources,
+                      InternalConfigurationData internalConf) throws Exception;
 
-    public void start(URI dlogUri) throws InterruptedException {
-        log.info("Starting worker {}...", workerConfig.getWorkerId());
+    /**
+     * Start the worker API service.
+     *
+     * @param authenticationService the authentication service.
+     * @param authorizationService the authorization service.
+     * @param errorNotifier error notifier.
+     * @throws Exception when fail to start the worker API service.
+     */
+    void start(AuthenticationService authenticationService,
+               AuthorizationService authorizationService,
+               ErrorNotifier errorNotifier) throws Exception;
 
-        this.brokerAdmin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
-        
-        final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
-                ? workerConfig.getFunctionWebServiceUrl()
-                : workerConfig.getWorkerWebAddress(); 
-        this.functionAdmin = Utils.getPulsarAdminClient(functionWebServiceUrl,
-                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
+    /**
+     * Stop the worker API service.
+     */
+    void stop();
 
-        try {
-            log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(workerConfig));
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
-        }
+    /**
+     * Check if the worker service is initialized or not.
+     *
+     * @return true if the worker service is initialized otherwise false.
+     */
+    boolean isInitialized();
 
-        // create the dlog namespace for storing function packages
-        this.dlogUri = dlogUri;
-        DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
-        try {
-            this.dlogNamespace = NamespaceBuilder.newBuilder()
-                    .conf(dlogConf)
-                    .clientId("function-worker-" + workerConfig.getWorkerId())
-                    .uri(this.dlogUri)
-                    .build();
-        } catch (Exception e) {
-            log.error("Failed to initialize dlog namespace {} for storing function packages",
-                    dlogUri, e);
-            throw new RuntimeException(e);
-        }
+    /**
+     * Get the functions service.
+     *
+     * @return the functions service.
+     */
+    Functions<? extends WorkerService> getFunctions();
 
-        // create the state storage client for accessing function state
-        if (workerConfig.getStateStorageServiceUrl() != null) {
-            StorageClientSettings clientSettings = StorageClientSettings.newBuilder()
-                .serviceUri(workerConfig.getStateStorageServiceUrl())
-                .build();
-            this.stateStoreAdminClient = StorageClientBuilder.newBuilder()
-                .withSettings(clientSettings)
-                .buildAdmin();
-        }
+    /**
+     * Get the functions service (v2).
+     *
+     * <p>This is a legacy API service for supporting v2.
+     *
+     * @return the functions service (v2).
+     */
+    FunctionsV2<? extends WorkerService> getFunctionsV2();
 
-        // initialize the function metadata manager
-        try {
+    /**
+     * Get the sinks service.
+     *
+     * @return the sinks service.
+     */
+    Sinks<? extends WorkerService> getSinks();
 
-            ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
-            if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
-                clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
-                        workerConfig.getClientAuthenticationParameters());
-            }
-            clientBuilder.enableTls(workerConfig.isUseTls());
-            clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
-            clientBuilder.tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath());
-            clientBuilder.enableTlsHostnameVerification(workerConfig.isTlsHostnameVerificationEnable());
-            this.client = clientBuilder.build();
-            log.info("Created Pulsar client");
+    /**
+     * Get the sources service.
+     *
+     * @return the sources service.
+     */
+    Sources<? extends WorkerService> getSources();
 
-            //create scheduler manager
-            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
-                    this.executor);
+    /**
+     * Get the worker service.
+     *
+     * @return the worker service.
+     */
+    Workers<? extends WorkerService> getWorkers();
 
-            //create function meta data manager
-            this.functionMetaDataManager = new FunctionMetaDataManager(
-                    this.workerConfig, this.schedulerManager, this.client);
-
-            this.connectorsManager = new ConnectorsManager(workerConfig);
-
-            //create membership manager
-            this.membershipManager = new MembershipManager(this, this.client);
-
-            // create function runtime manager
-            this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager, functionMetaDataManager);
-
-            // Setting references to managers in scheduler
-            this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
-            this.schedulerManager.setFunctionRuntimeManager(this.functionRuntimeManager);
-            this.schedulerManager.setMembershipManager(this.membershipManager);
-
-            // initialize function metadata manager
-            this.functionMetaDataManager.initialize();
-
-            // initialize function runtime manager
-            this.functionRuntimeManager.initialize();
-
-            authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
-
-            // Starting cluster services
-            log.info("Start cluster services...");
-            this.clusterServiceCoordinator = new ClusterServiceCoordinator(
-                    this.workerConfig.getWorkerId(),
-                    membershipManager);
-
-            this.clusterServiceCoordinator.addTask("membership-monitor",
-                    this.workerConfig.getFailureCheckFreqMs(),
-                    () -> membershipManager.checkFailures(
-                            functionMetaDataManager, functionRuntimeManager, schedulerManager));
-
-            this.clusterServiceCoordinator.start();
-
-            // Start function runtime manager
-            this.functionRuntimeManager.start();
-
-            // indicate function worker service is done intializing
-            this.isInitialized = true;
-
-            this.connectorsManager = new ConnectorsManager(workerConfig);
-
-        } catch (Throwable t) {
-            log.error("Error Starting up in worker", t);
-            throw new RuntimeException(t);
-        }
-    }
-
-    public void stop() {
-        if (null != functionMetaDataManager) {
-            try {
-                functionMetaDataManager.close();
-            } catch (Exception e) {
-                log.warn("Failed to close function metadata manager", e);
-            }
-        }
-        if (null != functionRuntimeManager) {
-            try {
-                functionRuntimeManager.close();
-            } catch (Exception e) {
-                log.warn("Failed to close function runtime manager", e);
-            }
-        }
-        if (null != client) {
-            try {
-                client.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to close pulsar client", e);
-            }
-        }
-
-        if (null != clusterServiceCoordinator) {
-            clusterServiceCoordinator.close();
-        }
-
-        if (null != membershipManager) {
-            try {
-                membershipManager.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to close membership manager", e);
-            }
-        }
-
-        if (null != schedulerManager) {
-            schedulerManager.close();
-        }
-
-        if (null != this.brokerAdmin) {
-            this.brokerAdmin.close();
-        }
-        
-        if (null != this.functionAdmin) {
-            this.functionAdmin.close();
-        }
-
-        if (null != this.stateStoreAdminClient) {
-            this.stateStoreAdminClient.close();
-        }
-
-        if (null != this.dlogNamespace) {
-            this.dlogNamespace.close();
-        }
-        
-        if(this.executor != null) {
-            this.executor.shutdown();
-        }
-    }
+    /**
+     * Generate functions stats.
+     *
+     * @param out output stream
+     */
+    void generateFunctionsStats(SimpleTextOutputStream out);
 
 }

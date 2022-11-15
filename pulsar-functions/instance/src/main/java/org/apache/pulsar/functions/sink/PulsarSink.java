@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,30 +18,10 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import static org.apache.commons.lang.StringUtils.isEmpty;
 import com.google.common.annotations.VisibleForTesting;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.FunctionResultRouter;
-import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.instance.SinkRecord;
-import org.apache.pulsar.functions.source.PulsarRecord;
-import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
-
+import java.nio.charset.StandardCharsets;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -50,6 +30,44 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.CryptoConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.instance.AbstractSinkRecord;
+import org.apache.pulsar.functions.instance.FunctionResultRouter;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.CryptoUtils;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 @Slf4j
 public class PulsarSink<T> implements Sink<T> {
@@ -57,6 +75,8 @@ public class PulsarSink<T> implements Sink<T> {
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
     private final Map<String, String> properties;
+    private final ClassLoader functionClassLoader;
+    private ComponentStatsManager stats;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
@@ -65,27 +85,29 @@ public class PulsarSink<T> implements Sink<T> {
 
     private interface PulsarSinkProcessor<T> {
 
-        TypedMessageBuilder<T> newMessage(Record<T> record) throws Exception;
+        TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record);
 
-        void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record) throws Exception;
+        void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record);
 
         void close() throws Exception;
     }
 
-    private abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
+    abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
         protected Map<String, Producer<T>> publishProducers = new ConcurrentHashMap<>();
         protected Schema schema;
+        protected Crypto crypto;
 
-        protected PulsarSinkProcessorBase(Schema schema) {
+        protected PulsarSinkProcessorBase(Schema schema, Crypto crypto) {
             this.schema = schema;
+            this.crypto = crypto;
         }
 
-        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
+        public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)
-                    .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
                     .compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
@@ -97,22 +119,49 @@ public class PulsarSink<T> implements Sink<T> {
             if (producerName != null) {
                 builder.producerName(producerName);
             }
-
+            if (pulsarSinkConfig.getProducerConfig() != null) {
+                ProducerConfig producerConfig = pulsarSinkConfig.getProducerConfig();
+                if (producerConfig.getMaxPendingMessages() != 0) {
+                    builder.maxPendingMessages(producerConfig.getMaxPendingMessages());
+                }
+                if (producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
+                    builder.maxPendingMessagesAcrossPartitions(producerConfig.getMaxPendingMessagesAcrossPartitions());
+                }
+                if (producerConfig.getCryptoConfig() != null) {
+                    builder.cryptoKeyReader(crypto.keyReader);
+                    builder.cryptoFailureAction(crypto.failureAction);
+                    for (String encryptionKeyName : crypto.getEncryptionKeys()) {
+                        builder.addEncryptionKey(encryptionKeyName);
+                    }
+                }
+                if (producerConfig.getBatchBuilder() != null) {
+                    if (producerConfig.getBatchBuilder().equals("KEY_BASED")) {
+                        builder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                    } else {
+                        builder.batcherBuilder(BatcherBuilder.DEFAULT);
+                    }
+                }
+            }
             return builder.properties(properties).create();
         }
 
-        protected Producer<T> getProducer(String destinationTopic) {
-            return getProducer(destinationTopic, null, destinationTopic);
+        protected Producer<T> getProducer(String destinationTopic, Schema schema) {
+            return getProducer(destinationTopic, null, destinationTopic, schema);
         }
 
-        protected Producer<T> getProducer(String producerId, String producerName, String topicName) {
+        protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
             return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
-                    return createProducer(
+                    log.info("Initializing producer {} on topic {} with schema {}",
+                        producerName, topicName, schema);
+                    Producer<T> producer = createProducer(
                             client,
                             topicName,
                             producerName,
-                            schema);
+                            schema != null ? schema : this.schema);
+                    log.info("Initialized producer {} on topic {} with schema {}: {} -> {}",
+                        producerName, topicName, schema, producerId, producer);
+                    return producer;
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -123,7 +172,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void close() throws Exception {
             List<CompletableFuture<Void>> closeFutures = new ArrayList<>(publishProducers.size());
-            for (Map.Entry<String, Producer<T>> entry: publishProducers.entrySet()) {
+            for (Map.Entry<String, Producer<T>> entry : publishProducers.entrySet()) {
                 Producer<T> producer = entry.getValue();
                 closeFutures.add(producer.closeAsync());
             }
@@ -133,86 +182,173 @@ public class PulsarSink<T> implements Sink<T> {
                 log.warn("Failed to close all the producers", e);
             }
         }
+
+        public Function<Throwable, Void> getPublishErrorHandler(AbstractSinkRecord<T> record, boolean failSource) {
+
+            return throwable -> {
+                Record<?> srcRecord = record.getSourceRecord();
+                if (failSource) {
+                    srcRecord.fail();
+                }
+
+                String topic = record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic());
+
+                String errorMsg;
+                if (srcRecord instanceof PulsarRecord) {
+                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src message id [%s]",
+                            topic, throwable.getMessage(), ((PulsarRecord) srcRecord).getMessageId());
+                } else {
+                    errorMsg = String.format("Failed to publish to topic [%s] with error [%s]", topic,
+                            throwable.getMessage());
+                    if (record.getRecordSequence().isPresent()) {
+                        errorMsg = String.format(errorMsg + " with src sequence id [%s]",
+                                record.getRecordSequence().get());
+                    }
+                }
+                log.error(errorMsg);
+                stats.incrSinkExceptions(new Exception(errorMsg));
+                return null;
+            };
+        }
     }
 
     @VisibleForTesting
     class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
-        public PulsarSinkAtMostOnceProcessor(Schema schema) {
-            super(schema);
-            // initialize default topic
-            try {
-                publishProducers.put(pulsarSinkConfig.getTopic(),
+        public PulsarSinkAtMostOnceProcessor(Schema schema, Crypto crypto) {
+            super(schema, crypto);
+            if (!(schema instanceof AutoConsumeSchema)) {
+                // initialize default topic
+                try {
+                    publishProducers.put(pulsarSinkConfig.getTopic(),
                         createProducer(client, pulsarSinkConfig.getTopic(), null, schema));
-            } catch (PulsarClientException e) {
-                log.error("Failed to create Producer while doing user publish", e);
-                throw new RuntimeException(e);            }
+                } catch (PulsarClientException e) {
+                    log.error("Failed to create Producer while doing user publish", e);
+                    throw new RuntimeException(e);
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("The Pulsar producer is not initialized until the first record is"
+                        + " published for `AUTO_CONSUME` schema.");
+                }
+            }
         }
 
         @Override
-        public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            return getProducer(record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())).newMessage();
+        public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
+            Schema<T> schemaToWrite = record.getSchema();
+            if (!record.shouldSetSchema()) {
+                // we are receiving data directly from another Pulsar topic
+                // and the Function return type is not a Record
+                // we must use the destination topic schema
+                schemaToWrite = schema;
+            }
+
+            if (schemaToWrite != null) {
+                return getProducer(record
+                        .getDestinationTopic()
+                        .orElse(pulsarSinkConfig.getTopic()), schemaToWrite)
+                        .newMessage(schemaToWrite);
+            } else {
+                return getProducer(record
+                        .getDestinationTopic()
+                        .orElse(pulsarSinkConfig.getTopic()), null)
+                        .newMessage();
+            }
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record) throws Exception {
-            msg.sendAsync();
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
+            msg.sendAsync().thenAccept(messageId -> {
+                //no op
+            }).exceptionally(getPublishErrorHandler(record, false));
         }
     }
 
     @VisibleForTesting
     class PulsarSinkAtLeastOnceProcessor extends PulsarSinkAtMostOnceProcessor {
-        public PulsarSinkAtLeastOnceProcessor(Schema schema) {
-            super(schema);
+        public PulsarSinkAtLeastOnceProcessor(Schema schema, Crypto crypto) {
+            super(schema, crypto);
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record) throws Exception {
-            msg.sendAsync().thenAccept(messageId -> record.ack());
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
+            msg.sendAsync()
+                    .thenAccept(messageId -> record.ack())
+                    .exceptionally(getPublishErrorHandler(record, true));
+        }
+    }
+
+    @VisibleForTesting
+    class PulsarSinkManualProcessor extends PulsarSinkAtMostOnceProcessor {
+
+        public PulsarSinkManualProcessor(Schema schema, Crypto crypto) {
+            super(schema, crypto);
+        }
+
+        @Override
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
+            super.sendOutputMessage(msg, record);
         }
     }
 
     @VisibleForTesting
     class PulsarSinkEffectivelyOnceProcessor extends PulsarSinkProcessorBase {
 
-
-        public PulsarSinkEffectivelyOnceProcessor(Schema schema) {
-            super(schema);
+        public PulsarSinkEffectivelyOnceProcessor(Schema schema, Crypto crypto) {
+            super(schema, crypto);
         }
 
         @Override
-        public TypedMessageBuilder<T> newMessage(Record<T> record) throws Exception {
+        public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
             if (!record.getPartitionId().isPresent()) {
-                throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
+                throw new RuntimeException(
+                        "PartitionId needs to be specified for every record while in Effectively-once mode");
             }
-
-            return getProducer(
-                    String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
+            Schema<T> schemaToWrite = record.getSchema();
+            if (!record.shouldSetSchema()) {
+                // we are receiving data directly from another Pulsar topic
+                // and the Function return type is not a Record
+                // we must use the destination topic schema
+                schemaToWrite = schema;
+            }
+            Producer<T> producer = getProducer(
+                    String.format("%s-%s", record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
+                            record.getPartitionId().get()),
                     record.getPartitionId().get(),
-                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
-            ).newMessage();
+                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
+                    schemaToWrite
+            );
+            if (schemaToWrite != null) {
+                return producer.newMessage(schemaToWrite);
+            } else {
+                return producer.newMessage();
+            }
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record)
-                throws Exception {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
 
             if (!record.getRecordSequence().isPresent()) {
-                throw new RuntimeException("RecordSequence needs to be specified for every record while in Effectively-once mode");
+                throw new RuntimeException(
+                        "RecordSequence needs to be specified for every record while in Effectively-once mode");
             }
 
             // assign sequence id to output message for idempotent producing
             msg.sequenceId(record.getRecordSequence().get());
-            msg.sendAsync()
-                    .thenAccept(messageId -> record.ack())
-                    .join();
+            CompletableFuture<MessageId> future = msg.sendAsync();
+
+            future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record, true));
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
+                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
+        this.stats = stats;
+        this.functionClassLoader = functionClassLoader;
     }
 
     @Override
@@ -225,49 +361,59 @@ public class PulsarSink<T> implements Sink<T> {
             return;
         }
 
+        Crypto crypto = initializeCrypto();
+        if (crypto == null) {
+            log.info("crypto key reader is not provided, not enabling end to end encryption");
+        }
+
         FunctionConfig.ProcessingGuarantees processingGuarantees = this.pulsarSinkConfig.getProcessingGuarantees();
         switch (processingGuarantees) {
             case ATMOST_ONCE:
-                this.pulsarSinkProcessor = new PulsarSinkAtMostOnceProcessor(schema);
+                this.pulsarSinkProcessor = new PulsarSinkAtMostOnceProcessor(schema, crypto);
                 break;
             case ATLEAST_ONCE:
-                this.pulsarSinkProcessor = new PulsarSinkAtLeastOnceProcessor(schema);
+                this.pulsarSinkProcessor = new PulsarSinkAtLeastOnceProcessor(schema, crypto);
                 break;
             case EFFECTIVELY_ONCE:
-                this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor(schema);
+                this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor(schema, crypto);
+                break;
+            case MANUAL:
+                this.pulsarSinkProcessor = new PulsarSinkManualProcessor(schema, crypto);
                 break;
         }
     }
 
     @Override
-    public void write(Record<T> record) throws Exception {
-        TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(record);
-        if (record.getKey().isPresent()) {
+    public void write(Record<T> record) {
+        AbstractSinkRecord<T> sinkRecord = (AbstractSinkRecord<T>) record;
+        TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
+
+        if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema
+                && ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {
             msg.key(record.getKey().get());
         }
 
         msg.value(record.getValue());
 
-        if (!record.getProperties().isEmpty()) {
+        if (!record.getProperties().isEmpty()
+            && (sinkRecord.shouldAlwaysSetMessageProperties() || pulsarSinkConfig.isForwardSourceMessageProperty())) {
             msg.properties(record.getProperties());
         }
 
-        SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
         if (sinkRecord.getSourceRecord() instanceof PulsarRecord) {
             PulsarRecord<T> pulsarRecord = (PulsarRecord<T>) sinkRecord.getSourceRecord();
             // forward user properties to sink-topic
             msg.property("__pfn_input_topic__", pulsarRecord.getTopicName().get())
-               .property("__pfn_input_msg_id__",
-                         new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+                    .property("__pfn_input_msg_id__",
+                            new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray()),
+                                    StandardCharsets.UTF_8));
         } else {
             // It is coming from some source
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
-            if (eventTime.isPresent()) {
-                msg.eventTime(eventTime.get());
-            }
+            eventTime.ifPresent(msg::eventTime);
         }
 
-        pulsarSinkProcessor.sendOutputMessage(msg, record);
+        pulsarSinkProcessor.sendOutputMessage(msg, sinkRecord);
     }
 
     @Override
@@ -284,20 +430,66 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) Schema.BYTES;
         }
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
-
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
             return null;
         }
-
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setSchemaProperties(pulsarSinkConfig.getSchemaProperties());
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
+            if (GenericRecord.class.isAssignableFrom(typeArg)) {
+                consumerConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
+                SchemaType configuredSchemaType = SchemaType.valueOf(pulsarSinkConfig.getSchemaType());
+                if (SchemaType.AUTO_CONSUME != configuredSchemaType) {
+                    log.info("The configured schema type {} is not able to write GenericRecords."
+                        + " So overwrite the schema type to be {}", configuredSchemaType, SchemaType.AUTO_CONSUME);
+                }
+            } else {
+                consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());
+            }
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSchemaType(), false);
+                    consumerConfig, false);
         } else {
+            consumerConfig.setSchemaType(pulsarSinkConfig.getSerdeClassName());
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSerdeClassName(), false);
+                    consumerConfig, false, functionClassLoader);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    @VisibleForTesting
+    Crypto initializeCrypto() throws ClassNotFoundException {
+        if (pulsarSinkConfig.getProducerConfig() == null
+                || pulsarSinkConfig.getProducerConfig().getCryptoConfig() == null
+                || isEmpty(pulsarSinkConfig.getProducerConfig().getCryptoConfig().getCryptoKeyReaderClassName())) {
+            return null;
+        }
+
+        CryptoConfig cryptoConfig = pulsarSinkConfig.getProducerConfig().getCryptoConfig();
+
+        // add provider only if it's not in the JVM
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+
+        final String[] encryptionKeys = cryptoConfig.getEncryptionKeys();
+        Crypto.CryptoBuilder bldr = Crypto.builder()
+                .failureAction(cryptoConfig.getProducerCryptoFailureAction())
+                .encryptionKeys(encryptionKeys);
+
+        bldr.keyReader(CryptoUtils.getCryptoKeyReaderInstance(
+                cryptoConfig.getCryptoKeyReaderClassName(), cryptoConfig.getCryptoKeyReaderConfig(),
+                functionClassLoader));
+
+        return bldr.build();
+    }
+
+    @Data
+    @Builder
+    private static class Crypto {
+        private CryptoKeyReader keyReader;
+        private ProducerCryptoFailureAction failureAction;
+        private String[] encryptionKeys;
     }
 }

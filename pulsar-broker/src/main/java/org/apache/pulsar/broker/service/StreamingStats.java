@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.utils.StatsOutputStream;
 
 public class StreamingStats {
     private StreamingStats() {}
 
-    public static void writePublisherStats(StatsOutputStream statsStream, PublisherStats stats) {
+    public static void writePublisherStats(StatsOutputStream statsStream, PublisherStatsImpl stats) {
         statsStream.startObject();
 
         statsStream.writePair("msgRateIn", stats.msgRateIn);
@@ -52,8 +52,8 @@ public class StreamingStats {
     }
 
 
-    public static void writeConsumerStats(StatsOutputStream statsStream, PulsarApi.CommandSubscribe.SubType subType,
-        ConsumerStats stats) {
+    public static void writeConsumerStats(StatsOutputStream statsStream, CommandSubscribe.SubType subType,
+        ConsumerStatsImpl stats) {
         // Populate consumer specific stats here
         statsStream.startObject();
 
@@ -64,8 +64,10 @@ public class StreamingStats {
         statsStream.writePair("msgRateOut", stats.msgRateOut);
         statsStream.writePair("msgThroughputOut", stats.msgThroughputOut);
         statsStream.writePair("msgRateRedeliver", stats.msgRateRedeliver);
+        statsStream.writePair("avgMessagesPerEntry", stats.avgMessagesPerEntry);
+        statsStream.writePair("messageAckRate", stats.messageAckRate);
 
-        if (PulsarApi.CommandSubscribe.SubType.Shared.equals(subType)) {
+        if (Subscription.isIndividualAckMode(subType)) {
             statsStream.writePair("unackedMessages", stats.unackedMessages);
             statsStream.writePair("blockedConsumerOnUnackedMsgs", stats.blockedConsumerOnUnackedMsgs);
         }

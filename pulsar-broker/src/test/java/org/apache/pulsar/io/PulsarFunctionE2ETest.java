@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,252 +18,67 @@
  */
 package org.apache.pulsar.io;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.gson.Gson;
-import lombok.ToString;
-import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
-import org.apache.pulsar.client.admin.BrokerStats;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Utils;
-import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStatus;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.reflect.Method;
-import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesNar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import lombok.Cleanup;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.compaction.TwoPhaseCompactor;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 /**
  * Test Pulsar sink on function
- *
  */
-public class PulsarFunctionE2ETest {
-    LocalBookkeeperEnsemble bkEnsemble;
+@Test(groups = "broker-io")
+public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
-    ServiceConfiguration config;
-    WorkerConfig workerConfig;
-    URL urlTls;
-    PulsarService pulsar;
-    PulsarAdmin admin;
-    PulsarClient pulsarClient;
-    BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
-    final String tenant = "external-repl-prop";
-    String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
-    String primaryHost;
-    String workerId;
-
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int brokerWebServicePort = PortManager.nextFreePort();
-    private final int brokerWebServiceTlsPort = PortManager.nextFreePort();
-    private final int brokerServicePort = PortManager.nextFreePort();
-    private final int brokerServiceTlsPort = PortManager.nextFreePort();
-    private final int workerServicePort = PortManager.nextFreePort();
-
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
-
-    @DataProvider(name = "validRoleName")
-    public Object[][] validRoleName() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
-    }
-
-    @BeforeMethod
-    void setup(Method method) throws Exception {
-
-        log.info("--- Setting up method {} ---", method.getName());
-
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
-        bkEnsemble.start();
-
-        String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
-
-        config = spy(new ServiceConfiguration());
-        config.setClusterName("use");
-        Set<String> superUsers = Sets.newHashSet("superUser");
-        config.setSuperUserRoles(superUsers);
-        config.setWebServicePort(brokerWebServicePort);
-        config.setWebServicePortTls(brokerWebServiceTlsPort);
-        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
-        config.setBrokerServicePortTls(brokerServiceTlsPort);
-        config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-        config.setTlsAllowInsecureConnection(true);
-
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderTls.class.getName());
-        config.setAuthenticationEnabled(true);
-        config.setAuthenticationProviders(providers);
-
-        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-
-        config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        config.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
-        config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        config.setBrokerClientTlsEnabled(true);
-
-
-
-        functionsWorkerService = createPulsarFunctionWorker(config);
-        urlTls = new URL(brokerServiceUrl);
-        Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.start();
-
-        Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
-        Authentication authTls = new AuthenticationTls();
-        authTls.configure(authParams);
-
-        admin = spy(
-                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                        .allowTlsInsecureConnection(true).authentication(authTls).build());
-
-        brokerStatsClient = admin.brokerStats();
-        primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(), brokerWebServicePort);
-
-        // update cluster metadata
-        ClusterData clusterData = new ClusterData(urlTls.toString());
-        admin.clusters().updateCluster(config.getClusterName(), clusterData);
-
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
-        if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
-                && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
-            clientBuilder.enableTls(workerConfig.isUseTls());
-            clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
-            clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
-                    workerConfig.getClientAuthenticationParameters());
-        }
-        pulsarClient = clientBuilder.build();
-
-        TenantInfo propAdmin = new TenantInfo();
-        propAdmin.getAdminRoles().add("superUser");
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
-        admin.tenants().updateTenant(tenant, propAdmin);
-
-        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY, "");
-
-        Thread.sleep(100);
-    }
-
-    @AfterMethod
-    void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
-        pulsarClient.close();
-        admin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
-    }
-
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
-
-        workerConfig = new WorkerConfig();
-        workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
-        workerConfig.setSchedulerClassName(
-                org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
-        // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
-        workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());
-        workerConfig.setFailureCheckFreqMs(100);
-        workerConfig.setNumFunctionPackageReplicas(1);
-        workerConfig.setClusterCoordinationTopicName("coordinate");
-        workerConfig.setFunctionAssignmentTopicName("assignment");
-        workerConfig.setFunctionMetadataTopicName("metadata");
-        workerConfig.setInstanceLivenessCheckFreqMs(100);
-        workerConfig.setWorkerPort(workerServicePort);
-        workerConfig.setPulsarFunctionsCluster(config.getClusterName());
-        String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
-        this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
-        workerConfig.setWorkerHostname(hostname);
-        workerConfig.setWorkerId(workerId);
-
-        workerConfig.setClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        workerConfig.setClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
-        workerConfig.setUseTls(true);
-        workerConfig.setTlsAllowInsecureConnection(true);
-        workerConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-
-        workerConfig.setAuthenticationEnabled(true);
-        workerConfig.setAuthorizationEnabled(true);
-
-        return new WorkerService(workerConfig);
-    }
-
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
-        String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-
+    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, boolean isBuiltin, String sourceTopic, String sinkTopic, String subscriptionName) {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -271,53 +86,35 @@ public class PulsarFunctionE2ETest {
         functionConfig.setParallelism(1);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         functionConfig.setSubName(subscriptionName);
-        functionConfig.setTopicsPattern(sourceTopicPattern);
+        if (sourceTopic != null) {
+            String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
+            functionConfig.setTopicsPattern(sourceTopicPattern);
+        }
         functionConfig.setAutoAck(true);
-        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        if (!isBuiltin) {
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
         functionConfig.setCleanupSubscription(true);
         return functionConfig;
     }
 
-    private static SourceConfig createSourceConfig(String tenant, String namespace, String functionName, String sinkTopic) {
-        SourceConfig sourceConfig = new SourceConfig();
-        sourceConfig.setTenant(tenant);
-        sourceConfig.setNamespace(namespace);
-        sourceConfig.setName(functionName);
-        sourceConfig.setParallelism(1);
-        sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sourceConfig.setTopicName(sinkTopic);
-        return sourceConfig;
-    }
-
-    private static SinkConfig createSinkConfig(String tenant, String namespace, String functionName, String sourceTopic, String subName) {
-        SinkConfig sinkConfig = new SinkConfig();
-        sinkConfig.setTenant(tenant);
-        sinkConfig.setNamespace(namespace);
-        sinkConfig.setName(functionName);
-        sinkConfig.setParallelism(1);
-        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sinkConfig.setInputs(Collections.singleton(sourceTopic));
-        sinkConfig.setSourceSubscriptionName(subName);
-        sinkConfig.setCleanupSubscription(true);
-        return sinkConfig;
-    }
     /**
      * Validates pulsar sink e2e functionality on functions.
      *
      * @throws Exception
      */
-    @Test(timeOut = 20000)
-    public void testE2EPulsarFunction() throws Exception {
+    private void testE2EPulsarFunction(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
         final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
         final String propertyKey = "key";
         final String propertyValue = "value";
-        final String functionName = "PulsarSink-test";
+        final String functionName = "PulsarFunction-test";
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
@@ -325,39 +122,55 @@ public class PulsarFunctionE2ETest {
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic2).subscriptionName("sub").subscribe();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                "my.*", sinkTopic, subscriptionName);
-        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                jarFilePathUrl.startsWith(Utils.BUILTIN) || jarFilePathUrl.endsWith(".nar"), "my.*",
+                sinkTopic, subscriptionName);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            functionConfig.setJar(jarFilePathUrl);
+            admin.functions().createFunction(functionConfig, null);
+        } else {
+            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        }
 
         // try to update function to test: update-function functionality
-        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+        functionConfig.setParallelism(2);
+        functionConfig.setOutput(sinkTopic2);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 150);
-        // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            functionConfig.setJar(jarFilePathUrl);
+            admin.functions().updateFunction(functionConfig, null);
+        } else {
+            admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+        }
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(sinkTopic2);
+            assertEquals(topicStats.getPublishers().size(), 2);
+            assertNotNull(topicStats.getPublishers().get(0).getMetadata());
+            assertTrue(topicStats.getPublishers().get(0).getMetadata().containsKey("id"));
+            assertEquals(topicStats.getPublishers().get(0).getMetadata().get("id"),
+                    String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+        });
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // validate pulsar sink consumer has started on the topic
+            assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+        });
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
             producer.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 150);
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+            assertEquals(subStats.getUnackedMessages(), 0);
+        });
 
         Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         String receivedPropertyValue = msg.getProperty(propertyKey);
@@ -365,317 +178,122 @@ public class PulsarFunctionE2ETest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 150);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // make sure subscriptions are cleanup
+            assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
+        });
 
-        // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
-
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test(timeOut = 20000)
-    public void testPulsarSinkStats() throws Exception {
+    public void testE2EPulsarFunctionWithFile() throws Exception {
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionWithNarFile() throws Exception {
+        String jarFilePathUrl = getPulsarApiExamplesNar().toURI().toString();
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionWithUrl() throws Exception {
+        testE2EPulsarFunction(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
+    }
+
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionWithNarUrl() throws Exception {
+        testE2EPulsarFunction(fileServer.getUrl("/pulsar-functions-api-examples.nar"));
+    }
+
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarFunctionBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://exclamation", Utils.BUILTIN);
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "No Function foo found")
+    public void testPulsarFunctionBuiltinDoesNotExist() throws Exception {
+        String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadCompactedFunction() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
-        final String sourceTopic = "persistent://" + replNamespace + "/input";
-        final String functionName = "PulsarSink-test";
-        final String propertyKey = "key";
-        final String propertyValue = "value";
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String functionName = "PulsarFunction-test";
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-
-        // create a producer that creates a topic at broker
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
-        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, functionName, sourceTopic, subscriptionName);
-        admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
-
-        admin.sink().updateSinkWithUrl(sinkConfig, jarFilePathUrl);
-
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 150);
-        // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
-
-        // validate prometheus metrics empty
-        String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
-
-        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
-        Metric m = metrics.get("pulsar_sink_received_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_received_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_written_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_written_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_sink_exceptions_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_system_exceptions_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_system_exceptions_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_last_invocation");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-
-        int totalMsgs = 10;
-        for (int i = 0; i < totalMsgs; i++) {
-            String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+        final int messageNum = 20;
+        final int maxKeys = 10;
+        // 1 Setup producer
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(sourceTopic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        pulsarClient.newConsumer().topic(sourceTopic).subscriptionName(subscriptionName).readCompacted(true).subscribe().close();
+        // 2 Send messages and record the expected values after compaction
+        Map<String, String> expected = new HashMap<>();
+        for (int j = 0; j < messageNum; j++) {
+            String key = "key" + j % maxKeys;
+            String value = "my-message-" + key + j;
+            producer.newMessage().key(key).value(value).send();
+            //Duplicate keys will exist, the value of the new key will be retained
+            expected.put(key, value);
         }
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
-            } catch (PulsarAdminException e) {
-                return false;
+        // 3 Trigger compaction
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
+        TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
+                pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
+        twoPhaseCompactor.compact(sourceTopic).get();
+
+        // 4 Setup function
+        // set source topic to null because we are setting the topic information separately
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
+                null, sinkTopic, subscriptionName);
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        Map<String,String> consumerProperties = new HashMap<>();
+        consumerProperties.put("readCompacted","true");
+        consumerConfig.setConsumerProperties(consumerProperties);
+        inputSpecs.put(sourceTopic, consumerConfig);
+        functionConfig.setInputSpecs(inputSpecs);
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        // 5 Function should only read compacted value, so we will only receive compacted messages
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
+        int count = 0;
+        while (true) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
             }
-        }, 5, 200);
+            consumer.acknowledge(message);
+            count++;
+            Assert.assertEquals(expected.remove(message.getKey()) + "!", message.getValue());
+        }
+        Assert.assertEquals(count, maxKeys);
+        Assert.assertTrue(expected.isEmpty());
 
-        // get stats after producing
-        prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
-        log.info("prometheusMetrics: {}", prometheusMetrics);
-
-        metrics = parseMetrics(prometheusMetrics);
-        m = metrics.get("pulsar_sink_received_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_sink_received_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_sink_written_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_sink_written_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_sink_sink_exceptions_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_system_exceptions_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_system_exceptions_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_sink_last_invocation");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertTrue(m.value > 0.0);
-
-
-        // delete functions
-        admin.sink().deleteSink(tenant, namespacePortion, functionName);
-
-        retryStrategically((test) -> {
-            try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 150);
-
-        // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
-    }
-
-    @Test(timeOut = 20000)
-    public void testPulsarSourceStats() throws Exception {
-        final String namespacePortion = "io";
-        final String replNamespace = tenant + "/" + namespacePortion;
-        final String sinkTopic = "persistent://" + replNamespace + "/output";
-        final String functionName = "PulsarSource-test";
-        admin.namespaces().createNamespace(replNamespace);
-        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
-        SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, functionName, sinkTopic);
-        admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
-
-        admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
-
-        retryStrategically((test) -> {
-            try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic).numberOfEntries > 4);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 150);
-        assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 1);
-
-        String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
-        log.info("prometheusMetrics: {}", prometheusMetrics);
-
-        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
-        Metric m = metrics.get("pulsar_source_received_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertTrue(m.value > 0.0);
-        m = metrics.get("pulsar_source_received_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertTrue(m.value > 0.0);
-        m = metrics.get("pulsar_source_written_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertTrue(m.value > 0.0);
-        m = metrics.get("pulsar_source_written_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertTrue(m.value > 0.0);
-        m = metrics.get("pulsar_source_source_exceptions_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_source_source_exceptions_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_source_system_exceptions_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_source_system_exceptions_total_1min");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_source_last_invocation");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertTrue(m.value > 0.0);
+        consumer.close();
+        producer.close();
     }
 
     @Test(timeOut = 20000)
@@ -696,8 +314,8 @@ public class PulsarFunctionE2ETest {
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
@@ -706,20 +324,20 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         // validate stats are empty
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        FunctionStats functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
+        FunctionStatsImpl functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
-        FunctionStats functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName);
+        FunctionStatsImpl functionStatsFromAdmin = (FunctionStatsImpl) admin.functions().getFunctionStats(tenant,
+                namespacePortion, functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
 
@@ -727,14 +345,14 @@ public class PulsarFunctionE2ETest {
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.avgProcessLatency, null);
+        assertNull(functionStats.avgProcessLatency);
         assertEquals(functionStats.oneMin.getReceivedTotal(), 0);
         assertEquals(functionStats.oneMin.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.oneMin.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.oneMin.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.oneMin.getAvgProcessLatency(), null);
+        assertNull(functionStats.oneMin.getAvgProcessLatency());
         assertEquals(functionStats.getAvgProcessLatency(), functionStats.oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.getLastInvocation(), null);
+        assertNull(functionStats.getLastInvocation());
 
         assertEquals(functionStats.instances.size(), 1);
         assertEquals(functionStats.instances.get(0).getInstanceId(), 0);
@@ -742,106 +360,108 @@ public class PulsarFunctionE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().avgProcessLatency, null);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency(), null);
+        assertNull(functionStats.instances.get(0).getMetrics().getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
+        assertNull(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
 
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.getAvgProcessLatency());
 
         // validate prometheus metrics empty
-        String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
-        Metric m = metrics.get("pulsar_function_received_total");
+        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_received_total_1min");
+        m = metrics.get("pulsar_function_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_function_user_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_user_exceptions_total_1min");
+        m = metrics.get("pulsar_function_user_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_function_process_latency_ms");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, Double.NaN);
         m = metrics.get("pulsar_function_process_latency_ms_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, Double.NaN);
         m = metrics.get("pulsar_function_system_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_system_exceptions_total_1min");
+        m = metrics.get("pulsar_function_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_function_last_invocation");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_function_processed_successfully_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_processed_successfully_total_1min");
+        m = metrics.get("pulsar_function_processed_successfully_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
 
 
         // validate function instance stats empty
-        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
-                functionName, 0,  null);
+        FunctionInstanceStatsDataImpl functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant,
+                namespacePortion, functionName, 0,  null);
 
-        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName, 0);
+        FunctionInstanceStatsDataImpl functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl) admin.functions().
+                getFunctionStats(tenant, namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
@@ -854,8 +474,8 @@ public class PulsarFunctionE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -865,8 +485,8 @@ public class PulsarFunctionE2ETest {
         // get stats after producing
         functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
-        
-        functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
+
+        functionStatsFromAdmin = (FunctionStatsImpl) admin.functions().getFunctionStats(tenant, namespacePortion,
                 functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
@@ -890,107 +510,109 @@ public class PulsarFunctionE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), totalMsgs);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.instances.get(0).getMetrics().avgProcessLatency > 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), totalMsgs);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), totalMsgs);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency() > 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), totalMsgs);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), totalMsgs);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
+        assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
 
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(),
+                functionStats.getAvgProcessLatency());
 
         // validate function instance stats
         functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
                 functionName, 0,  null);
 
-        functionInstanceStatsAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
-                functionName, 0);
+        functionInstanceStatsAdmin = (FunctionInstanceStatsDataImpl) admin.functions().getFunctionStats(tenant,
+                namespacePortion, functionName, 0);
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
 
         // validate prometheus metrics
-        prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
+        prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        metrics = parseMetrics(prometheusMetrics);
+        metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
         m = metrics.get("pulsar_function_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_function_received_total_1min");
+        m = metrics.get("pulsar_function_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
         m = metrics.get("pulsar_function_user_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_user_exceptions_total_1min");
+        m = metrics.get("pulsar_function_user_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_function_process_latency_ms");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_function_process_latency_ms_1min");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_function_system_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_system_exceptions_total_1min");
+        m = metrics.get("pulsar_function_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_function_last_invocation");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_function_processed_successfully_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_function_processed_successfully_total_1min");
+        m = metrics.get("pulsar_function_processed_successfully_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
 
         // delete functions
@@ -998,14 +620,16 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
+
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test(timeOut = 20000)
@@ -1026,8 +650,8 @@ public class PulsarFunctionE2ETest {
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
@@ -1036,13 +660,13 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
@@ -1051,8 +675,8 @@ public class PulsarFunctionE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1079,19 +703,18 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
     }
 
     @Test(dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
-
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
@@ -1102,20 +725,36 @@ public class PulsarFunctionE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         String roleName = validRoleName ? "superUser" : "invalid";
-        TenantInfo propAdmin = new TenantInfo();
-        propAdmin.getAdminRoles().add(roleName);
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+
+        TenantInfo propAdmin = TenantInfo.builder()
+                .adminRoles(Collections.singleton(roleName))
+                .allowedClusters(Collections.singleton("use"))
+                .build();
         admin.tenants().updateTenant(tenant, propAdmin);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
-        try {
-            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-            assertTrue(validRoleName);
-        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
-            assertFalse(validRoleName);
+        if (!validRoleName) {
+            // create a non-superuser admin to test the api
+            admin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
+                    .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                    .allowTlsInsecureConnection(true).build());
+            try {
+                admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+            } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+                assertFalse(validRoleName);
+            }
+        } else {
+            try {
+                admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                assertTrue(validRoleName);
+            } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+                fail();
+            }
         }
+
     }
 
     @Test(timeOut = 20000)
@@ -1135,52 +774,52 @@ public class PulsarFunctionE2ETest {
         // create source topic
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 sourceTopicName, sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats != null && subStats.consumers.size() == 1;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats != null && subStats.getConsumers().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
-        SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-        assertEquals(subStats.consumers.size(), 1);
+        SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+        assertEquals(subStats.getConsumers().size(), 1);
 
         // it should stop consumer : so, check none of the consumer connected on subscription
         admin.functions().stopFunction(tenant, namespacePortion, functionName);
 
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStat != null && subStat.consumers.size() == 0;
+                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStat != null && subStat.getConsumers().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
-        subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-        assertEquals(subStats.consumers.size(), 0);
+        subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+        assertEquals(subStats.getConsumers().size(), 0);
 
         // it should restart consumer : so, check if consumer came up again after restarting function
         admin.functions().restartFunction(tenant, namespacePortion, functionName);
 
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStat != null && subStat.consumers.size() == 1;
+                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStat != null && subStat.getConsumers().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
-        subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-        assertEquals(subStats.consumers.size(), 1);
+        subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+        assertEquals(subStats.getConsumers().size(), 1);
 
         producer.close();
     }
@@ -1201,7 +840,7 @@ public class PulsarFunctionE2ETest {
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespacePortion);
@@ -1210,20 +849,42 @@ public class PulsarFunctionE2ETest {
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
         functionConfig.setOutput(sinkTopic);
-        functionConfig.setCleanupSubscription(true);
+        functionConfig.setCleanupSubscription(false);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                FunctionConfig configure = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return configure != null && configure.getCleanupSubscription() != null;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
         // validate pulsar source consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+
+        // test update cleanup subscription
+        functionConfig.setCleanupSubscription(true);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertTrue(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
@@ -1232,9 +893,9 @@ public class PulsarFunctionE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(
                         InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
-                return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1261,68 +922,283 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
+
+
+        /** test do not cleanup subscription **/
+        functionConfig.setCleanupSubscription(false);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        // validate pulsar source consumer has started on the topic
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return !result.getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        // test update another config and making sure that subscription cleanup remains unchanged
+        functionConfig.setParallelism(2);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return result.getParallelism() == 2 && !result.getCleanupSubscription();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
     }
 
+    @Test(timeOut = 20000)
+    public void testMultiTopicFunction() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic1 = "persistent://" + replNamespace + "/my-topic1";
+        final String sourceTopic2 = "persistent://" + replNamespace + "/my-topic2";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-    public static String getPrometheusMetrics(int metricsPort) throws IOException {
-        StringBuilder result = new StringBuilder();
-        URL url = new URL(String.format("http://%s:%s/metrics", InetAddress.getLocalHost().getHostAddress(), metricsPort));
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        String line;
-        while ((line = rd.readLine()) != null) {
-            result.append(line + System.lineSeparator());
+        // create a producer that creates a topic at broker
+        @Cleanup
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic1).create();
+        @Cleanup
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic2).create();
+
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespacePortion);
+        functionConfig.setName(functionName);
+        functionConfig.setParallelism(1);
+        List<String> topics = new LinkedList<>();
+        topics.add(sourceTopic1);
+        topics.add(sourceTopic2);
+        functionConfig.setInputs(topics);
+        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        functionConfig.setOutput(sinkTopic);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        assertTrue(retryStrategically((test) -> {
+            try {
+                admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return true;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150));
+
+        assertTrue(retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic1).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150));
+
+        assertTrue(retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic2).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150));
+
+        int totalMsgs = 10;
+        for (int i = 0; i < totalMsgs; i++) {
+            String data = "my-message-" + i;
+            producer1.newMessage().property(propertyKey, propertyValue).value(data).send();
+            producer2.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
-        rd.close();
-        return result.toString();
+
+        assertTrue(retryStrategically((test) -> {
+            try {
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic1).getSubscriptions().get(
+                        InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 200));
+
+        assertTrue(retryStrategically((test) -> {
+            try {
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic2).getSubscriptions().get(
+                        InstanceUtils.getDefaultSubscriptionName(tenant, namespacePortion, functionName));
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 200));
+
+        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion,
+                functionName);
+
+        int numInstances = functionStatus.getNumInstances();
+        assertEquals(numInstances, 1);
+
+        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status
+                = functionStatus.getInstances().get(0).getStatus();
+
+        double count = status.getNumReceived();
+        double success = status.getNumSuccessfullyProcessed();
+        String ownerWorkerId = status.getWorkerId();
+        // multiply by 2 since function is reading from two topics
+        assertEquals((int)count, totalMsgs * 2);
+        assertEquals((int) success, totalMsgs * 2);
+        assertEquals(ownerWorkerId, workerId);
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        assertTrue(retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic1).getSubscriptions().size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150));
+
+        assertTrue(retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic2).getSubscriptions().size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150));
     }
 
-    /**
-     * Hacky parsing of Prometheus text format. Sould be good enough for unit tests
-     */
-    private static Map<String, Metric> parseMetrics(String metrics) {
-        Map<String, Metric> parsed = new HashMap<>();
-        // Example of lines are
-        // jvm_threads_current{cluster="standalone",} 203.0
-        // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.]+)(\\s(\\d+))?$");
-        Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
-        Arrays.asList(metrics.split("\n")).forEach(line -> {
-            if (line.isEmpty() || line.startsWith("#")) {
-                return;
-            }
-            Matcher matcher = pattern.matcher(line);
-            checkArgument(matcher.matches());
-            String name = matcher.group(1);
-            Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
-            String tags = matcher.group(2);
-            Matcher tagsMatcher = tagsPattern.matcher(tags);
-            while (tagsMatcher.find()) {
-                String tag = tagsMatcher.group(1);
-                String value = tagsMatcher.group(2);
-                m.tags.put(tag, value);
-            }
-            parsed.put(name, m);
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionMessagePooled() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // create a producer that creates a topic at broker
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespacePortion);
+        functionConfig.setName(functionName);
+        functionConfig.setParallelism(1);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().poolMessages(true).build()));
+        functionConfig.setAutoAck(true);
+        functionConfig.setClassName(ByteBufferFunction.class.getName());
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setOutput(sinkTopic);
+        functionConfig.setCleanupSubscription(true);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        admin.functions().createFunctionWithUrl(functionConfig,
+                PulsarFunctionE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString());
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(sinkTopic);
+            assertEquals(topicStats.getPublishers().size(), 1);
+            assertNotNull(topicStats.getPublishers().get(0).getMetadata());
+            assertTrue(topicStats.getPublishers().get(0).getMetadata().containsKey("id"));
+            assertEquals(topicStats.getPublishers().get(0).getMetadata().get("id"),
+                    String.format("%s/%s/%s", tenant, namespacePortion, functionName));
         });
-        return parsed;
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // validate pulsar sink consumer has started on the topic
+            assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+        });
+
+        int totalMsgs = 5;
+        for (int i = 0; i < totalMsgs; i++) {
+            String data = "my-message-" + i;
+            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+        }
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+            assertEquals(subStats.getUnackedMessages(), 0);
+        });
+
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+        if (msg == null) {
+            fail("Should have gotten a message");
+        }
+        String receivedPropertyValue = msg.getProperty(propertyKey);
+        assertEquals(propertyValue, receivedPropertyValue);
+
+        // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
+        // due to publish failure
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+                totalMsgs);
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // make sure subscriptions are cleanup
+            assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
+        });
+
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
-    @ToString
-    static class Metric {
-        Map<String, String> tags = new TreeMap<>();
-        double value;
+    public static class ByteBufferFunction implements org.apache.pulsar.functions.api.Function<ByteBuffer, ByteBuffer> {
+        @Override
+        public ByteBuffer process(ByteBuffer input, Context context) throws Exception {
+            // make sure we are using pooled memory
+            assertTrue(input.isDirect());
+            return input;
+        }
     }
-
 }

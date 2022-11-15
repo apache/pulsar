@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,9 @@
 package org.apache.pulsar.functions.api.utils;
 
 import static org.testng.Assert.assertEquals;
-
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-import org.apache.pulsar.functions.api.utils.JavaSerDe;
 import org.testng.annotations.Test;
 
 /**
@@ -35,8 +31,6 @@ public class JavaSerDeTest {
 
     @Data
     @AllArgsConstructor
-    @EqualsAndHashCode
-    @ToString
     private static class TestObject implements Serializable {
 
         private int intField;

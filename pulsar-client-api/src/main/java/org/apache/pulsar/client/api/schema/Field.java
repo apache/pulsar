@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api.schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A field in a record, consisting of a field name, index, and
@@ -29,6 +31,8 @@ import lombok.ToString;
 @Data
 @EqualsAndHashCode
 @ToString
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class Field {
 
     /**
@@ -39,5 +43,5 @@ public class Field {
      * The index of the field within the record.
      */
     private final int index;
-    
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,18 @@ package org.apache.pulsar.common.naming;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
-@Test
 public class TopicNameTest {
 
+    @SuppressWarnings("deprecation")
     @Test
-    void topic() {
+    public void topic() {
         try {
             TopicName.get("://tenant.namespace:topic").getNamespace();
             fail("Should have thrown exception");
@@ -51,8 +53,8 @@ public class TopicNameTest {
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").toString(),
                 "persistent://tenant/cluster/namespace/topic");
 
-        assertFalse(TopicName.get("persistent://tenant/cluster/namespace/topic")
-                .equals("persistent://tenant/cluster/namespace/topic"));
+        assertNotEquals(TopicName.get("persistent://tenant/cluster/namespace/topic"),
+            "persistent://tenant/cluster/namespace/topic");
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getDomain(),
                 TopicDomain.persistent);
@@ -198,6 +200,25 @@ public class TopicNameTest {
         assertEquals(topicName.getPartitionIndex(), -1);
 
         assertEquals(TopicName.getPartitionIndex("persistent://myprop/mycolo/myns/mytopic-partition-4"), 4);
+
+        // Following behavior is not right actually, none partitioned topic, partition index is -1
+        assertEquals(TopicName.getPartitionIndex("mytopic-partition--1"), -1);
+        assertEquals(TopicName.getPartitionIndex("mytopic-partition-00"), -1);
+        assertEquals(TopicName.getPartitionIndex("mytopic-partition-012"), -1);
+
+        assertFalse(TopicName.get("mytopic-partition--1").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition--2").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-01").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-012").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition- 12").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-12 ").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition- 12 ").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-1&").isPartitioned());
+        assertFalse(TopicName.get("mytopic-partition-1!").isPartitioned());
+
+        assertTrue(TopicName.get("mytopic-partition-0").isPartitioned());
+        assertTrue(TopicName.get("mytopic-partition-1").isPartitioned());
+        assertTrue(TopicName.get("mytopic-partition-12").isPartitioned());
     }
 
     @Test
@@ -215,6 +236,7 @@ public class TopicNameTest {
         assertEquals(name.getPersistenceNamingEncoding(), "prop/colo/ns/persistent/" + encodedName);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTopicNameWithoutCluster() throws Exception {
         TopicName topicName = TopicName.get("persistent://tenant/namespace/topic");
@@ -229,7 +251,7 @@ public class TopicNameTest {
         assertEquals(topicName.toString(), "persistent://tenant/namespace/topic");
         assertEquals(topicName.getDomain(), TopicDomain.persistent);
         assertEquals(topicName.getTenant(), "tenant");
-        assertEquals(topicName.getCluster(), null);
+        assertNull(topicName.getCluster());
         assertEquals(topicName.getNamespacePortion(), "namespace");
         assertEquals(topicName.getNamespace(), "tenant/namespace");
         assertEquals(topicName.getLocalName(), "topic");

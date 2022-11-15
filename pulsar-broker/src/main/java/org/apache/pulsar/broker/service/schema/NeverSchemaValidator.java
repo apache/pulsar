@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.schema;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,8 +28,8 @@ import org.slf4j.LoggerFactory;
  * An avro schema validator that always reports as incompatible, if there is an existing schema.
  */
 class NeverSchemaValidator implements SchemaValidator {
-    private final static Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
-    static NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
+    private static final Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
+    static final NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
 
     @Override
     public void validate(Schema toValidate, Iterable<Schema> existing)

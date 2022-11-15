@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,41 +18,41 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationDataTest {
 
     @Test
     public void testNamespaceIsolationData() {
-        NamespaceIsolationData n0 = new NamespaceIsolationData();
-        NamespaceIsolationData n1 = new NamespaceIsolationData();
-        assertFalse(n0.equals(new OldPolicies()));
-        n0.namespaces = new ArrayList<>();
-        n0.primary = new ArrayList<>();
-        n0.secondary = new ArrayList<>();
+        NamespaceIsolationData n0 = NamespaceIsolationData.builder()
+                .namespaces(new ArrayList<>())
+                .primary(new ArrayList<>())
+                .secondary(new ArrayList<>())
+                .build();
+        assertNotEquals(new OldPolicies(), n0);
 
         for (int i = 0; i < 5; i++) {
-            n0.namespaces.add(String.format("ns%d", i));
-            n0.primary.add(String.format("p%d", i));
-            n0.secondary.add(String.format("s%d", i));
+            n0.getNamespaces().add(String.format("ns%d", i));
+            n0.getPrimary().add(String.format("p%d", i));
+            n0.getSecondary().add(String.format("s%d", i));
         }
 
-        assertFalse(n0.equals(new NamespaceIsolationData()));
+        assertNotEquals(NamespaceIsolationData.builder().build(), n0);
 
-        n1.namespaces = n0.namespaces;
-        n1.primary = n0.primary;
-        n1.secondary = n0.secondary;
-        assertTrue(n0.equals(n1));
+        NamespaceIsolationData n1 = NamespaceIsolationData.builder()
+                .namespaces(n0.getNamespaces())
+                .primary(n0.getPrimary())
+                .secondary(n0.getSecondary())
+                .build();
+        assertEquals(n1, n0);
 
         try {
             n0.validate();
@@ -62,17 +62,45 @@ public class NamespaceIsolationDataTest {
             // pass
         }
 
-        AutoFailoverPolicyData policy0 = new AutoFailoverPolicyData();
-        AutoFailoverPolicyData policy1 = new AutoFailoverPolicyData();
-        policy0.policy_type = AutoFailoverPolicyType.min_available;
-        policy0.parameters = new HashMap<>();
-        policy0.parameters.put("min_limit", "3");
-        policy0.parameters.put("usage_threshold", "10");
-        policy1.policy_type = AutoFailoverPolicyType.min_available;
-        policy1.parameters = new HashMap<>(policy0.parameters);
+        Map<String, String> p1parameters = new HashMap<>();
+        p1parameters.put("min_limit", "3");
+        p1parameters.put("usage_threshold", "10");
 
-        n0.auto_failover_policy = policy0;
-        n1.auto_failover_policy = policy1;
+        Map<String, String> p2parameters = new HashMap<>();
+        p2parameters.put("min_limit", "3");
+        p2parameters.put("usage_threshold", "10");
+
+        AutoFailoverPolicyData policy0 = AutoFailoverPolicyData.builder()
+                .policyType(AutoFailoverPolicyType.min_available)
+                .parameters(p1parameters)
+                .build();
+        AutoFailoverPolicyData policy1 = AutoFailoverPolicyData.builder()
+                .policyType(AutoFailoverPolicyType.min_available)
+                .parameters(p1parameters)
+                .build();
+
+        n0 = NamespaceIsolationData.builder()
+                .namespaces(new ArrayList<>())
+                .primary(new ArrayList<>())
+                .secondary(new ArrayList<>())
+                .autoFailoverPolicy(policy0)
+                .build();
+        assertNotEquals(new OldPolicies(), n0);
+
+        for (int i = 0; i < 5; i++) {
+            n0.getNamespaces().add(String.format("ns%d", i));
+            n0.getPrimary().add(String.format("p%d", i));
+            n0.getSecondary().add(String.format("s%d", i));
+        }
+
+        assertNotEquals(NamespaceIsolationData.builder().build(), n0);
+
+        n1 = NamespaceIsolationData.builder()
+                .namespaces(n0.getNamespaces())
+                .primary(n0.getPrimary())
+                .secondary(n0.getSecondary())
+                .autoFailoverPolicy(policy1)
+                .build();
 
         try {
             n0.validate();

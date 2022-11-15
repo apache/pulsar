@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl.auth;
 
-import com.google.common.base.Charsets;
-
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -37,14 +38,16 @@ import org.apache.pulsar.client.api.PulsarClientException;
  * Token based authentication provider.
  */
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
+    static final String AUTH_METHOD_NAME = "token";
 
-    private Supplier<String> tokenSupplier;
+    private static final long serialVersionUID = 1L;
+    private Supplier<String> tokenSupplier = null;
 
     public AuthenticationToken() {
     }
 
     public AuthenticationToken(String token) {
-        this(() -> token);
+        this(new SerializableTokenSupplier(token));
     }
 
     public AuthenticationToken(Supplier<String> tokenSupplier) {
@@ -58,7 +61,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
 
     @Override
     public String getAuthMethodName() {
-        return "token";
+        return AUTH_METHOD_NAME;
     }
 
     @Override
@@ -71,19 +74,19 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // Interpret the whole param string as the token. If the string contains the notation `token:xxxxx` then strip
         // the prefix
         if (encodedAuthParamString.startsWith("token:")) {
-            this.tokenSupplier = () -> encodedAuthParamString.substring("token:".length());
+            this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString.substring("token:".length()));
         } else if (encodedAuthParamString.startsWith("file:")) {
             // Read token from a file
             URI filePath = URI.create(encodedAuthParamString);
-            this.tokenSupplier = () -> {
-                try {
-                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
-                } catch (IOException e) {
-                    throw new RuntimeException("Failed to read token from file", e);
-                }
-            };
+            this.tokenSupplier = new SerializableURITokenSupplier(filePath);
         } else {
-            this.tokenSupplier = () -> encodedAuthParamString;
+            try {
+                // Read token from json string
+                JsonObject authParams = new Gson().fromJson(encodedAuthParamString, JsonObject.class);
+                this.tokenSupplier = new SerializableTokenSupplier(authParams.get("token").getAsString());
+            } catch (JsonSyntaxException e) {
+                this.tokenSupplier = new SerializableTokenSupplier(encodedAuthParamString);
+            }
         }
     }
 
@@ -97,4 +100,40 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // noop
     }
 
+    private static class SerializableURITokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 3160666668166028760L;
+        private final URI uri;
+
+        public SerializableURITokenSupplier(final URI uri) {
+            super();
+            this.uri = uri;
+        }
+
+        @Override
+        public String get() {
+            try {
+                return new String(Files.readAllBytes(Paths.get(uri)), StandardCharsets.UTF_8).trim();
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read token from file", e);
+            }
+        }
+    }
+
+    private static class SerializableTokenSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 5095234161799506913L;
+        private final String token;
+
+        public SerializableTokenSupplier(final String token) {
+            super();
+            this.token = token;
+        }
+
+        @Override
+        public String get() {
+            return token;
+        }
+
+    }
 }

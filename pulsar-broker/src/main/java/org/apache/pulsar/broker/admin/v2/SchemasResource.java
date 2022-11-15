@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static java.util.Objects.isNull;
-import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
-import static org.apache.pulsar.common.util.Codec.decode;
-
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -31,8 +26,6 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
-import java.nio.ByteBuffer;
-import java.time.Clock;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -47,21 +40,19 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
-import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
-import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.DeleteSchemaResponse;
-import org.apache.pulsar.common.schema.GetSchemaResponse;
-import org.apache.pulsar.common.schema.PostSchemaPayload;
-import org.apache.pulsar.common.schema.PostSchemaResponse;
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.schema.SchemaVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.admin.impl.SchemasResourceBase;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
+import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
+import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.PostSchemaResponse;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Path("/schemas")
 @Api(
@@ -69,28 +60,12 @@ import org.slf4j.LoggerFactory;
     description = "Schemas related admin APIs",
     tags = "schemas"
 )
-public class SchemasResource extends AdminResource {
-
-    private static final Logger log = LoggerFactory.getLogger(SchemasResource.class);
-
-    private final Clock clock;
-
-    public SchemasResource() {
-        this(Clock.systemUTC());
-    }
+@Slf4j
+public class SchemasResource extends SchemasResourceBase {
 
     @VisibleForTesting
-    public SchemasResource(Clock clock) {
+    public SchemasResource() {
         super();
-        this.clock = clock;
-    }
-
-    private long getLongSchemaVersion(SchemaVersion schemaVersion) {
-        if (schemaVersion instanceof LongSchemaVersion) {
-            return ((LongSchemaVersion) schemaVersion).getVersion();
-        } else {
-            return -1L;
-        }
     }
 
     @GET
@@ -98,49 +73,31 @@ public class SchemasResource extends AdminResource {
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the schema of a topic", response = GetSchemaResponse.class)
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-        @ApiResponse(code = 403, message = "Client is not authenticated"),
-        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getSchema(
-        @PathParam("tenant") String tenant,
-        @PathParam("namespace") String namespace,
-        @PathParam("topic") String topic,
-        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-        @Suspended final AsyncResponse response
-    ) {
-        validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
-
-        String schemaId = buildSchemaId(tenant, namespace, topic);
-        pulsar().getSchemaRegistryService().getSchema(schemaId)
-            .handle((schema, error) -> {
-                if (isNull(error)) {
-                    if (isNull(schema)) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        response.resume(
-                            Response.ok()
-                                .encoding(MediaType.APPLICATION_JSON)
-                                .entity(GetSchemaResponse.builder()
-                                    .version(getLongSchemaVersion(schema.version))
-                                    .type(schema.schema.getType())
-                                    .timestamp(schema.schema.getTimestamp())
-                                    .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.getProps())
-                                    .build()
-                                )
-                                .build()
-                        );
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        getSchemaAsync(authoritative)
+                .thenApply(schemaAndMetadata -> convertToSchemaResponse(schemaAndMetadata))
+                .thenApply(response::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get schema for topic {}", clientAppId(), topicName, ex);
                     }
-                } else {
-                    response.resume(error);
-                }
-                return null;
-            });
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -148,52 +105,65 @@ public class SchemasResource extends AdminResource {
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get the schema of a topic at a given version", response = GetSchemaResponse.class)
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
-        @ApiResponse(code = 403, message = "Client is not authenticated"),
-        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
-        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getSchema(
-        @PathParam("tenant") String tenant,
-        @PathParam("namespace") String namespace,
-        @PathParam("topic") String topic,
-        @PathParam("version") @Encoded String version,
-        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-        @Suspended final AsyncResponse response
-    ) {
-        validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
-
-        String schemaId = buildSchemaId(tenant, namespace, topic);
-        ByteBuffer bbVersion = ByteBuffer.allocate(Long.SIZE);
-        bbVersion.putLong(Long.parseLong(version));
-        SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(bbVersion.array());
-        pulsar().getSchemaRegistryService().getSchema(schemaId, v)
-            .handle((schema, error) -> {
-                if (isNull(error)) {
-                    if (isNull(schema)) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        response.resume(
-                            Response.ok()
-                                .encoding(MediaType.APPLICATION_JSON)
-                                .entity(GetSchemaResponse.builder()
-                                    .version(getLongSchemaVersion(schema.version))
-                                    .type(schema.schema.getType())
-                                    .timestamp(schema.schema.getTimestamp())
-                                    .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.getProps())
-                                    .build()
-                                ).build()
-                        );
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @PathParam("version") @Encoded String version,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        getSchemaAsync(authoritative, version)
+                .thenApply(schemaAndMetadata -> convertToSchemaResponse(schemaAndMetadata))
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get schema for topic {} with version {}",
+                                clientAppId(), topicName, version, ex);
                     }
-                } else {
-                    response.resume(error);
-                }
-                return null;
-            });
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/schemas")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Get the all schemas of a topic", response = GetAllVersionsSchemaResponse.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+    })
+    public void getAllSchemas(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        getAllSchemasAsync(authoritative)
+                .thenApply(schemaAndMetadata -> convertToAllVersionsSchemaResponse(schemaAndMetadata))
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get all schemas for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -206,32 +176,27 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void deleteSchema(
-        @PathParam("tenant") String tenant,
-        @PathParam("namespace") String namespace,
-        @PathParam("topic") String topic,
-        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-        @Suspended final AsyncResponse response
-    ) {
-        validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
-
-        String schemaId = buildSchemaId(tenant, namespace, topic);
-        pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""))
-            .handle((version, error) -> {
-                if (isNull(error)) {
-                    response.resume(
-                        Response.ok().entity(
-                            DeleteSchemaResponse.builder()
-                                .version(getLongSchemaVersion(version))
-                                .build()
-                        ).build()
-                    );
-                } else {
-                    response.resume(error);
-                }
-                return null;
-            });
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("force") @DefaultValue("false") boolean force,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        deleteSchemaAsync(authoritative, force)
+                .thenAccept(version -> {
+                    response.resume(DeleteSchemaResponse.builder().version(getLongSchemaVersion(version)).build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to delete schemas for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -244,77 +209,117 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(code = 409, message = "Incompatible schema"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 422, message = "Invalid schema data"),
+        @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void postSchema(
-        @PathParam("tenant") String tenant,
-        @PathParam("namespace") String namespace,
-        @PathParam("topic") String topic,
-        @ApiParam(
-            value = "A JSON value presenting a schema playload. An example of the expected schema can be found down"
-                + " here.",
-            examples = @Example(
-                value = @ExampleProperty(
-                    mediaType = MediaType.APPLICATION_JSON,
-                    value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }"
-                )
-            )
-        )
-        PostSchemaPayload payload,
-        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-        @Suspended final AsyncResponse response
-    ) {
-        validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
-
-        pulsar().getSchemaRegistryService().putSchemaIfAbsent(
-            buildSchemaId(tenant, namespace, topic),
-            SchemaData.builder()
-                .data(payload.getSchema().getBytes(Charsets.UTF_8))
-                .isDeleted(false)
-                .timestamp(clock.millis())
-                .type(SchemaType.valueOf(payload.getType()))
-                .user(defaultIfEmpty(clientAppId(), ""))
-                .build(),
-            SchemaCompatibilityStrategy.FULL
-        ).thenAccept(version ->
-            response.resume(
-                Response.accepted().entity(
-                    PostSchemaResponse.builder()
-                        .version(version)
-                        .build()
-                ).build()
-            )
-        ).exceptionally(error -> {
-            if (error instanceof IncompatibleSchemaException) {
-                response.resume(Response.status(Response.Status.CONFLICT).build());
-            } else {
-                response.resume(
-                    Response.serverError().build()
-                );
-            }
-            return null;
-        });
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @ApiParam(value = "A JSON value presenting a schema payload."
+                    + " An example of the expected schema can be found down here.",
+               examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
+               value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }")))
+            PostSchemaPayload payload,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        postSchemaAsync(payload, authoritative)
+                .thenAccept(version -> response.resume(PostSchemaResponse.builder().version(version).build()))
+                .exceptionally(ex -> {
+                    Throwable root = FutureUtil.unwrapCompletionException(ex);
+                    if (root instanceof IncompatibleSchemaException) {
+                        response.resume(Response
+                                .status(Response.Status.CONFLICT.getStatusCode(), root.getMessage())
+                                .build());
+                    } else if (root instanceof InvalidSchemaDataException) {
+                        response.resume(Response.status(422, /* Unprocessable Entity */
+                                root.getMessage()).build());
+                    } else {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to post schemas for topic {}", clientAppId(), topicName, root);
+                        }
+                        resumeAsyncResponseExceptionally(response, ex);
+                    }
+                    return null;
+                });
     }
 
-    private String buildSchemaId(String tenant, String namespace, String topic) {
-        return TopicName.get("persistent", tenant, namespace, topic).getSchemaName();
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/compatibility")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "test the schema compatibility", response = IsCompatibilityResponse.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+    })
+    public void testCompatibility(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @ApiParam(value = "A JSON value presenting a schema payload."
+                            + " An example of the expected schema can be found down here.",
+             examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
+             value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" + } }")))
+            PostSchemaPayload payload,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        testCompatibilityAsync(payload, authoritative)
+                .thenAccept(pair -> response.resume(Response.accepted()
+                        .entity(IsCompatibilityResponse.builder().isCompatibility(pair.getLeft())
+                                .schemaCompatibilityStrategy(pair.getRight().name()).build())
+                        .build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to test compatibility for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
-    private void validateDestinationAndAdminOperation(String tenant, String namespace, String topic,
-                                                      boolean authoritative) {
-        TopicName destinationName = TopicName.get(
-            "persistent", tenant, namespace, decode(topic)
-        );
-
-        try {
-            validateAdminAccessForTenant(destinationName.getTenant());
-            validateTopicOwnership(destinationName, authoritative);
-        } catch (RestException e) {
-            if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
-            } else {
-                throw e;
-            }
-        }
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/version")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "get the version of the schema", response = LongSchemaVersion.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 422, message = "Invalid schema data"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+    })
+    public void getVersionBySchema(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @ApiParam(value = "A JSON value presenting a schema payload."
+                            + " An example of the expected schema can be found down here.",
+            examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
+            value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" + } }")))
+            PostSchemaPayload payload,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response) {
+        validateTopicName(tenant, namespace, topic);
+        getVersionBySchemaAsync(payload, authoritative)
+                .thenAccept(version -> response.resume(LongSchemaVersionResponse.builder().version(version).build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 }

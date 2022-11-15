@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,23 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorMetadata;
-import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
-import com.facebook.presto.spi.connector.ConnectorSplitManager;
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-import com.facebook.presto.spi.transaction.IsolationLevel;
+import static io.trino.spi.transaction.IsolationLevel.READ_COMMITTED;
+import static io.trino.spi.transaction.IsolationLevel.checkConnectorSupports;
+import static java.util.Objects.requireNonNull;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
-
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
+import io.trino.spi.connector.Connector;
+import io.trino.spi.connector.ConnectorMetadata;
+import io.trino.spi.connector.ConnectorRecordSetProvider;
+import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.transaction.IsolationLevel;
 import javax.inject.Inject;
 
-import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
-import static com.facebook.presto.spi.transaction.IsolationLevel.checkConnectorSupports;
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This file contains implementation of the connector to the Presto engine.
+ */
 public class PulsarConnector implements Connector {
 
     private static final Logger log = Logger.get(PulsarConnector.class);
@@ -66,7 +68,7 @@ public class PulsarConnector implements Connector {
 
     @Override
     public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle) {
-        return metadata;
+        return new ClassLoaderSafeConnectorMetadata(metadata, getClass().getClassLoader());
     }
 
     @Override
@@ -79,17 +81,16 @@ public class PulsarConnector implements Connector {
         return recordSetProvider;
     }
 
+    public void initConnectorCache() throws Exception {
+        PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
+    }
+
     @Override
     public final void shutdown() {
         try {
             this.pulsarConnectorConfig.close();
         } catch (Exception e) {
             log.error(e, "Failed to close pulsar connector");
-        }
-        try {
-            PulsarConnectorCache.shutdown();
-        } catch (Exception e) {
-            log.error("Failed to shutdown pulsar connector cache");
         }
         try {
             lifeCycleManager.stop();

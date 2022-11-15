@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -29,25 +29,24 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
+ * LoadManager runs through set of load reports collected from different brokers and generates a recommendation of
  * namespace/ServiceUnit placement on machines/ResourceUnit. Each Concrete Load Manager will use different algorithms to
  * generate this mapping.
  *
  * Concrete Load Manager is also return the least loaded broker that should own the new namespace.
  */
 public interface LoadManager {
-    Logger log = LoggerFactory.getLogger(LoadManager.class);
+    Logger LOG = LoggerFactory.getLogger(LoadManager.class);
 
     String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
-    public void start() throws PulsarServerException;
+    void start() throws PulsarServerException;
 
     /**
      * Is centralized decision making to assign a new bundle.
@@ -55,49 +54,50 @@ public interface LoadManager {
     boolean isCentralized();
 
     /**
-     * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific
+     * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific.
      */
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
     /**
-     * Generate the load report
+     * Generate the load report.
      */
     LoadManagerReport generateLoadReport() throws Exception;
 
     /**
-     * Returns {@link Deserializer} to deserialize load report
-     *
-     * @return
-     */
-    Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
-
-    /**
-     * Set flag to force load report update
+     * Set flag to force load report update.
      */
     void setLoadReportForceUpdateFlag();
 
     /**
-     * Publish the current load report on ZK
+     * Publish the current load report on ZK.
      */
     void writeLoadReportOnZookeeper() throws Exception;
 
     /**
-     * Update namespace bundle resource quota on ZK
+     * Publish the current load report on ZK, forced or not.
+     * By default rely on method writeLoadReportOnZookeeper().
+     */
+    default void writeLoadReportOnZookeeper(boolean force) throws Exception {
+        writeLoadReportOnZookeeper();
+    }
+
+    /**
+     * Update namespace bundle resource quota on ZK.
      */
     void writeResourceQuotasToZooKeeper() throws Exception;
 
     /**
-     * Generate load balancing stats metrics
+     * Generate load balancing stats metrics.
      */
     List<Metrics> getLoadBalancingMetrics();
 
     /**
-     * Unload a candidate service unit to balance the load
+     * Unload a candidate service unit to balance the load.
      */
     void doLoadShedding();
 
     /**
-     * Namespace bundle split
+     * Namespace bundle split.
      */
     void doNamespaceBundleSplit() throws Exception;
 
@@ -107,17 +107,19 @@ public interface LoadManager {
      *
      * @throws Exception
      */
-    public void disableBroker() throws Exception;
-    
+    void disableBroker() throws Exception;
+
     /**
-     * Get list of available brokers in cluster
-     * 
+     * Get list of available brokers in cluster.
+     *
      * @return
-     * @throws Exception 
+     * @throws Exception
      */
     Set<String> getAvailableBrokers() throws Exception;
 
-    public void stop() throws PulsarServerException;
+    CompletableFuture<Set<String>> getAvailableBrokersAsync();
+
+    void stop() throws PulsarServerException;
 
     /**
      * Initialize this LoadManager.
@@ -125,14 +127,14 @@ public interface LoadManager {
      * @param pulsar
      *            The service to initialize this with.
      */
-    public void initialize(PulsarService pulsar);
+    void initialize(PulsarService pulsar);
 
     static LoadManager create(final PulsarService pulsar) {
         try {
             final ServiceConfiguration conf = pulsar.getConfiguration();
-            final Class<?> loadManagerClass = Class.forName(conf.getLoadManagerClassName());
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = loadManagerClass.newInstance();
+            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
+                    Thread.currentThread().getContextClassLoader());
             if (loadManagerInstance instanceof LoadManager) {
                 final LoadManager casted = (LoadManager) loadManagerInstance;
                 casted.initialize(pulsar);
@@ -143,7 +145,7 @@ public interface LoadManager {
                 return casted;
             }
         } catch (Exception e) {
-            log.warn("Error when trying to create load manager: {}");
+            LOG.warn("Error when trying to create load manager: ", e);
         }
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);

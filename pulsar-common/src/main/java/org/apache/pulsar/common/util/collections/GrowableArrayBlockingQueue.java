@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,22 +30,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
-
-import io.netty.util.internal.MathUtil;
 
 /**
  * This implements a {@link BlockingQueue} backed by an array with no fixed capacity.
  *
- * When the capacity is reached, data will be moved to a bigger array.
- *
+ * <p>When the capacity is reached, data will be moved to a bigger array.
  */
 public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> {
 
     private final ReentrantLock headLock = new ReentrantLock();
     private final PaddedInt headIndex = new PaddedInt();
     private final PaddedInt tailIndex = new PaddedInt();
-    private final ReentrantLock tailLock = new ReentrantLock();
+    private final StampedLock tailLock = new StampedLock();
     private final Condition isNotEmpty = headLock.newCondition();
 
     private T[] data;
@@ -64,7 +62,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         headIndex.value = 0;
         tailIndex.value = 0;
 
-        int capacity = MathUtil.findNextPositivePowerOfTwo(initialCapacity);
+        int capacity = io.netty.util.internal.MathUtil.findNextPositivePowerOfTwo(initialCapacity);
         data = (T[]) new Object[capacity];
     }
 
@@ -129,7 +127,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public void put(T e) {
-        tailLock.lock();
+        long stamp = tailLock.writeLock();
 
         boolean wasEmpty = false;
 
@@ -144,7 +142,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
                 wasEmpty = true;
             }
         } finally {
-            tailLock.unlock();
+            tailLock.unlockWrite(stamp);
         }
 
         if (wasEmpty) {
@@ -281,7 +279,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public boolean remove(Object o) {
-        tailLock.lock();
+        long stamp = tailLock.writeLock();
         headLock.lock();
 
         try {
@@ -300,7 +298,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             }
         } finally {
             headLock.unlock();
-            tailLock.unlock();
+            tailLock.unlockWrite(stamp);
         }
 
         return false;
@@ -350,7 +348,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public void forEach(Consumer<? super T> action) {
-        tailLock.lock();
+        long stamp = tailLock.writeLock();
         headLock.lock();
 
         try {
@@ -367,7 +365,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         } finally {
             headLock.unlock();
-            tailLock.unlock();
+            tailLock.unlockWrite(stamp);
         }
     }
 
@@ -375,7 +373,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
-        tailLock.lock();
+        long stamp = tailLock.writeLock();
         headLock.lock();
 
         try {
@@ -398,7 +396,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             sb.append(']');
         } finally {
             headLock.unlock();
-            tailLock.unlock();
+            tailLock.unlockWrite(stamp);
         }
         return sb.toString();
     }
@@ -429,7 +427,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         }
     }
 
-    final static class PaddedInt {
+    static final class PaddedInt {
         private int value;
 
         // Padding to avoid false sharing

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,46 +18,45 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 /**
- * This object is populated using meta data in zookeeper without actually bringing the topic online
+ * This object is populated using meta data in zookeeper without actually bringing the topic online.
  */
 public class PersistentOfflineTopicStats {
-    /** Space used to store the messages for the topic. bytes */
+    /** Space used to store the messages for the topic (bytes). */
     public long storageSize;
 
-    /** Total number of messages */
+    /** Total number of messages. */
     public long totalMessages;
 
-    /** Total backlog */
+    /** Total backlog. */
     public long messageBacklog;
 
-    /** Broker host where this stat was generated */
+    /** Broker host where this stat was generated. */
     public final String brokerName;
 
-    /** offline topic name */
+    /** Offline topic name. */
     public final String topicName;
 
-    /** data ledger ids */
+    /** Data ledger ids. */
     public List<LedgerDetails> dataLedgerDetails;
 
-    /** cursor ledger ids and backlog */
+    /** Cursor ledger ids and backlog. */
     public Map<String, CursorDetails> cursorDetails;
 
-    /** timestamp when stat was generated */
+    /** Timestamp when stat was generated. */
     public Date statGeneratedAt;
 
     public PersistentOfflineTopicStats(String topicName, String brokerName) {
         this.brokerName = brokerName;
         this.topicName = topicName;
-        this.dataLedgerDetails = Lists.newArrayList();
-        this.cursorDetails = Maps.newHashMap();
+        this.dataLedgerDetails = new ArrayList<>();
+        this.cursorDetails = new HashMap<>();
         this.statGeneratedAt = new Date(System.currentTimeMillis());
     }
 
@@ -70,7 +69,10 @@ public class PersistentOfflineTopicStats {
         this.statGeneratedAt.setTime(System.currentTimeMillis());
     }
 
-    public class CursorDetails {
+    /**
+     * Details about a cursor.
+     */
+    public static class CursorDetails {
         public long cursorBacklog;
         public long cursorLedgerId;
 
@@ -88,7 +90,10 @@ public class PersistentOfflineTopicStats {
         this.dataLedgerDetails.add(new LedgerDetails(entries, timestamp, size, ledgerId));
     }
 
-    public class LedgerDetails {
+    /**
+     * Details about a ledger.
+     */
+    public static class LedgerDetails {
         public long entries;
         public long timestamp;
         public long size;

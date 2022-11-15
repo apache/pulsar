@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,12 @@
 package org.apache.pulsar.functions.worker.executor;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
-
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -53,7 +52,6 @@ import org.mockito.stubbing.Answer;
 public class MockExecutorController {
 
     @Data
-    @Getter
     private class DeferredTask implements ScheduledFuture<Void> {
 
         private final Runnable runnable;
@@ -115,7 +113,7 @@ public class MockExecutorController {
 
     @Getter
     private final MockClock clock = new MockClock();
-    private final List<DeferredTask> deferredTasks = Lists.newArrayList();
+    private final List<DeferredTask> deferredTasks = new ArrayList<>();
 
     public MockExecutorController controlSubmit(ScheduledExecutorService service) {
         doAnswer(answerNow()).when(service).submit(any(Runnable.class));
@@ -142,10 +140,10 @@ public class MockExecutorController {
 
     private static Answer<ScheduledFuture<?>> answerAtFixedRate(MockExecutorController controller, int numTimes) {
         return invocationOnMock -> {
-            Runnable task = invocationOnMock.getArgumentAt(0, Runnable.class);
-            long initialDelay = invocationOnMock.getArgumentAt(1, long.class);
-            long delay = invocationOnMock.getArgumentAt(2, long.class);
-            TimeUnit unit = invocationOnMock.getArgumentAt(3, TimeUnit.class);
+            Runnable task = invocationOnMock.getArgument(0);
+            long initialDelay = invocationOnMock.getArgument(1);
+            long delay = invocationOnMock.getArgument(2);
+            TimeUnit unit = invocationOnMock.getArgument(3);
 
             DeferredTask deferredTask = null;
             for (int i = 0; i < numTimes; i++) {
@@ -163,9 +161,9 @@ public class MockExecutorController {
     private static Answer<ScheduledFuture<?>> answerDelay(MockExecutorController executor) {
         return invocationOnMock -> {
 
-           Runnable task = invocationOnMock.getArgumentAt(0, Runnable.class);
-           long value = invocationOnMock.getArgumentAt(1, long.class);
-           TimeUnit unit = invocationOnMock.getArgumentAt(2, TimeUnit.class);
+           Runnable task = invocationOnMock.getArgument(0);
+           long value = invocationOnMock.getArgument(1);
+           TimeUnit unit = invocationOnMock.getArgument(2);
            DeferredTask deferredTask = executor.addDelayedTask(executor, unit.toMillis(value), task);
            if (value <= 0) {
                task.run();
@@ -178,7 +176,7 @@ public class MockExecutorController {
     private static Answer<Future<?>> answerNow() {
         return invocationOnMock -> {
 
-           Runnable task = invocationOnMock.getArgumentAt(0, Runnable.class);
+           Runnable task = invocationOnMock.getArgument(0);
            task.run();
            SettableFuture<Void> future = SettableFuture.create();
            future.set(null);
@@ -199,7 +197,7 @@ public class MockExecutorController {
     public void advance(Duration duration) {
         clock.advance(duration);
         Iterator<DeferredTask> entries = deferredTasks.iterator();
-        List<DeferredTask> toExecute = Lists.newArrayList();
+        List<DeferredTask> toExecute = new ArrayList<>();
         while (entries.hasNext()) {
             DeferredTask next = entries.next();
             if (next.getDelay(TimeUnit.MILLISECONDS) <= 0) {

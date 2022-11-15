@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
-import static org.testng.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.io.File;
@@ -30,8 +33,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,6 +53,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     private String topicName;
     private KafkaConnectSource kafkaConnectSource;
     private File tempFile;
+    private SourceContext context;
+    private PulsarClient client;
 
     @BeforeMethod
     @Override
@@ -60,19 +67,27 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
 
         this.offsetTopicName = "persistent://my-property/my-ns/kafka-connect-source-offset";
-        config.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         config.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
 
         this.topicName = "persistent://my-property/my-ns/kafka-connect-source";
         config.put(FileStreamSourceConnector.TOPIC_CONFIG, topicName);
         tempFile = File.createTempFile("some-file-name", null);
         config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
+        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG, String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
 
+        this.context = mock(SourceContext.class);
+        this.client = PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build();
+        when(context.getPulsarClient()).thenReturn(this.client);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        if (this.client != null) {
+            this.client.close();
+        }
         tempFile.delete();
         super.internalCleanup();
     }
@@ -87,7 +102,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     @Test
     public void testOpenAndRead() throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
-        kafkaConnectSource.open(config, null);
+        kafkaConnectSource.open(config, context);
 
         // use FileStreamSourceConnector, each line is a record, need "\n" and end of each record.
         OutputStream os = Files.newOutputStream(tempFile.toPath());
@@ -107,14 +122,16 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         Record<KeyValue<byte[], byte[]>> record = kafkaConnectSource.read();
         String readBack1 = new String(record.getValue().getValue());
         assertTrue(line1.contains(readBack1));
-        assertEquals(record.getValue().getKey(), null);
+        assertNull(record.getValue().getKey());
         log.info("read line1: {}", readBack1);
         record.ack();
 
         record = kafkaConnectSource.read();
         String readBack2 = new String(record.getValue().getValue());
         assertTrue(line2.contains(readBack2));
-        assertEquals(record.getValue().getKey(), null);
+        assertNull(record.getValue().getKey());
+        assertTrue(record.getPartitionId().isPresent());
+        assertFalse(record.getPartitionIndex().isPresent());
         log.info("read line2: {}", readBack2);
         record.ack();
 
@@ -125,7 +142,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         record = kafkaConnectSource.read();
         String readBack3 = new String(record.getValue().getValue());
         assertTrue(line3.contains(readBack3));
-        assertEquals(record.getValue().getKey(), null);
+        assertNull(record.getValue().getKey());
         log.info("read line3: {}", readBack3);
         record.ack();
     }

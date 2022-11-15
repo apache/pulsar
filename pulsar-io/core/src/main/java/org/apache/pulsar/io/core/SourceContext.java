@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,58 +18,61 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.slf4j.Logger;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.functions.api.BaseContext;
 
-public interface SourceContext {
-
+/**
+ * Interface for a source connector providing information about environment where it is running.
+ * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
+ */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface SourceContext extends BaseContext {
     /**
-     * The id of the instance that invokes this source.
+     * The name of the source that we are executing.
      *
-     * @return the instance id
-     */
-    int getInstanceId();
-
-    /**
-     * Get the number of instances that invoke this source.
-     *
-     * @return the number of instances that invoke this source.
-     */
-    int getNumInstances();
-
-    /**
-     * Record a user defined metric
-     * @param metricName The name of the metric
-     * @param value The value of the metric
-     */
-    void recordMetric(String metricName, double value);
-
-    /**
-     * Get the output topic of the source
-     * @return output topic name
-     */
-    String getOutputTopic();
-
-    /**
-     * The tenant this source belongs to
-     * @return the tenant this source belongs to
-     */
-    String getTenant();
-
-    /**
-     * The namespace this source belongs to
-     * @return the namespace this source belongs to
-     */
-    String getNamespace();
-
-    /**
-     * The name of the source that we are executing
      * @return The Source name
      */
     String getSourceName();
 
     /**
-     * The logger object that can be used to log in a source
-     * @return the logger object
+     * Get the output topic of the source.
+     *
+     * @return output topic name
      */
-    Logger getLogger();
+    String getOutputTopic();
+
+    /**
+     * Get the source config.
+     *
+     * @return source config
+     */
+    SourceConfig getSourceConfig();
+
+    /**
+     * New output message using schema for serializing to the topic.
+     *
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <T>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <T> TypedMessageBuilder<T> newOutputMessage(String topicName, Schema<T> schema) throws PulsarClientException;
+
+    /**
+     * Create a ConsumerBuilder with the schema.
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <T>
+     * @return the consumer builder instance
+     * @throws PulsarClientException
+     */
+    <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException;
 }

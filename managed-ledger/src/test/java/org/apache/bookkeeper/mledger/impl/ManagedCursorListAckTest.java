@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,10 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class ManagedCursorListAckTest extends MockedBookKeeperTestCase {
 
-    private static final Charset Encoding = Charsets.UTF_8;
+    private static final Charset Encoding = StandardCharsets.UTF_8;
 
     @Test(timeOut = 20000)
     void testMultiPositionDelete() throws Exception {
@@ -51,24 +51,24 @@ public class ManagedCursorListAckTest extends MockedBookKeeperTestCase {
         Position p7 = ledger.addEntry("dummy-entry-7".getBytes(Encoding));
 
         assertEquals(c1.getNumberOfEntries(), 7);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 7);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 7);
 
         c1.delete(Lists.newArrayList(p2, p3, p5, p7));
 
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
         assertEquals(c1.getMarkDeletedPosition(), p0);
 
         c1.delete(Lists.newArrayList(p1));
 
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
         assertEquals(c1.getMarkDeletedPosition(), p3);
 
         c1.delete(Lists.newArrayList(p4, p6, p7));
 
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
         assertEquals(c1.getMarkDeletedPosition(), p7);
     }
 

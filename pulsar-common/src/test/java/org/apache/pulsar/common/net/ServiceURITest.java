@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.net;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
 import java.net.URI;
@@ -55,6 +54,7 @@ public class ServiceURITest {
             "pulsar://localhost:6650:6651/",    // invalid hostname pair
             "pulsar://localhost:xyz/",          // invalid port
             "pulsar://localhost:-6650/",        // negative port
+            "pulsar://fec0:0:0:ffff::1:6650",   // missing brackets
         };
 
         for (String uri : uris) {
@@ -123,6 +123,54 @@ public class ServiceURITest {
     }
 
     @Test
+    public void testIpv6Uri() {
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1]:6650/path/to/namespace";
+        assertServiceUri(
+            serviceUri,
+            "pulsar",
+            new String[0],
+            "pulsaruser",
+            new String[] { "[fec0:0:0:ffff::1]:6650" },
+            "/path/to/namespace");
+    }
+
+    @Test
+    public void testIpv6UriWithoutPulsarPort() {
+        String serviceUri = "pulsar://[fec0:0:0:ffff::1]/path/to/namespace";
+        assertServiceUri(
+            serviceUri,
+            "pulsar",
+            new String[0],
+            null,
+            new String[] { "[fec0:0:0:ffff::1]:6650" },
+            "/path/to/namespace");
+    }
+
+    @Test
+    public void testMultiIpv6Uri() {
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1]:6650,[fec0:0:0:ffff::2]:6650;[fec0:0:0:ffff::3]:6650/path/to/namespace";
+        assertServiceUri(
+                serviceUri,
+                "pulsar",
+                new String[0],
+                "pulsaruser",
+                new String[] { "[fec0:0:0:ffff::1]:6650", "[fec0:0:0:ffff::2]:6650", "[fec0:0:0:ffff::3]:6650" },
+                "/path/to/namespace");
+    }
+
+    @Test
+    public void testMultiIpv6UriWithoutPulsarPort() {
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1],[fec0:0:0:ffff::2];[fec0:0:0:ffff::3]/path/to/namespace";
+        assertServiceUri(
+                serviceUri,
+                "pulsar",
+                new String[0],
+                "pulsaruser",
+                new String[] { "[fec0:0:0:ffff::1]:6650", "[fec0:0:0:ffff::2]:6650", "[fec0:0:0:ffff::3]:6650" },
+                "/path/to/namespace");
+    }
+
+    @Test
     public void testMultipleHostsSemiColon() {
         String serviceUri = "pulsar://host1:6650;host2:6650;host3:6650/path/to/namespace";
         assertServiceUri(
@@ -178,7 +226,7 @@ public class ServiceURITest {
             "http",
             new String[0],
             null,
-            new String[] { "host1:8080", "host2:8080", "host3:8080" },
+            new String[] { "host1:80", "host2:80", "host3:80" },
             "/path/to/namespace");
     }
 
@@ -190,7 +238,7 @@ public class ServiceURITest {
             "https",
             new String[0],
             null,
-            new String[] { "host1:8443", "host2:8443", "host3:8443" },
+            new String[] { "host1:443", "host2:443", "host3:443" },
             "/path/to/namespace");
     }
 
@@ -230,4 +278,40 @@ public class ServiceURITest {
             "/path/to/namespace");
     }
 
+    @Test
+    public void testSelectOneSingleHost() {
+        String serviceUri = "https://host1:6650/path/to/namespace";
+        assertEquals(ServiceURI.create(serviceUri).selectOne(),
+                     serviceUri);
+    }
+
+    @Test
+    public void testSelectOneMultipleHosts() {
+        String serviceUri = "https://host1:6650;host2/";
+        for (int i = 0; i < 10; i++) {
+            String selected = ServiceURI.create(serviceUri).selectOne();
+            boolean option1 = selected.equals("https://host1:6650/");
+            boolean option2 = selected.equals("https://host2:443/");
+            assertTrue(option1 || option2);
+        }
+    }
+
+    @Test
+    public void testSelectOneAllBellsAndWhistles() {
+        String serviceUri = "https+blah://user1@host1:6650;host2;host3:4032/path/to/namespace";
+        for (int i = 0; i < 10; i++) {
+            String selected = ServiceURI.create(serviceUri).selectOne();
+            boolean option1 = selected.equals("https+blah://user1@host1:6650/path/to/namespace");
+            boolean option2 = selected.equals("https+blah://user1@host2:443/path/to/namespace");
+            boolean option3 = selected.equals("https+blah://user1@host3:4032/path/to/namespace");
+            assertTrue(option1 || option2 || option3);
+        }
+    }
+
+    @Test
+    public void testKubeProxyURI() {
+        String serviceUri = "http://localhost:57777/api/v1/namespaces/blah-blah/services/pulsar:8080/proxy";
+        assertEquals(ServiceURI.create(serviceUri).selectOne(),
+                     serviceUri);
+    }
 }

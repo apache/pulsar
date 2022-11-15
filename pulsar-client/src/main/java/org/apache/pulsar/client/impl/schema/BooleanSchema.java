@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,17 +26,22 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Boolean`.
  */
-public class BooleanSchema implements Schema<Boolean> {
+public class BooleanSchema extends AbstractSchema<Boolean> {
+
+    private static final BooleanSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("Boolean")
+                .type(SchemaType.BOOLEAN)
+                .schema(new byte[0]).build();
+        INSTANCE = new BooleanSchema();
+    }
 
     public static BooleanSchema of() {
         return INSTANCE;
     }
-
-    private static final BooleanSchema INSTANCE = new BooleanSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-            .setName("Boolean")
-            .setType(SchemaType.BOOLEAN)
-            .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
@@ -50,7 +55,7 @@ public class BooleanSchema implements Schema<Boolean> {
         if (null == message) {
             return null;
         } else {
-            return new byte[]{(byte)(message ? 1 : 0)};
+            return new byte[]{(byte) (message ? 1 : 0)};
         }
     }
 
@@ -61,6 +66,14 @@ public class BooleanSchema implements Schema<Boolean> {
         }
         validate(bytes);
         return bytes[0] != 0;
+    }
+
+    @Override
+    public Boolean decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        return byteBuf.getBoolean(0);
     }
 
     @Override

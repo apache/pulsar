@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,21 +19,23 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-
+import java.util.function.Supplier;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public CmdSchemas(PulsarAdmin admin) {
+    public CmdSchemas(Supplier<PulsarAdmin> admin) {
         super("schemas", admin);
         jcommander.addCommand("get", new GetSchema());
         jcommander.addCommand("delete", new DeleteSchema());
@@ -46,16 +48,27 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--version" }, description = "version", required = false)
+        @Parameter(names = {"-v", "--version"}, description = "version", required = false)
         private Long version;
+
+        @Parameter(names = {"-a", "--all-version"}, description = "all version", required = false)
+        private boolean all = false;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            if (version == null) {
-                print(admin.schemas().getSchemaInfo(topic));
+            if (version != null && all) {
+                throw new ParameterException("Only one or neither of --version and --all-version can be specified.");
+            }
+            if (version == null && !all) {
+                System.out.println(getAdmin().schemas().getSchemaInfoWithVersion(topic));
+            } else if (!all) {
+                if (version < 0) {
+                    throw new ParameterException("Option --version must be greater than 0, but found " + version);
+                }
+                System.out.println(getAdmin().schemas().getSchemaInfo(topic, version));
             } else {
-                print(admin.schemas().getSchemaInfo(topic, version));
+                print(getAdmin().schemas().getAllSchemas(topic));
             }
         }
     }
@@ -65,10 +78,16 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "whether to delete schema completely. If true, delete "
+                + "all resources (including metastore and ledger), otherwise only do a mark deletion"
+                + " and not remove any resources indeed")
+        private boolean force = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            admin.schemas().deleteSchema(topic);
+            getAdmin().schemas().deleteSchema(topic, force);
         }
     }
 
@@ -84,7 +103,7 @@ public class CmdSchemas extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
-            admin.schemas().createSchema(topic, input);
+            getAdmin().schemas().createSchema(topic, input);
         }
     }
 
@@ -102,29 +121,45 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
         private String className;
 
+        @Parameter(names = {"-a", "--always-allow-null"}, arity = 1,
+                   description = "set schema whether always allow null or not")
+        private boolean alwaysAllowNull = true;
+
+        @Parameter(names = { "-n", "--dry-run"},
+                   description = "dost not apply to schema registry, just prints the post schema payload")
+        private boolean dryRun = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
 
             File file  = new File(jarFilePath);
             ClassLoader cl = new URLClassLoader(new URL[]{ file.toURI().toURL() });
-
             Class cls = cl.loadClass(className);
 
             PostSchemaPayload input = new PostSchemaPayload();
-
-            if (type.toLowerCase().equalsIgnoreCase("avro")) {
+            SchemaDefinition<Object> schemaDefinition =
+                    SchemaDefinition.builder()
+                                    .withPojo(cls)
+                                    .withAlwaysAllowNull(alwaysAllowNull)
+                                    .build();
+            if (type.equalsIgnoreCase("avro")) {
                 input.setType("AVRO");
-                input.setSchema(SchemaExtractor.getAvroSchemaInfo(cls));
-            } else if (type.toLowerCase().equalsIgnoreCase("json")){
+                input.setSchema(SchemaExtractor.getAvroSchemaInfo(schemaDefinition));
+            } else if (type.equalsIgnoreCase("json")){
                 input.setType("JSON");
-                input.setSchema(SchemaExtractor.getJsonSchemaInfo(cls));
+                input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
+            } else {
+                throw new ParameterException("Invalid schema type " + type + ". Valid options are: avro, json");
             }
-            else {
-                throw new Exception("Unknown schema type specified as type");
+            input.setProperties(schemaDefinition.getProperties());
+            if (dryRun) {
+                System.out.println(topic);
+                System.out.println(MAPPER.writerWithDefaultPrettyPrinter()
+                                         .writeValueAsString(input));
+            } else {
+                getAdmin().schemas().createSchema(topic, input);
             }
-
-            admin.schemas().createSchema(topic, input);
         }
     }
 

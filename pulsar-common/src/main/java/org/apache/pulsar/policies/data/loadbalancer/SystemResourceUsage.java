@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,12 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 /**
  * This class represents a object which reflects system resource usage per resource and the upper limit on the resource.
- *
  */
 public class SystemResourceUsage {
 
+    /**
+     * Definition of possible resource types.
+     */
     public enum ResourceType {
         CPU, Memory, BandwidthIn, BandwidthOut
     }
@@ -40,14 +42,6 @@ public class SystemResourceUsage {
         cpu = new ResourceUsage(-1, -1);
         memory = new ResourceUsage(-1, -1);
         directMemory = new ResourceUsage(-1, -1);
-    }
-
-    public void reset() {
-        bandwidthIn.reset();
-        bandwidthOut.reset();
-        cpu.reset();
-        memory.reset();
-        directMemory.reset();
     }
 
     public ResourceUsage getBandwidthIn() {

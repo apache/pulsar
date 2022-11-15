@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,15 +26,15 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-public class BlobStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
+public abstract class BlobStoreTestBase {
 
-    public final static String BUCKET = "pulsar-unittest";
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
+    public static final String BUCKET = "pulsar-unittest";
 
     protected BlobStoreContext context = null;
     protected BlobStore blobStore = null;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
             log.info("TestReal AWS S3, bucket: {}", BUCKET);
@@ -59,6 +59,7 @@ public class BlobStoreTestBase {
                 .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
         } else {
+            log.info("Test Transient, bucket: {}", BUCKET);
             context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
             boolean create = blobStore.createContainerInLocation(null, BUCKET);
@@ -66,10 +67,10 @@ public class BlobStoreTestBase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (blobStore != null &&
-            (!Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) &&
+            (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&
              !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }

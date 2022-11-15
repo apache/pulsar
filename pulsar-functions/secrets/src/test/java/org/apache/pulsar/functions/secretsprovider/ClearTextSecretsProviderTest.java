@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.secretsprovider;
 
-import org.testng.Assert;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+
 import org.testng.annotations.Test;
 
-/**
- * Unit test of {@link Exceptions}.
- */
 public class ClearTextSecretsProviderTest {
 
     @Test
     public void testConfigValidation() throws Exception {
         ClearTextSecretsProvider provider = new ClearTextSecretsProvider();
-        Assert.assertEquals(provider.provideSecret("SecretName", "SecretValue"), "SecretValue");
-        Assert.assertEquals(provider.provideSecret("SecretName", ""), "");
-        Assert.assertEquals(provider.provideSecret("SecretName", null), null);
+        assertEquals(provider.provideSecret("SecretName", "SecretValue"), "SecretValue");
+        assertEquals(provider.provideSecret("SecretName", ""), "");
+        assertNull(provider.provideSecret("SecretName", null));
     }
 }

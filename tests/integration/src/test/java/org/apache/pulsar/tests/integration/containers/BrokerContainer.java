@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
+
 /**
  * A pulsar container that runs bookkeeper.
  */
@@ -26,7 +28,14 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
     public static final String NAME = "pulsar-broker";
 
     public BrokerContainer(String clusterName, String hostName) {
-        super(
-            clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, INVALID_PORT);
+        super(clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, BROKER_PORT_TLS,
+                BROKER_HTTP_PORT, BROKER_HTTPS_PORT, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
+        tailContainerLog();
+    }
+
+    @Override
+    protected void afterStart() {
+        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
+                "tail", "-f", "/var/log/pulsar/broker.log");
     }
 }

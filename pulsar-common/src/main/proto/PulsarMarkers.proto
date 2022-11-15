@@ -1,0 +1,83 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto2";
+
+package pulsar.proto;
+option java_package = "org.apache.pulsar.common.api.proto";
+option optimize_for = LITE_RUNTIME;
+
+enum MarkerType {
+    UNKNOWN_MARKER = 0;
+
+    // Replicated subscription markers
+    REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST  = 10;
+    REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE = 11;
+    REPLICATED_SUBSCRIPTION_SNAPSHOT          = 12;
+    REPLICATED_SUBSCRIPTION_UPDATE            = 13;
+
+    // Next markers start at 20
+    TXN_COMMITTING = 20;
+    TXN_COMMIT = 21;
+    TXN_ABORT = 22;
+}
+
+/// --- Replicated subscriptions ---
+
+// A cluster uses this message to request the current
+// message id from all the other clusters.
+message ReplicatedSubscriptionsSnapshotRequest {
+    required string snapshot_id = 1;
+    optional string source_cluster = 2;
+}
+
+// When a cluster receives the snapshot request, it replies
+// by sending back the response (only to original asking cluster)
+message ReplicatedSubscriptionsSnapshotResponse {
+    required string snapshot_id = 1;
+    optional ClusterMessageId cluster = 2;
+}
+
+// This message is used to store the snapshot in the
+// local topic. It's not meant to be replicated to other
+// clusters
+message ReplicatedSubscriptionsSnapshot {
+    required string snapshot_id = 1;
+    optional MarkersMessageIdData local_message_id = 2;
+    repeated ClusterMessageId clusters = 3;
+}
+
+// When the replicated subscription mark-delete position
+// is updated in the source cluster, this message will be
+// sent to all clusters to updated the mirrored subscriptions
+message ReplicatedSubscriptionsUpdate {
+    required string subscription_name = 1;
+    repeated ClusterMessageId clusters = 2;
+}
+
+// Represent one cluster and an associated message id.
+// The message id is local to that particular cluster
+message ClusterMessageId {
+    required string cluster = 1;
+    required MarkersMessageIdData message_id = 2;
+}
+
+message MarkersMessageIdData {
+    required uint64 ledger_id = 1;
+    required uint64 entry_id = 2;
+}

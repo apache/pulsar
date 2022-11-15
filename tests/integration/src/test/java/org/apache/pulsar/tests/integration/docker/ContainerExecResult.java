@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.docker;
 
+import static org.testng.Assert.assertTrue;
 import lombok.Data;
 
 /**
@@ -26,8 +27,22 @@ import lombok.Data;
 @Data(staticConstructor = "of")
 public class ContainerExecResult {
 
-    private final int exitCode;
+    private final long exitCode;
     private final String stdout;
     private final String stderr;
 
+    public void assertNoOutput() {
+        assertNoStdout();
+        assertNoStderr();
+    }
+
+    public void assertNoStdout() {
+        assertTrue(stdout.isEmpty(),
+                "stdout should be empty, but was '" + stdout + "'");
+    }
+
+    public void assertNoStderr() {
+        assertTrue(stderr.isEmpty(),
+                "stderr should be empty, but was '" + stderr + "'");
+    }
 }

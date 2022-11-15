@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.tests.integration.backwardscompatibility;
 
+import java.util.function.Supplier;
 import org.testng.annotations.Test;
 
 public class SmokeTest2_2 extends PulsarStandaloneTestSuite2_2 {
 
     @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testPublishAndConsume(serviceUrl, isPersistent);
+    public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
+        super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
+    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
+    public void testBatchMessagePublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
+        super.testBatchMessagePublishAndConsume(serviceUrl.get(), isPersistent);
+    }
 }

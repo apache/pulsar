@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -88,10 +87,13 @@ def add_handler(stream_handler):
 def init_logger(level, logfile, logging_config_file):
   global Log
   # get log file location for function instance
-  os.environ['LOG_FILE'] = logfile;
+  os.environ['LOG_FILE'] = logfile
   logging.config.fileConfig(logging_config_file)
   Log = logging.getLogger()
-  Log.setLevel(level)
+  if level is not None:
+    Log.setLevel(level)
+    for h in Log.handlers:
+      h.setLevel(level)
 
   # set print to redirect to logger
   class StreamToLogger(object):

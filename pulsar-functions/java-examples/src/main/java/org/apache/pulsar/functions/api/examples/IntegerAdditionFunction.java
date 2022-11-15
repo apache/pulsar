@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * Function that appends to an integer input value and outputs the new value
+ * Function that appends to an integer input value and outputs the new value.
  */
 public class IntegerAdditionFunction implements Function<Integer, Integer> {
 

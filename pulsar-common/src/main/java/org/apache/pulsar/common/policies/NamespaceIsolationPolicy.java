@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,46 +21,48 @@ package org.apache.pulsar.common.policies;
 import java.net.URL;
 import java.util.List;
 import java.util.SortedSet;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
+/**
+ * Namespace isolation policy.
+ */
 public interface NamespaceIsolationPolicy {
 
     /**
-     * Get the list of regex for the set of primary brokers
+     * Get the list of regex for the set of primary brokers.
      *
      * @return
      */
     List<String> getPrimaryBrokers();
 
     /**
-     * Get the list of regex for the set of secondary brokers
+     * Get the list of regex for the set of secondary brokers.
      *
      * @return
      */
     List<String> getSecondaryBrokers();
 
     /**
-     * Get the list of primary brokers for the namespace according to the policy
+     * Get the list of primary brokers for the namespace according to the policy.
      *
-     * @param availableBrokers
-     * @param namespace
-     * @return
+     * @param availableBrokers brokers identified by service URL.
+     * @param namespace the namespace
+     * @return a list brokers by service URL.
      */
     List<URL> findPrimaryBrokers(List<URL> availableBrokers, NamespaceName namespace);
 
     /**
-     * Get the list of secondary brokers for the namespace according to the policy
+     * Get the list of secondary brokers for the namespace according to the policy.
      *
-     * @param availableBrokers
-     * @param namespace
-     * @return
+     * @param availableBrokers brokers identified by service URL.
+     * @param namespace the namespace
+     * @return a list brokers by service URL.
      */
     List<URL> findSecondaryBrokers(List<URL> availableBrokers, NamespaceName namespace);
 
     /**
-     * Check to see whether the primary brokers can still handle a new namespace or has to failover
+     * Check to see whether the primary brokers can still handle a new namespace or has to failover.
      *
      * @param primaryCandidates
      * @return
@@ -68,7 +70,7 @@ public interface NamespaceIsolationPolicy {
     boolean shouldFailover(SortedSet<BrokerStatus> primaryCandidates);
 
     /**
-     * Check to see whether the primary brokers can still handle a new namespace or has to failover
+     * Check to see whether the primary brokers can still handle a new namespace or has to failover.
      *
      * @param totalPrimaryCandidates
      * @return
@@ -76,7 +78,7 @@ public interface NamespaceIsolationPolicy {
     boolean shouldFailover(int totalPrimaryCandidates);
 
     /**
-     * Check to see whether the namespace ownership should fallback to the primary brokers
+     * Check to see whether the namespace ownership should fallback to the primary brokers.
      *
      * @param primaryBrokers
      * @return
@@ -84,7 +86,7 @@ public interface NamespaceIsolationPolicy {
     boolean shouldFallback(SortedSet<BrokerStatus> primaryBrokers);
 
     /**
-     * Check to see whether the specific host is a primary broker
+     * Check to see whether the specific host is a primary broker.
      *
      * @param brokerAddress
      * @return
@@ -92,7 +94,7 @@ public interface NamespaceIsolationPolicy {
     boolean isPrimaryBroker(String brokerAddress);
 
     /**
-     * Check to see whether the specific host is a secondary broker
+     * Check to see whether the specific host is a secondary broker.
      *
      * @param brokerAddress
      * @return
@@ -100,7 +102,7 @@ public interface NamespaceIsolationPolicy {
     boolean isSecondaryBroker(String brokerAddress);
 
     /**
-     * According to the namespace isolation policy, find the allowed available primary brokers
+     * According to the namespace isolation policy, find the allowed available primary brokers.
      *
      * @param primaryCandidates
      * @return

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
-import com.google.common.collect.Range;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -34,21 +32,21 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.pulsar.metadata.api.Stat;
 
 @Slf4j
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             String name) {
-        super(factory, bookKeeper, store, config, scheduledExecutor, orderedExecutor, name);
+        super(factory, bookKeeper, store, config, scheduledExecutor, name);
     }
 
-    CompletableFuture<ReadOnlyCursor> initializeAndCreateCursor(PositionImpl startPosition) {
-        CompletableFuture<ReadOnlyCursor> future = new CompletableFuture<>();
+    CompletableFuture<Void> initialize() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
 
         // Fetch the list of existing ledgers in the managed ledger
         store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
@@ -74,7 +72,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                             .setTimestamp(clock.millis()).build();
                                     ledgers.put(lastLedgerId, info);
 
-                                    future.complete(createReadOnlyCursor(startPosition));
+                                    future.complete(null);
                                 }).exceptionally(ex -> {
                                     if (ex instanceof CompletionException
                                             && ex.getCause() instanceof IllegalArgumentException) {
@@ -82,7 +80,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                         LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
                                                 .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
                                         ledgers.put(lastLedgerId, info);
-                                        future.complete(createReadOnlyCursor(startPosition));
+                                        future.complete(null);
                                     } else {
                                         future.completeExceptionally(new ManagedLedgerException(ex));
                                     }
@@ -95,7 +93,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                     LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId).setEntries(0)
                                             .setSize(0).setTimestamp(clock.millis()).build();
                                     ledgers.put(lastLedgerId, info);
-                                    future.complete(createReadOnlyCursor(startPosition));
+                                    future.complete(null);
                                 } else {
                                     future.completeExceptionally(new ManagedLedgerException(ex));
                                 }
@@ -103,7 +101,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                             });
                 } else {
                     // The read-only managed ledger is ready to use
-                    future.complete(createReadOnlyCursor(startPosition));
+                    future.complete(null);
                 }
             }
 
@@ -120,9 +118,9 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         return future;
     }
 
-    private ReadOnlyCursor createReadOnlyCursor(PositionImpl startPosition) {
+    ReadOnlyCursor createReadOnlyCursor(PositionImpl startPosition) {
         if (ledgers.isEmpty()) {
-            lastConfirmedEntry = PositionImpl.earliest;
+            lastConfirmedEntry = PositionImpl.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
             // Last ledger has some of the entries
             lastConfirmedEntry = new PositionImpl(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
@@ -133,30 +131,31 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                 LedgerInfo li = ledgers.headMap(lastLedgerId, false).lastEntry().getValue();
                 lastConfirmedEntry = new PositionImpl(li.getLedgerId(), li.getEntries() - 1);
             } else {
-                lastConfirmedEntry = PositionImpl.earliest;
+                lastConfirmedEntry = PositionImpl.EARLIEST;
             }
         }
 
-        ReadOnlyCursorImpl cursor = new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
-        return cursor;
+        return new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
     }
 
     @Override
-    void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
-            this.getLedgerHandle(position.getLedgerId()).thenAccept((ledger) -> {
-                asyncReadEntry(ledger, position, callback, ctx);
-            }).exceptionally((ex) -> {
-                log.error("[{}] Error opening ledger for reading at position {} - {}", new Object[]{this.name, position, ex.getMessage()});
-                callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
-                return null;
-            });
+    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+            this.getLedgerHandle(position.getLedgerId())
+                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
+                    .exceptionally((ex) -> {
+                        log.error("[{}] Error opening ledger for reading at position {} - {}", this.name, position,
+                                ex.getMessage());
+                        callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
+                        return null;
+                    });
     }
 
     @Override
     public long getNumberOfEntries() {
-        return getNumberOfEntries(Range.openClosed(PositionImpl.earliest, getLastPosition()));
+        return getNumberOfEntries(Range.openClosed(PositionImpl.EARLIEST, getLastPosition()));
     }
 
+    @Override
     protected boolean isReadOnly() {
         return true;
     }

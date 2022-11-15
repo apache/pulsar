@@ -1,0 +1,438 @@
+<?xml version="1.0"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.pulsar</groupId>
+        <artifactId>pulsar-functions</artifactId>
+        <version>2.11.0-SNAPSHOT</version>
+        <relativePath>..</relativePath>
+    </parent>
+
+    <artifactId>pulsar-functions-local-runner</artifactId>
+    <name>Pulsar Functions :: Local Runner Shaded</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-functions-local-runner-original</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.asynchttpclient</groupId>
+                                    <artifactId>async-http-client</artifactId>
+                                    <version>${asynchttpclient.version}</version>
+                                    <type>jar</type>
+                                    <overWrite>true</overWrite>
+                                    <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                                    <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>shade-ahc-properties</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                                <replace token= "org.asynchttpclient."
+                                         value="org.apache.pulsar.functions.runtime.shaded.org.asynchttpclient."
+                                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>${shadePluginPhase}</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <minimizeJar>false</minimizeJar>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                            </transformers>
+                            <artifactSet>
+                                <includes>
+                                    <include>org.apache.pulsar:*</include>
+                                    <include>org.apache.bookkeeper:*</include>
+                                    <include>commons-*:*</include>
+                                    <include>org.apache.commons:*</include>
+                                    <include>com.fasterxml.jackson.*:*</include>
+                                    <include>io.netty:*</include>
+                                    <include>com.google.*:*</include>
+                                    <include>javax.servlet:*</include>
+                                    <include>org.reactivestreams:reactive-streams</include>
+                                    <include>org.apache.commons:*</include>
+                                    <include>io.swagger:*</include>
+                                    <include>org.yaml:snakeyaml</include>
+                                    <include>io.perfmark:*</include>
+                                    <include>io.prometheus:*</include>
+                                    <include>io.prometheus.jmx:*</include>
+                                    <include>javax.ws.rs:*</include>
+                                    <include>org.tukaani:xz</include>
+                                    <include>com.github.zafarkhaja:java-semver</include>
+                                    <include>net.java.dev.jna:*</include>
+                                    <include>org.apache.zookeeper:*</include>
+                                    <include>com.thoughtworks.paranamer:paranamer</include>
+                                    <include>jline:*</include>
+                                    <include>org.rocksdb:*</include>
+                                    <include>org.eclipse.jetty*:*</include>
+                                    <include>org.apache.avro:avro</include>
+                                    <include>com.beust:*</include>
+                                    <include>net.jodah:*</include>
+                                    <include>io.airlift:*</include>
+                                    <include>com.yahoo.datasketches:*</include>
+                                    <include>io.netty.resolver:*</include>
+                                </includes>
+                            </artifactSet>
+                            <filters>
+                                <filter>
+                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                    <excludes>
+                                        <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                                        <exclude>org/bouncycastle/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <relocations>
+                                <!-- Netty cannot be shaded, this is causing java.lang.NoSuchMethodError -->
+                                <!-- <relocation>
+                                    <pattern>com.typesafe.netty</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.typesafe.netty</shadedPattern>
+                                </relocation> -->
+                                <relocation>
+                                    <pattern>com.google</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.google</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.jute</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.jute</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.servlet</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.servlet</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>net.jodah</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jodah</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.lz4</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.lz4</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.reactivestreams</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.reactivestreams</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.commons</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.commons</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.swagger</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.swagger</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.yaml</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.yaml</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.jctools</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.jctools</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.squareup.okhttp</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.squareup.okhttp</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.grpc</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.grpc</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.perfmark</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.perfmark</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.joda</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.joda</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.ws.rs</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.ws.rs</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.kubernetes</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.kubernetes</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.opencensus</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.opencensus</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>net.jpountz</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jpountz</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>commons-configuration</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-configuration</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.tukaani</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.tukaani</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.github</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.github</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>commons-io</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-io</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.distributedlog</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.distributedlog</shadedPattern>
+                                </relocation>
+                                <!-- Jackson cannot be shaded, this is causing java.lang.NoSuchMethodError when calling getThreadLocalYaml-->
+                                <relocation>
+                                    <pattern>com.fasterxml</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.fasterxml</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.inferred</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.inferred</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.bookkeeper</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.bookkeeper</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.bookkeeper</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.bookkeeper</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>dlshade</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.dlshade</shadedPattern>
+                                </relocation>
+                                <!-- This refers to an older version of Jackson -->
+                                <relocation>
+                                    <pattern>org.codehaus.jackson</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.codehaus.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>net.java.dev.jna</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.java.dev.jna</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.curator</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.curator</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.validation</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.validation</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.activation</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.activation</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.prometheus</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.prometheus</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.prometheus.jmx</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.prometheus.jmx</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.zookeeper</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.zookeeper</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.jsonwebtoken</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.jsonwebtoken</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>commons-codec</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-codec</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.thoughtworks.paranamer</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.thoughtworks.paranamer</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.codehaus.mojo</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.codehaus.mojo</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.github.luben</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.github.luben</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>jline</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.jline</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.xerial.snappy</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.xerial.snappy</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>javax.annotation</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.annotation</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.checkerframework</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.checkerframework</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.yetus</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.yetus</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>commons-cli</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-cli</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>commons-lang</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.commons-lang</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.squareup.okio</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.squareup.okio</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.rocksdb</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.rocksdb</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.objenesis</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.objenesis</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.eclipse.jetty</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.eclipse.jetty</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.avro</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.avro</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>avro.shaded</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.avo.shaded</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.yahoo.datasketches</pattern>
+                                    <shadedPattern>org.apache.pulsar.shaded.com.yahoo.datasketches</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.yahoo.sketches</pattern>
+                                    <shadedPattern>org.apache.pulsar.shaded.com.yahoo.sketches</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.beust</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.beust</shadedPattern>
+                                </relocation>
+                                <!-- Netty cannot be shaded, this is causing java.lang.NoSuchMethodError -->
+                                <relocation>
+                                    <pattern>io.netty</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.netty</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.hamcrest</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.hamcrest</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>aj.org</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.aj.org</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.scurrilous</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.scurrilous</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>okio</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.okio</shadedPattern>
+                                </relocation>
+                                <!--
+                                    asynchttpclient can only be shaded to be under `org.apache.pulsar.shade`
+                                    see {@link https://github.com/apache/incubator-pulsar/pull/390}
+                                    and {@link https://github.com/apache/incubator-pulsar/blob/master/pulsar-client/src/main/resources/ahc.properties}
+                                -->
+                                <relocation>
+                                    <pattern>org.asynchttpclient</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.asynchttpclient</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.airlift</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.airlift</shadedPattern>
+                                </relocation>
+                                <!-- DONT ever shade log4j, otherwise logging won't work anymore in running functions in process mode
+                                <relocation>
+                                  <pattern>org.apache.logging</pattern>
+                                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.logging</shadedPattern>
+                                </relocation>
+                                -->
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

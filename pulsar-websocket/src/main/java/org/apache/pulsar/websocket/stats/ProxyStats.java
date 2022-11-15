@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,23 @@
  */
 package org.apache.pulsar.websocket.stats;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import static org.apache.pulsar.websocket.ProducerHandler.ENTRY_LATENCY_BUCKETS_USEC;
-
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.websocket.WebSocketService;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * It periodically generates stats metrics of proxy service,
+ * It periodically generates stats metrics of proxy service.
  *
  */
 public class ProxyStats {
@@ -45,15 +43,21 @@ public class ProxyStats {
     private final JvmMetrics jvmMetrics;
     private ConcurrentOpenHashMap<String, ProxyNamespaceStats> topicStats;
     private List<Metrics> metricsCollection;
+    private List<Metrics> tempMetricsCollection;
 
     public ProxyStats(WebSocketService service) {
         super();
         this.service = service;
-        this.jvmMetrics = new JvmMetrics(service);
-        this.topicStats = new ConcurrentOpenHashMap<>();
-        this.metricsCollection = Lists.newArrayList();
+        this.jvmMetrics = JvmMetrics.create(
+                service.getExecutor(), "prx", service.getConfig().getJvmGCMetricsLoggerClassName());
+        this.topicStats =
+                ConcurrentOpenHashMap.<String, ProxyNamespaceStats>newBuilder()
+                        .build();
+        this.metricsCollection = new ArrayList<>();
+        this.tempMetricsCollection = new ArrayList<>();
         // schedule stat generation task every 1 minute
-        service.getExecutor().scheduleAtFixedRate(() -> generate(), 120, 60, TimeUnit.SECONDS);
+        service.getExecutor()
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::generate), 120, 60, TimeUnit.SECONDS);
     }
 
     /**
@@ -95,7 +99,7 @@ public class ProxyStats {
             });
         });
 
-        List<Metrics> tempMetricsCollection = Lists.newArrayList();
+        tempMetricsCollection.clear();
         topicStats.forEach((namespace, stats) -> {
             if (log.isDebugEnabled()) {
                 log.debug("Add ns-stats of namespace {} to metrics", namespace);
@@ -107,19 +111,19 @@ public class ProxyStats {
         if (log.isDebugEnabled()) {
             log.debug("Add jvm-stats to metrics");
         }
-        tempMetricsCollection.add(jvmMetrics.generate());
+        tempMetricsCollection.add(jvmMetrics.generate().get(0));
 
         // swap tempmetrics to stat-metrics
         List<Metrics> tempRef = metricsCollection;
         metricsCollection = tempMetricsCollection;
-        tempRef.clear();
+        tempMetricsCollection = tempRef;
 
         if (log.isDebugEnabled()) {
             log.debug("Complete generating proxy metrics");
         }
     }
 
-    public synchronized List<Metrics> getMetrics() {
+    public List<Metrics> getMetrics() {
         return metricsCollection;
     }
 
@@ -143,7 +147,7 @@ public class ProxyStats {
             publishMsgLatency.refresh();
             long[] latencyBuckets = publishMsgLatency.getBuckets();
 
-            Map<String, String> dimensionMap = Maps.newHashMap();
+            Map<String, String> dimensionMap = new HashMap<>();
             dimensionMap.put("namespace", namespace);
             Metrics dMetrics = Metrics.create(dimensionMap);
             dMetrics.put("ns_msg_publish_rate", numberOfMsgPublished);
@@ -153,8 +157,9 @@ public class ProxyStats {
             dMetrics.put("ns_byte_deliver_rate", numberOfBytesDelivered);
             dMetrics.put("ns_msg_ack_rate", numberOfMsgsAcked);
             for (int i = 0; i < latencyBuckets.length; i++) {
-                final String latencyBucket = i >= ENTRY_LATENCY_BUCKETS_USEC.length
-                        ? ENTRY_LATENCY_BUCKETS_USEC[ENTRY_LATENCY_BUCKETS_USEC.length-1] + "_higher" : Long.toString(ENTRY_LATENCY_BUCKETS_USEC[i]);
+                final String latencyBucket = i >= ENTRY_LATENCY_BUCKETS_USEC.size()
+                        ? ENTRY_LATENCY_BUCKETS_USEC.get(ENTRY_LATENCY_BUCKETS_USEC.size() - 1) + "_higher"
+                        : Long.toString(ENTRY_LATENCY_BUCKETS_USEC.get(i));
                 dMetrics.put("ns_msg_publish_latency_" + latencyBucket, latencyBuckets[i]);
             }
             return dMetrics;

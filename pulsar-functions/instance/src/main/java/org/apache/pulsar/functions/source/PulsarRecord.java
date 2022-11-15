@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,16 @@ package org.apache.pulsar.functions.source;
 
 import java.util.Map;
 import java.util.Optional;
-
+import java.util.function.Consumer;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.functions.instance.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 @Builder
 @Getter
@@ -41,9 +41,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final int partition;
 
     private final Message<T> message;
+    private final Schema<T> schema;
 
     private final Runnable failFunction;
     private final Runnable ackFunction;
+    private final Consumer<Boolean> customAckFunction;
 
     @Override
     public Optional<String> getKey() {
@@ -60,18 +62,28 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
+    public Optional<Integer> getPartitionIndex() {
+        return Optional.of(partition);
+    }
+
+    @Override
     public Optional<String> getPartitionId() {
         return Optional.of(String.format("%s-%s", topicName, partition));
     }
 
     @Override
     public Optional<Long> getRecordSequence() {
-        return Optional.of(Utils.getSequenceId(message.getMessageId()));
+        return Optional.of(FunctionCommon.getSequenceId(message.getMessageId()));
     }
 
     @Override
     public T getValue() {
         return message.getValue();
+    }
+
+    @Override
+    public Schema<T> getSchema() {
+        return schema;
     }
 
     @Override
@@ -81,6 +93,20 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
         } else {
             return Optional.empty();
         }
+    }
+
+    /**
+     * Some sink sometimes wants to control the ack type.
+     */
+    public void cumulativeAck() {
+        this.customAckFunction.accept(true);
+    }
+
+    /**
+     * Some sink sometimes wants to control the ack type.
+     */
+    public void individualAck() {
+        this.customAckFunction.accept(false);
     }
 
     @Override
@@ -106,4 +132,10 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     public void fail() {
         this.failFunction.run();
     }
+
+    @Override
+    public Optional<Message<T>> getMessage() {
+        return Optional.of(message);
+    }
+
 }

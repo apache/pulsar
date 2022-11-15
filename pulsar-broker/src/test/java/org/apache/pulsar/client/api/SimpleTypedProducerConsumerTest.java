@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,30 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import java.time.Clock;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleTypedProducerConsumerTest.class);
 
@@ -52,7 +61,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -63,7 +72,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         JSONSchema<JsonEncodedPojo> jsonSchema =
-            JSONSchema.of(JsonEncodedPojo.class);
+            JSONSchema.of(SchemaDefinition.<JsonEncodedPojo>builder().withPojo(JsonEncodedPojo.class).build());
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
             .newConsumer(jsonSchema)
@@ -82,7 +91,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<JsonEncodedPojo> msg = null;
-        Set<JsonEncodedPojo> messageSet = Sets.newHashSet();
+        Set<JsonEncodedPojo> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             JsonEncodedPojo receivedMessage = msg.getValue();
@@ -108,7 +117,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         JSONSchema<JsonEncodedPojo> jsonSchema =
-            JSONSchema.of(JsonEncodedPojo.class);
+            JSONSchema.of(SchemaDefinition.<JsonEncodedPojo>builder().withPojo(JsonEncodedPojo.class).build());
 
         pulsar.getSchemaRegistryService()
             .putSchemaIfAbsent("my-property/my-ns/my-topic1",
@@ -147,61 +156,31 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testJsonConsumerWithWrongCorruptedSchema() throws Exception {
+    public void testWrongCorruptedSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         byte[] randomSchemaBytes = "hello".getBytes();
 
-        pulsar.getSchemaRegistryService()
-            .putSchemaIfAbsent("my-property/my-ns/my-topic1",
-                SchemaData.builder()
-                    .type(SchemaType.JSON)
-                    .isDeleted(false)
-                    .timestamp(Clock.systemUTC().millis())
-                    .user("me")
-                    .data(randomSchemaBytes)
-                    .props(Collections.emptyMap())
-                    .build(),
-                SchemaCompatibilityStrategy.FULL
-            ).get();
-
-        Consumer<JsonEncodedPojo> consumer = pulsarClient
-            .newConsumer(JSONSchema.of(JsonEncodedPojo.class))
-            .topic("persistent://my-property/use/my-ns/my-topic1")
-            .subscriptionName("my-subscriber-name")
-            .subscribe();
-
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    @Test
-    public void testJsonProducerWithWrongCorruptedSchema() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        byte[] randomSchemaBytes = "hello".getBytes();
-
-        pulsar.getSchemaRegistryService()
-            .putSchemaIfAbsent("my-property/my-ns/my-topic1",
-                SchemaData.builder()
-                    .type(SchemaType.JSON)
-                    .isDeleted(false)
-                    .timestamp(Clock.systemUTC().millis())
-                    .user("me")
-                    .data(randomSchemaBytes)
-                    .props(Collections.emptyMap())
-                    .build(),
-                SchemaCompatibilityStrategy.FULL
-            ).get();
-
-        Producer<JsonEncodedPojo> producer = pulsarClient
-            .newProducer(JSONSchema.of(JsonEncodedPojo.class))
-            .topic("persistent://my-property/use/my-ns/my-topic1")
-            .create();
-
+        try {
+            pulsar.getSchemaRegistryService()
+                .putSchemaIfAbsent("my-property/my-ns/my-topic1",
+                    SchemaData.builder()
+                        .type(SchemaType.JSON)
+                        .isDeleted(false)
+                        .timestamp(Clock.systemUTC().millis())
+                        .user("me")
+                        .data(randomSchemaBytes)
+                        .props(Collections.emptyMap())
+                        .build(),
+                    SchemaCompatibilityStrategy.FULL
+                ).get();
+            fail("Should fail to add corrupted schema data");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof InvalidSchemaDataException);
+        }
 
         log.info("-- Exiting {} test --", methodName);
     }
-
 
     @Test
     public void testProtobufProducerAndConsumer() throws Exception {
@@ -228,7 +207,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> msg = null;
-        Set<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> messageSet = Sets.newHashSet();
+        Set<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             org.apache.pulsar.client.api.schema.proto.Test.TestMessage receivedMessage = msg.getValue();
@@ -273,7 +252,9 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                 ).get();
 
         Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong> consumer = pulsarClient
-                .newConsumer(AvroSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong.class))
+                .newConsumer(AvroSchema.of
+                        (SchemaDefinition.<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong>builder().
+                        withPojo(org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong.class).build()))
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
@@ -286,7 +267,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        log.info("-- Starting {} test --", methodName);
 
        AvroSchema<AvroEncodedPojo> avroSchema =
-           AvroSchema.of(AvroEncodedPojo.class);
+           AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
+                   withPojo(AvroEncodedPojo.class).build());
 
        Consumer<AvroEncodedPojo> consumer = pulsarClient
            .newConsumer(avroSchema)
@@ -305,7 +287,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Message<AvroEncodedPojo> msg = null;
-       Set<AvroEncodedPojo> messageSet = Sets.newHashSet();
+       Set<AvroEncodedPojo> messageSet = new HashSet<>();
        for (int i = 0; i < 10; i++) {
            msg = consumer.receive(5, TimeUnit.SECONDS);
            AvroEncodedPojo receivedMessage = msg.getValue();
@@ -328,7 +310,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
    }
 
     @Test(expectedExceptions = {PulsarClientException.class})
-    public void testAvroConsumerWithWrongPrestoredSchema() throws Exception {
+    public void testAvroConsumerWithWrongRestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         byte[] randomSchemaBytes = ("{\n" +
@@ -353,9 +335,9 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .build(),
                 SchemaCompatibilityStrategy.FULL
             ).get();
-
         Consumer<AvroEncodedPojo> consumer = pulsarClient
-            .newConsumer(AvroSchema.of(AvroEncodedPojo.class))
+            .newConsumer(AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
+                    withPojo(AvroEncodedPojo.class).withAlwaysAllowNull(false).build()))
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
@@ -454,7 +436,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        log.info("-- Starting {} test --", methodName);
 
        AvroSchema<AvroEncodedPojo> avroSchema =
-           AvroSchema.of(AvroEncodedPojo.class);
+           AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
+                   withPojo(AvroEncodedPojo.class).build());
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
@@ -474,7 +457,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
            .subscribe();
 
        Message<GenericRecord> msg = null;
-       Set<String> messageSet = Sets.newHashSet();
+       Set<String> messageSet = new HashSet<>();
        for (int i = 0; i < 10; i++) {
            msg = consumer.receive(5, TimeUnit.SECONDS);
            GenericRecord receivedMessage = msg.getValue();
@@ -502,7 +485,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        log.info("-- Starting {} test --", methodName);
 
        AvroSchema<AvroEncodedPojo> avroSchema =
-           AvroSchema.of(AvroEncodedPojo.class);
+           AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
+                   withPojo(AvroEncodedPojo.class).build());
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
@@ -515,13 +499,13 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Reader<GenericRecord> reader = pulsarClient
-           .newReader(Schema.AUTO_CONSUME())
-           .topic("persistent://my-property/use/my-ns/my-topic1")
-           .startMessageId(MessageId.earliest)
+               .newReader(Schema.AUTO_CONSUME())
+               .topic("persistent://my-property/use/my-ns/my-topic1")
+               .startMessageId(MessageId.earliest)
            .create();
 
        Message<GenericRecord> msg = null;
-       Set<String> messageSet = Sets.newHashSet();
+       Set<String> messageSet = new HashSet<>();
        for (int i = 0; i < 10; i++) {
            msg = reader.readNext();
            GenericRecord receivedMessage = msg.getValue();
@@ -548,7 +532,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         AvroSchema<AvroEncodedPojo> avroSchema =
-            AvroSchema.of(AvroEncodedPojo.class);
+            AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
+                    withPojo(AvroEncodedPojo.class).build());
 
         try (Producer<AvroEncodedPojo> producer = pulsarClient
             .newProducer(avroSchema)
@@ -593,7 +578,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             .subscribe();
 
         Message<GenericRecord> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             GenericRecord receivedMessage = msg.getValue();
@@ -615,4 +600,76 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
 
     }
+
+    @Test
+    public void testMessageBuilderLoadConf() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("my-topic");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("a", "1");
+        properties.put("b", "2");
+
+        Map<String, Object> msgConf = new HashMap<>();
+        msgConf.put("key", "key-1");
+        msgConf.put("properties", properties);
+        msgConf.put("eventTime", 1234L);
+        msgConf.put("sequenceId", 5L);
+        msgConf.put("replicationClusters", Lists.newArrayList("a", "b", "c"));
+        msgConf.put("disableReplication", false);
+
+        producer.newMessage()
+            .value("my-message")
+            .loadConf(msgConf)
+            .send();
+
+
+        Message<String> msg = consumer.receive();
+        assertEquals(msg.getKey(), "key-1");
+        assertEquals(msg.getProperties().get("a"), "1");
+        assertEquals(msg.getProperties().get("b"), "2");
+        assertEquals(msg.getEventTime(), 1234);
+        assertEquals(msg.getSequenceId(), 5);
+
+        consumer.acknowledge(msg);
+
+        // Try with invalid confs
+        msgConf.clear();
+        msgConf.put("nonExistingKey", "key-1");
+
+        try {
+            producer.newMessage()
+                    .value("my-message")
+                    .loadConf(msgConf)
+                    .send();
+            fail("Should have failed");
+        } catch (RuntimeException e) {
+            // expected
+        }
+
+        // Try with invalid type
+        msgConf.clear();
+        msgConf.put("eventTime", "hello");
+
+        try {
+            producer.newMessage()
+                    .value("my-message")
+                    .loadConf(msgConf)
+                    .send();
+            fail("Should have failed");
+        } catch (RuntimeException e) {
+            // expected
+        }
+    }
+
 }

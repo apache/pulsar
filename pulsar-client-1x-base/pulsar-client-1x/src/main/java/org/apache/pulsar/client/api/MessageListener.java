@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,8 @@ public interface MessageListener<T> extends Serializable {
      *
      * This method will only be called once for each message, unless either application or broker crashes.
      *
+     * Implementation should acknowledge messages by calling consumer.acknowledge(msg).
+     *
      * Application is responsible of handling any exception that could be thrown while processing the message.
      *
      * @param consumer
@@ -43,7 +45,7 @@ public interface MessageListener<T> extends Serializable {
     void received(Consumer consumer, Message<T> msg);
 
     /**
-     * Get the notification when a topic is terminated
+     * Get the notification when a topic is terminated.
      *
      * @param consumer
      *            the Consumer object associated with the terminated topic

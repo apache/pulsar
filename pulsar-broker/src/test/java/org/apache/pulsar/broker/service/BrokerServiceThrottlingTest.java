@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,40 +18,40 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
-import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import java.net.URI;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.bookkeeper.util.ZkUtils;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.mockito.Mockito;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-/**
- */
+@Test(groups = "broker")
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -60,14 +60,14 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     /**
-     * Verifies: updating zk-thottling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
      *
      * @throws Exception
      */
@@ -91,8 +91,10 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
@@ -132,8 +134,10 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
 
         int newPermits = 1;
@@ -147,34 +151,88 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             }
         }
 
-        List<Consumer<byte[]>> successfulConsumers = Collections.synchronizedList(Lists.newArrayList());
-        ExecutorService executor = Executors.newFixedThreadPool(10);
-        final int totalConsumers = 20;
-        CountDownLatch latch = new CountDownLatch(totalConsumers);
-        for (int i = 0; i < totalConsumers; i++) {
-            executor.execute(() -> {
-                try {
-                    successfulConsumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub")
-                            .subscriptionType(SubscriptionType.Shared).subscribe());
-                } catch (PulsarClientException.TooManyRequestsException e) {
-                    // ok
-                } catch (Exception e) {
-                    fail("it shouldn't failed");
-                }
-                latch.countDown();
-            });
-        }
-        latch.await();
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+        resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setConnectionsPerBroker(20);
 
-        for (Consumer<?> c : successfulConsumers) {
-            if (c != null) {
-                c.close();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
+                new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop)) {
+            final int totalConsumers = 20;
+            List<Future<?>> futures = new ArrayList<>();
+
+            // test for partitionMetadataRequest
+            for (int i = 0; i < totalConsumers; i++) {
+                long reqId = 0xdeadbeef + i;
+                Future<?> f = executor.submit(() -> {
+                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId);
+                        pool.getConnection(resolver.resolveHost())
+                            .thenCompose(clientCnx -> clientCnx.newLookup(request, reqId))
+                            .get();
+                        return null;
+                    });
+                futures.add(f);
             }
+
+            int rejects = 0;
+            for (Future<?> f : futures) {
+                try {
+                    f.get();
+                } catch (ExecutionException e) {
+                    Throwable rootCause = e;
+                    while (rootCause instanceof ExecutionException) {
+                        rootCause = rootCause.getCause();
+                    }
+                    if (rootCause instanceof
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                        rejects++;
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+            assertTrue(rejects > 0);
+            futures.clear();
+
+            // test for lookup
+            for (int i = 0; i < totalConsumers; i++) {
+                long reqId = 0xdeadfeef + i;
+                Future<?> f = executor.submit(() -> {
+                        ByteBuf request = Commands.newLookup(topicName, true, reqId);
+                        pool.getConnection(resolver.resolveHost())
+                            .thenCompose(clientCnx -> clientCnx.newLookup(request, reqId))
+                            .get();
+                        return null;
+                    });
+                futures.add(f);
+            }
+
+            rejects = 0;
+            for (Future<?> f : futures) {
+                try {
+                    f.get();
+                } catch (ExecutionException e) {
+                    Throwable rootCause = e;
+                    while (rootCause instanceof ExecutionException) {
+                        rootCause = rootCause.getCause();
+                    }
+                    if (rootCause instanceof
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                        rejects++;
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+            assertTrue(rejects > 0);
+        } finally {
+            executor.shutdownNow();
+            eventLoop.shutdownNow();
         }
-        pulsarClient.close();
-        executor.shutdown();
-        assertNotEquals(successfulConsumers.size(), totalConsumers);
     }
+
 
     /**
      * This testcase make sure that once consumer lost connection with broker, it always reconnects with broker by
@@ -191,14 +249,16 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();
 
-        final String topicName = "persistent://prop/ns-abc/newTopic";
-
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
         upsertLookupPermits(100);
-        List<Consumer<byte[]>> consumers = Collections.synchronizedList(Lists.newArrayList());
+        List<Consumer<byte[]>> consumers = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 8;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
@@ -217,30 +277,26 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
         latch.await();
 
-        stopBroker();
-        conf.setMaxConcurrentLookupRequest(1);
-        startBroker();
+        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", "1");
+        admin.topics().unload(topicName);
 
         // wait strategically for all consumers to reconnect
         retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
 
         int totalConnectedConsumers = 0;
-        for (int i = 0; i < consumers.size(); i++) {
-            if (((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
+        for (Consumer<byte[]> consumer : consumers) {
+            if (consumer.isConnected()) {
                 totalConnectedConsumers++;
             }
-            consumers.get(i).close();
+            consumer.close();
 
         }
         assertEquals(totalConnectedConsumers, totalConsumers);
-
-        executor.shutdown();
-        pulsarClient.close();
     }
 
     private boolean areAllConsumersConnected(List<Consumer<byte[]>> consumers) {
-        for (int i = 0; i < consumers.size(); i++) {
-            if (!((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
+        for (Consumer<byte[]> consumer : consumers) {
+            if (!consumer.isConnected()) {
                 return false;
             }
         }
@@ -248,15 +304,10 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     private void upsertLookupPermits(int permits) throws Exception {
-        Map<String, String> throttlingMap = Maps.newHashMap();
-        throttlingMap.put("maxConcurrentLookupRequest", Integer.toString(permits));
-        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(throttlingMap);
-        if (mockZookKeeper.exists(BROKER_SERVICE_CONFIGURATION_PATH, false) != null) {
-            mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
-        } else {
-            ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, content,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
+        pulsar.getPulsarResources().getDynamicConfigResources().setDynamicConfigurationWithCreate(optMap -> {
+            Map<String, String> map = optMap.orElse(new TreeMap<>());
+            map.put("maxConcurrentLookupRequest", Integer.toString(permits));
+            return map;
+        });
     }
-
 }

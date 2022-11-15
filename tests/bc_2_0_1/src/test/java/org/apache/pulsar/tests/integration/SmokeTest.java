@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -25,6 +26,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -32,18 +34,22 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-public class SmokeTest {
+public class SmokeTest extends TestRetrySupport {
 
     private PulsarContainer pulsarContainer;
 
-    @BeforeClass
-    public void setup(){
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public final void setup(){
+        incrementSetupNumber();
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
     }
 
     @Test
     public void checkMessages() throws PulsarClientException {
+
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarContainer.getPlainTextPulsarBrokerUrl())
                 .build();
@@ -69,8 +75,10 @@ public class SmokeTest {
 
     }
 
-    @AfterClass
-    public void cleanup(){
+    @Override
+    @AfterClass(alwaysRun = true)
+    public final void cleanup(){
+        markCurrentSetupNumberCleaned();
         pulsarContainer.stop();
     }
 

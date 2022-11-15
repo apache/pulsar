@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,9 @@ package org.apache.pulsar.common.lookup.data;
 
 import com.google.common.base.MoreObjects;
 
+/**
+ * This class encapsulates lookup data.
+ */
 public class LookupData {
     private String brokerUrl;
     private String brokerUrlTls;
@@ -37,12 +40,6 @@ public class LookupData {
         this.httpUrlTls = httpUrlTls;
         this.nativeUrl = brokerUrl;
     }
-    
-    public LookupData(String brokerUrl, String brokerUrlTls, boolean redirect, boolean authoritative) {
-        this.brokerUrl = brokerUrl;
-        this.brokerUrlTls = brokerUrlTls;
-        this.nativeUrl = brokerUrl;
-    }
 
     public String getBrokerUrl() {
         return brokerUrl;
@@ -55,17 +52,17 @@ public class LookupData {
     public String getHttpUrl() {
         return httpUrl;
     }
-    
-    public String getHttpUrlTls() {
-		return httpUrlTls;
-	}
 
-	public void setHttpUrlTls(String httpUrlTls) {
-		this.httpUrlTls = httpUrlTls;
-	}
+    public String getHttpUrlTls() {
+        return httpUrlTls;
+    }
+
+    public void setHttpUrlTls(String httpUrlTls) {
+        this.httpUrlTls = httpUrlTls;
+    }
 
     /**
-     * Legacy name, but client libraries are still using it so it needs to be included in Json
+     * Legacy name, but client libraries are still using it so it needs to be included in Json.
      */
     @Deprecated
     public String getNativeUrl() {
@@ -75,8 +72,8 @@ public class LookupData {
     /**
      * "brokerUrlSsl" is needed in the serialized Json for compatibility reasons.
      *
-     * Older C++ pulsar client library version will fail the lookup if this field is not included, even though it's not
-     * used
+     * <p>Older C++ pulsar client library version will fail the lookup if this field is not included,
+     * even though it's not used
      */
     @Deprecated
     public String getBrokerUrlSsl() {
@@ -86,6 +83,6 @@ public class LookupData {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("brokerUrl", brokerUrl).add("brokerUrlTls", brokerUrlTls)
-                .add("httpUrl", httpUrl).toString();
+                .add("httpUrl", httpUrl).add("httpUrlTls", httpUrlTls).toString();
     }
 }

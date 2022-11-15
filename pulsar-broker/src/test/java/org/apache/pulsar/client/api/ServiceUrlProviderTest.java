@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.test.PortManager;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -29,9 +33,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.TimeUnit;
-
 @Slf4j
+@Test(groups = "broker-api")
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -42,7 +45,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -51,6 +54,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     @Test
     public void testCreateClientWithServiceUrlProvider() throws Exception {
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getBrokerServiceUrl()))
                 .statsInterval(1, TimeUnit.SECONDS)
@@ -76,10 +80,9 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
             System.out.println(message.getValue());
             received++;
         } while (received < 200);
-        Assert.assertEquals(200, received);
+        Assert.assertEquals(received, 200);
         producer.close();
         consumer.close();
-        client.close();
     }
 
     @Test
@@ -87,6 +90,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
         AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getBrokerServiceUrl());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrlProvider(serviceUrlProvider)
                 .statsInterval(1, TimeUnit.SECONDS)
@@ -102,9 +106,11 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
                 .subscribe();
 
         PulsarService pulsarService1 = pulsar;
-        conf.setBrokerServicePort(PortManager.nextFreePort());
-        conf.setWebServicePort(PortManager.nextFreePort());
-        startBroker();
+        conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        conf.setBrokerServicePort(Optional.of(0));
+        conf.setWebServicePort(Optional.of(0));
+        restartBroker();
         PulsarService pulsarService2 = pulsar;
 
         log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
@@ -129,14 +135,13 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
         producer.close();
         consumer.close();
-        client.close();
     }
 
-    class TestServiceUrlProvider implements ServiceUrlProvider {
+    static class TestServiceUrlProvider implements ServiceUrlProvider {
 
         private PulsarClient pulsarClient;
 
-        private String serviceUrl;
+        private final String serviceUrl;
 
         public TestServiceUrlProvider(String serviceUrl) {
             this.serviceUrl = serviceUrl;
@@ -157,7 +162,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
     }
 
-    class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
+    static class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
 
         public AutoChangedServiceUrlProvider(String serviceUrl) {
             super(serviceUrl);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,29 +23,24 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A generic avro record.
  */
 @Slf4j
-class GenericAvroRecord implements GenericRecord {
+public class GenericAvroRecord extends VersionedGenericRecord {
 
     private final org.apache.avro.Schema schema;
-    private final List<Field> fields;
     private final org.apache.avro.generic.GenericRecord record;
 
-    GenericAvroRecord(org.apache.avro.Schema schema,
+    public GenericAvroRecord(byte[] schemaVersion,
+                      org.apache.avro.Schema schema,
                       List<Field> fields,
                       org.apache.avro.generic.GenericRecord record) {
+        super(schemaVersion, fields);
         this.schema = schema;
-        this.fields = fields;
         this.record = record;
-    }
-
-    @Override
-    public List<Field> getFields() {
-        return fields;
     }
 
     @Override
@@ -61,14 +56,23 @@ class GenericAvroRecord implements GenericRecord {
                 .stream()
                 .map(f -> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
-            return new GenericAvroRecord(schema, fields, avroRecord);
+            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } else {
             return value;
         }
     }
 
-    org.apache.avro.generic.GenericRecord getAvroRecord() {
+    public org.apache.avro.generic.GenericRecord getAvroRecord() {
         return record;
     }
 
+    @Override
+    public Object getNativeObject() {
+        return record;
+    }
+
+    @Override
+    public SchemaType getSchemaType() {
+        return SchemaType.AVRO;
+    }
 }

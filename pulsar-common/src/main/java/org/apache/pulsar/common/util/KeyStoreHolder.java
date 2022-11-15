@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,11 @@ import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 
+/**
+ * Holder for the secure key store.
+ *
+ * @see java.security.KeyStore
+ */
 public class KeyStoreHolder {
 
     private KeyStore keyStore = null;

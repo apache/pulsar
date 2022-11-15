@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,64 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import static com.google.common.base.Preconditions.checkNotNull;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
+import io.airlift.log.Logger;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.pulsar.shade.org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.pulsar.shade.org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.Offloaders;
+import org.apache.bookkeeper.mledger.offload.OffloadersCache;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
+/**
+ * Implementation of a cache for the Pulsar connector.
+ */
 public class PulsarConnectorCache {
 
-    private static PulsarConnectorCache instance;
+    private static final Logger log = Logger.get(PulsarConnectorCache.class);
 
+    @VisibleForTesting
+    static PulsarConnectorCache instance;
+
+    private final MetadataStoreExtended metadataStore;
     private final ManagedLedgerFactory managedLedgerFactory;
 
     private final StatsProvider statsProvider;
+    private OrderedScheduler offloaderScheduler;
+    private final LedgerOffloaderStats offloaderStats;
+    private OffloadersCache offloadersCache = new OffloadersCache();
+    private LedgerOffloader defaultOffloader;
+    private Map<NamespaceName, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
+
+    private static final String OFFLOADERS_DIRECTOR = "offloadersDirectory";
+    private static final String MANAGED_LEDGER_OFFLOAD_DRIVER = "managedLedgerOffloadDriver";
+    private static final String MANAGED_LEDGER_OFFLOAD_MAX_THREADS = "managedLedgerOffloadMaxThreads";
+
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
+        this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getMetadataUrl(),
+                MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
                 StatsProvider.class, getClass().getClassLoader());
@@ -40,9 +83,20 @@ public class PulsarConnectorCache {
         // start stats provider
         ClientConfiguration clientConfiguration = new ClientConfiguration();
 
-        pulsarConnectorConfig.getStatsProviderConfigs().forEach((key, value) -> clientConfiguration.setProperty(key, value));
+        pulsarConnectorConfig.getStatsProviderConfigs().forEach(clientConfiguration::setProperty);
 
         this.statsProvider.start(clientConfiguration);
+
+        this.initOffloaderScheduler(pulsarConnectorConfig.getOffloadPolices());
+
+        int period = pulsarConnectorConfig.getManagedLedgerStatsPeriodSeconds();
+        boolean exposeTopicLevelMetrics = pulsarConnectorConfig.isExposeTopicLevelMetricsInPrometheus();
+        this.offloaderStats =
+                LedgerOffloaderStats.create(pulsarConnectorConfig.isExposeManagedLedgerMetricsInPrometheus(),
+                        exposeTopicLevelMetrics, offloaderScheduler, period);
+
+        this.defaultOffloader = initManagedLedgerOffloader(
+                pulsarConnectorConfig.getOffloadPolices(), pulsarConnectorConfig);
     }
 
     public static PulsarConnectorCache getConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
@@ -54,15 +108,89 @@ public class PulsarConnectorCache {
         return instance;
     }
 
-    private static ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
+    private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
+        throws Exception {
+        PulsarMetadataClientDriver.init();
+
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-                .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-                .setAllowShadedLedgerManagerFactoryClass(true)
-                .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
-                .setClientTcpNoDelay(false)
-                .setUseV2WireProtocol(true)
-                .setReadEntryTimeout(60);
-        return new ManagedLedgerFactoryImpl(bkClientConfiguration);
+            .setMetadataServiceUri("metadata-store:" + pulsarConnectorConfig.getMetadataUrl())
+            .setClientTcpNoDelay(false)
+            .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
+            .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())
+            .setStickyReadsEnabled(false)
+            .setReadEntryTimeout(60)
+            .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
+            .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
+            .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads())
+            .setNettyMaxFrameSizeBytes(pulsarConnectorConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
+
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
+        managedLedgerFactoryConfig.setMaxCacheSize(pulsarConnectorConfig.getManagedLedgerCacheSizeMB());
+        managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(
+                pulsarConnectorConfig.getManagedLedgerNumSchedulerThreads());
+        return new ManagedLedgerFactoryImpl(metadataStore, bkClientConfiguration, managedLedgerFactoryConfig);
+    }
+
+    public ManagedLedgerConfig getManagedLedgerConfig(NamespaceName namespaceName, OffloadPoliciesImpl offloadPolicies,
+                                                      PulsarConnectorConfig pulsarConnectorConfig) {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        if (offloadPolicies == null) {
+            managedLedgerConfig.setLedgerOffloader(this.defaultOffloader);
+        } else {
+            LedgerOffloader ledgerOffloader = offloaderMap.compute(namespaceName,
+                    (ns, offloader) -> {
+                        if (offloader != null && Objects.equals(offloader.getOffloadPolicies(), offloadPolicies)) {
+                            return offloader;
+                        } else {
+                            if (offloader != null) {
+                                offloader.close();
+                            }
+                            return initManagedLedgerOffloader(offloadPolicies, pulsarConnectorConfig);
+                        }
+                    });
+            managedLedgerConfig.setLedgerOffloader(ledgerOffloader);
+        }
+        return managedLedgerConfig;
+    }
+
+    private void initOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
+            this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
+                    .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
+                    .name("pulsar-offloader").build();
+    }
+
+    private LedgerOffloader initManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies,
+                                                       PulsarConnectorConfig pulsarConnectorConfig) {
+
+        try {
+            if (StringUtils.isNotBlank(offloadPolicies.getManagedLedgerOffloadDriver())) {
+                checkNotNull(offloadPolicies.getOffloadersDirectory(),
+                        "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
+                        offloadPolicies.getManagedLedgerOffloadDriver());
+                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(offloadPolicies.getOffloadersDirectory(),
+                        pulsarConnectorConfig.getNarExtractionDirectory());
+                LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
+                        offloadPolicies.getManagedLedgerOffloadDriver());
+
+                try {
+                    return offloaderFactory.create(
+                        offloadPolicies,
+                        ImmutableMap.of(
+                            LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                            LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
+                        ),
+                        this.offloaderScheduler, this.offloaderStats);
+                } catch (IOException ioe) {
+                    log.error("Failed to create offloader: ", ioe);
+                    throw new RuntimeException(ioe.getMessage(), ioe.getCause());
+                }
+            } else {
+                log.info("No ledger offloader configured, using NULL instance");
+                return NullLedgerOffloader.INSTANCE;
+            }
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
@@ -73,12 +201,14 @@ public class PulsarConnectorCache {
         return statsProvider;
     }
 
-    public static void shutdown() throws ManagedLedgerException, InterruptedException {
+    public static void shutdown() throws Exception {
         synchronized (PulsarConnectorCache.class) {
             if (instance != null) {
-                instance.managedLedgerFactory.shutdown();
                 instance.statsProvider.stop();
-                instance = null;
+                instance.managedLedgerFactory.shutdown();
+                instance.metadataStore.close();
+                instance.offloaderScheduler.shutdown();
+                instance.offloadersCache.close();
             }
         }
     }

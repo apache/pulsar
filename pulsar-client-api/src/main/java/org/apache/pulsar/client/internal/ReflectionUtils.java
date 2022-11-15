@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.internal;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
@@ -33,6 +33,15 @@ class ReflectionUtils {
         try {
             return s.get();
         } catch (Throwable t) {
+            if (t instanceof InvocationTargetException) {
+                // exception is thrown during invocation
+                Throwable cause = t.getCause();
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException) cause;
+                } else {
+                    throw new RuntimeException(cause);
+                }
+            }
             throw new RuntimeException(t);
         }
     }
@@ -40,8 +49,16 @@ class ReflectionUtils {
     @SuppressWarnings("unchecked")
     static <T> Class<T> newClassInstance(String className) {
         try {
-            return (Class<T>) DefaultImplementation.class.getClassLoader().loadClass(className);
-        } catch (ClassNotFoundException e) {
+            try {
+                // when the API is loaded in the same classloader as the impl
+                return (Class<T>) Class.forName(className, true, DefaultImplementation.class.getClassLoader());
+            } catch (Exception e) {
+                // when the API is loaded in a separate classloader as the impl
+                // the classloader that loaded the impl needs to be a child classloader of the classloader
+                // that loaded the API
+                return (Class<T>) Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+            }
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);
         }
     }

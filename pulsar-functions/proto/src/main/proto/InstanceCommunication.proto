@@ -125,10 +125,10 @@ service InstanceControl {
 }
 
 message Metrics {
-	message InstanceMetrics {
-		string name = 1;
-		int32 instanceId = 2;
-		MetricsData metricsData = 3;
-	}
-	repeated InstanceMetrics metrics = 1;
+    message InstanceMetrics {
+        string name = 1;
+        int32 instanceId = 2;
+        MetricsData metricsData = 3;
+    }
+    repeated InstanceMetrics metrics = 1;
 }

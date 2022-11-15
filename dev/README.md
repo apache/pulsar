@@ -23,7 +23,7 @@
 
 ### Running Integration Tests on macOS
 
-Currently all the integration tests are docker based and written using arquillian framework. 
+Currently all the integration tests are docker based and written using testcontainers framework.
 Due to the networking issues, the integration tests can only be run on linux environment.
 For people who is using macOS as their development environment, you can use [Vagrant](https://www.vagrantup.com)
 to launch a linux virtual machine and run the integration tests there.
@@ -49,11 +49,8 @@ to launch a linux virtual machine and run the integration tests there.
    If that happens, follow the below instructions:
 
    ```
-   # ssh to the dev vm
-   $ vagrant ssh
-
-   [vagrant@bogon pulsar]$ sudo yum update -y
-   [vagrant@bogon pulsar]$ exit  
+    $ vagrant plugin install vagrant-vbguest
+    $ vagrant destroy && vagrant up
 
    # reload the vm
    $ vagrant reload

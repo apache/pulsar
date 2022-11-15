@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,21 +19,18 @@
 package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
-import lombok.EqualsAndHashCode;
-
 /**
- * Producer's configuration
+ * Producer's configuration.
  *
  * @deprecated use {@link PulsarClient#newProducer()} to construct and configure a {@link Producer} instance
  */
@@ -101,8 +98,7 @@ public class ProducerConfiguration implements Serializable {
      *            the time unit of the {@code sendTimeout}
      */
     public ProducerConfiguration setSendTimeout(int sendTimeout, TimeUnit unit) {
-        checkArgument(sendTimeout >= 0);
-        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
+        conf.setSendTimeoutMs(sendTimeout, unit);
         return this;
     }
 
@@ -123,7 +119,6 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setMaxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0);
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -154,7 +149,6 @@ public class ProducerConfiguration implements Serializable {
      * @param maxPendingMessagesAcrossPartitions
      */
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= conf.getMaxPendingMessages());
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
     }
 
@@ -191,7 +185,7 @@ public class ProducerConfiguration implements Serializable {
      * @see MessageRoutingMode
      */
     public ProducerConfiguration setMessageRoutingMode(MessageRoutingMode messageRouteMode) {
-        checkNotNull(messageRouteMode);
+        Objects.requireNonNull(messageRouteMode);
         conf.setMessageRoutingMode(
                 org.apache.pulsar.client.api.MessageRoutingMode.valueOf(messageRouteMode.toString()));
         return this;
@@ -236,13 +230,13 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Set a custom message routing policy by passing an implementation of MessageRouter
+     * Set a custom message routing policy by passing an implementation of MessageRouter.
      *
      *
      * @param messageRouter
      */
     public ProducerConfiguration setMessageRouter(MessageRouter messageRouter) {
-        checkNotNull(messageRouter);
+        Objects.requireNonNull(messageRouter);
         setMessageRoutingMode(MessageRoutingMode.CustomPartition);
         conf.setCustomMessageRouter(messageRouter);
         return this;
@@ -289,7 +283,7 @@ public class ProducerConfiguration implements Serializable {
      * messages will be compressed at the batch level, leading to a much better compression ratio for similar headers or
      * contents.
      *
-     * When enabled default batch delay is set to 10 ms and default batch size is 1000 messages
+     * When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
      *
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      * @since 1.0.36 <br>
@@ -310,13 +304,13 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Sets a {@link CryptoKeyReader}
+     * Sets a {@link CryptoKeyReader}.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
     public ProducerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
-        checkNotNull(cryptoKeyReader);
+        Objects.requireNonNull(cryptoKeyReader);
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
@@ -332,7 +326,7 @@ public class ProducerConfiguration implements Serializable {
 
     /**
      *
-     * Returns true if encryption keys are added
+     * Returns true if encryption keys are added.
      *
      */
     public boolean isEncryptionEnabled() {
@@ -357,7 +351,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Sets the ProducerCryptoFailureAction to the value specified
+     * Sets the ProducerCryptoFailureAction to the value specified.
      *
      * @param action
      *            The producer action
@@ -383,7 +377,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
+     * Set the time period within which the messages sent will be batched <i>default: 1ms</i> if batch messages are
      * enabled. If set to a non zero value, messages will be queued until this time interval or until
      *
      * @see ProducerConfiguration#batchingMaxMessages threshold is reached; all messages will be published as a single
@@ -399,9 +393,7 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBatchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
-        long delayInMs = timeUnit.toMillis(batchDelay);
-        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
-        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
+        conf.setBatchingMaxPublishDelayMicros(batchDelay, timeUnit);
         return this;
     }
 
@@ -425,7 +417,6 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBatchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
-        checkArgument(batchMessagesMaxMessagesPerBatch > 0);
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
@@ -463,7 +454,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Add all the properties in the provided map
+     * Add all the properties in the provided map.
      *
      * @param properties
      * @return

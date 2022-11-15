@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -37,6 +37,21 @@ INT_KEYS = [
     'instanceLivenessCheckFreqMs'
 ]
 
+SET_KEYS = [
+    'brokerInterceptors',
+    'messagingProtocols',
+    'tlsProtocols',
+    'tlsCiphers',
+    'authenticationProviders',
+    'superUserRoles',
+    'proxyRoles',
+    'schemaRegistryCompatibilityCheckers',
+    'brokerClientTlsCiphers',
+    'brokerClientTlsProtocols',
+    'webServiceTlsCiphers',
+    'webServiceTlsProtocols',
+]
+
 PF_ENV_PREFIX = 'PF_'
 
 if len(sys.argv) < 2:
@@ -66,6 +81,8 @@ for conf_filename in conf_files:
             if i == (len(key_parts) - 1):
                 if key_part in INT_KEYS:
                     conf_to_modify[key_part] = int(v)
+                elif key_part in SET_KEYS:
+                    conf_to_modify[key_part] = v.split(',')
                 else:
                     conf_to_modify[key_part] = v
                 modified = True
@@ -75,7 +92,20 @@ for conf_filename in conf_files:
                 conf_to_modify = conf_to_modify[key_part]
                 modified = True
             i += 1
+
+    containerFactory = os.environ.get('PF_containerFactory', None)
+    conf.pop('containerFactory', None)
+    if containerFactory == 'k8s':
+        conf.pop('processContainerFactory', None)
+        conf.pop('threadContainerFactory', None)
+    elif containerFactory == 'process':
+        conf.pop('kubernetesContainerFactory', None)
+        conf.pop('threadContainerFactory', None)
+    elif containerFactory == 'thread':
+        conf.pop('kubernetesContainerFactory', None)
+        conf.pop('processContainerFactory', None)
+
     # Store back the updated config in the same file
-    f = open(conf_filename , 'w')
+    f = open(conf_filename, 'w')
     yaml.dump(conf, f, default_flow_style=False)
     f.close()

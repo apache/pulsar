@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,60 +18,80 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
-import org.apache.pulsar.common.policies.data.ErrorData;
 
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
 
-    public BookiesImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminBookies = web.path("/admin/v2/bookies");
     }
 
     @Override
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
-        try {
-            return request(adminBookies.path("racks-info")).get(BookiesRackConfiguration.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(this::getBookiesRackInfoAsync);
+    }
+
+    @Override
+    public CompletableFuture<BookiesClusterInfo> getBookiesAsync() {
+        WebTarget path = adminBookies.path("all");
+        return asyncGetRequest(path, new FutureCallback<BookiesClusterInfo>(){});
+    }
+
+    @Override
+    public BookiesClusterInfo getBookies() throws PulsarAdminException {
+        return sync(this::getBookiesAsync);
+    }
+
+    @Override
+    public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
+        WebTarget path = adminBookies.path("racks-info");
+        return asyncGetRequest(path, new FutureCallback<BookiesRackConfiguration>(){});
     }
 
     @Override
     public BookieInfo getBookieRackInfo(String bookieAddress) throws PulsarAdminException {
-        try {
-            return request(adminBookies.path("racks-info").path(bookieAddress)).get(BookieInfo.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getBookieRackInfoAsync(bookieAddress));
+    }
+
+    @Override
+    public CompletableFuture<BookieInfo> getBookieRackInfoAsync(String bookieAddress) {
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
+        return asyncGetRequest(path, new FutureCallback<BookieInfo>(){});
     }
 
     @Override
     public void deleteBookieRackInfo(String bookieAddress) throws PulsarAdminException {
-        try {
-            request(adminBookies.path("racks-info").path(bookieAddress)).delete(ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        sync(() -> deleteBookieRackInfoAsync(bookieAddress));
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteBookieRackInfoAsync(String bookieAddress) {
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
+        return asyncDeleteRequest(path);
     }
 
     @Override
     public void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo)
             throws PulsarAdminException {
-        try {
-            request(adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group))
-                    .post(Entity.entity(bookieInfo, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        sync(() -> updateBookieRackInfoAsync(bookieAddress, group, bookieInfo));
     }
+
+    @Override
+    public CompletableFuture<Void> updateBookieRackInfoAsync(
+            String bookieAddress, String group, BookieInfo bookieInfo) {
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
+        return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
+    }
+
 }

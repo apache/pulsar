@@ -1,7 +1,7 @@
 ---
 id: reference-terminology
 title: Pulsar Terminology
-sidebar_label: Terminology
+sidebar_label: "Terminology"
 ---
 
 Here is a glossary of terms related to Apache Pulsar:
@@ -41,12 +41,12 @@ An administrative unit for allocating capacity and enforcing an authentication/a
 
 #### Subscription
 
-A lease on a [topic](#topic) established by a group of [consumers](#consumer). Pulsar has three subscription
-modes (exclusive, shared, and failover).
+A lease on a [topic](#topic) established by a group of [consumers](#consumer). Pulsar has four subscription
+modes (exclusive, shared, failover and key_shared).
 
 #### Pub-Sub
 
-A messaging pattern in which [producer](#producer) proccesses publish messages on [topics](#topic) that
+A messaging pattern in which [producer](#producer) processes publish messages on [topics](#topic) that
 are then consumed (processed) by [consumer](#consumer) processes.
 
 #### Producer
@@ -73,8 +73,15 @@ The subscription position for a [consumer](#consumer).
 #### Acknowledgment (ack)
 
 A message sent to a Pulsar broker by a [consumer](#consumer) that a message has been successfully processed.
-An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system;
-if no acknowledgement, then the message will be retained until it's processed.
+An acknowledgment (ack) is Pulsar's way of knowing that the message can be deleted from the system;
+if no acknowledgment, then the message will be retained until it's processed.
+
+#### Negative Acknowledgment (nack)
+
+When an application fails to process a particular message, it can send a "negative ack" to Pulsar
+to signal that the message should be replayed at a later timer. (By default, failed messages are
+replayed after a 1-minute delay). Be aware that negative acknowledgment on ordered subscription types,
+such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive to consumers out of the original order.
 
 #### Unacknowledged
 
@@ -82,13 +89,22 @@ A message that has been delivered to a consumer for processing but not yet confi
 
 #### Retention Policy
 
-Size and/or time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
-that have already been [acknowledged](#acknowledgement-ack).
+Size and time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
+that have already been [acknowledged](#acknowledgment-ack).
 
 #### Multi-Tenancy
 
 The ability to isolate [namespaces](#namespace), specify quotas, and configure authentication and authorization
 on a per-[tenant](#tenant) basis.
+
+#### Failure Domain
+
+A logical domain under a Pulsar cluster. Each logical domain contains a pre-configured list of brokers. 
+
+#### Anti-affinity Namespaces
+
+A group of namespaces that have anti-affinity to each other.
+
 
 ### Architecture
 
@@ -137,7 +153,7 @@ handles all message transfers. Pulsar clusters typically consist of multiple bro
 
 #### Dispatcher
 
-An asynchronous TCP server used for all data transfers in-and-out a Pulsar [broker](#broker). The Pulsar
+An asynchronous TCP server used for all data transfers in and out of a Pulsar [broker](#broker)](#broker). The Pulsar
 dispatcher uses a custom binary protocol for all communications.
 
 ### Storage
@@ -158,4 +174,3 @@ An append-only data structure in [BookKeeper](#bookkeeper) that is used to persi
 ### Functions
 
 Pulsar Functions are lightweight functions that can consume messages from Pulsar topics, apply custom processing logic, and, if desired, publish results to topics.
-

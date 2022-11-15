@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,45 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
- * Types of subscription supported by Pulsar
- *
- *
+ * Types of subscription supported by Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SubscriptionType {
     /**
-     * There can be only 1 consumer on the same topic with the same subscription name
+     * There can be only 1 consumer on the same topic with the same subscription name.
      */
     Exclusive,
 
     /**
-     * Multiple consumer will be able to use the same subscription name and the messages will be dispatched according to
-     * a round-robin rotation between the connected consumers
+     * Multiple consumer will be able to use the same subscription name and the messages will be dispatched
+     * according to a round-robin rotation between the connected consumers.
+     *
+     * <p>In this mode, the consumption order is not guaranteed.
      */
     Shared,
 
     /**
      * Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
      * If that consumer disconnects, one of the other connected consumers will start receiving messages.
+     *
+     * <p>In failover mode, the consumption ordering is guaranteed.
+     *
+     * <p>In case of partitioned topics, the ordering is guaranteed on a per-partition basis.
+     * The partitions assignments will be split across the available consumers. On each partition,
+     * at most one consumer will be active at a given point in time.
      */
-    Failover
+    Failover,
+
+    /**
+     * Multiple consumer will be able to use the same subscription and all messages with the same key
+     * will be dispatched to only one consumer.
+     *
+     * <p>Use ordering_key to overwrite the message key for message ordering.
+     */
+    Key_Shared
 }

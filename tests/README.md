@@ -26,7 +26,7 @@ The integration tests use a framework called [Test Containers](https://www.testc
 The tests require that docker is installed and running. Tests will only run if the integrationTests system property is defined. To run the tests:
 ```shell
 # in the top level directory
-pulsar/ $ mvn install -DskipTests -Pdocker # builds the docker images
+pulsar/ $ mvn install -DskipTests -Pdocker,-main # builds the docker images
 ...
 pulsar/ $ mvn -f tests/pom.xml test -DintegrationTests
 ```

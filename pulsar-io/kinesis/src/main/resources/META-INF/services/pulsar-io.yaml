@@ -18,5 +18,8 @@
 #
 
 name: kinesis
-description: Kinesis sink connector
+description: Kinesis connectors
 sinkClass: org.apache.pulsar.io.kinesis.KinesisSink
+sourceClass: org.apache.pulsar.io.kinesis.KinesisSource
+sourceConfigClass: org.apache.pulsar.io.kinesis.KinesisSourceConfig
+sinkConfigClass: org.apache.pulsar.io.kinesis.KinesisSinkConfig

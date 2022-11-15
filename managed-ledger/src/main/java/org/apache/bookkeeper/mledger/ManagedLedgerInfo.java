@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,15 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedLedgerInfo {
     /** Z-Node version. */
-    public int version;
+    public long version;
     public String creationDate;
     public String modificationDate;
 
@@ -33,16 +37,20 @@ public class ManagedLedgerInfo {
 
     public Map<String, CursorInfo> cursors;
 
+    public Map<String, String> properties;
+
     public static class LedgerInfo {
         public long ledgerId;
         public Long entries;
         public Long size;
         public Long timestamp;
+        public boolean isOffloaded;
+        public String offloadedContextUuid;
     }
 
     public static class CursorInfo {
         /** Z-Node version. */
-        public int version;
+        public long version;
         public String creationDate;
         public String modificationDate;
 

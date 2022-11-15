@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,18 +19,16 @@
 package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
-import java.nio.charset.Charset;
-
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
-import org.apache.pulsar.utils.StatsOutputStream;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
+
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+@Test(groups = "utils")
 public class StatsOutputStreamTest {
 
     private ByteBuf buf;
@@ -147,80 +145,8 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "[{\"a\":1},{\"b\":2}]");
     }
 
-    @SuppressWarnings("unchecked")
-    @Test
-    public void testCopyOnWriteArrayList() {
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.add(1);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.set(0, 0);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.add(1, 1);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.remove(1);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.remove("Object");
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.addIfAbsent(1);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.removeAll(CopyOnWriteArrayList.EMPTY_LIST);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.addAllAbsent(CopyOnWriteArrayList.EMPTY_LIST);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.addAll(CopyOnWriteArrayList.EMPTY_LIST);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.removeIf(null);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-        try {
-            CopyOnWriteArrayList.EMPTY_LIST.replaceAll(null);
-            fail();
-        } catch (UnsupportedOperationException e) {
-            // Ok
-        }
-
-    }
-
     public String str() {
-        String s = buf.toString(Charset.forName("utf-8"));
+        String s = buf.toString(StandardCharsets.UTF_8);
         reset();
         return s;
     }

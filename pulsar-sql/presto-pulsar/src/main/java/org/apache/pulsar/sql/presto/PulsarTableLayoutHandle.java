@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorTableLayoutHandle;
-import com.facebook.presto.spi.predicate.TupleDomain;
+import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorTableLayoutHandle;
+import io.trino.spi.predicate.TupleDomain;
 import java.util.Objects;
 
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This class handles the table layout.
+ */
 public class PulsarTableLayoutHandle implements ConnectorTableLayoutHandle {
     private final PulsarTableHandle table;
     private final TupleDomain<ColumnHandle> tupleDomain;
@@ -46,14 +47,12 @@ public class PulsarTableLayoutHandle implements ConnectorTableLayoutHandle {
     }
 
     @JsonProperty
-    public TupleDomain<ColumnHandle> getTupleDomain()
-    {
+    public TupleDomain<ColumnHandle> getTupleDomain() {
         return tupleDomain;
     }
 
     @Override
-    public boolean equals(Object o)
-    {
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -61,19 +60,17 @@ public class PulsarTableLayoutHandle implements ConnectorTableLayoutHandle {
             return false;
         }
         PulsarTableLayoutHandle that = (PulsarTableLayoutHandle) o;
-        return Objects.equals(table, that.table) &&
-                Objects.equals(tupleDomain, that.tupleDomain);
+        return Objects.equals(table, that.table)
+            && Objects.equals(tupleDomain, that.tupleDomain);
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         return Objects.hash(table, tupleDomain);
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return table.toString();
     }
 }

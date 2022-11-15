@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,11 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
+import javax.naming.AuthenticationException;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
- * Interface for accessing data which are used in variety of authentication schemes on server side
+ * Interface for accessing data which are used in variety of authentication schemes on server side.
  */
 public interface AuthenticationDataSource {
     /*
@@ -31,7 +33,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from TLS are available.
-     * 
+     *
      * @return true if this authentication data contain data from TLS
      */
     default boolean hasDataFromTls() {
@@ -39,7 +41,7 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return a client certificate chain, or null if the data are not available
      */
     default Certificate[] getTlsCertificates() {
@@ -52,7 +54,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from HTTP are available.
-     * 
+     *
      * @return true if this authentication data contain data from HTTP
      */
     default boolean hasDataFromHttp() {
@@ -60,15 +62,15 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
-     * @return a authentication scheme, or <code>null<c/ode> if the request is not be authenticated
+     *
+     * @return a authentication scheme, or <code>null</code> if the request is not be authenticated.
      */
     default String getHttpAuthType() {
         return null;
     }
 
     /**
-     * 
+     *
      * @return a <code>String</code> containing the value of the specified header, or <code>null</code> if the header
      *         does not exist.
      */
@@ -82,7 +84,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from Pulsar protocol are available.
-     * 
+     *
      * @return true if this authentication data contain data from Pulsar protocol
      */
     default boolean hasDataFromCommand() {
@@ -90,11 +92,22 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return authentication data which is stored in a command
      */
     default String getCommandData() {
         return null;
+    }
+
+    /**
+     * Evaluate and challenge the data that passed in, and return processed data back.
+     * It is used for mutual authentication like SASL.
+     * NOTE: this method is not called by the Pulsar authentication framework.
+     * @deprecated use {@link AuthenticationProvider} or {@link AuthenticationState}.
+     */
+    @Deprecated
+    default AuthData authenticate(AuthData data) throws AuthenticationException {
+        throw new AuthenticationException("Not supported");
     }
 
     /*
@@ -103,7 +116,7 @@ public interface AuthenticationDataSource {
 
     /**
      * Check if data from peer are available.
-     * 
+     *
      * @return true if this authentication data contain data from peer
      */
     default boolean hasDataFromPeer() {
@@ -111,10 +124,33 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * 
+     *
      * @return a <code>String</code> containing the IP address of the client
      */
     default SocketAddress getPeerAddress() {
         return null;
     }
+
+    /**
+     * Check if subscription is defined available.
+     *
+     * @return true if this authentication data contain subscription
+     */
+    default boolean hasSubscription() {
+        return false;
+    }
+
+    /**
+     * Subscription name can be necessary for consumption.
+     *
+     * @return a <code>String</code> containing the subscription name
+     */
+    default String getSubscription() {
+        return null;
+    }
+
+    /**
+     * Subscription name can be necessary for consumption.
+     */
+    default void setSubscription(String subscription) { };
 }
