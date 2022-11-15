@@ -45,6 +45,9 @@ public class AuthenticationUtil {
             for (String p : params) {
                 // The value could be a file path, which could contain a colon like "C:\\path\\to\\file" on Windows.
                 int index = p.indexOf(':');
+                if (index < 0) {
+                    continue;
+                }
                 String key = p.substring(0, index);
                 if (!key.isEmpty()) {
                     authParams.put(key, p.substring(index + 1));
