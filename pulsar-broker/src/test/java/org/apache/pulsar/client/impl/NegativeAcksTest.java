@@ -22,7 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -438,5 +440,53 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         }
         Assert.assertEquals(count, 9);
         Assert.assertEquals(0, datas.size());
+    }
+
+    @Test(timeOut = 60000)
+    public void testRedeliverUnacknowledgedMessagesCauseDeadlock() throws Exception {
+        final String topic = "my-topic";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .blockIfQueueFull(true)
+                .create();
+
+        producer.sendAsync(1);
+        producer.flush();
+        List<Integer> values = new ArrayList<>();
+        CountDownLatch consumerLatch = new CountDownLatch(1);
+
+        consumer.receiveAsync()
+                .thenCompose(m -> {
+                    log.info("received one msg : {}", m.getMessageId());
+                    values.add(m.getValue());
+                    return consumer.acknowledgeCumulativeAsync(m);
+                })
+                .thenAccept(ignore -> {
+                    try {
+                        consumer.redeliverUnacknowledgedMessages();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .whenComplete((r, e) -> {
+                    consumerLatch.countDown();
+                });
+        consumerLatch.await();
+        Assert.assertEquals(values.size(), 1);
     }
 }
