@@ -54,7 +54,7 @@ This diagram illustrates how Pulsar schema works on the Producer side.
 2. The producer requests to connect to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
 3. The broker looks up the schema registry to check if it is a registered schema. 
-   * If the schema is registered, the broker skips the [schema validation](schema-understand.md#schema-validation) and returns the schema version to the producer.
+   * If the schema is registered, the broker returns the schema version to the producer.
    * Otherwise, go to step4.
 
 4. The broker checks whether the schema can be auto-updated. 
@@ -75,7 +75,7 @@ This diagram illustrates how schema works on the consumer side.
 
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
 
-3. The broker checks if the topic has one of the objects (schema, data, local producer, or local consumer).
+3. The broker checks if the topic is in use (has at least one of the objects: schema, data, active producer or consumer).
    * If a topic has at least one of the above objects, go to step5.
    * Otherwise, go to step4.
 
@@ -127,6 +127,6 @@ producer.send(user);
 
 ## What's next?
 
-* [Understand basic concepts](schema-understand.md)
-* [Get started](schema-get-started.md)
+* [Understand schema concepts](schema-understand.md)
+* [Get started with schema](schema-get-started.md)
 * [Manage schema](admin-api-schemas.md)

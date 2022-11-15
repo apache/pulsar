@@ -114,6 +114,16 @@ Auto schema contains two categories:
 * `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#construct-an-auto_produce-schema).
 * `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#construct-an-auto_consume-schema).
 
+## Schema validation
+
+Schema validation enables brokers to reject producers/consumers without a schema.
+
+By default, schema validation is only **disabled** (`isSchemaValidationEnforced=false`) for producers, which means:
+* A producer without a schema can produce any messages to a topic with schemas, which may result in producing trash data to the topic. 
+* Clients that don’t support schema are allowed to produce messages to a topic with schemas.
+
+For how to enable/enforce schema validation, see [Manage schema validation](schema-manage.md#manage-schema-validation).
+
 ## Schema evolution
 
 Schemas store the details of attributes and types. To satisfy new business needs, schemas undergo evolution over time with [versioning](#schema-versioning). 
@@ -125,9 +135,8 @@ Schema evolution only applies to Avro, JSON, and Protobuf schemas.
 :::
 
 Schema evolution may impact existing consumers. The following control measures have been designed to serve schema evolution and ensure the downstream consumers can seamlessly handle schema evolution:
-* [schema compatibility check](#schema-compatibility-check)
-* [schema `AutoUpdate`](#schema-autoupdate)
-* [schema validation](#schema-validation)
+* [Schema compatibility check](#schema-compatibility-check)
+* [Schema `AutoUpdate`](#schema-autoupdate)
 
 ### Schema versioning
 
@@ -158,7 +167,9 @@ The table below outlines the possible scenarios when this connection attempt occ
 
 ### Schema compatibility check
 
-When receiving a `SchemaInfo` from producers/consumers, brokers recognize the schema type and deploy the schema compatibility checker ([`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java)) for that schema type to check if the `SchemaInfo` is compatible with the schema of the topic by applying the configured compatibility check strategy. 
+The purpose of schema compatibility check is to ensure the existing consumers can process the introduced messages.
+
+When receiving a `SchemaInfo` from producers, brokers recognize the schema type and deploy the schema compatibility checker ([`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java)) for that schema type to check if the `SchemaInfo` is compatible with the schema of the topic by applying the configured compatibility check strategy. 
 
 The default value of `schemaRegistryCompatibilityCheckers` in the `conf/broker.conf` file is as follows.
    
@@ -175,7 +186,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 |  Compatibility check strategy  |   Definition  |   Changes allowed  |   Check against which schema  |
 | --- | --- | --- | --- |
 |  `ALWAYS_COMPATIBLE`  |   Disable schema compatibility check.  |   All changes are allowed  |   All previous versions  |
-|  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution, that is, any schema change is rejected.  |   All changes are disabled  |   N/A  | 
+|  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution, that is, any schema change is rejected.  |   No change is allowed  |   N/A  | 
 |  `BACKWARD`  |   Consumers using schema V3 can process data written by producers using the **last schema version** V2.  |   <li>Add optional fields </li><li>Delete fields </li> |   Latest version  |
 |  `BACKWARD_TRANSITIVE`  |   Consumers using schema V3 can process data written by producers using **all previous schema versions** V2 and V1.  |   <li>Add optional fields </li><li>Delete fields </li> |   All previous versions  |
 |  `FORWARD`  |   Consumers using the **last schema version** V2 can process data written by producers using a new schema V3, even though they may not be able to use the full capabilities of the new schema.  |   <li>Add fields </li><li>Delete optional fields </li> |   Latest version  |
@@ -192,95 +203,75 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 
 :::
 
-#### Example of `ALWAYS_COMPATIBLE`
+#### `ALWAYS_COMPATIBLE` example
   
-  In some situations, an application needs to store events of several different types in the same Pulsar topic. 
+In some situations, an application needs to store events of several different types in the same Pulsar topic. In particular, when developing a data model in an `Event Sourcing` style, you might have several kinds of events that affect the state of an entity. 
 
-  In particular, when developing a data model in an `Event Sourcing` style, you might have several kinds of events that affect the state of an entity. 
-
-  For example, for a user entity, there are `userCreated`, `userAddressChanged`, and `userEnquiryReceived` events. The application requires that those events are always read in the same order. 
+  For example, there are `userCreated`, `userAddressChanged`, and `userEnquiryReceived` events for a user entity. The application requires that those events are always read in the same order. 
 
   Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events to co-exist on the same topic.
 
-#### Example of `ALWAYS_INCOMPATIBLE`
+#### `ALWAYS_INCOMPATIBLE` example
 
-  Sometimes we also make incompatible changes. For example, you are modifying a field type from `string` to `int`.
+When performing incompatible changes, for example, you are modifying a field type from `string` to `int`, and you need to:
+* Upgrade all producers and consumers to the new schema versions at the same time.
+* Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.
 
-  In this case, you need to:
-
-  * Upgrade all producers and consumers to the new schema versions at the same time.
-
-  * Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.
-
-#### Example of `BACKWARD` and `BACKWARD_TRANSITIVE`
+#### `BACKWARD` example
   
-* Example 1
-  
-  Remove a field.
-  
-  A consumer constructed to process events without one field can process events written with the old schema containing the field, and the consumer will ignore that field.
+Suppose you want to load all Pulsar data into a Hive data warehouse and run SQL queries against the data. The same SQL queries must continue to work even if the data is changed. With the `BACKWARD` strategy, the consumer constructed to process events containing one field can process events written with the old schema without the field.
 
-* Example 2
-  
-  You want to load all Pulsar data into a Hive data warehouse and run SQL queries against the data. 
+![schema compatibility check strategy - BACKWARD](/assets/schema-compatibility-backward.svg)
 
-  The same SQL queries must continue to work even if the data is changed. To support it, you can evolve the schemas using the `BACKWARD` strategy.
+#### `BACKWARD_TRANSITIVE` example
 
-#### Example of `FORWARD` and `FORWARD_TRANSITIVE`
+`BACKWARD_TRANSITIVE` is an expanded strategy upon `BACKWARD`. Backwards transitive compatible changes allow a consumer that is using a newer schema version to still be able to process messages that are written using any of the previous versions.
 
-* Example 1
-  
-  Add a field.
-  
-  In most data formats, consumers written to process events without new fields can continue doing so even when they receive new events containing new fields.
+![schema compatibility check strategy - BACKWARD_TRANSITIVE](/assets/schema-compatibility-backward-transitive.svg)
 
-* Example 2
-  
-  If a consumer has an application logic tied to a full version of a schema, the application logic may not be updated instantly when the schema evolves.
-  
-  In this case, you need to project data with a new schema onto an old schema that the application understands. 
-  
-  Consequently, you can evolve the schemas using the `FORWARD` strategy to ensure that the old schema can process data encoded with the new schema.
+#### `FORWARD` example
 
-#### Example of `FULL` and `FULL_TRANSITIVE`
+If a consumer has an application logic tied to a full version of a schema, the application logic may not be updated instantly when the schema evolves. In this case, you need to project data with a new schema onto an old schema that the application understands. With the `FORWARD` strategy, consumers written to process events without new fields can continue doing so even when they receive new events containing new fields.
 
-In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
+![schema compatibility check strategy - FORWARD](/assets/schema-compatibility-forward.svg)
+
+#### `FORWARD_TRANSITIVE` example
+
+`FORWARD_TRANSITIVE` is an expanded strategy upon `FORWARD`. Forward transitive compatible changes allow a consumer that is using an older version of the schema to still be able to process messages that are written using any of the newer versions.
+
+![schema compatibility check strategy - FORWARD_TRANSITIVE](/assets/schema-compatibility-forward-transitive.svg)
+
+#### `FULL` and `FULL_TRANSITIVE` example
+
+In some data formats, such as JSON, there are no full-compatible changes. Every modification is either only forward or only backward-compatible.
+
+While in other data formats, like Avro or Protobuf, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change. To support this type of use case, you can use either the `FULL` or `FULL_TRANSITIVE` schema compatibility strategy.
 
 ### Schema AutoUpdate
 
 By default, schema `AutoUpdate` is enabled. When a schema passes the schema compatibility check, the producer automatically updates this schema to the topic it produces. 
 
-#### AutoUpdate on producer side
+#### Producer side
 
 For a producer, the `AutoUpdate` happens in the following cases:
 
-* If a **topic doesn’t have a schema** (meaning the data is in raw bytes), Pulsar registers a schema automatically.
+* If a **topic doesn’t have a schema** (meaning the data is in raw bytes), Pulsar registers the schema automatically.
 
-* If a **topic has a schema** and the **producer doesn’t carry a schema** (meaning it produces raw bytes):
+* If a **topic has a schema** and the **producer doesn’t carry any schema** (meaning it produces raw bytes):
 
-    * If schema validation is **disabled** (`schemaValidationEnforced`=`false`) in the namespace that the topic belongs to, the producer is allowed to connect to the topic and produce data. 
+    * If [schema validation](#schema-validation) is **disabled** (`schemaValidationEnforced`=`false`) in the namespace that the topic belongs to, the producer is allowed to connect to the topic and produce data. 
   
     * Otherwise, the producer is rejected.
 
   * If a **topic has a schema** and  the **producer carries a schema**, see [How schema works on producer side](schema-overview.md#producer-side) for more information.
 
-#### AutoUpdate on consumer side
+#### Consumer side
 
 For a consumer, the `AutoUpdate` happens in the following cases:
 
 * If a consumer connects to a topic **without a schema** (meaning it consumes raw bytes), the consumer can connect to the topic successfully without doing any compatibility check.
 
 * If a consumer connects to a topic **with a schema**, see [How schema works on consumer side](schema-overview.md#consumer-side) for more information.
-
-### Schema validation
-
-Schema validation is a mechanism to check whether producers/consumers carry a schema when schema is enforced on topics. If producers/consumers don’t carry a schema, brokers reject the connection request.
-
-By default, schema validation is only **disabled** for producers, which means:
-* A producer without a schema can produce any messages to a topic with schemas, which may result in producing trash data to the topic. 
-* Clients that don’t support schema are allowed to produce messages to a topic with schemas.
-
-For how to enforce schema validation, see [Manage schema validation](schema-manage.md#manage-schema-validation).
 
 ### Order of upgrading clients
 
