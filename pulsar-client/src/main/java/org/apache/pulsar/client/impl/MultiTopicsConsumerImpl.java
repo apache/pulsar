@@ -265,7 +265,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback
-            messages.forEach(msg -> messageReceived(consumer, msg));
+            messages.forEach(msg -> {
+                if (isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                    messageReceived(consumer, msg);
+                }
+            });
 
             int size = incomingMessages.size();
             if (size >= maxReceiverQueueSize
