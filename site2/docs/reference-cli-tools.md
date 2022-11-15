@@ -14,9 +14,9 @@ Pulsar offers several command-line tools that you can use for managing Pulsar in
 * `pulsar-shell`
 * `bookkeeper`
 
-::: tip
+:::tip
 
-For the latest and complete information about command-line tools, including commands, flags, descriptions, and more information, see [Pulsar Reference](https://pulsar.apache.org/reference).
+For the latest and complete information about command-line tools, including commands, flags, descriptions, and more information, see [Pulsar Reference](/reference).
 
 :::
 
