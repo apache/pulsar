@@ -153,38 +153,38 @@ The Pulsar Helm chart is designed to enable controlled upgrades. So it can confi
 images:
   zookeeper:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: @pulsar:version@
     pullPolicy: IfNotPresent
   bookie:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: @pulsar:version@
     pullPolicy: IfNotPresent
   autorecovery:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: @pulsar:version@
     pullPolicy: IfNotPresent
   broker:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: @pulsar:version@
     pullPolicy: IfNotPresent
   proxy:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: @pulsar:version@
     pullPolicy: IfNotPresent
   functions:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: @pulsar:version@
   prometheus:
     repository: prom/prometheus
-    tag: v1.6.3
+    tag: v2.17.2
     pullPolicy: IfNotPresent
   grafana:
     repository: streamnative/apache-pulsar-grafana-dashboard-k8s
-    tag: 0.0.4
+    tag: 0.0.16
     pullPolicy: IfNotPresent
   pulsar_manager:
     repository: apachepulsar/pulsar-manager
-    tag: v0.1.0
+    tag: v0.3.0
     pullPolicy: IfNotPresent
     hasCommand: false
 
