@@ -429,12 +429,14 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         final String subName = "my-sub";
         admin.topics().createPartitionedTopic(topic, 5);
         final int messageNumber = 50;
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)

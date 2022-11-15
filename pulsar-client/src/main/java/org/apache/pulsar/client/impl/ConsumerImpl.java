@@ -460,10 +460,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    boolean isValidConsumerEpoch(Message<T> message) {
-        return isValidConsumerEpoch((MessageImpl<T>) message);
-    }
-
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
@@ -1920,13 +1916,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + "so don't need to send redeliver command to broker", this);
             }
         }
-    }
-
-    public int clearIncomingMessagesAndGetMessageNumber() {
-        int messagesNumber = incomingMessages.size();
-        clearIncomingMessages();
-        unAckedMessageTracker.clear();
-        return messagesNumber;
     }
 
     @Override
