@@ -1113,6 +1113,7 @@ public class ClientCnx extends PulsarHandler {
                 Commands.serializeWithSize(commandWatchTopicListClose), requestId, RequestType.Command, true);
     }
 
+    @Override
     protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
         checkArgument(state == State.Ready);
 
@@ -1131,6 +1132,7 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    @Override
     protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
         checkArgument(state == State.Ready);
 

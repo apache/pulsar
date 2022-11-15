@@ -71,14 +71,15 @@ public class Futures {
     }
 
     public static <T> CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op,
-                                                            Class<? extends Exception> needRetryExceptionClass) {
+                                                            Class<? extends Exception> needRetryExceptionClass,
+                                                            int maxRetryTimes) {
         CompletableFuture<T> resultFuture = new CompletableFuture<>();
         op.get().whenComplete((res, ex) -> {
             if (ex == null) {
                 resultFuture.complete(res);
             } else {
-                if (needRetryExceptionClass.isAssignableFrom(ex.getClass())) {
-                    executeWithRetry(op, needRetryExceptionClass).whenComplete((res2, ex2) -> {
+                if (needRetryExceptionClass.isAssignableFrom(ex.getClass()) && maxRetryTimes > 0) {
+                    executeWithRetry(op, needRetryExceptionClass, maxRetryTimes - 1).whenComplete((res2, ex2) -> {
                         if (ex2 == null) {
                             resultFuture.complete(res2);
                         } else {

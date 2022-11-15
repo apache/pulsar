@@ -119,6 +119,7 @@
                   <include>com.google.*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
