@@ -116,10 +116,23 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
         }
         producer.flush();
 
-        for (int i = 0; i < 30; i++) {
-            Message<String> msg = consumer.receive();
-            assertEquals(msg.getValue(), "new-message-" + i);
-            consumer.acknowledge(msg);
+        if (batchingEnabled) {
+            for (int i = 0; i < 30; i++) {
+                Message<String> msg = consumer.receive();
+                assertEquals(msg.getValue(), "hello-" + i);
+                consumer.acknowledge(msg);
+            }
+            for (int i = 0; i < 30; i++) {
+                Message<String> msg = consumer.receive();
+                assertEquals(msg.getValue(), "new-message-" + i);
+                consumer.acknowledge(msg);
+            }
+        } else {
+            for (int i = 0; i < 30; i++) {
+                Message<String> msg = consumer.receive();
+                assertEquals(msg.getValue(), "new-message-" + i);
+                consumer.acknowledge(msg);
+            }
         }
     }
 
