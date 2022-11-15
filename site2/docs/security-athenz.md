@@ -38,7 +38,7 @@ For more specific steps involving the Athenz UI, refer to [Example Service Acces
 
 ## Enable Athenz authentication on brokers/proxies
 
-To configure brokers/proxies to authenticate clients using Authenz, add the following parameters to the `conf/broker.conf` and the `conf/proxy.conf` file. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file.
+To configure brokers/proxies to authenticate clients using Authenz, add the following parameters to the `conf/broker.conf` and the `conf/proxy.conf` files and provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file.
 
 ```properties
 # Add the Athenz auth provider
