@@ -1215,13 +1215,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     @Override
-    public void setNamespaceBundleAffinity(String bundle, String broker) {
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        if (broker == null) {
+            return this.bundleBrokerAffinityMap.remove(bundle);
+        }
         broker = broker.replaceFirst("http[s]?://", "");
-        this.bundleBrokerAffinityMap.put(bundle, broker);
-    }
-
-    @Override
-    public String removeNamespaceBundleAffinity(String bundle) {
-        return this.bundleBrokerAffinityMap.remove(bundle);
+        return this.bundleBrokerAffinityMap.put(bundle, broker);
     }
 }
