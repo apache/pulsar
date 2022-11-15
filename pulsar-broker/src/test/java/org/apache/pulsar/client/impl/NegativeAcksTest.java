@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -361,5 +363,80 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         assertEquals(receivedMessages, sentMessages);
         // There should be no more messages
         assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void testFailoverConsumerBatchCumulateAck() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("my-topic");
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .blockIfQueueFull(true)
+                .create();
+
+        int count = 0;
+        Set<Integer> datas = new HashSet<>();
+        CountDownLatch producerLatch = new CountDownLatch(10);
+        while (count < 10) {
+            datas.add(count);
+            producer.sendAsync(count).whenComplete((m, e) -> {
+                producerLatch.countDown();
+            });
+            count++;
+        }
+        producerLatch.await();
+        CountDownLatch consumerLatch = new CountDownLatch(1);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                consumer.receiveAsync()
+                        .thenCompose(m -> {
+                            log.info("received one msg : {}", m.getMessageId());
+                            datas.remove(m.getValue());
+                            return consumer.acknowledgeCumulativeAsync(m);
+                        })
+                        .thenAccept(ignore -> {
+                            try {
+                                Thread.sleep(500);
+                                consumer.redeliverUnacknowledgedMessages();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        })
+                        .whenComplete((r, e) -> {
+                            consumerLatch.countDown();
+                        });
+            }
+        }).start();
+        consumerLatch.await();
+        Thread.sleep(500);
+        count = 0;
+        while(true) {
+            Message<Integer> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            consumer.acknowledgeCumulative(msg);
+            Thread.sleep(200);
+            datas.remove(msg.getValue());
+            log.info("received msg : {}", msg.getMessageId());
+            count++;
+        }
+        Assert.assertEquals(count, 9);
+        Assert.assertEquals(0, datas.size());
     }
 }
