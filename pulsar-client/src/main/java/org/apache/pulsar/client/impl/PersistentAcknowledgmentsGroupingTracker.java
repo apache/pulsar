@@ -112,6 +112,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      */
     @Override
     public boolean isDuplicate(MessageId messageId) {
+        if (messageId instanceof BatchMessageIdImpl) {
+            return isDuplicate(((BatchMessageIdImpl) messageId).toMessageIdImpl());
+        }
+        if (!(messageId instanceof MessageIdImpl)) {
+            throw new IllegalArgumentException("isDuplicated cannot accept "
+                    + messageId.getClass().getName() + ": " + messageId);
+        }
         final MessageIdImpl messageIdOfLastAck = lastCumulativeAck.getMessageId();
         if (messageIdOfLastAck != null && messageId.compareTo(messageIdOfLastAck) <= 0) {
             // Already included in a cumulative ack
