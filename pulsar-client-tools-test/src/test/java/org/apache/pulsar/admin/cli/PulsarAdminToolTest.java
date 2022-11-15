@@ -2235,8 +2235,8 @@ public class PulsarAdminToolTest {
         conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
                 .getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
-        assertNull(atuh.getCertFilePath());
-        assertNull(atuh.getKeyFilePath());
+        assertEquals(atuh.getCertFilePath(), certFilePath);
+        assertEquals(atuh.getKeyFilePath(), keyFilePath);
     }
 
     @Test
