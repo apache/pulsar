@@ -1984,8 +1984,8 @@ public abstract class NamespacesBase extends AdminResource {
                         })
                 )
                 .thenAccept(v -> {
-                    log.info("[{}] Successfully updated offloadThresholdInSeconds configuration:" +
-                                    " namespace={}, value={}", clientAppId(), namespaceName, newThreshold);
+                    log.info("[{}] Successfully updated offloadThresholdInSeconds configuration:"
+                            + " namespace={}, value={}", clientAppId(), namespaceName, newThreshold);
                     f.complete(null);
                 })
                 .exceptionally(t -> {
