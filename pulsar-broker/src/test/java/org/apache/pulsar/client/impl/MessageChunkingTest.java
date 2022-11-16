@@ -116,10 +116,10 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
-        clientSizeMaxMessageSize = false;
-        this.conf.setMaxMessageSize(50);
         if (clientSizeMaxMessageSize) {
-            this.conf.setMaxMessageSize(5);
+            this.conf.setMaxMessageSize(35);
+        } else {
+            this.conf.setMaxMessageSize(50);
         }
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -130,7 +130,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
         if (clientSizeMaxMessageSize) {
-            producerBuilder.chunkMaxMessageSize(5);
+            producerBuilder.chunkMaxMessageSize(35);
         }
 
         Producer<byte[]> producer = producerBuilder.compressionType(CompressionType.LZ4).enableChunking(true)
