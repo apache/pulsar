@@ -63,7 +63,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## API reference
 
-All the methods in producer, consumer, and reader of Pulsar Python clients are thread-safe. See the [API docs](/api/python) for more details.
+All the methods in producer, consumer, and reader of Pulsar Python clients are thread-safe. See the [API docs](@pulsar:apidoc:python@) for more details.
 
 ## Release notes
 

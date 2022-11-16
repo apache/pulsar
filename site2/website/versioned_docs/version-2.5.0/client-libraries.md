@@ -33,13 +33,13 @@ For a tutorial on using the Pulsar Go client, see [Pulsar Go client](client-libr
 
 For a tutorial on using the Pulsar Python client, see [Pulsar Python client](client-libraries-python.md).
 
-There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](/api/python).
+There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](@pulsar:apidoc:python@).
 
 ## C++ client
 
 For a tutorial on using the Pulsar C++ clent, see [Pulsar C++ client](client-libraries-cpp.md).
 
-There are also [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client [here](/api/cpp).
+There are also [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client [here](@pulsar:apidoc:cpp@).
 
 ## Feature Matrix
 Pulsar client feature matrix for different languages is listed on [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.

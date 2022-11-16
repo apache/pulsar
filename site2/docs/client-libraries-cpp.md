@@ -128,7 +128,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## API reference
 
-All the methods in producer, consumer, and reader of Pulsar C++ clients are thread-safe. See the [API docs](/api/cpp) for more details.
+All the methods in producer, consumer, and reader of Pulsar C++ clients are thread-safe. See the [API docs](@pulsar:apidoc:cpp@) for more details.
 
 ## Release notes
 
