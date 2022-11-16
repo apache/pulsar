@@ -278,7 +278,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         // And through debug, writeBlobStore.uploadMultipartPart in the offload method also will trigger
         // the close method.
         // So we add the close variable to avoid release paddingBuf twice.
-        if (!close.compareAndSet(false, true)) {
+        if (close.compareAndSet(false, true)) {
             super.close();
             dataBlockHeaderStream.close();
             if (!entriesByteBuf.isEmpty()) {
