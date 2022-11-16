@@ -117,34 +117,4 @@ public class PulsarStandaloneTest {
         cleanDirectory(tempDir);
     }
 
-    @Test(groups = "broker")
-    public void testStandaloneWithRocksDB() throws Exception {
-        String[] args = new String[]{"--config",
-                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
-        final int bookieNum = 3;
-        final File tempDir = IOUtils.createTempDir("standalone", "test");
-
-        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
-        standalone.setBkDir(tempDir.getAbsolutePath());
-        standalone.setNumOfBk(bookieNum);
-
-        standalone.startBookieWithMetadataStore();
-        List<ServerConfiguration> firstBsConfs = standalone.bkCluster.getBsConfs();
-        Assert.assertEquals(firstBsConfs.size(), bookieNum);
-        standalone.close();
-
-        // start twice, read cookie from local folder
-        standalone.startBookieWithMetadataStore();
-        List<ServerConfiguration> secondBsConfs = standalone.bkCluster.getBsConfs();
-        Assert.assertEquals(secondBsConfs.size(), bookieNum);
-
-        for (int i = 0; i < bookieNum; i++) {
-            ServerConfiguration conf1 = firstBsConfs.get(i);
-            ServerConfiguration conf2 = secondBsConfs.get(i);
-            Assert.assertEquals(conf1.getBookiePort(), conf2.getBookiePort());
-        }
-        standalone.close();
-        cleanDirectory(tempDir);
-    }
-
 }
