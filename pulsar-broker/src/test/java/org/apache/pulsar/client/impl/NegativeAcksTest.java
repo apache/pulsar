@@ -22,7 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -38,6 +40,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
@@ -451,7 +454,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("my-topic");
         admin.topics().createPartitionedTopic(topic, 2);
-
         final int receiverQueueSize = 10;
 
         @Cleanup
@@ -461,21 +463,32 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub")
                 .receiverQueueSize(receiverQueueSize)
                 .subscribe();
-
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
-                .enableBatching(false)
+                .batchingMaxMessages(100)
+                .enableBatching(true)
                 .create();
-
+        List<CompletableFuture<?>> sendTask = new ArrayList<>(receiverQueueSize);
         for (int i = 0; i < receiverQueueSize; i++){
-            producer.send(i);
+            sendTask.add(producer.sendAsync(i));
         }
+        FutureUtil.waitForAll(sendTask).join();
 
         Awaitility.await().until(() -> consumer.incomingMessages.size() == receiverQueueSize);
 
-        consumer.redeliverUnacknowledgedMessages();
-        waitMultiTopicConsumerRedeliverFinish(consumer);
+        // For testing the race condition of issue #18491.
+        // We wait all message-receive-task finish.
+        tryWaitAllMessageReceiveTaskFinish(consumer);
+        // Redeliver.
+        executeTaskWithInternalExecutor(consumer, () -> {
+            // Run redeliver with internal executor can ensure that the current
+            // task("resumeReceivingFromPausedConsumersIfNeeded") is executed before
+            // the task("clearIncomingMessages") triggered by the current task.
+            consumer.redeliverUnacknowledgedMessages();
+        });
+        // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
+        waitForAllTasksForInternalThread(consumer);
 
         Set<Integer> receivedMsgs = new HashSet<>();
         for (;;){
@@ -488,10 +501,35 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Assert.assertEquals(receivedMsgs.size(), 10);
     }
 
-    /**
-     * If the task after "redeliver" finish, means task-redeliver finish.
-     */
-    private void waitMultiTopicConsumerRedeliverFinish(MultiTopicsConsumerImpl consumer){
+    private void tryWaitAllMessageReceiveTaskFinish(MultiTopicsConsumerImpl consumer) {
+        waitForAllTasksForInternalThread(consumer);
+        // Try to wait pending receive finish, success is not guaranteed.
+        long awaitStartTimestamp = System.currentTimeMillis();
+        Awaitility.await().atMost(6, TimeUnit.SECONDS).until(() -> {
+            // In some cases, the future-receive will not be completed, waiting for 5s at most.
+            if (System.currentTimeMillis() - awaitStartTimestamp > 3000) {
+                return true;
+            }
+            List<ConsumerImpl> consumers = consumer.getConsumers();
+            for (ConsumerImpl consumerImpl : consumers) {
+                waitForAllTasksForInternalThread(consumerImpl);
+                if (consumerImpl.hasPendingBatchReceive()) {
+                    return false;
+                }
+            }
+            for (ConsumerImpl consumerImpl : consumers) {
+                waitForAllTasksForInternalThread(consumerImpl);
+                if (consumerImpl.hasNextPendingReceive()) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        // Wait for all task running at internal thread.
+        waitForAllTasksForInternalThread(consumer);
+    }
+
+    private void waitForAllTasksForInternalThread(ConsumerBase consumer){
         ExecutorService internalPinnedExecutor =
                 WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
         CompletableFuture<Void> taskAfterRedeliver = new CompletableFuture<>();
@@ -499,5 +537,13 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             taskAfterRedeliver.complete(null);
         });
         taskAfterRedeliver.join();
+    }
+
+    private void executeTaskWithInternalExecutor(ConsumerBase consumer, Runnable task){
+        ExecutorService internalPinnedExecutor =
+                WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
+        internalPinnedExecutor.execute(() -> {
+            task.run();
+        });
     }
 }
