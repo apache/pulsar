@@ -55,6 +55,10 @@ public class PulsarTestListener implements ITestListener {
     public void onTestSkipped(ITestResult result) {
         System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+        if (result.getThrowable() != null) {
+            System.out.println("~~~~~~~~~ STACKTRACE ~~~~~~~~~");
+            result.getThrowable().printStackTrace();
+        }
     }
 
     @Override
