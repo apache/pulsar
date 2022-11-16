@@ -5,11 +5,11 @@ sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` GitHub Repository](https://github.com/apache/pulsar-client-python) of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](@pulsar:apidoc:cpp@). You can find the code in the [`python` GitHub Repository](https://github.com/apache/pulsar-client-python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
-[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python).
+[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](@pulsar:apidoc:python@).
 
 ## Install
 
@@ -48,7 +48,7 @@ $ sudo python setup.py install
 
 ## API Reference
 
-The complete Python API reference is available at [api/python](/api/python).
+The complete Python API reference is available at [api/python](@pulsar:apidoc:python@).
 
 ## Examples
 
