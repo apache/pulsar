@@ -14,7 +14,7 @@ To package a Java function, complete the following steps.
 
 1. Create a new maven project with a pom file. In the following code sample, the value of `mainClass` is your package name.
 
-   ```java
+   ```xml
     <?xml version="1.0" encoding="UTF-8"?>
     <project xmlns="http://maven.apache.org/POM/4.0.0"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

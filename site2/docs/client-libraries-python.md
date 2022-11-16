@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 You can use a Pulsar Python client to create producers, consumers, and readers.
 
-All the methods in producer, consumer, and reader of a Python client are thread-safe. You can read the [API docs](/api/python) for the Python client.
+All the methods in producer, consumer, and reader of a Python client are thread-safe. You can read the [API docs](@pulsar:apidoc:python@) for the Python client.
 
 ## Installation
 
@@ -65,7 +65,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## API Reference
 
-The complete Python API reference is available at [api/python](/api/python).
+The complete Python API reference is available at [api/python](@pulsar:apidoc:python@).
 
 ## Examples
 

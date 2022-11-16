@@ -16,38 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.broker.loadbalance.extensions.channel.models;
 
 import static org.testng.Assert.assertEquals;
-import java.io.IOException;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import java.util.Optional;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class MessageIdSerializationTest {
+public class UnloadTest {
 
     @Test
-    public void testProtobufSerialization1() throws Exception {
-        MessageId id = new MessageIdImpl(1, 2, 3);
-        byte[] serializedId = id.toByteArray();
-        assertEquals(MessageId.fromByteArray(serializedId), id);
-    }
+    public void testConstructors() {
 
-    @Test
-    public void testProtobufSerialization2() throws Exception {
-        MessageId id = new MessageIdImpl(1, 2, -1);
-        byte[] serializedId = id.toByteArray();
-        assertEquals(MessageId.fromByteArray(serializedId), id);
+        Unload unload1 = new Unload("A", "B");
+        assertEquals(unload1.sourceBroker(), "A");
+        assertEquals(unload1.serviceUnit(), "B");
+        assertEquals(unload1.destBroker(), Optional.empty());
+
+        Unload unload2 = new Unload("A", "B", Optional.of("C"));
+        assertEquals(unload2.sourceBroker(), "A");
+        assertEquals(unload2.serviceUnit(), "B");
+        assertEquals(unload2.destBroker(), Optional.of("C"));
     }
 
     @Test(expectedExceptions = NullPointerException.class)
-    public void testProtobufSerializationNull() throws Exception {
-        MessageId.fromByteArray(null);
+    public void testNullSourceBroker() {
+        new Unload(null, "A");
     }
 
-    @Test(expectedExceptions = IOException.class)
-    void testProtobufSerializationEmpty() throws Exception {
-        MessageId.fromByteArray(new byte[0]);
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testNullServiceUnit() {
+        new Unload("A", null);
     }
+
 }

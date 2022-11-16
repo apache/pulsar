@@ -50,7 +50,7 @@ import org.apache.commons.lang3.StringUtils;
 @Slf4j
 public class EventLoopUtil {
 
-    private static final String ENABLE_IO_URING = "enable.io_uring";
+    private static final String ENABLE_IO_URING = "pulsar.enableUring";
 
     /**
      * @return an EventLoopGroup suitable for the current platform
