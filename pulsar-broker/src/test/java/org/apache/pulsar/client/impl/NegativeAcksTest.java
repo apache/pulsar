@@ -107,7 +107,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "variations")
     public void testNegativeAcks(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
-                                 int negAcksDelayMillis, int ackTimeout)
+            int negAcksDelayMillis, int ackTimeout)
             throws Exception {
         log.info("Test negative acks batching={} partitions={} subType={} negAckDelayMs={}", batching, usePartitions,
                 subscriptionType, negAcksDelayMillis);
@@ -208,10 +208,10 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "variationsBackoff")
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
-                                            int minNackTimeMs, int maxNackTimeMs)
+            int minNackTimeMs, int maxNackTimeMs)
             throws Exception {
         log.info("Test negative acks with back off batching={} partitions={} subType={} minNackTimeMs={}, "
-                + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
+                        + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBackoff");
 
         MultiplierRedeliveryBackoff backoff = MultiplierRedeliveryBackoff.builder()
