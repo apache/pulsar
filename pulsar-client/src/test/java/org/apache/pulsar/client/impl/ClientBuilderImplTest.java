@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.fail;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 public class ClientBuilderImplTest {
@@ -90,7 +90,7 @@ public class ClientBuilderImplTest {
         // test config not correct.
         try {
             PulsarClient.builder().connectionMaxIdleSeconds(30);
-            Assert.fail();
+            fail();
         } catch (IllegalArgumentException e){
         }
     }
