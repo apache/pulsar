@@ -4,10 +4,6 @@ title: Pulsar client libraries
 sidebar_label: "Overview"
 ---
 
-````mdx-code-block
-import useBaseUrl from '@docusaurus/useBaseUrl';
-````
-
 Pulsar supports the following language-specific client libraries:
 
 | Language  | Documentation                                                                     | Release note                                                                      | Code repo                                                             |
