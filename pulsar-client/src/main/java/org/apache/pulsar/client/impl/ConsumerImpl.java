@@ -1886,7 +1886,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             // clear local message
             int currentSize;
-            synchronized (incomingQueueLock) {
+            incomingQueueLock.lock();
+            try {
                 // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
                 // we need to keep both epochs the same
                 if (conf.getSubscriptionType() == SubscriptionType.Failover
@@ -1898,6 +1899,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 currentSize = incomingMessages.size();
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
+            } finally {
+                incomingQueueLock.unlock();
             }
 
             // is channel is connected, we should send redeliver command to broker

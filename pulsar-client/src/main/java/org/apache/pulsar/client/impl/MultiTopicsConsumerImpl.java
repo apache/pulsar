@@ -665,7 +665,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public void redeliverUnacknowledgedMessages() {
         internalPinnedExecutor.execute(() -> {
-            synchronized (incomingQueueLock) {
+            incomingQueueLock.lock();
+            try {
                 CONSUMER_EPOCH.incrementAndGet(this);
                 consumers.values().stream().forEach(consumer -> {
                     consumer.redeliverUnacknowledgedMessages();
@@ -674,6 +675,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
                 resumeReceivingFromPausedConsumersIfNeeded();
+            } finally {
+                incomingQueueLock.unlock();
             }
         });
     }
