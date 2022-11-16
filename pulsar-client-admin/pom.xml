@@ -107,6 +107,12 @@
       <artifactId>pulsar-package-core</artifactId>
       <version>${project.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
