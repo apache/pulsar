@@ -450,7 +450,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private long getUserCreatedProducerSize() {
-        return producers.values().stream().filter(p -> !p.isRemote() || !p.getTopic().isSystemTopic()).count();
+        return producers.values().stream().filter(p -> !(p.isRemote() || p.getTopic().isSystemTopic())).count();
     }
 
     protected void registerTopicPolicyListener() {
