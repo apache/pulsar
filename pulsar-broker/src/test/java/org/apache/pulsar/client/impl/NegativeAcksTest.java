@@ -475,7 +475,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Awaitility.await().until(() -> consumer.incomingMessages.size() == receiverQueueSize);
 
         // For testing the race condition of issue #18491
-         // We need to inject a delay for the pinned internal thread
+        // We need to inject a delay for the pinned internal thread
         injectDelayToInternalThread(consumer, 1000L);
         consumer.redeliverUnacknowledgedMessages();
         // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
