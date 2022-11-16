@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
@@ -76,7 +75,7 @@ public class ExecutorProvider {
     }
 
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-       return Executors.newSingleThreadExecutor(threadFactory);
+       return new ReentrantSingleThreadEventExecutor(threadFactory);
     }
 
     public ExecutorService getExecutor() {
