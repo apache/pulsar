@@ -850,8 +850,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         // synchronize redeliverUnacknowledgedMessages().
         incomingQueueLock.lock();
         try {
-            if (isValidConsumerEpoch((MessageImpl<T>) message) && canEnqueueMessage(message)
-                    && incomingMessages.offer(message)) {
+            if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
                 // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
                 // instance anymore, since for pooled messages, this instance was possibly already been released
                 // and recycled.
