@@ -131,8 +131,6 @@ public interface PulsarClientImplementationBinding {
 
     Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema();
 
-    <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema);
-
     <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                            KeyValueEncodingType keyValueEncodingType);
 
