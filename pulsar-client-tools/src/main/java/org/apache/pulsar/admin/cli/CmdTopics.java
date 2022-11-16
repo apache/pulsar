@@ -2151,8 +2151,8 @@ public class CmdTopics extends CmdBase {
         private long offloadThresholdInBytes;
 
         @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
-                , description = "ManagedLedger offload threshold in seconds", required = true)
-        private long offloadThresholdInSeconds;
+                , description = "ManagedLedger offload threshold in seconds")
+        private Long offloadThresholdInSeconds;
 
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")

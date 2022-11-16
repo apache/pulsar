@@ -814,7 +814,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
         namespaces.run(split(
-                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -aots 100 -oae 10s -orp tiered-storage-first"));
+                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oats 100 -oae 10s -orp tiered-storage-first"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
                         "http://test.endpoint",null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
@@ -972,13 +972,6 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
-
-        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
-                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
-        verify(mockTopicsPolicies)
-                .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
-                        OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
-                8, 9, 10L, null, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
                 " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -ts 10 -orp tiered-storage-first"));
@@ -1431,7 +1424,7 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
-                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -oats 100 -orp tiered-storage-first -g"));
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -ts 100 -orp tiered-storage-first -g"));
         verify(mockGlobalTopicsPolicies)
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
@@ -1728,7 +1721,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
-        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -oats 50 -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -ts 50 -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("s3", "region", "bucket"
                 , "endpoint", null, null, null, null,
                 8, 9, 10L, 50L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
