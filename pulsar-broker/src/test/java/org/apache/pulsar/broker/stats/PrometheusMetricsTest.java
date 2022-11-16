@@ -28,32 +28,38 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -88,6 +94,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
+        conf.setTransactionCoordinatorEnabled(true);
+        conf.setTransactionLogBatchedWriteEnabled(true);
+        conf.setTransactionPendingAckBatchedWriteEnabled(true);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
     }
@@ -773,6 +782,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
+        Set<String> allPrometheusSuffixString = allPrometheusSuffixEnums();
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
@@ -831,32 +841,18 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
             if (!typeDefs.containsKey(metricName)) {
                 // This may be OK if this is a _sum or _count metric from a summary
-                if (metricName.endsWith("_sum")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_sum"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
+                boolean isNorm = false;
+                for (String suffix : allPrometheusSuffixString){
+                    if (metricName.endsWith(suffix)){
+                        String summaryMetricName = metricName.substring(0, metricName.indexOf(suffix));
+                        if (!typeDefs.containsKey(summaryMetricName)) {
+                            fail("Metric " + metricName + " does not have a corresponding summary type definition");
+                        }
+                        isNorm = true;
+                        break;
                     }
-                } else if (metricName.endsWith("_count")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_count"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
-                    }
-                } else if (metricName.endsWith("_bucket")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_bucket"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
-                    }
-                } else if (metricName.endsWith("_created")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_created"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
-                    }
-                } else if (metricName.endsWith("_total")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_total"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding counter type definition");
-                    }
-                } else {
+                }
+                if (!isNorm){
                     fail("Metric " + metricName + " does not have a type definition");
                 }
 
@@ -866,6 +862,24 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p1.close();
         p2.close();
     }
+
+    /***
+     * this method will return ["_sum", "_info", "_bucket", "_count", "_total", "_created", "_gsum", "_gcount"]
+     */
+    public static Set<String> allPrometheusSuffixEnums(){
+        HashSet<String> result = new HashSet<>();
+        final String metricsName = "123";
+        for (Collector.Type type : Collector.Type.values()){
+            Collector.MetricFamilySamples metricFamilySamples =
+                    new Collector.MetricFamilySamples(metricsName, type, "", new ArrayList<>());
+            result.addAll(Arrays.asList(metricFamilySamples.getNames()));
+        }
+        return result.stream()
+                .map(str -> str.substring(metricsName.length()))
+                .filter(str -> StringUtils.isNotBlank(str))
+                .collect(Collectors.toSet());
+    }
+
 
     @Test
     public void testManagedLedgerCacheStats() throws Exception {

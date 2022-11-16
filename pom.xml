@@ -2083,7 +2083,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
-        <module>pulsar-broker-shaded</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>
