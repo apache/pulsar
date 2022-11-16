@@ -250,7 +250,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             String path = getUrLedgerPath(ledgerId);
 
             Optional<GetResult> optRes = store.get(path).get();
-            if (!optRes.isPresent()) {
+            if (optRes.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("Ledger: {} is not marked underreplicated", ledgerId);
                 }
@@ -320,7 +320,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                                                           final CompletableFuture<Void> finalFuture) {
         // get the existing underreplicated ledger data
         store.get(path).thenAccept(optRes -> {
-            if (!optRes.isPresent()) {
+            if (optRes.isEmpty()) {
                 tryMarkLedgerUnderreplicatedAsync(path, missingReplicas, finalFuture);
                 return;
             }
@@ -494,7 +494,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     }
 
                     Optional<GetResult> optRes = store.get(parent + "/" + tryChild).get();
-                    if (!optRes.isPresent()) {
+                    if (optRes.isEmpty()) {
                         if (log.isDebugEnabled()) {
                             log.debug("{}/{} doesn't exist", parent, tryChild);
                         }
@@ -821,7 +821,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
         try {
             Optional<GetResult> optRes = store.get(getUrLedgerLockPath(urLockPath, ledgerId)).get();
-            if (!optRes.isPresent()) {
+            if (optRes.isEmpty()) {
                 // this is ok.
                 return null;
             }
@@ -871,7 +871,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         }
         try {
             Optional<GetResult> optRes = store.get(checkAllLedgersCtimePath).get();
-            if (!optRes.isPresent()) {
+            if (optRes.isEmpty()) {
                 log.warn("checkAllLedgersCtimeZnode is not yet available");
                 return -1;
             }
@@ -915,7 +915,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         }
         try {
             Optional<GetResult> optRes = store.get(placementPolicyCheckCtimePath).get();
-            if (!optRes.isPresent()) {
+            if (optRes.isEmpty()) {
                 log.warn("placementPolicyCheckCtimeZnode is not yet available");
                 return -1;
             }
@@ -955,7 +955,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     public long getReplicasCheckCTime() throws ReplicationException.UnavailableException {
         try {
             Optional<GetResult> optRes = store.get(replicasCheckCtimePath).get();
-            if (!optRes.isPresent()) {
+            if (optRes.isEmpty()) {
                 log.warn("placementPolicyCheckCtimeZnode is not yet available");
                 return -1;
             }

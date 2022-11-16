@@ -88,7 +88,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
 
     private WindowConfig getWindowConfigs(Context context) {
 
-        if (!context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY).isPresent()) {
+        if (context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY).isEmpty()) {
             throw new IllegalArgumentException("Window Configs cannot be found");
         }
         WindowConfig windowConfig = new Gson().fromJson(

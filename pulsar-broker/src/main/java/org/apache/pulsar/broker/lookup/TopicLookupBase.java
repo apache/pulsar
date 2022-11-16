@@ -302,7 +302,7 @@ public class TopicLookupBase extends PulsarWebResource {
                                 log.debug("[{}] Lookup result {}", topicName.toString(), lookupResult);
                             }
 
-                            if (!lookupResult.isPresent()) {
+                            if (lookupResult.isEmpty()) {
                                 lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
                                         "No broker was available to own " + topicName, requestId));
                                 return;

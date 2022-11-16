@@ -287,7 +287,7 @@ public class ElasticSearchClient implements AutoCloseable {
             // Use the configured indexName if provided.
             return indexNameFormatter.indexName(record);
         }
-        if (!record.getTopicName().isPresent()) {
+        if (record.getTopicName().isEmpty()) {
             throw new IOException("Elasticsearch index name configuration and topic name are empty");
         }
         return topicToIndexName(record.getTopicName().get());

@@ -438,7 +438,7 @@ public abstract class TransactionsBase extends AdminResource {
                 return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
             }
             return topicFuture.thenCompose(optionalTopic -> {
-                if (!optionalTopic.isPresent()) {
+                if (optionalTopic.isEmpty()) {
                     return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
                 }
                 return CompletableFuture.completedFuture((PersistentTopic) optionalTopic.get());

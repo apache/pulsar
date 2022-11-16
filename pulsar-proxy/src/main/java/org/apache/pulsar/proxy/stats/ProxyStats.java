@@ -80,7 +80,7 @@ public class ProxyStats {
     public Map<String, TopicStats> topics() {
 
         Optional<Integer> logLevel = proxyService().getConfiguration().getProxyLogLevel();
-        if (!logLevel.isPresent() || logLevel.get() < 2) {
+        if (logLevel.isEmpty() || logLevel.get() < 2) {
             throw new RestException(Status.PRECONDITION_FAILED, "Proxy doesn't have logging level 2");
         }
         return proxyService().getTopicStats();

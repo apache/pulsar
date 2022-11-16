@@ -240,7 +240,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
         String path = this.cookiePath + "/" + bookieId;
         try {
             Optional<GetResult> res = store.get(path).get();
-            if (!res.isPresent()) {
+            if (res.isEmpty()) {
                 throw new BookieException.CookieNotFoundException(bookieId.toString());
             }
 

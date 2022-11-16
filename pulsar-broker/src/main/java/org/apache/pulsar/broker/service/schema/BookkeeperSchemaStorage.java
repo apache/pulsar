@@ -132,7 +132,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 log.debug("[{}] Get all schemas - locator: {}", key, locator);
             }
 
-            if (!locator.isPresent()) {
+            if (locator.isEmpty()) {
                 result.complete(Collections.emptyList());
                 return;
             }
@@ -201,7 +201,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Got schema locator {}", schemaId, locator);
                 }
-                if (!locator.isPresent()) {
+                if (locator.isEmpty()) {
                     return completedFuture(null);
                 }
 
@@ -249,7 +249,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 log.debug("[{}] Get schema - version: {} - locator: {}", schemaId, version, locator);
             }
 
-            if (!locator.isPresent()) {
+            if (locator.isEmpty()) {
                 return completedFuture(null);
             }
 
@@ -378,7 +378,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                     if (ex != null) {
                         future.completeExceptionally(ex);
                     } else {
-                        if (!locator.isPresent()) {
+                        if (locator.isEmpty()) {
                             future.complete(null);
                             return;
                         }

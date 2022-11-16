@@ -36,7 +36,7 @@ public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
     public byte[] process(GenericRecord genericRecord, Context context) throws Exception {
         if (context.getCurrentRecord().getMessage().isPresent()) {
             Message<?> msg =  context.getCurrentRecord().getMessage().get();
-            if (!msg.getReaderSchema().isPresent()) {
+            if (msg.getReaderSchema().isEmpty()) {
                 log.warn("The reader schema is null.");
                 return null;
             }

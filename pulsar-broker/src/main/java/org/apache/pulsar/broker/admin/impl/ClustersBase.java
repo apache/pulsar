@@ -349,7 +349,7 @@ public class ClustersBase extends AdminResource {
                 }
                 return clusterResources().getClusterAsync(peerCluster)
                         .thenAccept(peerClusterOpt -> {
-                            if (!peerClusterOpt.isPresent()) {
+                            if (peerClusterOpt.isEmpty()) {
                                 throw new RestException(PRECONDITION_FAILED,
                                         "Peer cluster " + peerCluster + " does not exist");
                             }
@@ -496,7 +496,7 @@ public class ClustersBase extends AdminResource {
             String cluster) {
             return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster)
                     .thenApply(namespaceIsolationPolicies -> {
-                        if (!namespaceIsolationPolicies.isPresent()) {
+                        if (namespaceIsolationPolicies.isEmpty()) {
                             throw new RestException(Status.NOT_FOUND,
                                     "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
                         }

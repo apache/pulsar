@@ -246,7 +246,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
         return store.get(path)
                 .thenCompose(optGetResult -> {
-                    if (!optGetResult.isPresent()) {
+                    if (optGetResult.isEmpty()) {
                         // The lock just disappeared, try to acquire it again
                         // Reset the expectation on the version
                         setVersion(-1L);

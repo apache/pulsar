@@ -144,7 +144,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                     .reduce(Math::max);
 
             // If we didn't get any valid IDs from the directory...
-            if (!largest.isPresent()) {
+            if (largest.isEmpty()) {
                 // else, Start at HOB-0000000001;
                 return createHOBPathAndGenerateId(ledgerPrefix, 1);
             }

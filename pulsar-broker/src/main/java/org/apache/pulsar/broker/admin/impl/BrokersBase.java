@@ -407,7 +407,7 @@ public class BrokersBase extends AdminResource {
         // create non-partitioned topic manually and close the previous reader if present.
         return pulsar().getBrokerService().getTopic(topicName, true)
             .thenCompose(topicOptional -> {
-                if (!topicOptional.isPresent()) {
+                if (topicOptional.isEmpty()) {
                     LOG.error("[{}] Fail to run health check while get topic {}. because get null value.",
                             clientAppId(), topicName);
                     throw new RestException(Status.NOT_FOUND,

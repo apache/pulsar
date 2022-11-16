@@ -85,7 +85,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     @Override
     public void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData) {
-        if (!functionAuthData.isPresent()) {
+        if (functionAuthData.isEmpty()) {
             return;
         }
 
@@ -110,7 +110,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     @Override
     public void configureAuthenticationConfig(AuthenticationConfig authConfig,
                                               Optional<FunctionAuthData> functionAuthData) {
-        if (!functionAuthData.isPresent()) {
+        if (functionAuthData.isEmpty()) {
             // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
             authConfig.setClientAuthenticationPlugin(null);
             authConfig.setClientAuthenticationParameters(null);
@@ -153,7 +153,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     @Override
     public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
             throws Exception {
-        if (!functionAuthData.isPresent()) {
+        if (functionAuthData.isEmpty()) {
             return;
         }
 

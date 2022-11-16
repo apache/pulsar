@@ -300,7 +300,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
-            if (!record.getPartitionId().isPresent()) {
+            if (record.getPartitionId().isEmpty()) {
                 throw new RuntimeException(
                         "PartitionId needs to be specified for every record while in Effectively-once mode");
             }
@@ -328,7 +328,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
 
-            if (!record.getRecordSequence().isPresent()) {
+            if (record.getRecordSequence().isEmpty()) {
                 throw new RuntimeException(
                         "RecordSequence needs to be specified for every record while in Effectively-once mode");
             }

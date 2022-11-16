@@ -2407,7 +2407,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
                 .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
                 .thenApply(policiesOpt -> {
-                    if (!policiesOpt.isPresent()) {
+                    if (policiesOpt.isEmpty()) {
                         throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
                     }
                     String clusterName = pulsar().getConfiguration().getClusterName();

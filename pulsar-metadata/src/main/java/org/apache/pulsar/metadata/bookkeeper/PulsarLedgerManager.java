@@ -201,7 +201,7 @@ public class PulsarLedgerManager implements LedgerManager {
         String ledgerPath = getLedgerPath(ledgerId);
         cache.getWithStats(ledgerPath)
                 .thenAccept(optRes -> {
-                    if (!optRes.isPresent()) {
+                    if (optRes.isEmpty()) {
                         if (log.isDebugEnabled()) {
                             log.debug("No such ledger: {} at path {}", ledgerId, ledgerPath);
                         }

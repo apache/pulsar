@@ -102,7 +102,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private CompletableFuture<Optional<CacheGetResult<T>>> readValueFromStore(String path) {
         return store.get(path)
                 .thenCompose(optRes -> {
-                    if (!optRes.isPresent()) {
+                    if (optRes.isEmpty()) {
                         return FutureUtils.value(Optional.empty());
                     }
 
@@ -181,7 +181,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction) {
         return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
-                    if (!optEntry.isPresent()) {
+                    if (optEntry.isEmpty()) {
                         return FutureUtils.exception(new NotFoundException(""));
                     }
 

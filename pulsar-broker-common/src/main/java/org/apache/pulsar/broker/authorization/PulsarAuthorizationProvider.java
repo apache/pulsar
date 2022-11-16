@@ -107,7 +107,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             AuthenticationDataSource authenticationData, String subscription) {
         return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(policies -> {
-                    if (!policies.isPresent()) {
+                    if (policies.isEmpty()) {
                         if (log.isDebugEnabled()) {
                             log.debug("Policies node couldn't be found for topic : {}", topicName);
                         }
@@ -211,7 +211,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
         return pulsarResources.getNamespaceResources().getPoliciesAsync(namespaceName).thenApply(policies -> {
-            if (!policies.isPresent()) {
+            if (policies.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
                 }
