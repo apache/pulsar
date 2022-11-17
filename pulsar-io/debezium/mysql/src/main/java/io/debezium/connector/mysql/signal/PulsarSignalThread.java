@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package io.debezium.connector.mysql.signal;
 
 import io.debezium.config.CommonConnectorConfig;
@@ -48,13 +49,8 @@ import java.util.concurrent.ExecutorService;
 import static org.apache.commons.lang.StringUtils.isBlank;
 
 /**
- * The class responsible for processing of signals delivered to Debezium via a dedicated Kafka topic.
- * The signal message must have the following structure:
- * <ul>
- * <li>{@code id STRING} - the unique identifier of the signal sent, usually UUID, can be used for deduplication</li>
- * <li>{@code type STRING} - the unique logical name of the code executing the signal</li>
- * <li>{@code data STRING} - the data in JSON format that are passed to the signal code
- * </ul>
+ * pulsar signal thread
+ * @param <T>
  */
 public class PulsarSignalThread<T extends DataCollectionId> {
     public static final String CONFIGURATION_FIELD_PREFIX_STRING = "signal.";

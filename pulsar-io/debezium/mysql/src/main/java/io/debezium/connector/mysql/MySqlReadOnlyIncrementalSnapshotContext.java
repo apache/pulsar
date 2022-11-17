@@ -26,14 +26,16 @@ import io.debezium.pipeline.spi.OffsetContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import static io.debezium.connector.mysql.GtidSet.GTID_DELIMITER;
 
+/**
+ * Mysql read only incremental snapshot context
+ * @param <T>
+ */
 @NotThreadSafe
 public class MySqlReadOnlyIncrementalSnapshotContext<T> extends AbstractIncrementalSnapshotContext<T> {
 
