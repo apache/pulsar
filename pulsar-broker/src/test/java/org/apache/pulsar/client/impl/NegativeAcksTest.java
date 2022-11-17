@@ -24,7 +24,6 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -444,7 +443,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Assert.assertEquals(0, datas.size());
     }
 
-    @Test
+    @Test(invocationCount = 5)
     public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("my-topic");
         admin.topics().createPartitionedTopic(topic, 2);
@@ -458,6 +457,8 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub")
                 .receiverQueueSize(receiverQueueSize)
                 .subscribe();
+        ExecutorService internalPinnedExecutor =
+                WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
 
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
@@ -473,10 +474,10 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         // For testing the race condition of issue #18491
         // We need to inject a delay for the pinned internal thread
-        injectDelayToInternalThread(consumer, 1000L);
-        consumer.redeliverUnacknowledgedMessages();
+        Thread.sleep(1000L);
+        internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
         // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
-        waitForAllTasksForInternalThread(consumer);
+        internalPinnedExecutor.submit(() -> {}).get();
 
         Set<Integer> receivedMsgs = new HashSet<>();
         for (;;){
@@ -487,29 +488,9 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             receivedMsgs.add(msg.getValue());
         }
         Assert.assertEquals(receivedMsgs.size(), 10);
-    }
 
-    private void injectDelayToInternalThread(MultiTopicsConsumerImpl<?> consumer, long delayInMillis){
-        ExecutorService internalPinnedExecutor =
-                        WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
-        internalPinnedExecutor.execute(() -> {
-            try {
-                Thread.sleep(delayInMillis);
-            } catch (InterruptedException ignore) {
-            }
-        });
-    }
-
-    /**
-     * If the task after "redeliver" finish, means task-redeliver finish.
-     */
-    private void waitForAllTasksForInternalThread(MultiTopicsConsumerImpl consumer){
-        ExecutorService internalPinnedExecutor =
-                WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
-        CompletableFuture<Void> taskAfterRedeliver = new CompletableFuture<>();
-        internalPinnedExecutor.execute(() -> {
-            taskAfterRedeliver.complete(null);
-        });
-        taskAfterRedeliver.join();
+        producer.close();
+        consumer.close();
+        admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
     }
 }
