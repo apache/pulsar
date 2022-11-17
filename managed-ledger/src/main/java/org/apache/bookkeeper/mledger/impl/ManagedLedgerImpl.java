@@ -174,7 +174,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
 
 
-    // Ever increasing counter of entries added
+    // Ever-increasing counter of entries added
     @VisibleForTesting
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "entriesAddedCounter");
@@ -317,7 +317,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .newUpdater(ManagedLedgerImpl.class, ReadEntryCallbackWrapper.class, "lastReadCallback");
 
     /**
-     * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is.
+     * Queue of pending entries to be added to the managed ledger. Typically, entries are queued when a new ledger is.
      * created asynchronously and hence there is no ready ledger to write into.
      */
     final ConcurrentLinkedQueue<OpAddEntry> pendingAddEntries = new ConcurrentLinkedQueue<>();
@@ -1847,7 +1847,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             LedgerInfo ledgerInfo = ledgers.get(ledgerId);
             if (ledgerInfo == null || ledgerInfo.getEntries() == 0) {
-                // Cursor is pointing to a empty ledger, there's no need to try opening it. Skip this ledger and
+                // Cursor is pointing to an empty ledger, there's no need to try opening it. Skip this ledger and
                 // move to the next one
                 opReadEntry.updateReadPosition(new PositionImpl(opReadEntry.readPosition.getLedgerId() + 1, 0));
                 opReadEntry.checkReadCompletion();
@@ -3053,7 +3053,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long current = ledgers.lastKey();
 
             // the first ledger which will not be offloaded. Defaults to current,
-            // in the case that the whole headmap is offloaded. Otherwise it will
+            // in the case that the whole headmap is offloaded. Otherwise, it will
             // be set as we iterate through the headmap values
             long firstLedgerRetained = current;
             for (LedgerInfo ls : ledgers.headMap(current).values()) {
@@ -3392,7 +3392,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @param n
      *            number of entries to skip ahead
      * @param startRange
-     *            specifies whether or not to include the start position in calculating the distance
+     *            specifies whether to include the start position in calculating the distance
      * @return the new position that is n entries ahead
      */
     public PositionImpl getPositionAfterN(final PositionImpl startPosition, long n, PositionBound startRange) {
@@ -3516,10 +3516,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (ls == null) {
                 if (position.getLedgerId() < last.getLedgerId()) {
-                    // Pointing to a non existing ledger that is older than the current ledger is invalid
+                    // Pointing to a non-existing ledger that is older than the current ledger is invalid
                     return false;
                 } else {
-                    // Pointing to a non existing ledger is only legitimate if the ledger was empty
+                    // Pointing to a non-existing ledger is only legitimate if the ledger was empty
                     return position.getEntryId() == 0;
                 }
             }
