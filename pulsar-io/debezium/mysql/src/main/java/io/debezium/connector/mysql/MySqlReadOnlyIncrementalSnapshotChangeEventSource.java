@@ -34,7 +34,6 @@ import io.debezium.util.Clock;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;

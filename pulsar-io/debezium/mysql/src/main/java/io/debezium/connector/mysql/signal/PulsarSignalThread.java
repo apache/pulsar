@@ -40,12 +40,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.debezium.SerDeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-
 import static org.apache.commons.lang.StringUtils.isBlank;
 
 /**
