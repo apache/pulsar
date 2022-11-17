@@ -203,7 +203,7 @@ mvn clean install -DskipTests
 mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
 ```
 
-After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and  pushes them to `localhost:32000/apachepulsar`.
+After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and pushes them to `localhost:32000/apachepulsar`.
 
 ```bash
 image_repo_and_project=localhost:32000/apachepulsar
