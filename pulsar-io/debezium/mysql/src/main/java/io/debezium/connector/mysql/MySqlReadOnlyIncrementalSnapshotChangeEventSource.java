@@ -18,6 +18,7 @@
  */
 package io.debezium.connector.mysql;
 
+import java.sql.SQLException;
 import io.debezium.DebeziumException;
 import io.debezium.connector.mysql.signal.ExecuteSnapshotPulsarSignal;
 import io.debezium.connector.mysql.signal.PulsarSignalThread;
@@ -34,7 +35,6 @@ import io.debezium.util.Clock;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -46,7 +46,8 @@ import java.util.function.Consumer;
 public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCollectionId>
         extends AbstractIncrementalSnapshotChangeEventSource<MySqlPartition, T> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MySqlReadOnlyIncrementalSnapshotChangeEventSource.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(MySqlReadOnlyIncrementalSnapshotChangeEventSource.class);
     private final String showMasterStmt = "SHOW MASTER STATUS";
     private final PulsarSignalThread<T> pulsarSignal;
 
@@ -58,7 +59,13 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
                                                              Clock clock,
                                                              SnapshotProgressListener<MySqlPartition> progressListener,
                                                              DataChangeEventListener<MySqlPartition> dataChangeEventListener) {
-        super(config, jdbcConnection, dispatcher, databaseSchema, clock, progressListener, dataChangeEventListener);
+        super(config,
+                jdbcConnection,
+                dispatcher,
+                databaseSchema,
+                clock,
+                progressListener,
+                dataChangeEventListener);
         pulsarSignal = new PulsarSignalThread<>(MySqlConnector.class, config, this);
     }
 
@@ -73,7 +80,10 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
     }
 
     @Override
-    public void processMessage(MySqlPartition partition, DataCollectionId dataCollectionId, Object key, OffsetContext offsetContext) throws InterruptedException {
+    public void processMessage(MySqlPartition partition,
+                               DataCollectionId dataCollectionId,
+                               Object key,
+                               OffsetContext offsetContext) throws InterruptedException {
         if (getContext() == null) {
             LOGGER.warn("Context is null, skipping message processing");
             return;
@@ -99,7 +109,8 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
         readUntilGtidChange(partition, offsetContext);
     }
 
-    private void readUntilGtidChange(MySqlPartition partition, OffsetContext offsetContext) throws InterruptedException {
+    private void readUntilGtidChange(MySqlPartition partition,
+                                     OffsetContext offsetContext) throws InterruptedException {
         String currentGtid = getContext().getCurrentGtid(offsetContext);
         while (getContext().snapshotRunning() && getContext().reachedHighWatermark(currentGtid)) {
             getContext().closeWindow();
@@ -112,7 +123,8 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
     }
 
     @Override
-    public void processFilteredEvent(MySqlPartition partition, OffsetContext offsetContext) throws InterruptedException {
+    public void processFilteredEvent(MySqlPartition partition,
+                                     OffsetContext offsetContext) throws InterruptedException {
         if (getContext() == null) {
             LOGGER.warn("Context is null, skipping message processing");
             return;
@@ -125,12 +137,14 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
         }
     }
 
-    public void enqueueDataCollectionNamesToSnapshot(List<String> dataCollectionIds, MessageId signalOffset) {
+    public void enqueueDataCollectionNamesToSnapshot(
+            List<String> dataCollectionIds, MessageId signalOffset) {
         getContext().enqueueDataCollectionsToSnapshot(dataCollectionIds, signalOffset);
     }
 
     @Override
-    public void processTransactionStartedEvent(MySqlPartition partition, OffsetContext offsetContext) throws InterruptedException {
+    public void processTransactionStartedEvent(MySqlPartition partition,
+                                               OffsetContext offsetContext) throws InterruptedException {
         if (getContext() == null) {
             LOGGER.warn("Context is null, skipping message processing");
             return;
@@ -143,7 +157,8 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
     }
 
     @Override
-    public void processTransactionCommittedEvent(MySqlPartition partition, OffsetContext offsetContext) throws InterruptedException {
+    public void processTransactionCommittedEvent(MySqlPartition partition,
+                                                 OffsetContext offsetContext) throws InterruptedException {
         if (getContext() == null) {
             LOGGER.warn("Context is null, skipping message processing");
             return;
@@ -168,7 +183,8 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
                         final String gtidSet = rs.getString(5); // GTID set, may be null, blank, or contain a GTID set
                         watermark.accept(new GtidSet(gtidSet));
                     } else {
-                        throw new UnsupportedOperationException("Need to add support for executed GTIDs for versions prior to 5.6.5");
+                        throw new UnsupportedOperationException(
+                                "Need to add support for executed GTIDs for versions prior to 5.6.5");
                     }
                 }
             });
@@ -202,13 +218,17 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
         sourceInfo.setQuery(query);
     }
 
-    private void checkEnqueuedSnapshotSignals(MySqlPartition partition, OffsetContext offsetContext) throws InterruptedException {
+    private void checkEnqueuedSnapshotSignals(
+            MySqlPartition partition,
+            OffsetContext offsetContext) throws InterruptedException {
         while (getContext().hasExecuteSnapshotSignals()) {
             addDataCollectionNamesToSnapshot(getContext().getExecuteSnapshotSignals(), partition, offsetContext);
         }
     }
 
-    private void addDataCollectionNamesToSnapshot(ExecuteSnapshotPulsarSignal executeSnapshotSignal, MySqlPartition partition, OffsetContext offsetContext)
+    private void addDataCollectionNamesToSnapshot(ExecuteSnapshotPulsarSignal executeSnapshotSignal,
+                                                  MySqlPartition partition,
+                                                  OffsetContext offsetContext)
             throws InterruptedException {
         super.addDataCollectionNamesToSnapshot(partition, executeSnapshotSignal.getDataCollections(), offsetContext);
         // to string

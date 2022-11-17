@@ -74,8 +74,8 @@ public class MySqlReadOnlyIncrementalSnapshotContext<T>
 
     public static <V> MySqlReadOnlyIncrementalSnapshotContext<V> load(
             Map<String, ?> offsets, boolean useCatalogBeforeSchema) {
-        MySqlReadOnlyIncrementalSnapshotContext<V> context
-                = new MySqlReadOnlyIncrementalSnapshotContext<>(useCatalogBeforeSchema);
+        MySqlReadOnlyIncrementalSnapshotContext<V> context =
+                new MySqlReadOnlyIncrementalSnapshotContext<>(useCatalogBeforeSchema);
         init(context, offsets);
         return context;
     }
