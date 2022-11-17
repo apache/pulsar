@@ -293,30 +293,16 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().setOffloadPolicies(myNamespace, policies);
         assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), policies);
-
-        String topicName = testTopic + UUID.randomUUID();
-        try {
-            Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get(10, TimeUnit.SECONDS);
-            assertNotNull(topic);
-
-            assertTrue(topic instanceof PersistentTopic);
-
-            PersistentTopic persistentTopic = (PersistentTopic) topic;
-            ManagedLedger ledger = persistentTopic.getManagedLedger();
-            ManagedLedgerConfig config = ledger.getConfig();
-            OffloadPolicies policies1 = config.getLedgerOffloader().getOffloadPolicies();
-
-            assertEquals(policies1.getManagedLedgerOffloadThresholdInBytes(), policies.getManagedLedgerOffloadThresholdInBytes());
-            assertEquals(policies1.getManagedLedgerOffloadThresholdInSeconds(), policies.getManagedLedgerOffloadThresholdInSeconds());
-        } finally {
-            pulsar.getBrokerService().deleteTopic(topicName, true);
-        }
     }
 
     @Test
     public void testSetTopicOffloadPolicies() throws Exception {
         conf.setManagedLedgerOffloadThresholdInSeconds(100);
         conf.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
+
+        LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
+        when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
+        doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
 
         OffloadPoliciesImpl namespacePolicies = new OffloadPoliciesImpl();
         namespacePolicies.setManagedLedgerOffloadThresholdInBytes(200L);
@@ -329,7 +315,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getOffloadThresholdInSeconds(myNamespace), 300);
 
         admin.namespaces().setOffloadPolicies(myNamespace, namespacePolicies);
-        assertEquals(admin.namespaces().getOffloadPolicies(myNamespace),namespacePolicies);
+        assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), namespacePolicies);
 
         OffloadPoliciesImpl topicPolicies = new OffloadPoliciesImpl();
         topicPolicies.setManagedLedgerOffloadThresholdInBytes(500L);
@@ -339,30 +325,25 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         topicPolicies.setManagedLedgerOffloadBucket("buck2");
 
         String topicName = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
         admin.topicPolicies().setOffloadPolicies(topicName, topicPolicies);
 
-        assertEquals(admin.topicPolicies().getOffloadPolicies(topicName).getManagedLedgerOffloadThresholdInSeconds(),
-                topicPolicies.getManagedLedgerOffloadThresholdInSeconds());
-        assertEquals(admin.topicPolicies().getOffloadPolicies(topicName).getManagedLedgerOffloadThresholdInBytes(),
-                topicPolicies.getManagedLedgerOffloadThresholdInBytes());
+        // Wait until broker update policies finished.
+        for (int a = 1; a <= 5; a++) {
+            try {
+                OffloadPolicies policies = admin.topicPolicies().getOffloadPolicies(topicName);
 
-        try {
-            Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get(10, TimeUnit.SECONDS);
-            assertNotNull(topic);
-
-            assertTrue(topic instanceof PersistentTopic);
-
-            PersistentTopic persistentTopic = (PersistentTopic) topic;
-            ManagedLedger ledger = persistentTopic.getManagedLedger();
-            ManagedLedgerConfig config = ledger.getConfig();
-            OffloadPolicies policies1 = config.getLedgerOffloader().getOffloadPolicies();
-
-            assertEquals(policies1.getManagedLedgerOffloadThresholdInBytes(),
-                    topicPolicies.getManagedLedgerOffloadThresholdInBytes());
-            assertEquals(policies1.getManagedLedgerOffloadThresholdInSeconds(),
-                    topicPolicies.getManagedLedgerOffloadThresholdInSeconds());
-        } finally {
-            pulsar.getBrokerService().deleteTopic(topicName, true);
+                assertEquals(policies.getManagedLedgerOffloadThresholdInSeconds(),
+                        topicPolicies.getManagedLedgerOffloadThresholdInSeconds());
+                assertEquals(policies.getManagedLedgerOffloadThresholdInBytes(),
+                        topicPolicies.getManagedLedgerOffloadThresholdInBytes());
+            } catch (Exception e) {
+                if (a == 5) {
+                    throw e;
+                } else {
+                    Thread.sleep(1000L);
+                }
+            }
         }
     }
 
