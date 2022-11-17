@@ -35,8 +35,7 @@ In the production environment, there may be some long-lasting transactions that 
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions slow-transactions \
--c 1 -t 1s
+pulsar-admin transactions slow-transactions -c 1 -t 1s
 ```
 
 </TabItem>
@@ -48,9 +47,9 @@ pulsar-admin transactions slow-transactions \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getSlowTransactionsByCoordinatorId(coordinatorId, timeout, timeUnit)
+admin.transactions().getSlowTransactionsByCoordinatorId(coordinatorId, timeout, timeUnit)
 //Or get slow transactions from all coordinators
-admin.transaction().getSlowTransactions(timeout, timeUnit)
+admin.transactions().getSlowTransactions(timeout, timeUnit)
 ```
 
 </TabItem>
@@ -156,8 +155,7 @@ When the performance of transactions reaches a bottleneck due to the insufficien
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions scale-transactionCoordinators \
--r 17
+pulsar-admin transactions scale-transactionCoordinators -r 17
 ```
 
 </TabItem>
@@ -169,7 +167,7 @@ pulsar-admin transactions scale-transactionCoordinators \
 <TabItem value="Java">
 
 ```java
-admin.transaction().scaleTransactionCoordinators(replicas);
+admin.transactions().scaleTransactionCoordinators(replicas);
 ```
 
 </TabItem>
@@ -198,8 +196,7 @@ Use one of the following ways to get your transaction metadata.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions transaction-metadata\
--m 1 -l 1
+pulsar-admin transactions transaction-metadata -m 1 -l 1
 ```
 
 </TabItem>
@@ -257,8 +254,7 @@ Use one of the following ways to get transaction stats in pending ack:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions transaction-in-pending-ack-stats \
--m 1 -l 1 -t my-topic -s mysubname
+pulsar-admin transactions transaction-in-pending-ack-stats -m 1 -l 1 -t my-topic -s mysubname
 ```
 
 </TabItem>
@@ -270,7 +266,7 @@ pulsar-admin transactions transaction-in-pending-ack-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getTransactionInPendingAckStats(txnID, topic, subname);
+admin.transactions().getTransactionInPendingAckStats(txnID, topic, subname);
 ```
 
 </TabItem>
@@ -301,8 +297,7 @@ Use one of the following ways to get transaction stats in transaction buffer:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions transaction-in-buffer-stats \
--m 1 -l 1 -t my-topic
+pulsar-admin transactions transaction-in-buffer-stats -m 1 -l 1 -t my-topic
 ```
 
 </TabItem>
@@ -314,7 +309,7 @@ pulsar-admin transactions transaction-in-buffer-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getTransactionInBufferStatsAsync(txnID, topic);
+admin.transactions().getTransactionInBufferStatsAsync(txnID, topic);
 ```
 
 </TabItem>
@@ -353,8 +348,7 @@ Use one of the following ways to get transaction coordinator stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions coordinator-stats \
--c 1
+pulsar-admin transactions coordinator-stats -c 1
 ```
 
 </TabItem>
@@ -366,9 +360,9 @@ pulsar-admin transactions coordinator-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getCoordinatorStatsById(coordinatorId);
+admin.transactions().getCoordinatorStatsById(coordinatorId);
 //Or get all coordinator stats.
-admin.transaction().getCoordinatorStats();
+admin.transactions().getCoordinatorStats();
 ```
 
 </TabItem>
@@ -404,8 +398,7 @@ Use one of the following ways to get coordinator’s internal stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions coordinator-internal-stats \
--c 1 -m
+pulsar-admin transactions coordinator-internal-stats -c 1 -m
 ```
 
 </TabItem>
@@ -417,7 +410,7 @@ pulsar-admin transactions coordinator-internal-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getCoordinatorInternalStats(coordinatorId, metadata);
+admin.transactions().getCoordinatorInternalStats(coordinatorId, metadata);
 ```
 
 </TabItem>
@@ -496,8 +489,7 @@ Use one of the following ways to get transaction pending ack stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions pending-ack-stats \
--t my-topic -s  mysubName -l
+pulsar-admin.transactions()s pending-ack-stats -t my-topic -s mysubName -l
 ```
 
 </TabItem>
@@ -509,7 +501,7 @@ pulsar-admin transactions pending-ack-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getPendingAckStats(topic, subName, lowWaterMarks)
+admin.transactions().getPendingAckStats(topic, subName, lowWaterMarks)
 ```
 
 </TabItem>
@@ -547,8 +539,7 @@ Use one of the following ways to get transaction pending ack internal stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions pending-ack-internal-stats \
--t my-topic -s  mysubName -m
+pulsar-admin transactions pending-ack-internal-stats -t my-topic -s mysubName -m
 ```
 
 </TabItem>
@@ -560,7 +551,7 @@ pulsar-admin transactions pending-ack-internal-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getPendingAckInternalStats(topic, subName, boolean metadata);
+admin.transactions().getPendingAckInternalStats(topic, subName, boolean metadata);
 ```
 
 </TabItem>
@@ -642,8 +633,7 @@ If you want to know whether the position has been acknowledged, you can use one 
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions position-stats-in-pending-ack \
--t my-topic -s  mysubName -l 15 -e 6
+pulsar-admin transactions position-stats-in-pending-ack -t my-topic -s mysubName -l 15 -e 6
 ```
 
 </TabItem>
@@ -656,7 +646,7 @@ pulsar-admin transactions position-stats-in-pending-ack \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, lowWaterMarks);
+admin.transactions().getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, lowWaterMarks);
 ```
 
 </TabItem>
@@ -697,8 +687,7 @@ Use one of the following ways to get transaction buffer stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin transactions transaction-buffer-stats \
--t my-topic -l
+pulsar-admin transactions transaction-buffer-stats -t my-topic -l
 ```
 
 </TabItem>
@@ -710,7 +699,7 @@ pulsar-admin transactions transaction-buffer-stats \
 <TabItem value="Java">
 
 ```java
-admin.transaction().getTransactionBufferStats(topic, lowWaterMarks);
+admin.transactions().getTransactionBufferStats(topic, lowWaterMarks);
 ```
 
 </TabItem>
