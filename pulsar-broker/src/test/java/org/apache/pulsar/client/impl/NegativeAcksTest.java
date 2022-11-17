@@ -444,9 +444,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Assert.assertEquals(0, datas.size());
     }
 
-    /**
-     * see https://github.com/apache/pulsar/pull/18491
-     */
     @Test
     public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("my-topic");
