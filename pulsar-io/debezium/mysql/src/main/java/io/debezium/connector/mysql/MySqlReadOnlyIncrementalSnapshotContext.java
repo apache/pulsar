@@ -18,6 +18,7 @@
  */
 package io.debezium.connector.mysql;
 
+import static io.debezium.connector.mysql.GtidSet.GTID_DELIMITER;
 import io.debezium.annotation.NotThreadSafe;
 import io.debezium.connector.mysql.signal.ExecuteSnapshotPulsarSignal;
 import io.debezium.pipeline.source.snapshot.incremental.AbstractIncrementalSnapshotContext;
@@ -26,13 +27,10 @@ import io.debezium.pipeline.spi.OffsetContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static io.debezium.connector.mysql.GtidSet.GTID_DELIMITER;
 
 /**
  * Mysql read only incremental snapshot context.
@@ -60,19 +58,24 @@ public class MySqlReadOnlyIncrementalSnapshotContext<T>
         super(useCatalogBeforeSchema);
     }
 
-    protected static <U> IncrementalSnapshotContext<U> init(MySqlReadOnlyIncrementalSnapshotContext<U> context, Map<String, ?> offsets) {
+    protected static <V> IncrementalSnapshotContext<V> init(
+            MySqlReadOnlyIncrementalSnapshotContext<V> context,
+            Map<String, ?> offsets
+    ) {
         AbstractIncrementalSnapshotContext.init(context, offsets);
         final String signalOffset = (String) offsets.get(SIGNAL_OFFSET);
         context.setSignalOffset(signalOffset);
         return context;
     }
 
-    public static <U> MySqlReadOnlyIncrementalSnapshotContext<U> load(Map<String, ?> offsets) {
+    public static <V> MySqlReadOnlyIncrementalSnapshotContext<V> load(Map<String, ?> offsets) {
         return load(offsets, true);
     }
 
-    public static <U> MySqlReadOnlyIncrementalSnapshotContext<U> load(Map<String, ?> offsets, boolean useCatalogBeforeSchema) {
-        MySqlReadOnlyIncrementalSnapshotContext<U> context = new MySqlReadOnlyIncrementalSnapshotContext<>(useCatalogBeforeSchema);
+    public static <V> MySqlReadOnlyIncrementalSnapshotContext<V> load(
+            Map<String, ?> offsets, boolean useCatalogBeforeSchema) {
+        MySqlReadOnlyIncrementalSnapshotContext<V> context
+                = new MySqlReadOnlyIncrementalSnapshotContext<>(useCatalogBeforeSchema);
         init(context, offsets);
         return context;
     }
@@ -140,7 +143,8 @@ public class MySqlReadOnlyIncrementalSnapshotContext<T>
     }
 
     private GtidSet.UUIDSet getUuidSet(String serverId) {
-        return highWatermark.getUUIDSets().isEmpty() ? lowWatermark.forServerWithId(serverId) : highWatermark.forServerWithId(serverId);
+        return highWatermark.getUUIDSets().isEmpty()
+                ? lowWatermark.forServerWithId(serverId) : highWatermark.forServerWithId(serverId);
     }
 
     public boolean serverUuidChanged() {

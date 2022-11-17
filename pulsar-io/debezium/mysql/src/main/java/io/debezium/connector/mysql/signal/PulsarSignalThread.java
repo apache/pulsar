@@ -19,6 +19,8 @@
 
 package io.debezium.connector.mysql.signal;
 
+import static org.apache.commons.lang.StringUtils.isBlank;
+import java.io.IOException;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -43,9 +45,8 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.io.IOException;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
+
 
 /**
  * Pulsar signal thread.
@@ -86,7 +87,9 @@ public class PulsarSignalThread<T extends DataCollectionId> {
                               MySqlReadOnlyIncrementalSnapshotChangeEventSource<T> eventSource) {
         String signalName = "pulsar-signal";
         this.connectorName = connectorConfig.getLogicalName();
-        this.signalTopicListenerExecutor = Threads.newSingleThreadExecutor(connectorType, connectorName, signalName, true);
+        this.signalTopicListenerExecutor = Threads.newSingleThreadExecutor(
+                connectorType, connectorName, signalName, true
+        );
         Configuration signalConfig = connectorConfig.getConfig().subset(CONFIGURATION_FIELD_PREFIX_STRING, false)
                 .edit()
                 .withDefault(PulsarSignalThread.SIGNAL_TOPIC, connectorName + "-signal")
@@ -100,7 +103,10 @@ public class PulsarSignalThread<T extends DataCollectionId> {
         }
         ClientBuilder clientBuilder = PulsarClient.builder();
         if (!isBlank(clientBuilderBase64Encoded)) {
-            clientBuilder = (ClientBuilder) SerDeUtils.deserialize(clientBuilderBase64Encoded, clientBuilder.getClass().getClassLoader());
+            clientBuilder = (ClientBuilder) SerDeUtils.deserialize(
+                    clientBuilderBase64Encoded,
+                    clientBuilder.getClass().getClassLoader()
+            );
         } else {
             clientBuilder.serviceUrl(serviceUrl);
         }
