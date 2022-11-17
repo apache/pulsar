@@ -21,6 +21,9 @@ package io.debezium.connector.mysql.signal;
 import org.apache.pulsar.client.api.MessageId;
 import java.util.List;
 
+/**
+ * Execute snapshot pulsar signal.
+ */
 public class ExecuteSnapshotPulsarSignal {
     private final List<String> dataCollections;
     private final MessageId messageId;

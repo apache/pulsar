@@ -39,10 +39,12 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * mysql readonly incremental snapshot change event source
+ * Mysql readonly incremental snapshot change event source.
+ *
  * @param <T>
  */
-public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCollectionId> extends AbstractIncrementalSnapshotChangeEventSource<MySqlPartition, T> {
+public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCollectionId>
+        extends AbstractIncrementalSnapshotChangeEventSource<MySqlPartition, T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlReadOnlyIncrementalSnapshotChangeEventSource.class);
     private final String showMasterStmt = "SHOW MASTER STATUS";

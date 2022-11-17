@@ -47,7 +47,8 @@ import java.util.concurrent.ExecutorService;
 import static org.apache.commons.lang.StringUtils.isBlank;
 
 /**
- * pulsar signal thread
+ * Pulsar signal thread.
+ *
  * @param <T>
  */
 public class PulsarSignalThread<T extends DataCollectionId> {
