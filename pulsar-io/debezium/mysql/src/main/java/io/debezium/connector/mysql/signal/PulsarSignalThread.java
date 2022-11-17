@@ -20,8 +20,9 @@
 package io.debezium.connector.mysql.signal;
 
 import static org.apache.commons.lang.StringUtils.isBlank;
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import io.debezium.config.CommonConnectorConfig;
+import java.io.IOException;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.mysql.MySqlReadOnlyIncrementalSnapshotChangeEventSource;
@@ -42,7 +43,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.debezium.SerDeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
