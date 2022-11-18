@@ -138,46 +138,7 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>${docker.organization}/pulsar-all</name>
-                      <build>
-                        <contextDir>${project.basedir}</contextDir>
-                        <tags>
-                          <tag>latest</tag>
-                          <tag>${project.version}</tag>
-                        </tags>
-                      </build>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>push-latest</id>
-                <goals>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>${docker.organization}/pulsar-all</name>
-                      <build>
-                        <contextDir>${project.basedir}</contextDir>
-                        <tags>
-                          <tag>latest</tag>
-                        </tags>
-                      </build>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-no-repo</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>build</goal>
+                  <goal>tag</goal>
                 </goals>
                 <configuration>
                   <images>
@@ -187,11 +148,12 @@
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
                         </tags>
                       </build>
                     </image>
                   </images>
+                  <tagName>latest</tagName>
+                  <repo>${docker.organization}</repo>
                 </configuration>
               </execution>
             </executions>

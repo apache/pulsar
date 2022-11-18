@@ -321,6 +321,24 @@ Options
 |`--url`|service-url||
 |`--url-secure`|service-url for secure connection||
 
+### `update cluster migration`
+Update the configuration for a cluster
+
+Usage
+
+```bash
+pulsar-admin clusters update-cluster-migration cluster-name options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--migrated`|Is cluster migrated.||
+|`--broker-url`|New cluster URL for the broker service.||
+|`--broker-url-secure`|New cluster service URL for a secure connection||
+|`--url`|service-url||
+|`--url-secure`|service-url for secure connection||
 
 ### `delete`
 Deletes an existing cluster
@@ -2429,6 +2447,15 @@ Usage
 pulsar-admin topics stats topic
 ```
 
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-etb`,`--get-earliest-time-in-backlog` | Set to `true` to get the earliest time in backlog | false |
+|`-gpb`,`--get-precise-backlog`| Set to `true` to get precise backlog | false |
+|`-sbs`,` --get-subscription-backlog-size`| Set to `true` to get backlog size for each subscription, locking required | false | 
+
+
 :::note
 
 The unit of `storageSize` and `averageMsgSize` is Byte.
@@ -2466,7 +2493,10 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
+|`-gpb`,`--get-precise-backlog`| Set to `true` to get precise backlog | false |
+|`-sbs`,` --get-subscription-backlog-size`| Set to `true` to get backlog size for each subscription, locking required | false | 
 |`--per-partition`|Get per-partition stats|false|
+
 
 ### `partitioned-stats-internal`
 Get the internal stats for the partitioned topic and its connected producers and consumers. All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
@@ -2725,6 +2755,7 @@ pulsar-admin topics remove-message-ttl tenant/namespace/topic
 ```
 
 Options 
+
 |Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
@@ -44,10 +43,12 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -106,7 +107,7 @@ public class Producer {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
-        this.producerName = checkNotNull(producerName);
+        this.producerName = Objects.requireNonNull(producerName);
         this.userProvidedProducerName = userProvidedProducerName;
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
@@ -664,6 +665,15 @@ public class Producer {
             });
         }
         return closeFuture;
+    }
+
+    public void topicMigrated(Optional<ClusterUrl> clusterUrl) {
+        if (clusterUrl.isPresent()) {
+            ClusterUrl url = clusterUrl.get();
+            cnx.getCommandSender().sendTopicMigrated(ResourceType.Producer, producerId, url.getBrokerServiceUrl(),
+                    url.getBrokerServiceUrlTls());
+            disconnect();
+        }
     }
 
     public void updateRates() {

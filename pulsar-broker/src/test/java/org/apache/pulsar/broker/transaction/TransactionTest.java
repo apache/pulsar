@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -50,6 +52,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -81,19 +84,21 @@ import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
@@ -320,24 +325,103 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
+    public void testAsyncSendOrAckForSingleFuture() throws Exception {
+        String topic = NAMESPACE1 + "/testSingleFuture";
+        int totalMessage = 10;
+        int threadSize = 30;
+        String topicName = "subscription";
+        getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+        ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
+
+        //build producer/consumer
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+        //store the send/ack result  futures
+        CopyOnWriteArrayList<CompletableFuture<MessageId>> sendFutures = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<CompletableFuture<Void>> ackFutures = new CopyOnWriteArrayList<>();
+
+        //send and ack messages with transaction
+        Transaction transaction1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        for (int i = 0; i < totalMessage * threadSize; i++) {
+            producer.newMessage().send();
+        }
+
+        CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        for (int i = 0; i < threadSize; i++) {
+            executorService.submit(() -> {
+                try {
+                    for (int j = 0; j < totalMessage; j++) {
+                        CompletableFuture<MessageId> sendFuture = producer.newMessage(transaction1).sendAsync();
+                        sendFutures.add(sendFuture);
+                        Message<byte[]> message = consumer.receive();
+                        CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(),
+                                transaction1);
+                        ackFutures.add(ackFuture);
+                    }
+                    countDownLatch.countDown();
+                } catch (Exception e) {
+                    log.error("Failed to send/ack messages with transaction.", e);
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        //wait the all send/ack op is executed and store its futures in the arraylist.
+        countDownLatch.await(10, TimeUnit.SECONDS);
+        transaction1.commit().get();
+
+        //verify the final status is right.
+        Field ackCountField = TransactionImpl.class.getDeclaredField("opCount");
+        ackCountField.setAccessible(true);
+        long ackCount = (long) ackCountField.get(transaction1);
+        Assert.assertEquals(ackCount, 0L);
+
+        for (int i = 0; i < totalMessage * threadSize; i++) {
+            Assert.assertTrue(sendFutures.get(i).isDone());
+            Assert.assertTrue(ackFutures.get(i).isDone());
+        }
+
+        //verify opFuture without any operation.
+        Transaction transaction2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Awaitility.await().until(() -> {
+            transaction2.commit().get();
+            return true;
+        });
+    }
+
+    @Test
     public void testGetTxnID() throws Exception {
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 0);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+
         transaction.abort();
         transaction = pulsarClient.newTransaction()
                 .build().get();
-        txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 1);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+        TxnID txnID1 = transaction.getTxnID();
+        Assert.assertEquals(txnID1.getLeastSigBits(), txnID.getLeastSigBits() + 1);
+        Assert.assertEquals(txnID1.getMostSigBits(), 0);
     }
 
     @Test
     public void testSubscriptionRecreateTopic()
             throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
-        String topic = "persistent://pulsar/system/testReCreateTopic";
+        String topic = "persistent://pulsar/system/testSubscriptionRecreateTopic";
         String subName = "sub_testReCreateTopic";
         int retentionSizeInMbSetTo = 5;
         int retentionSizeInMbSetTopic = 6;
@@ -399,11 +483,7 @@ public class TransactionTest extends TransactionTestBase {
                         }
                 );
             });
-
-
         });
-
-
     }
 
     @Test
@@ -692,13 +772,16 @@ public class TransactionTest extends TransactionTestBase {
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
                 new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
-                        500, bufferedWriterConfig, transactionTimer)))
+                        500, bufferedWriterConfig, transactionTimer,
+                        DISABLED_BUFFERED_WRITER_METRICS)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
         Class<PulsarService> pulsarServiceClass = PulsarService.class;
         Field field = pulsarServiceClass.getDeclaredField("transactionPendingAckStoreProvider");
         field.setAccessible(true);
+        TransactionPendingAckStoreProvider originPendingAckStoreProvider =
+                (TransactionPendingAckStoreProvider) field.get(getPulsarServiceList().get(0));
         field.set(getPulsarServiceList().get(0), pendingAckStoreProvider);
 
         PendingAckHandleImpl pendingAckHandle1 = new PendingAckHandleImpl(persistentSubscription);
@@ -728,6 +811,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // cleanup
         transactionTimer.stop();
+        field.set(getPulsarServiceList().get(0), originPendingAckStoreProvider);
     }
 
     @Test
@@ -758,7 +842,7 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        transactionTimer);
+                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -859,9 +943,11 @@ public class TransactionTest extends TransactionTestBase {
         filed1.set(persistentTopic, managedLedger);
 
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) field2.get(persistentTopic);
-        Method method = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
-        method.setAccessible(true);
-        CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) method.invoke(topicTransactionBuffer);
+        Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
+        processorField.setAccessible(true);
+        AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(topicTransactionBuffer);
+        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takeAbortedTxnsSnapshot(
+                topicTransactionBuffer.getMaxReadPosition());
         completableFuture.get();
 
         doReturn(PositionImpl.LATEST).when(managedLedger).getLastConfirmedEntry();
@@ -943,9 +1029,15 @@ public class TransactionTest extends TransactionTestBase {
                 .getTopic(NAMESPACE1 + "/changeMaxReadPositionAndAddAbortTimes" + UUID.randomUUID(), true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
-        Field field = TopicTransactionBuffer.class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
-        field.setAccessible(true);
-        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) field.get(buffer);
+        Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
+        processorField.setAccessible(true);
+
+        AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(buffer);
+        Field changeTimeField = TopicTransactionBuffer
+                .class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
+        changeTimeField.setAccessible(true);
+        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) changeTimeField.get(buffer);
+
         Field field1 = TopicTransactionBufferState.class.getDeclaredField("state");
         field1.setAccessible(true);
 
@@ -992,7 +1084,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckMarkDeletePosition() throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(1);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
-        String topic = NAMESPACE1 + "/test1";
+        String topic = NAMESPACE1 + "/testPendingAckMarkDeletePosition";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -1053,7 +1145,7 @@ public class TransactionTest extends TransactionTestBase {
                     .getPendingAckInternalStats(topic, "sub", false)
                     .pendingAckLogStats
                     .managedLedgerInternalStats;
-            String [] markDeletePosition = managedLedgerInternalStats.cursors.get("__pending_ack_state")
+            String [] markDeletePosition = managedLedgerInternalStats.cursors.get(PENDING_ACK_STORE_CURSOR_NAME)
                     .markDeletePosition.split(":");
             String [] lastConfirmedEntry = managedLedgerInternalStats.lastConfirmedEntry.split(":");
             Assert.assertEquals(markDeletePosition[0], lastConfirmedEntry[0]);
@@ -1432,18 +1524,23 @@ public class TransactionTest extends TransactionTestBase {
         when(pendingAckStoreProvider.newPendingAckStore(any()))
                 .thenReturn(CompletableFuture.completedFuture(pendingAckStore));
         // Mock TransactionBufferSnapshotService
-        TransactionBufferSnapshotService transactionBufferSnapshotService
-                = mock(TransactionBufferSnapshotService.class);
-        SystemTopicClient.Writer writer = mock(SystemTopicClient.Writer.class);
+        SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> systemTopicTxnBufferSnapshotService
+                = mock(SystemTopicTxnBufferSnapshotService.class);
+        SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
         when(writer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-        when(transactionBufferSnapshotService.createWriter(any()))
+        when(systemTopicTxnBufferSnapshotService.createWriter(any()))
                 .thenReturn(CompletableFuture.completedFuture(writer));
+        TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory =
+                mock(TransactionBufferSnapshotServiceFactory.class);
+        when(transactionBufferSnapshotServiceFactory.getTxnBufferSnapshotService())
+                .thenReturn(systemTopicTxnBufferSnapshotService);
+
         // Mock pulsar.
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
         when(pulsar.getConfig()).thenReturn(serviceConfiguration);
         when(pulsar.getTransactionExecutorProvider()).thenReturn(executorProvider);
-        when(pulsar.getTransactionBufferSnapshotService()).thenReturn(transactionBufferSnapshotService);
+        when(pulsar.getTransactionBufferSnapshotServiceFactory()).thenReturn(transactionBufferSnapshotServiceFactory);
         TopicTransactionBufferProvider topicTransactionBufferProvider = new TopicTransactionBufferProvider();
         when(pulsar.getTransactionBufferProvider()).thenReturn(topicTransactionBufferProvider);
         // Mock BacklogQuotaManager

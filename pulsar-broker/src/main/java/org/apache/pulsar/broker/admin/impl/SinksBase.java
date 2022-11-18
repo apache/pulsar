@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class SinksBase extends AdminResource {
 
     Sinks<? extends WorkerService> sinks() {
-        return pulsar().getWorkerService().getSinks();
+        return validateAndGetWorkerService().getSinks();
     }
 
     @POST

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -107,9 +107,6 @@ public class CmdGenerateDocument extends CmdBase {
                     .append("\n```");
             sb.append("\n\n");
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
-            for (String s : cmdObj.jcommander.getCommands().keySet()) {
-                sb.append("* `").append(s).append("`\n");
-            }
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
                 sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
                 sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");

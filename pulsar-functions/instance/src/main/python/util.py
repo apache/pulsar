@@ -26,6 +26,7 @@ import inspect
 import sys
 import importlib
 from threading import Timer
+from pulsar.functions import serde
 
 import log
 
@@ -60,7 +61,13 @@ def import_class_from_path(from_path, full_class_name):
     mod = importlib.import_module(class_name)
     return mod
   else:
-    mod = importlib.import_module(classname_path)
+    # Serde modules is being used in unqualified form instead of using
+    # the full name `pulsar.functions.serde`, so we have to make sure
+    # it gets resolved correctly.
+    if classname_path == 'serde':
+        mod = serde
+    else:
+        mod = importlib.import_module(classname_path)
     retval = getattr(mod, class_name)
     return retval
 

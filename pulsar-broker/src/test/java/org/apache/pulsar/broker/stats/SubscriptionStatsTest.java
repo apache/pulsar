@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,21 +20,29 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.mock;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
-import org.apache.pulsar.broker.service.plugin.*;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -183,11 +191,14 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         if (setFilter) {
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
+            Field hasFilterField = EntryFilterSupport.class.getDeclaredField("hasFilter");
+            hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
                     spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
-            field.set(dispatcher, ImmutableList.of(loader1));
+            field.set(dispatcher, List.of(loader1));
+            hasFilterField.set(dispatcher, true);
         }
 
         for (int i = 0; i < 100; i++) {

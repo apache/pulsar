@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
@@ -51,6 +51,18 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription) {
         super(topic, cursor, subscription);
+    }
+
+    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
+                                                                 boolean isLastEntryInBatch) {
+        sendInProgress = true;
+        try {
+            return trySendMessagesToConsumers(readType, entries);
+        } finally {
+            if (isLastEntryInBatch) {
+                sendInProgress = false;
+            }
+        }
     }
 
     /**
@@ -93,6 +105,8 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
 
+        long size = entry.getLength();
+        updatePendingBytesToDispatch(size);
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
@@ -101,13 +115,17 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             // in a separate thread, and we want to prevent more reads
             sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
                     readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
                 readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
             }
         }
         ctx.recycle();
@@ -142,7 +160,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Topic has been terminated and there are no more entries to read
             // Notify the consumer only if all the messages were already acknowledged
-            consumerList.forEach(Consumer::reachedEndOfTopic);
+            checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
         }
     }
 

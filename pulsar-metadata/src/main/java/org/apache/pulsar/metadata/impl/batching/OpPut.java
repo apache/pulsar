@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,7 @@ public class OpPut implements MetadataOp {
     private final Optional<Long> optExpectedVersion;
     private final EnumSet<CreateOption> options;
 
+    public final long created = System.currentTimeMillis();
     private final CompletableFuture<Stat> future = new CompletableFuture<>();
 
     public boolean isEphemeral() {
@@ -48,5 +49,10 @@ public class OpPut implements MetadataOp {
     @Override
     public int size() {
         return path.length() + (data != null ? data.length : 0);
+    }
+
+    @Override
+    public long created() {
+        return this.created;
     }
 }

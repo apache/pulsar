@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 import static com.google.common.base.Preconditions.checkState;
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.stream.IntStream;
@@ -115,9 +113,15 @@ public class JdbcUtils {
      * Get the {@link TableDefinition} for the given table.
      */
     public static TableDefinition getTableDefinition(
-            Connection connection, TableId tableId, List<String> keyList, List<String> nonKeyList) throws Exception {
+            Connection connection, TableId tableId,
+            List<String> keyList,
+            List<String> nonKeyList,
+            boolean excludeNonDeclaredFields) throws Exception {
         TableDefinition table = TableDefinition.of(
                 tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
+
+        keyList = keyList == null ? Collections.emptyList() : keyList;
+        nonKeyList = nonKeyList == null ? Collections.emptyList() : nonKeyList;
 
         try (ResultSet rs = connection.getMetaData().getColumns(
             tableId.getCatalogName(),
@@ -132,25 +136,20 @@ public class JdbcUtils {
                 final String typeName = rs.getString(6);
                 final int position = rs.getInt(17);
 
-                ColumnId columnId = ColumnId.of(tableId, columnName, sqlDataType, typeName, position);
-                table.columns.add(columnId);
-                if (keyList != null) {
-                    keyList.forEach((key) -> {
-                        if (key.equals(columnName)) {
-                            table.keyColumns.add(columnId);
-                        }
-                    });
-                }
-                if (nonKeyList != null) {
-                    nonKeyList.forEach((key) -> {
-                        if (key.equals(columnName)) {
-                            table.nonKeyColumns.add(columnId);
-                        }
-                    });
-                }
-
                 if (log.isDebugEnabled()) {
                     log.debug("Get column. name: {}, data type: {}, position: {}", columnName, typeName, position);
+                }
+
+                ColumnId columnId = ColumnId.of(tableId, columnName, sqlDataType, typeName, position);
+
+                if (keyList.contains(columnName)) {
+                    table.keyColumns.add(columnId);
+                    table.columns.add(columnId);
+                } else if (nonKeyList.contains(columnName)) {
+                    table.nonKeyColumns.add(columnId);
+                    table.columns.add(columnId);
+                } else if (!excludeNonDeclaredFields) {
+                    table.columns.add(columnId);
                 }
             }
             return table;
@@ -171,10 +170,6 @@ public class JdbcUtils {
         builder.append("?)");
 
         return builder.toString();
-    }
-
-    public static PreparedStatement buildInsertStatement(Connection connection, String insertSQL) throws SQLException {
-        return connection.prepareStatement(insertSQL);
     }
 
     public static String combationWhere(List<ColumnId> columnIds) {
@@ -205,6 +200,9 @@ public class JdbcUtils {
     }
 
     public static StringJoiner buildUpdateSqlSetPart(TableDefinition table) {
+        if (table.nonKeyColumns.isEmpty()) {
+            throw new IllegalStateException("UPDATE operations are not supported if 'nonKey' config is not set.");
+        }
         StringJoiner setJoiner = new StringJoiner(",");
 
         table.nonKeyColumns.forEach((columnId) ->{
@@ -215,27 +213,9 @@ public class JdbcUtils {
         return setJoiner;
     }
 
-    public static PreparedStatement buildUpdateStatement(Connection connection, String updateSQL) throws SQLException {
-        return connection.prepareStatement(updateSQL);
-    }
-
     public static String buildDeleteSql(TableDefinition table) {
         return "DELETE FROM "
             + table.tableId.getTableName()
             + combationWhere(table.keyColumns);
     }
-
-    public static PreparedStatement buildDeleteStatement(Connection connection, String deleteSQL) throws SQLException {
-        return connection.prepareStatement(deleteSQL);
-    }
-
-    public static String getDriverClassName(String jdbcUrl) throws Exception {
-        for (JdbcDriverType type : JdbcDriverType.values()) {
-            if (type.matches(jdbcUrl)) {
-                return type.getDriverClass();
-            }
-        }
-        throw new Exception("Provided JDBC connection string contains unknown driver: " + jdbcUrl);
-    }
-
 }

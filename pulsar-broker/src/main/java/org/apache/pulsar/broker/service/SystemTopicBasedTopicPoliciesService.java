@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -101,6 +101,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
                                                          TopicPolicies policies) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return CompletableFuture.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
         try {
             createSystemTopicFactoryIfNeeded();
@@ -119,7 +123,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             } else {
                 PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
                 CompletableFuture<MessageId> actionFuture =
-                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(event) : writer.writeAsync(event);
+                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
+                                : writer.writeAsync(getEventKey(event), event);
                 actionFuture.whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
@@ -451,7 +456,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer
-                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null))
+                            -> writer.deleteAsync(getEventKey(topicName),
+                                    getPulsarEvent(topicName, ActionType.DELETE, null))
                             .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
                                 if (ex != null) {
                                     log.error("close writer failed ", ex);
@@ -535,6 +541,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
+    public static String getEventKey(PulsarEvent event) {
+        return TopicName.get(event.getTopicPoliciesEvent().getDomain(),
+                event.getTopicPoliciesEvent().getTenant(),
+                event.getTopicPoliciesEvent().getNamespace(),
+                event.getTopicPoliciesEvent().getTopic()).toString();
+    }
+
+    public static String getEventKey(TopicName topicName) {
+        return TopicName.get(topicName.getDomain().toString(),
+                topicName.getTenant(),
+                topicName.getNamespace(),
+                TopicName.get(topicName.getPartitionedTopicName()).getLocalName()).toString();
+    }
+
     @VisibleForTesting
     long getPoliciesCacheSize() {
         return policiesCache.size();
@@ -559,7 +579,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
         listeners.compute(topicName, (k, topicListeners) -> {
             if (topicListeners == null) {
-                topicListeners = Lists.newCopyOnWriteArrayList();
+                topicListeners = new CopyOnWriteArrayList<>();
             }
             topicListeners.add(listener);
             return topicListeners;

@@ -27,9 +27,9 @@ Select one of the content blocks below to begin your Pulsar journey. If you ...
 <BlockLinks>
     <BlockLink title="About Pulsar" url="/docs/next/concepts-overview/" />
     <BlockLink title="Get Started" url="/docs/next/getting-started-home/" />
-    <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/deploy-aws/" />
+    <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/install-deploy-upgrade-landing/" />
     <BlockLink title="Pulsar for Developers" url="/docs/next/developers-landing/" />
-    <BlockLink title="How To" url="/docs/next/functions-develop/" />
+    <BlockLink title="How To" url="/docs/next/how-to-landing/" />
     <BlockLink title="Reference" url="/docs/next/reference-terminology/" />
 </BlockLinks>
 
@@ -55,7 +55,7 @@ You’ll notice an Edit button at the bottom and top of each page. Click it to o
 
 :::tip
 
-For how to make contributions to documentation, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).
+For how to make contributions to documentation, see [Pulsar Documentation Contribution Guide](https://github.com/apache/pulsar/blob/master/site2/README.md).
 
 :::
 

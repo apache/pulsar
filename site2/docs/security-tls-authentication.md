@@ -13,101 +13,38 @@ import TabItem from '@theme/TabItem';
 
 TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
-## Create client certificates
+## Enable TLS authentication on brokers/proxies
 
-Client certificates are generated using the certificate authority. Server certificates are also generated with the same certificate authority.
-
-The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** that the client is authenticated as.
-
-To use client certificates, you need to set `tlsRequireTrustedClientCertOnConnect=true` at the broker side. For details, refer to [TLS broker configuration](security-tls-transport.md#configure-brokers).
-
-First, you need to enter the following command to generate the key :
-
-```bash
-openssl genrsa -out admin.key.pem 2048
-```
-
-Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so you need to convert it by entering the following command:
-
-```bash
-openssl pkcs8 -topk8 -inform PEM -outform PEM \
-    -in admin.key.pem -out admin.key-pk8.pem -nocrypt
-```
-
-Next, enter the command below to generate the certificate request. When you are asked for a **common name**, enter the **role token** that you want this key pair to authenticate a client as.
-
-```bash
-openssl req -config openssl.cnf \
-    -key admin.key.pem -new -sha256 -out admin.csr.pem
-```
-
-:::note
-
-If `openssl.cnf` is not specified, read [Certificate authority](security-tls-transport.md#certificate-authority) to get `openssl.cnf`.
-
-:::
-
-Then, enter the command below to sign with a request with the certificate authority. Note that the client certs use the **usr_cert** extension, which allows the cert to be used for client authentication.
-
-```bash
-openssl ca -config openssl.cnf -extensions usr_cert \
-    -days 1000 -notext -md sha256 \
-    -in admin.csr.pem -out admin.cert.pem
-```
-
-You can get a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem` from this command. With `ca.cert.pem`, clients can use this cert and this key to authenticate themselves to brokers and proxies as the role token ``admin``.
-
-:::note
-
-If the "unable to load CA private key" error occurs and the reason for this error is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Try the command below to generate `cakey.pem`.
-
-```bash
-cd /etc/pki/tls/misc/CA
-./CA -newca
-```
-
-:::
-
-## Enable TLS authentication on brokers
-
-To configure brokers to authenticate clients, add the following parameters to `broker.conf`, alongside [the configuration to enable TLS transport](security-tls-transport.md#configure-brokers):
+To configure brokers/proxies to authenticate clients using Mutual TLS, add the following parameters to the `conf/broker.conf` and the `conf/proxy.conf` file. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file:
 
 ```properties
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
-tlsRequireTrustedClientCertOnConnect=true
 
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-brokerClientAuthenticationParameters={"tlsCertFile":"/path/my-ca/admin.cert.pem","tlsKeyFile":"/path/my-ca/admin.key-pk8.pem"}
-brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
-```
+brokerClientAuthenticationParameters={"tlsCertFile":"/path/to/admin.cert.pem","tlsKeyFile":"/path/to/admin.key-pk8.pem"}
+brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
 
-## Enable TLS authentication on proxies
+tlsCertificateFilePath=/path/to/broker.cert.pem
+tlsKeyFilePath=/path/to/broker.key-pk8.pem
+tlsTrustCertsFilePath=/path/to/ca.cert.pem
 
-To configure proxies to authenticate clients, add the following parameters to `proxy.conf`, alongside [the configuration to enable TLS transport](security-tls-transport.md#configure-proxies):
-
-The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. See the [authorization guide](security-authorization.md) for more details.
-
-```properties
-# For clients connecting to the proxy
-authenticationEnabled=true
-authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 tlsRequireTrustedClientCertOnConnect=true
+tlsAllowInsecureConnection=false
 
-# For the proxy to connect to brokers
-brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-brokerClientAuthenticationParameters=tlsCertFile:/path/to/proxy.cert.pem,tlsKeyFile:/path/to/proxy.key-pk8.pem
+# Tls cert refresh duration in seconds (set 0 to check on every new connection)
+tlsCertRefreshCheckDurationSec=300
 ```
 
 ## Configure TLS authentication in Pulsar clients
 
-When you use TLS authentication, client connects via TLS transport. You need to configure the client to use `https://` and 8443 port for the web service URL, `pulsar+ssl://` and 6651 port for the broker service URL.
+When using TLS authentication, clients connect via TLS transport. You need to configure clients to use `https://` and the `8443` port for the web service URL, use `pulsar+ssl://` and the `6651` port for the broker service URL.
 
 ````mdx-code-block
 <Tabs groupId="lang-choice"
   defaultValue="Java"
-  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"C#","value":"C#"}]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"Go","value":"Go"},{"label":"C#","value":"C#"}]}>
 <TabItem value="Java">
 
 ```java
@@ -173,6 +110,17 @@ const Pulsar = require('pulsar-client');
 ```
 
 </TabItem>
+<TabItem value="Go">
+
+```go
+client, err := pulsar.NewClient(ClientOptions{
+		URL:                   "pulsar+ssl://broker.example.com:6651/",
+		TLSTrustCertsFilePath: "/path/to/ca.cert.pem",
+		Authentication:        pulsar.NewAuthenticationTLS("/path/to/my-role.cert.pem", "/path/to/my-role.key-pk8.pem"),
+	})
+```
+
+</TabItem>
 <TabItem value="C#">
 
 ```csharp
@@ -188,7 +136,7 @@ var client = PulsarClient.Builder()
 
 ## Configure TLS authentication in CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md), and [`pulsar-client`](reference-cli-tools.md) use the `conf/client.conf` config file in a Pulsar installation.
 
 To use TLS authentication with the CLI tools of Pulsar, you need to add the following parameters to the `conf/client.conf` file, alongside [the configuration to enable TLS encryption](security-tls-transport.md#configure-tls-encryption-in-cli-tools):
 
@@ -212,7 +160,6 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 
 # Enable KeyStore type
 tlsEnabledWithKeyStore=true
-tlsRequireTrustedClientCertOnConnect=true
 
 # key store
 tlsKeyStoreType=JKS
@@ -233,6 +180,9 @@ brokerClientTlsTrustStorePassword=clientpw
 # internal auth config
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
 brokerClientAuthenticationParameters={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
+
+tlsRequireTrustedClientCertOnConnect=true
+tlsAllowInsecureConnection=false
 ```
 
 ### Configure clients
