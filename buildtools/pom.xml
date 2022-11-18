@@ -41,7 +41,7 @@
     <surefire.version>3.0.0-M3</surefire.version>
     <log4j2.version>2.18.0</log4j2.version>
     <slf4j.version>1.7.32</slf4j.version>
-    <testng.version>7.3.0</testng.version>
+    <testng.version>7.6.1</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <maven-shade-plugin.version>3.4.0</maven-shade-plugin.version>
