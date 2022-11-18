@@ -37,7 +37,6 @@ import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -2182,19 +2181,9 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
+        ClientConfigurationData conf =  ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get()).getClientConfigData();
 
-        final PulsarAdmin admin = tool.getPulsarAdminSupplier().get();
-        Field requestTimeoutField =
-                PulsarAdminImpl.class.getDeclaredField("requestTimeout");
-        requestTimeoutField.setAccessible(true);
-        int requestTimeout = (int) requestTimeoutField.get(admin);
-
-        Field requestTimeoutUnitField =
-                PulsarAdminImpl.class.getDeclaredField("requestTimeoutUnit");
-        requestTimeoutUnitField.setAccessible(true);
-        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(admin);
-        assertEquals(1, requestTimeout);
-        assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
+        assertEquals(1000, conf.getRequestTimeoutMs());
     }
 
     @Test
