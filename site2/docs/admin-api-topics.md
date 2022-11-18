@@ -956,7 +956,7 @@ You can skip all the old messages for a specific subscription of a given topic.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics skip-all \
+pulsar-admin topics clear-backlog \
     --subscription my-subscription \
     persistent://test-tenant/ns1/tp1
 ```
