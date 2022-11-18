@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -235,7 +235,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Assert.assertEquals(0, datas.size());
     }
 
-    @Test(invocationCount = 5)
+    @Test
     public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("my-topic");
         admin.topics().createPartitionedTopic(topic, 2);
