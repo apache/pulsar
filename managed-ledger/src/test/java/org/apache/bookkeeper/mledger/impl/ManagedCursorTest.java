@@ -118,6 +118,21 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
 
+    @Test
+    public void testOpenCursorWithNullInitialPosition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testOpenCursorWithNullInitialPosition", config);
+        // Write some data.
+        ledger.addEntry(new byte[]{1});
+        ledger.addEntry(new byte[]{2});
+        ledger.addEntry(new byte[]{3});
+        ledger.addEntry(new byte[]{4});
+        ledger.addEntry(new byte[]{5});
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_testOpenCursorWithNullInitialPosition", null);
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
+    }
+
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
