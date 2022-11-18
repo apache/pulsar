@@ -21,8 +21,13 @@ package org.apache.pulsar.client.admin.internal;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.testng.Assert;
 import org.testng.annotations.Test;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PulsarAdminBuilderImplTest {
 
@@ -34,5 +39,22 @@ public class PulsarAdminBuilderImplTest {
         } catch (IllegalArgumentException exception) {
             assertEquals("Service URL needs to be specified", exception.getMessage());
         }
+    }
+
+    @Test
+    public void testGetPropertiesFromConf() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("serviceUrl", "pulsar://localhost:6650");
+        config.put("requestTimeoutMs", 10);
+        config.put("autoCertRefreshSeconds", 20);
+        config.put("connectionTimeoutMs", 30);
+        config.put("readTimeoutMs", 40);
+        PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().loadConf(config);
+        PulsarAdminImpl admin = (PulsarAdminImpl) adminBuilder.build();
+        ClientConfigurationData clientConfigData = admin.getClientConfigData();
+        Assert.assertEquals(clientConfigData.getRequestTimeoutMs(), 10);
+        Assert.assertEquals(clientConfigData.getAutoCertRefreshSeconds(), 20);
+        Assert.assertEquals(clientConfigData.getConnectionTimeoutMs(), 30);
+        Assert.assertEquals(clientConfigData.getReadTimeoutMs(), 40);
     }
 }
