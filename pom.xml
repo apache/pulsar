@@ -284,6 +284,7 @@ flexible messaging model and an intuitive client API.</description>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
+    <lombok.plugin.version>1.18.20.0</lombok.plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1818,7 +1819,21 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
+            <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok-maven-plugin</artifactId>
+          <version>${lombok.plugin.version}</version>
+          <executions>
+            <execution>
+              <phase>generate-sources</phase>
+              <goals>
+                <goal>delombok</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -45,24 +44,13 @@ import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
 public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers
     implements StreamingDispatcher {
 
+    private int sendingTaskCounter = 0;
     private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
 
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription) {
         super(topic, cursor, subscription);
-    }
-
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
-                                                                 boolean isLastEntryInBatch) {
-        sendInProgress = true;
-        try {
-            return trySendMessagesToConsumers(readType, entries);
-        } finally {
-            if (isLastEntryInBatch) {
-                sendInProgress = false;
-            }
-        }
     }
 
     /**
@@ -113,16 +101,16 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), false)) {
                     readMoreEntries();
                 } else {
                     updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), ctx.isLast())) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), true)) {
                 readMoreEntriesAsync();
             } else {
                 updatePendingBytesToDispatch(-size);
@@ -172,8 +160,23 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized void acquireSendInProgress() {
+        sendingTaskCounter++;
+    }
+
+    @Override
+    protected synchronized void releaseSendInProgress() {
+        sendingTaskCounter--;
+    }
+
+    @Override
+    protected synchronized boolean isSendInProgress() {
+        return sendingTaskCounter > 0;
+    }
+
+    @Override
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
