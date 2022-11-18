@@ -158,6 +158,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getState(), ManagedCursorImpl.State.Closed.toString());
     }
 
+    @Test
     public void testOpenCursorWithNullInitialPosition() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         ManagedLedger ledger = factory.open("testOpenCursorWithNullInitialPosition", config);
