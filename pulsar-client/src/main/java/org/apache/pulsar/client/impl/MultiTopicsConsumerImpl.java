@@ -639,8 +639,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             });
             clearIncomingMessages();
             unAckedMessageTracker.clear();
+            resumeReceivingFromPausedConsumersIfNeeded();
         });
-        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     @Override
