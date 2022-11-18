@@ -231,7 +231,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             count++;
         }
         // because don't have the redeliver epoch, so receive the message count is bigger than 9
-        assertTrue(count > 9);
+        assertTrue(count > 8);
         Assert.assertEquals(0, datas.size());
     }
 
