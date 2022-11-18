@@ -40,11 +40,14 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertNotNull;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang.StringUtils;
@@ -103,9 +106,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         lookupServiceAddress2 = (String)
                 FieldUtils.readDeclaredField(channel2, "lookupServiceAddress", true);
 
-        bundle =  String.format("%s/%s", "public/default", "0x00000000_0xffffffff");
-        bundle1 =  String.format("%s/%s", "public/default", "0x00000000_0xfffffff0");
-        bundle2 =  String.format("%s/%s", "public/default", "0xfffffff0_0xffffffff");
+        bundle = String.format("%s/%s", "public/default", "0x00000000_0xffffffff");
+        bundle1 = String.format("%s/%s", "public/default", "0x00000000_0xfffffff0");
+        bundle2 = String.format("%s/%s", "public/default", "0xfffffff0_0xffffffff");
     }
 
     @BeforeMethod
@@ -125,13 +128,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(priority=0)
-    public void channelOwnerTest() throws Exception{
+    @Test(priority = 0)
+    public void channelOwnerTest() throws Exception {
         var channelOwner1 = channel1.getChannelOwner();
         var channelOwner2 = channel2.getChannelOwner();
         assertEquals(channelOwner1, channelOwner2);
         LeaderElectionService leaderElectionService1 = (LeaderElectionService) FieldUtils.readDeclaredField(
-                channel1, "leaderElectionService",  true);
+                channel1, "leaderElectionService", true);
         leaderElectionService1.close();
         waitUntilNewChannelOwner(channel2, channelOwner1);
         leaderElectionService1.start();
@@ -152,7 +155,74 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(priority=1)
+    @Test(priority = 0)
+    public void channelValidationTest() throws ExecutionException, InterruptedException {
+        var channel = new ServiceUnitStateChannelImpl(pulsar);
+
+        int errorCnt = validateChannelStart(channel);
+        assertEquals(6, errorCnt);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future startFuture = executor.submit(() -> {
+            try {
+                channel.start();
+            } catch (PulsarServerException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        errorCnt = validateChannelStart(channel);
+        startFuture.get();
+        assertTrue(errorCnt > 0);
+        Future closeFuture = executor.submit(()->{
+            try {
+                channel.close();
+            } catch (PulsarServerException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        errorCnt = validateChannelStart(channel);
+        closeFuture.get();
+        assertTrue(errorCnt > 0);
+        errorCnt = validateChannelStart(channel);
+        assertEquals(6, errorCnt);
+    }
+
+    private int validateChannelStart(ServiceUnitStateChannelImpl channel) {
+        int errorCnt = 0;
+        try {
+            channel.isChannelOwner();
+        } catch (IllegalStateException e) {
+            errorCnt++;
+        }
+        try {
+            channel.getChannelOwner();
+        } catch (IllegalStateException e) {
+            errorCnt++;
+        }
+        try {
+            channel.getOwnerAsync(bundle);
+        } catch (IllegalStateException e) {
+            errorCnt++;
+        }
+        try {
+            channel.publishAssignEventAsync(bundle, lookupServiceAddress1);
+        } catch (IllegalStateException e) {
+            errorCnt++;
+        }
+        try {
+            channel.publishUnloadEventAsync(
+                    new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2)));
+        } catch (IllegalStateException e) {
+            errorCnt++;
+        }
+        try {
+            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()));
+        } catch (IllegalStateException e) {
+            errorCnt++;
+        }
+        return errorCnt;
+    }
+
+    @Test(priority = 1)
     public void compactionScheduleTest() throws PulsarServerException {
 
         channel1.scheduleCompaction();
@@ -165,14 +235,14 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                         var threshold = admin.topicPolicies()
                                 .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false).longValue();
                         assertEquals(5 * 1024 * 1024, threshold);
-                    } catch (Exception e){
+                    } catch (Exception e) {
                         ;
                     }
 
                 });
     }
 
-    @Test(priority=2)
+    @Test(priority = 2)
     public void assignmentTest()
             throws ExecutionException, InterruptedException, IllegalAccessException, TimeoutException {
         var getOwnerRequests1 = spy(getOwnerRequests((channel1)));
@@ -207,7 +277,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(getOwnerRequests2.size(), 0);
     }
 
-    @Test(priority=3)
+    @Test(priority = 3)
     public void assignmentTestWhenOneAssignmentFails()
             throws ExecutionException, InterruptedException, IllegalAccessException, TimeoutException {
         var getOwnerRequests1 = getOwnerRequests(channel1);
@@ -225,20 +295,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         doReturn(msg).when(msg).value(any());
         doReturn(future).when(msg).sendAsync();
 
-        FieldUtils.writeDeclaredField(channel1,"producer", spyProducer,true);
-
-        var outstandingPubMessages1 = spy((Semaphore)
-                FieldUtils.readDeclaredField(
-                        channel1, "outstandingPubMessages", true));
-        var outstandingPubMessages2 = spy((Semaphore)
-                FieldUtils.readDeclaredField(
-                        channel2, "outstandingPubMessages", true));
-
-        FieldUtils.writeDeclaredField(channel1, "outstandingPubMessages", outstandingPubMessages1,
-                true);
-
-        FieldUtils.writeDeclaredField(channel2, "outstandingPubMessages", outstandingPubMessages2,
-                true);
+        FieldUtils.writeDeclaredField(channel1, "producer", spyProducer, true);
 
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
@@ -255,17 +312,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, bundle, lookupServiceAddress2);
         assertEquals(0, getOwnerRequests1.size());
         assertEquals(0, getOwnerRequests2.size());
-        verify(outstandingPubMessages1, times(1)).acquire();
-        verify(outstandingPubMessages1, times(1)).release();
-        verify(outstandingPubMessages2, times(2)).acquire();
-        verify(outstandingPubMessages2, times(2)).release();
 
-        FieldUtils.writeDeclaredField(channel1,"producer", producer,true);
+        FieldUtils.writeDeclaredField(channel1, "producer", producer, true);
     }
 
-    @Test(priority=4)
+    @Test(priority = 4)
     public void unloadTest()
-            throws ExecutionException, InterruptedException, TimeoutException{
+            throws ExecutionException, InterruptedException, TimeoutException {
 
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
@@ -295,7 +348,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr1, lookupServiceAddress2);
     }
 
-    @Test(priority=5)
+    @Test(priority = 5)
     public void unloadTestWhenDestBrokerFails()
             throws ExecutionException, InterruptedException, IllegalAccessException {
 
@@ -322,7 +375,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         doReturn(msg).when(msg).key(any());
         doReturn(msg).when(msg).value(any());
         doReturn(future).when(msg).sendAsync();
-        FieldUtils.writeDeclaredField(channel2,"producer", spyProducer,true);
+        FieldUtils.writeDeclaredField(channel2, "producer", spyProducer, true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
@@ -362,10 +415,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
-        FieldUtils.writeDeclaredField(channel2,"producer", producer,true);
+        FieldUtils.writeDeclaredField(channel2, "producer", producer, true);
     }
 
-    @Test(priority=6)
+    @Test(priority = 6)
     public void splitTest() throws Exception {
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         waitUntilNewOwner(channel1, bundle, lookupServiceAddress1);
@@ -384,7 +437,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // TODO: assert child bundle ownerships in the channels.
     }
 
-    @Test(priority=7)
+    @Test(priority = 7)
     public void handleMetadataSessionEventTest() throws IllegalAccessException {
         var ts = System.currentTimeMillis();
         channel1.handleMetadataSessionEvent(SessionReestablished);
@@ -424,7 +477,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(priority=8)
+    @Test(priority = 8)
     public void handleBrokerCreationEventTest() throws IllegalAccessException {
         var cleanupJobs = getCleanupJobs(channel1);
         String broker = "broker-1";
@@ -435,7 +488,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertTrue(future.isCancelled());
     }
 
-    @Test(priority=9)
+    @Test(priority = 9)
     public void handleBrokerDeletionEventTest() throws IllegalAccessException {
 
         var cleanupJobs1 = getCleanupJobs(channel1);
@@ -669,6 +722,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     return !StringUtils.equals(oldOwner, owner.get());
                 });
     }
+
     private static void waitUntilNewOwner(ServiceUnitStateChannel channel, String serviceUnit, String newOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -702,7 +756,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
-    private static void cleanTableView(ServiceUnitStateChannel channel, String serviceUnit) throws IllegalAccessException {
+    private static void cleanTableView(ServiceUnitStateChannel channel, String serviceUnit)
+            throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
                 FieldUtils.readField(channel, "tableview", true);
         var cache = (ConcurrentMap<String, ServiceUnitStateData>)

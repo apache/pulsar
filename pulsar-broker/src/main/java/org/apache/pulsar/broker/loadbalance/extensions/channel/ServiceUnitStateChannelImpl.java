@@ -78,24 +78,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private final PulsarService pulsar;
+    private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
+    private final String lookupServiceAddress;
+    // TODO: define BrokerRegistry
+    private final Semaphore outstandingCleanupTombstoneMessages;
+    private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
+    private LeaderElectionService leaderElectionService;
     private TableView<ServiceUnitStateData> tableview;
     private Producer<ServiceUnitStateData> producer;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
-    private String lookupServiceAddress;
-    private LeaderElectionService leaderElectionService;
-    // TODO: define BrokerRegistry
+    private ScheduledFuture<?> cleanupTasks;
     private SessionEvent lastMetadataSessionEvent = SessionReestablished;
     private long lastMetadataSessionEventTimestamp = 0;
-    private Semaphore outstandingPubMessages;
-
-    private Semaphore outstandingCleanupTombstoneMessages;
-    private ScheduledFuture<?> cleanupTasks;
     private long inFlightStateWaitingTimeInMillis;
     private long maxCleanupDelayTimeInSecs;
     private long minCleanupDelayTimeInSecs;
-
-    private ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
-
     // cleanup metrics
     private long totalCleanupCnt = 0;
     private long totalBrokerCleanupTombstoneCnt = 0;
@@ -104,7 +100,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalCleanupScheduledCnt = 0;
     private long totalCleanupIgnoredCnt = 0;
     private long totalCleanupCancelledCnt = 0;
-
+    private volatile boolean isActive;
 
     enum MetadataState {
         Stable,
@@ -113,26 +109,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
+        this.isActive = false;
         this.pulsar = pulsar;
         ServiceConfiguration conf = pulsar.getConfiguration();
-        this.lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
-                : conf.getWebServicePortTls().get());
-        this.outstandingPubMessages = new Semaphore(MAX_OUTSTANDING_PUB_MESSAGES);
+        this.lookupServiceAddress = pulsar.getLookupServiceAddress();
         this.outstandingCleanupTombstoneMessages = new Semaphore(MAX_OUTSTANDING_PUB_MESSAGES);
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
-                        CompletableFuture<String>>newBuilder()
-                .build();
-        this.cleanupJobs =
-                ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder()
-                        .build();
+                CompletableFuture<String>>newBuilder().build();
+        this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
     }
 
-    public void start() throws PulsarServerException {
-
+    public synchronized void start() throws PulsarServerException {
         try {
             if (leaderElectionService != null) {
                 leaderElectionService.close();
@@ -142,17 +132,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
                     state -> {
                         if (state == LeaderElectionState.Leading) {
-                            log.debug("This broker:{} was elected as the leader."
-                                            + "Current channel leader is {}",
-                                    lookupServiceAddress,
-                                    leaderElectionService.getCurrentLeader());
+                            log.debug("This broker:{} is the leader now.", lookupServiceAddress);
+                            // TODO: schedule monitorOwnerships by brokerRegistry
                         } else {
-                            if (leaderElectionService != null) {
-                                log.debug("This broker:{} is a follower. "
-                                                + "Current channel leader is {}",
-                                        lookupServiceAddress,
-                                        leaderElectionService.getCurrentLeader());
-                            }
+                            log.debug("This broker:{} is a follower now.", lookupServiceAddress);
+                            // TODO: cancel scheduled monitorOwnerships if any
                         }
                     });
             leaderElectionService.start();
@@ -181,10 +165,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             tableview.forEachAndListen((key, value) -> handle(key, value));
             log.debug("Successfully started the channel tableview.");
 
-            // TODO: schedule cleanupTasks by brokerRegistry
             pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
             log.debug("Successfully registered the handleMetadataSessionEvent");
 
+            isActive = true;
             log.info("Successfully started the channel.");
         } catch (Exception e) {
             String msg = "Failed to start the channel.";
@@ -193,8 +177,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-
-    public void close() throws PulsarServerException {
+    public synchronized void close() throws PulsarServerException {
+        isActive = false;
         try {
             if (leaderElectionService != null) {
                 leaderElectionService.close();
@@ -231,7 +215,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    public void scheduleCompaction() throws PulsarServerException {
+    private void validateChannel() {
+        if (!isActive) {
+            throw new IllegalStateException("The channel has not been started.");
+        }
+    }
+
+    public synchronized void scheduleCompaction() throws PulsarServerException {
         try {
             Long threshold = pulsar.getAdminClient().topicPolicies()
                     .getCompactionThreshold(TOPIC);
@@ -248,6 +238,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public String getChannelOwner() {
+        validateChannel();
         CompletableFuture<Optional<LeaderBroker>> future = leaderElectionService.readCurrentLeader();
         if (!future.isDone()) {
             return null;
@@ -257,6 +248,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return null;
         }
         //expecting http://broker-xyz:port
+        // TODO: discard this protocol prefix removal by a util func that returns lookupServiceAddress(serviceUrl)
         String broker = leader.get().getServiceUrl();
         broker = broker.substring(broker.lastIndexOf('/') + 1);
         return broker;
@@ -267,7 +259,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<String> getOwnerAsync(String serviceUnit) {
-
+        validateChannel();
         ServiceUnitStateData data = tableview.get(serviceUnit);
         if (data == null) {
             return null;
@@ -314,8 +306,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     public CompletableFuture<Void> publishSplitEventAsync(Split split) {
         String serviceUnit = split.serviceUnit();
-        ServiceUnitStateData data = tableview.get(serviceUnit);
-        ServiceUnitStateData next = new ServiceUnitStateData(Splitting, data.broker());
+        ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
         return pubAsync(serviceUnit, next).thenAccept(__ -> {
         });
     }
@@ -427,21 +418,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
+        validateChannel();
         CompletableFuture<MessageId> future = new CompletableFuture<>();
-        try {
-            outstandingPubMessages.acquire();
-        } catch (InterruptedException e) {
-            log.warn("Interrupted while acquiring semaphore to publish a message for serviceUnit:{}, data:{}",
-                    serviceUnit, data);
-            future.completeExceptionally(e);
-            return future;
-        }
         producer.newMessage()
                 .key(serviceUnit)
                 .value(data)
                 .sendAsync()
                 .whenComplete((messageId, e) -> {
-                    outstandingPubMessages.release();
                     if (e != null) {
                         future.completeExceptionally(e);
                     } else {
@@ -459,7 +442,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (broker == null) {
             return false;
         }
-        // TODO: remove broker port from the input broker
         return broker.equals(lookupServiceAddress);
     }
 
