@@ -18,28 +18,30 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
-    private static final Logger log = LoggerFactory.getLogger(BookkeeperBucketSnapshotStorage.class);
     private static final byte[] LedgerPassword = "".getBytes();
 
     private final PulsarService pulsar;
@@ -53,13 +55,12 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
-                                                        List<SnapshotSegment> bucketSnapshotSegments) {
-        return createLedger()
+                                                        List<SnapshotSegment> bucketSnapshotSegments,
+                                                        String bucketKey) {
+        return createLedger(bucketKey)
                 .thenCompose(ledgerHandle -> addEntry(ledgerHandle, snapshotMetadata.toByteArray())
-                                .thenApply(__ -> ledgerHandle))
-                .thenCompose(ledgerHandle -> addSnapshotSegments(ledgerHandle, bucketSnapshotSegments)
-                        .thenApply(__ -> ledgerHandle))
-                .thenCompose(ledgerHandle -> closeLedger(ledgerHandle)
+                        .thenCompose(__ -> addSnapshotSegments(ledgerHandle, bucketSnapshotSegments))
+                        .thenCompose(__ -> closeLedger(ledgerHandle))
                         .thenApply(__ -> ledgerHandle.getId()));
     }
 
@@ -67,16 +68,15 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
         return openLedger(bucketId).thenCompose(
                 ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, 0, 0).
-                        thenCompose(
-                        entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
+                        thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
     }
 
     @Override
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
         return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId).thenCompose(
-                        this::parseSnapshotSegmentEntries));
+                ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, firstSegmentEntryId,
+                        lastSegmentEntryId).thenApply(this::parseSnapshotSegmentEntries));
     }
 
     @Override
@@ -122,35 +122,31 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return FutureUtil.waitForAll(addFutures);
     }
 
-    private CompletableFuture<SnapshotMetadata> parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
-        CompletableFuture<SnapshotMetadata> result = new CompletableFuture<>();
+    private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
         try {
-            result.complete(SnapshotMetadata.parseFrom(ledgerEntry.getEntry()));
-        } catch (IOException e) {
-            result.completeExceptionally(e);
+            return SnapshotMetadata.parseFrom(ledgerEntry.getEntry());
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
         }
-        return result;
     }
 
-    private CompletableFuture<List<SnapshotSegment>> parseSnapshotSegmentEntries(
-            Enumeration<LedgerEntry> entryEnumeration) {
-        CompletableFuture<List<SnapshotSegment>> result = new CompletableFuture<>();
+    private List<SnapshotSegment> parseSnapshotSegmentEntries(Enumeration<LedgerEntry> entryEnumeration) {
         List<SnapshotSegment> snapshotMetadataList = new ArrayList<>();
         try {
             while (entryEnumeration.hasMoreElements()) {
                 LedgerEntry ledgerEntry = entryEnumeration.nextElement();
                 snapshotMetadataList.add(SnapshotSegment.parseFrom(ledgerEntry.getEntry()));
             }
-            result.complete(snapshotMetadataList);
+            return snapshotMetadataList;
         } catch (IOException e) {
-            result.completeExceptionally(e);
+            throw new RuntimeException(e);
         }
-        return result;
     }
 
     @NotNull
-    private CompletableFuture<LedgerHandle> createLedger() {
+    private CompletableFuture<LedgerHandle> createLedger(String bucketKey) {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey);
         bookKeeper.asyncCreateLedger(
                 config.getManagedLedgerDefaultEnsembleSize(),
                 config.getManagedLedgerDefaultWriteQuorum(),
@@ -163,7 +159,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     } else {
                         future.complete(handle);
                     }
-                }, null, null);
+                }, null, metadata);
         return future;
     }
 

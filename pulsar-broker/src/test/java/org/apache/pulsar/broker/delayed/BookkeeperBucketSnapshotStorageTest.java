@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -59,7 +60,8 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
                 DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata.newBuilder().build();
         List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
         CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments);
+                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
+                        bucketSnapshotSegments, UUID.randomUUID().toString());
         Long bucketId = future.get();
         Assert.assertNotNull(bucketId);
     }
@@ -87,7 +89,8 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         bucketSnapshotSegments.add(snapshotSegment);
 
         CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments);
+                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
+                        bucketSnapshotSegments, UUID.randomUUID().toString());
         Long bucketId = future.get();
         Assert.assertNotNull(bucketId);
 
@@ -125,7 +128,8 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
 
         CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments);
+                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
+                        bucketSnapshotSegments, UUID.randomUUID().toString());
         Long bucketId = future.get();
         Assert.assertNotNull(bucketId);
 
@@ -146,7 +150,8 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
                 DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata.newBuilder().build();
         List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
         CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments);
+                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
+                        bucketSnapshotSegments, UUID.randomUUID().toString());
         Long bucketId = future.get();
         Assert.assertNotNull(bucketId);
 
@@ -183,7 +188,8 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         bucketSnapshotSegments.add(snapshotSegment);
 
         CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments);
+                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
+                        bucketSnapshotSegments, UUID.randomUUID().toString());
         Long bucketId = future.get();
         Assert.assertNotNull(bucketId);
 

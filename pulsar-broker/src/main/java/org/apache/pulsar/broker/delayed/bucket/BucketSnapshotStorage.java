@@ -30,10 +30,12 @@ public interface BucketSnapshotStorage {
      *
      * @param snapshotMetadata the metadata of snapshot
      * @param bucketSnapshotSegments the list of snapshot segments
+     * @param bucketKey the key of bucket is used to generate custom storage metadata
      * @return the future with bucketId(ledgerId).
      */
     CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
-                                                 List<SnapshotSegment> bucketSnapshotSegments);
+                                                 List<SnapshotSegment> bucketSnapshotSegments,
+                                                 String bucketKey);
 
     /**
      * Get delayed message index bucket snapshot metadata.
