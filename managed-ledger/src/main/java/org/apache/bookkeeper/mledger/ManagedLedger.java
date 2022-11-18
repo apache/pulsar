@@ -219,8 +219,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
@@ -235,8 +234,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
      *             operation will trigger the creation of the cursor.
@@ -322,8 +320,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param callback
      *            callback object
      * @param ctx
@@ -338,8 +335,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param cursorProperties
      *            the properties for the Cursor
      * @param callback

@@ -101,7 +101,6 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.common.api.proto.IntRange;
 import org.awaitility.Awaitility;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -144,6 +143,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         closeCursorLedger(c1);
         c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId() + 2));
         ledger.close();
+    }
+
+    public void testOpenCursorWithNullInitialPosition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testOpenCursorWithNullInitialPosition", config);
+        // Write some data.
+        ledger.addEntry(new byte[]{1});
+        ledger.addEntry(new byte[]{2});
+        ledger.addEntry(new byte[]{3});
+        ledger.addEntry(new byte[]{4});
+        ledger.addEntry(new byte[]{5});
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_testOpenCursorWithNullInitialPosition", null);
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
     }
 
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
