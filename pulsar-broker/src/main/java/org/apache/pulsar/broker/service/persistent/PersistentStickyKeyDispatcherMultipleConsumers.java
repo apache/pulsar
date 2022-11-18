@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -320,17 +319,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 isDispatcherStuckOnReplays = true;
                 stuckConsumers.addAll(nextStuckConsumers);
             }
-            // readMoreEntries should run regardless whether or not stuck is caused by
-            // stuckConsumers for avoid stopping dispatch.
-            sendInProgress = false;
-            topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
+            return true;
         }  else if (currentThreadKeyNumber == 0) {
-            sendInProgress = false;
-            topic.getBrokerService().executor().schedule(safeRun(() -> {
-                synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                    readMoreEntries();
-                }
-            }), 100, TimeUnit.MILLISECONDS);
+            return true;
         }
         return false;
     }

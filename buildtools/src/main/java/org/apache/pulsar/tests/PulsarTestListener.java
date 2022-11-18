@@ -45,9 +45,12 @@ public class PulsarTestListener implements ITestListener {
             System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
                     result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
         }
-        if (result.getThrowable() instanceof ThreadTimeoutException) {
-            System.out.println("====== THREAD DUMPS ======");
-            System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+        if (result.getThrowable() != null) {
+            result.getThrowable().printStackTrace();
+            if (result.getThrowable() instanceof ThreadTimeoutException) {
+                System.out.println("====== THREAD DUMPS ======");
+                System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+            }
         }
     }
 

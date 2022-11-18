@@ -28,7 +28,7 @@ Encryption ensures that if an attacker gets access to your data, the attacker ca
 
 Authentication is the process of verifying the identity of clients. In Pulsar, the authentication provider is responsible for properly identifying clients and associating them with role tokens. Note that if you only enable authentication, an authenticated role token can access all resources in the cluster. 
 
-**How it works in Pulsar**
+### How it works in Pulsar
 
 Pulsar provides a pluggable authentication framework, and Pulsar brokers/proxies use this mechanism to authenticate clients.
 
@@ -38,13 +38,17 @@ The way how each client passes its authentication data to brokers varies dependi
   - If a client supports authentication refreshing and the credential is expired, brokers send the `CommandAuthChallenge` command to exchange the authentication data with the client. If the next check finds that the previous authentication exchange has not been returned, brokers disconnect the client.
   - If a client does not support authentication refreshing and the credential is expired, brokers disconnect the client.
 
-:::note
+### Authentication data limitations on the proxies
 
-When you use proxies between clients and brokers, brokers only authenticate proxies (known as **self-authentication**) by default. To forward the authentication data from clients to brokers for client authentication (known as **original authentication**), you need to:
-1. Set `forwardAuthorizationCredentials` to `true` in the `conf/proxy.conf` file.
-2. Set `authenticateOriginalAuthData` to `true` in the `conf/broker.conf` file, which ensures that brokers recheck the client authentication.
+When you use proxies between clients and brokers, there are two authentication data:
+* authentication data from proxies that brokers default to authenticate - known as **self-authentication**.
+* authentication data from clients that proxies forward to brokers for authenticating - known as **original authentication**.
 
-:::
+**Important:** If your authentication data contains an expiration time, or your authorization provider depends on the authentication data, you must:
+
+1. Ensure your authentication data of proxies has no expiration time since brokers don't support refreshing this authentication data.
+2. Set `forwardAuthorizationCredentials` to `true` in the `conf/proxy.conf` file.
+3. Set `authenticateOriginalAuthData` to `true` in the `conf/broker.conf` file, which ensures that brokers recheck the client authentication.
 
 **What's next?**
 
@@ -59,7 +63,7 @@ When you use proxies between clients and brokers, brokers only authenticate prox
 
 :::note
 
-Starting from 2.11.0, [TLS authentication](security-tls-authentication.md) includes [TLS encryption](security-tls-transport.md) by default. If you configure TLS authentication first, then TLS encryption automatically applies; if you configure TLS encryption first, you can select any one of the above authentication providers.
+Starting from 2.11.0, you can configure [Mutual TLS](security-tls-transport.md) with any one of the above authentication providers.
 
 :::
 
