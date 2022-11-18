@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
+import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -438,5 +441,56 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         }
         Assert.assertEquals(count, 9);
         Assert.assertEquals(0, datas.size());
+    }
+
+    @Test(invocationCount = 5)
+    public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("my-topic");
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final int receiverQueueSize = 10;
+
+        @Cleanup
+        MultiTopicsConsumerImpl<Integer> consumer =
+                (MultiTopicsConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(receiverQueueSize)
+                .subscribe();
+        ExecutorService internalPinnedExecutor =
+                WhiteboxImpl.getInternalState(consumer, "internalPinnedExecutor");
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < receiverQueueSize; i++){
+            producer.send(i);
+        }
+
+        Awaitility.await().until(() -> consumer.incomingMessages.size() == receiverQueueSize);
+
+        // For testing the race condition of issue #18491
+        // We need to inject a delay for the pinned internal thread
+        Thread.sleep(1000L);
+        internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
+        // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
+        internalPinnedExecutor.submit(() -> {}).get();
+
+        Set<Integer> receivedMsgs = new HashSet<>();
+        for (;;){
+            Message<Integer> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null){
+                break;
+            }
+            receivedMsgs.add(msg.getValue());
+        }
+        Assert.assertEquals(receivedMsgs.size(), 10);
+
+        producer.close();
+        consumer.close();
+        admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
     }
 }
