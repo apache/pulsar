@@ -210,7 +210,9 @@ You can update a tenant's configuration.
 Use the [`update`](/tools/pulsar-admin/) subcommand.
 
 ```shell
-pulsar-admin tenants update my-tenant
+pulsar-admin tenants update my-tenant \
+    --admin-roles role1,role2 \
+    --allowed-clusters cluster1,cluster2
 ```
 
 </TabItem>
