@@ -87,6 +87,7 @@ public class AuthenticationService implements Closeable {
 
     public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData)
             throws AuthenticationException {
+        AuthenticationException authenticationException = null;
         String authMethodName = request.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
 
         if (authMethodName != null) {
@@ -107,6 +108,8 @@ public class AuthenticationService implements Closeable {
                     LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
                             + e.getMessage(), e);
                 }
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = e;
                 throw e;
             }
         } else {
@@ -130,7 +133,11 @@ public class AuthenticationService implements Closeable {
                 return anonymousUserRole;
             }
             // If at least a provider was configured, then the authentication needs to be provider
-            throw new AuthenticationException("Authentication required");
+            if (authenticationException != null) {
+                throw authenticationException;
+            } else {
+                throw new AuthenticationException("Authentication required");
+            }
         } else {
             // No authentication required
             return "<none>";
