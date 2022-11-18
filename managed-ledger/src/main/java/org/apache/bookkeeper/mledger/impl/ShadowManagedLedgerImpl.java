@@ -93,13 +93,10 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     log.debug("[{}][{}] Source ML info:{}", name, sourceMLName, mlInfo);
                 }
                 sourceLedgersStat = stat;
-                // Fails if init with empty ledger. Very small chance here, since shadow topic is
-                // created when source topic exists.
                 if (mlInfo.getLedgerInfoCount() == 0) {
+                    // Small chance here, since shadow topic is created after source topic exists.
                     log.warn("[{}] Source topic ledger list is empty! source={},mlInfo={},stat={}", name, sourceMLName,
                             mlInfo, stat);
-//                    callback.initializeFailed(new ManagedLedgerException.ManagedLedgerSourceNotReadyException(
-//                            "Source managed ledger " + sourceMLName + " is not ready yet."));
                     ShadowManagedLedgerImpl.super.initialize(callback, ctx);
                     return;
                 }
@@ -281,7 +278,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     private synchronized void processSourceManagedLedgerInfo(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] new SourceManagedLedgerInfo:{}", name, sourceMLName, mlInfo);
+            log.debug("[{}][{}] new SourceManagedLedgerInfo:{}, prevStat={},stat={}", name, sourceMLName, mlInfo,
+                    sourceLedgersStat, stat);
         }
 
         sourceLedgersStat = stat;

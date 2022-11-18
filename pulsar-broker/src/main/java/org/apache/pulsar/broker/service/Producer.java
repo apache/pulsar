@@ -348,6 +348,9 @@ public class Producer {
         return this.cnx;
     }
 
+    /**
+     * MessagePublishContext implements Position because that ShadowManagedLedger need to know the source position info.
+     */
     private static final class MessagePublishContext implements PublishContext, Runnable, Position {
         /*
          * To store context information built by message payload
