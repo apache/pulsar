@@ -33,4 +33,10 @@ public class PersistentTopicStreamingDispatcherE2ETest extends PersistentTopicE2
         super.doInitConf();
         conf.setStreamingDispatch(true);
     }
+
+    @Override
+    @Test
+    public void testMessageRedelivery() throws Exception {
+        super.testMessageRedelivery();
+    }
 }
