@@ -30,6 +30,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
  */
 @SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
+    private static final StackTraceElement[] EMPTY_STACK = new StackTraceElement[0];
+
     static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
@@ -46,10 +48,31 @@ public class RestException extends WebApplicationException {
 
     public RestException(int code, String message) {
         super(Response.status(code).entity(new ErrorData(message)).type(MediaType.APPLICATION_JSON).build());
+        dropStackIfClientError(code);
     }
 
     public RestException(Throwable t) {
-        super(Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build());
+        super(getResponse(t));
+        dropStackIfClientError(getResponse().getStatus());
+    }
+
+    private static Response getResponse(Throwable t) {
+        if (t instanceof WebApplicationException) {
+            WebApplicationException e = (WebApplicationException) t;
+            return e.getResponse();
+        } else {
+            return Response
+                    .status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(getExceptionData(t))
+                    .type(MediaType.TEXT_PLAIN)
+                    .build();
+        }
+    }
+
+    private void dropStackIfClientError(int code) {
+        if (Response.Status.Family.familyOf(code) == Response.Status.Family.CLIENT_ERROR) {
+            setStackTrace(EMPTY_STACK);
+        }
     }
 
 }

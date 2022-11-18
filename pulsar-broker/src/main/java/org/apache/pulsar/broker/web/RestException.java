@@ -32,6 +32,9 @@ import org.apache.pulsar.common.policies.data.ErrorData;
  */
 @SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
+
+    private static final StackTraceElement[] EMPTY_STACK = new StackTraceElement[0];
+
     private Throwable cause = null;
     static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
@@ -54,10 +57,14 @@ public class RestException extends WebApplicationException {
                 .entity(new ErrorData(message))
                 .type(MediaType.APPLICATION_JSON)
                 .build());
+
+        dropStackIfClientError(code);
     }
 
     public RestException(Throwable t) {
         super(getResponse(t));
+
+        dropStackIfClientError(getResponse().getStatus());
     }
 
     public RestException(Response.Status status, Throwable t) {
@@ -80,10 +87,15 @@ public class RestException extends WebApplicationException {
             return e.getResponse();
         } else {
             return Response
-                .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
-                .entity(new ErrorData(getExceptionData(t)))
-                .type(MediaType.APPLICATION_JSON)
-                .build();
+                    .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
+                    .entity(new ErrorData(getExceptionData(t)))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+    private void dropStackIfClientError(int code) {
+        if (Response.Status.Family.familyOf(code) == Status.Family.CLIENT_ERROR) {
+            setStackTrace(EMPTY_STACK);
         }
     }
 }
