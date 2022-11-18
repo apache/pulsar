@@ -18,6 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -32,23 +42,14 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doReturn;
 
 @Slf4j
 @Test(groups = "broker-impl")
@@ -344,5 +345,46 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testAcknowledgeCumulative() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testAcknowledgeCumulative";
+        int messageNumber= 10;
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .batchingMaxMessages(messageNumber)
+                .blockIfQueueFull(true)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.sendAsync("message-" + i);
+        }
+        producer.flush();
+
+        int count = 0;
+        while (true) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledgeCumulative(message.getMessageId());
+            count++;
+        }
+
+        assertEquals(count, messageNumber);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats stats = admin.topics().getStats(topic, true, true);
+            assertEquals(stats.getSubscriptions().get("sub").getMsgBacklog(), 0);
+            assertEquals(stats.getSubscriptions().get("sub").getBacklogSize(), 0);
+        });
     }
 }

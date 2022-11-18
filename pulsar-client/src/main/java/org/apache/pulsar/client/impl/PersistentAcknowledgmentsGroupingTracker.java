@@ -622,7 +622,18 @@ class LastCumulativeAck {
     private boolean flushRequired = false;
 
     public synchronized void update(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
-        if (messageId.compareTo(this.messageId) > 0) {
+        MessageIdImpl newMessageId = messageId;
+        MessageIdImpl lastMessageId = this.messageId;
+        if (newMessageId instanceof BatchMessageIdImpl && !(lastMessageId instanceof BatchMessageIdImpl)) {
+            lastMessageId =
+                    new BatchMessageIdImpl(lastMessageId.ledgerId, lastMessageId.entryId, lastMessageId.partitionIndex,
+                            Integer.MAX_VALUE);
+        } else if (!(newMessageId instanceof BatchMessageIdImpl) && (lastMessageId instanceof BatchMessageIdImpl)) {
+            newMessageId =
+                    new BatchMessageIdImpl(newMessageId.ledgerId, newMessageId.entryId, newMessageId.partitionIndex,
+                            Integer.MAX_VALUE);
+        }
+        if (newMessageId.compareTo(lastMessageId) > 0) {
             if (this.bitSetRecyclable != null && this.bitSetRecyclable != bitSetRecyclable) {
                 this.bitSetRecyclable.recycle();
             }
