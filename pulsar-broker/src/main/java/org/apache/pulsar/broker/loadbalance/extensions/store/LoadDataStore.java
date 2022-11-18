@@ -35,7 +35,7 @@ public interface LoadDataStore<T> extends Closeable {
     /**
      * Async push load data to store.
      *
-     * @param key The load data key. (e.g. bundle)
+     * @param key The load data key.
      * @param loadData The load data.
      */
     CompletableFuture<Void> pushAsync(String key, T loadData);
@@ -43,7 +43,7 @@ public interface LoadDataStore<T> extends Closeable {
     /**
      * Get load data by key.
      *
-     * @param key The load data key. (e.g. bundle)
+     * @param key The load data key.
      */
     Optional<T> get(String key);
 

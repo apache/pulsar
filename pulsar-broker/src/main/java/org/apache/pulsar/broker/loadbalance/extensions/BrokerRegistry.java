@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 
 /**
@@ -35,19 +36,19 @@ public interface BrokerRegistry extends AutoCloseable {
     /**
      * Start broker registry.
      */
-    void start();
+    void start() throws PulsarServerException;
 
     /**
      * Register local broker to metadata store.
      */
-    void register();
+    void register() throws MetadataStoreException;
 
     /**
      * Unregister the broker.
      *
      * Same as {@link org.apache.pulsar.broker.loadbalance.ModularLoadManager#disableBroker()}
      */
-    void unregister() throws PulsarServerException;
+    void unregister() throws MetadataStoreException;
 
     /**
      * Get the current broker lookup service address.
@@ -71,7 +72,7 @@ public interface BrokerRegistry extends AutoCloseable {
     CompletableFuture<List<String>> getAvailableBrokersAsync();
 
     /**
-     * Fetch local-broker data from load-manager broker cache.
+     * Get the broker lookup data.
      *
      * @param broker The service url without the protocol prefix, 'http://'. e.g. broker-xyz:port
      */

@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -60,9 +60,9 @@ public interface ExtensibleLoadManager extends Closeable {
      *              (e.g. {@link NamespaceService#internalGetWebServiceUrl(NamespaceBundle, LookupOptions)}),
      *              So the topic is optional.
      * @param serviceUnit service unit (e.g. bundle).
-     * @return Simple resource.
+     * @return The broker lookup data.
      */
-    CompletableFuture<Optional<LookupResult>> assign(Optional<ServiceUnitId> topic, ServiceUnitId serviceUnit);
+    CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic, ServiceUnitId serviceUnit);
 
     /**
      * Close the load manager.

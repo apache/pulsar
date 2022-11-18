@@ -21,7 +21,8 @@ package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 import java.io.Closeable;
 
 /**
- * The load manager scheduler.
+ * The base interface to schedule execute task in load manager.
+ * Example: The namespace bundle split or unload should schedule running.
  */
 public interface LoadManagerScheduler extends Closeable {
 
