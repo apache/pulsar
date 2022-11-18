@@ -716,7 +716,7 @@ Each namespace contains multiple topics and the retention size (storage size) of
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-retention --size 100 --time 10 test-tenant/namespace1
+pulsar-admin namespaces set-retention --size 100M --time 10m test-tenant/namespace1
 ```
 
 </TabItem>
