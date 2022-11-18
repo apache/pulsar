@@ -4,12 +4,11 @@ title: Pulsar WebSocket API
 sidebar_label: "WebSocket"
 ---
 
-Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](client-libraries.md). Through WebSocket, you can publish and consume messages and use features available on the [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
+Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](client-libraries.md). You can use Pulsar WebSocket API with any WebSocket client library. See [Python and Node.js examples](#client-examples) for more details. 
 
+Through WebSocket, you can publish and consume messages and use features available on the [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914) page.
 
-> You can use Pulsar WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples).
-
-## Running the WebSocket service
+## Run the WebSocket service
 
 The standalone variant of Pulsar that we recommend using for [local development](getting-started-standalone.md) already has the WebSocket service enabled.
 
@@ -60,7 +59,7 @@ To enable encryption at rest on WebSocket service, add CryptoKeyReaderFactory fa
 cryptoKeyReaderFactoryClassName=org.apache.pulsar.MyCryptoKeyReaderFactoryClassImpl
 ```
 
-### Starting the broker
+### Start the broker
 
 When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md) tool:
 
@@ -68,9 +67,13 @@ When the configuration is set, you can start the service using the [`pulsar-daem
 bin/pulsar-daemon start websocket
 ```
 
+## Release notes
+
+For the changelog of Pulsar WebSocket APIs, see [release notes](/release-notes/#websocket).
+
 ## API Reference
 
-Pulsar's WebSocket API offers three endpoints for [producing](#producer-endpoint) messages, [consuming](#consumer-endpoint) messages and [reading](#reader-endpoint) messages.
+Pulsar's WebSocket API offers three endpoints for [producing](#producer-endpoint), [consuming](#consumer-endpoint), and [reading](#reader-endpoint) messages.
 
 All exchanges via the WebSocket API use JSON.
 
@@ -110,7 +113,7 @@ Key | Type | Required? | Explanation
 `encryptionKeys` | string | no | Encryption key to encrypt published message only if encryption reader is configured using cryptoKeyReaderFactoryClassName config in websocket-configuration.
 
 
-#### Publishing a message
+#### Publish a message
 
 ```json
 {
@@ -187,7 +190,7 @@ even if the client doesn't consume on the WebSocket.
 
 :::
 
-##### Receiving messages
+##### Receive messages
 
 Server will push messages on the WebSocket session:
 
@@ -247,7 +250,7 @@ Below are the parameters in the WebSocket consumer response.
   `keyValue` | string | yes | Encryption key (Base64 encoding)
   `metadata` | key-value pairs | no | Application-defined metadata
 
-#### Acknowledging the message
+#### Acknowledge the message
 
 Consumer needs to acknowledge the successful processing of the message to
 have the Pulsar broker delete it.
@@ -262,7 +265,7 @@ Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
 
-#### Negatively acknowledging messages
+#### Negatively acknowledge messages
 
 ```json
 {

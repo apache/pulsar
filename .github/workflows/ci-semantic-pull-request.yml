@@ -61,8 +61,8 @@ jobs:
           # bk      -> bookkeeper
           scopes: |
             admin
+            bk
             broker
-            ml
             build
             ci
             cli
@@ -72,6 +72,7 @@ jobs:
             io
             meta
             misc
+            ml
             monitor
             offload
             proxy
@@ -84,13 +85,12 @@ jobs:
             txn
             ws
             zk
-            bk
-          # The pull request's title should be fulfill the following pattern:
+          # The pull request's title should be fulfilled the following pattern:
           #
           #     [<type>][<optional scope>] <description>
           #
           # ... where valid types and scopes can be found above; for example:
           #
           #     [fix][test] flaky test V1_ProxyAuthenticationTest.anonymousSocketTest
-          headerPattern: '^\[(\w*)\](?:\[(.*)\])? (.*)$'
+          headerPattern: '^\[(\w*?)\](?:\[(.*?)\])?(:?\s*)(.*)$'
           headerPatternCorrespondence: type, scope, subject
