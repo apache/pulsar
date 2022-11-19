@@ -38,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -56,6 +58,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.NoOpLock;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -93,6 +96,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
+
+    // Only work when subscription type is Failover or Exclusive
+    protected final Lock incomingQueueLock;
 
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
@@ -158,6 +164,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
         } else {
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
+        }
+        if (getSubType() == CommandSubscribe.SubType.Failover || getSubType() == CommandSubscribe.SubType.Exclusive) {
+            incomingQueueLock = new ReentrantLock();
+        } else {
+            incomingQueueLock = new NoOpLock();
         }
 
         initReceiverQueueSize();
@@ -836,12 +847,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         int messageSize = message.size();
-        if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
-            // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance
-            // anymore, since for pooled messages, this instance was possibly already been released and recycled.
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
-            getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
-            updateAutoScaleReceiverQueueHint();
+        // synchronize redeliverUnacknowledgedMessages().
+        incomingQueueLock.lock();
+        try {
+            if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
+                // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
+                // instance anymore, since for pooled messages, this instance was possibly already been released
+                // and recycled.
+                INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+                getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
+                updateAutoScaleReceiverQueueHint();
+            }
+        } finally {
+            incomingQueueLock.unlock();
         }
         return hasEnoughMessagesForBatchReceive();
     }
@@ -907,7 +925,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (opBatchReceive == null) {
             return;
         }
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
+        notifyPendingBatchReceivedCallBack(opBatchReceive.future);
     }
 
     private boolean hasNextBatchReceive() {
@@ -932,7 +950,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return opBatchReceive;
     }
 
-    protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+    protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
@@ -944,8 +962,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             msgPeeked = incomingMessages.peek();
         }
-
-        completePendingBatchReceive(opBatchReceive.future, messages);
+        completePendingBatchReceive(batchReceiveFuture, messages);
     }
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
@@ -957,7 +974,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected abstract void messageProcessed(Message<?> msg);
-
 
     private void pendingBatchReceiveTask(Timeout timeout) {
         internalPinnedExecutor.execute(() -> doPendingBatchReceiveTask(timeout));
@@ -1173,7 +1189,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 || getSubType() == CommandSubscribe.SubType.Exclusive)
                 && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
                 && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
-            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
+            log.info("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
                     + "consumerEpoch : [{}]", topic, message.getMessageId(), message.getConsumerEpoch(), consumerEpoch);
             message.release();
             message.recycle();
