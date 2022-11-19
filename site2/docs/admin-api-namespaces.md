@@ -1196,7 +1196,7 @@ You can get a configured entry filter for a given namespace.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
+```shell
 pulsar-admin namespaces get-entry-filters test-tenant/namespace1
 ```
 
@@ -1228,7 +1228,7 @@ You can remove entry filters policies for a given namespace.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
+```shell
 pulsar-admin namespaces remove-entry-filters test-tenant/namespace1
 ```
 
