@@ -55,8 +55,7 @@ You can get the list of topics under a given namespace in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics list \
-my-tenant/my-namespace
+pulsar-admin topics list my-tenant/my-namespace
 ```
 
 </TabItem>
@@ -89,8 +88,9 @@ You can grant permissions on a client role to perform specific actions on a give
 
 ```shell
 pulsar-admin topics grant-permission \
---actions produce,consume --role application1 \
-persistent://test-tenant/ns1/tp1 \
+    --actions produce,consume \
+    --role application1 \
+    persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -124,15 +124,13 @@ You can fetch permission in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics permissions \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics permissions persistent://test-tenant/ns1/tp1 
+```
 
-{
-    "application1": [
-        "consume",
-        "produce"
-    ]
-}
+Example output:
+
+```
+application1    [consume, produce]
 ```
 
 </TabItem>
@@ -165,15 +163,8 @@ You can revoke permissions granted on a client role in the following ways.
 
 ```shell
 pulsar-admin topics revoke-permission \
---role application1 \
-persistent://test-tenant/ns1/tp1 \
-
-{
-  "application1": [
-    "consume",
-    "produce"
-  ]
-}
+    --role application1 \
+    persistent://test-tenant/ns1/tp1 
 ```
 
 </TabItem>
@@ -206,8 +197,7 @@ You can delete a topic in the following ways. You cannot delete a topic if any a
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics delete \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics delete persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -239,8 +229,7 @@ You can unload a topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics unload \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics unload persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -572,8 +561,7 @@ To get the status of a topic, you can use the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics stats \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics stats persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -747,8 +735,7 @@ To get the internal status of a topic, you can use the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics stats-internal \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics stats-internal persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -781,12 +768,21 @@ You can peek a number of messages for a specific subscription of a given topic i
 
 ```shell
 pulsar-admin topics peek-messages \
---count 10 --subscription my-subscription \
-persistent://test-tenant/ns1/tp1 \
+    --count 10 --subscription my-subscription \
+    persistent://test-tenant/ns1/tp1
+```
 
-Message ID: 315674752:0
-Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
-msg-payload
+Example output:
+
+```
+Message ID: 77:2
+Publish time: 1668674963028
+Event time: 0
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 68 65 6c 6c 6f 2d 31                            |hello-1         |
++--------+-------------------------------------------------+----------------+
 ```
 
 </TabItem>
@@ -820,9 +816,8 @@ You can fetch the message with the given ledger ID and entry ID in the following
 <TabItem value="pulsar-admin">
 
 ```shell
-./bin/pulsar-admin topics get-message-by-id \
-persistent://public/default/my-topic \
--l 10 -e 0
+pulsar-admin topics get-message-by-id \
+    -l 10 -e 0 persistent://public/default/my-topic
 ```
 
 </TabItem>
@@ -856,9 +851,8 @@ You can examine a specific message on a topic by position relative to the earlie
 <TabItem value="pulsar-admin">
 
 ```shell
-./bin/pulsar-admin topics examine-messages \
-persistent://public/default/my-topic \
--i latest -m 1
+pulsar-admin topics examine-messages \
+    -i latest -m 1 persistent://public/default/my-topic
 ```
 
 </TabItem>
@@ -890,9 +884,9 @@ You can get message ID published at or just after the given datetime.
 <TabItem value="pulsar-admin">
 
 ```shell
-./bin/pulsar-admin topics get-message-id \
-persistent://public/default/my-topic \
--d 2021-06-28T19:01:17Z
+pulsar-admin topics get-message-id \
+    persistent://public/default/my-topic \
+    -d 2021-06-28T19:01:17Z
 ```
 
 </TabItem>
@@ -927,8 +921,8 @@ You can skip a number of messages for a specific subscription of a given topic i
 
 ```shell
 pulsar-admin topics skip \
---count 10 --subscription my-subscription \
-persistent://test-tenant/ns1/tp1 \
+    --count 10 --subscription my-subscription \
+    persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -962,9 +956,9 @@ You can skip all the old messages for a specific subscription of a given topic.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics skip-all \
---subscription my-subscription \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics clear-backlog \
+    --subscription my-subscription \
+    persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -998,8 +992,8 @@ You can reset a subscription cursor position back to the position which is recor
 
 ```shell
 pulsar-admin topics reset-cursor \
---subscription my-subscription --time 10 \
-persistent://test-tenant/ns1/tp1 \
+    --subscription my-subscription --time 10 \
+    persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -1035,9 +1029,12 @@ You can locate the owner broker of the given topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics lookup \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics lookup persistent://test-tenant/ns1/tp1
+```
 
+Example output:
+
+```
 "pulsar://broker1.org.com:4480"
 ```
 
@@ -1051,7 +1048,7 @@ persistent://test-tenant/ns1/tp1 \
 
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().lookupDestination(topic);
+admin.lookups().lookupDestination(topic);
 ```
 
 </TabItem>
@@ -1070,13 +1067,29 @@ You can locate the owner broker of the given partitioned topic in the following 
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics partitioned-lookup \
-persistent://test-tenant/ns1/my-topic \
+pulsar-admin topics partitioned-lookup persistent://test-tenant/ns1/my-topic
+```
 
+Example output:
+
+```
 "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
 "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
 "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
 "persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"
+```
+
+Lookup the partitioned topics sorted by broker URL
+
+```shell
+pulsar-admin topics partitioned-lookup \
+    persistent://test-tenant/ns1/my-topic --sort-by-broker
+```
+
+Example output:
+
+```
+pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]
 ```
 
 </TabItem>
@@ -1084,16 +1097,7 @@ persistent://test-tenant/ns1/my-topic \
 
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().lookupPartitionedTopic(topic);
-```
-
-Lookup the partitioned topics sorted by broker URL
-
-```shell
-pulsar-admin topics partitioned-lookup \
-persistent://test-tenant/ns1/my-topic --sort-by-broker \
-
-"pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"
+admin.lookups().lookupPartitionedTopic(topic);
 ```
 
 </TabItem>
@@ -1112,9 +1116,12 @@ You can get the range of the bundle that the given topic belongs to in the follo
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics bundle-range \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics bundle-range persistent://test-tenant/ns1/tp1
+```
 
+Example output:
+
+```
 "0x00000000_0xffffffff"
 ```
 
@@ -1128,7 +1135,7 @@ persistent://test-tenant/ns1/tp1 \
 
 ```java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().getBundleRange(topic);
+admin.lookups().getBundleRange(topic);
 ```
 
 </TabItem>
@@ -1147,9 +1154,12 @@ You can check all subscription names for a given topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics subscriptions \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics subscriptions persistent://test-tenant/ns1/tp1
+```
 
+Example output:
+
+```
 my-subscription
 ```
 
@@ -1185,6 +1195,16 @@ You can get the last committed message ID for a persistent topic. It is availabl
 pulsar-admin topics last-message-id topic-name
 ```
 
+Example output:
+
+```json
+{
+  "ledgerId" : 97,
+  "entryId" : 9,
+  "partitionIndex" : -1
+}
+```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -1216,7 +1236,7 @@ You can get the backlog size of a single partition topic or a non-partitioned to
 ```shell
 pulsar-admin topics get-backlog-size \
   -m 1:1 \
-  persistent://test-tenant/ns1/tp1-partition-0 \
+  persistent://test-tenant/ns1/tp1-partition-0
 ```
 
 </TabItem>
@@ -1252,7 +1272,7 @@ To get the topic-level deduplication snapshot interval, use one of the following
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics get-deduplication-snapshot-interval options
+pulsar-admin topics get-deduplication-snapshot-interval my-topic
 ```
 
 </TabItem>
@@ -1285,7 +1305,7 @@ To set the topic-level deduplication snapshot interval, use one of the following
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics set-deduplication-snapshot-interval options
+pulsar-admin topics set-deduplication-snapshot-interval my-topic -i 1000
 ```
 
 </TabItem>
@@ -1322,7 +1342,7 @@ To remove the topic-level deduplication snapshot interval, use one of the follow
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics remove-deduplication-snapshot-interval options
+pulsar-admin topics remove-deduplication-snapshot-interval my-topic
 ```
 
 </TabItem>
@@ -1356,7 +1376,7 @@ To get the topic-level inactive topic policies, use one of the following methods
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics get-inactive-topic-policies options
+pulsar-admin topics get-inactive-topic-policies my-topic
 ```
 
 </TabItem>
@@ -1387,7 +1407,7 @@ To set the topic-level inactive topic policies, use one of the following methods
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics set-inactive-topic-policies options
+pulsar-admin topics set-inactive-topic-policies my-topic
 ```
 
 </TabItem>
@@ -1418,7 +1438,7 @@ To remove the topic-level inactive topic policies, use one of the following meth
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics remove-inactive-topic-policies options
+pulsar-admin topics remove-inactive-topic-policies my-topic
 ```
 
 </TabItem>
@@ -1452,7 +1472,7 @@ To get the topic-level offload policies, use one of the following methods.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics get-offload-policies options
+pulsar-admin topics get-offload-policies my-topic
 ```
 
 </TabItem>
@@ -1483,7 +1503,7 @@ To set the topic-level offload policies, use one of the following methods.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics set-offload-policies options
+pulsar-admin topics set-offload-policies my-topic
 ```
 
 </TabItem>
@@ -1514,7 +1534,7 @@ To remove the topic-level offload policies, use one of the following methods.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics remove-offload-policies options
+pulsar-admin topics remove-offload-policies my-topic
 ```
 
 </TabItem>
@@ -1556,8 +1576,8 @@ You can create non-partitioned topics in the following ways.
 When you create non-partitioned topics with the [`create`](/tools/pulsar-admin/) command, you need to specify the topic name as an argument.
 
 ```shell
-bin/pulsar-admin topics create \
-persistent://my-tenant/my-namespace/my-topic
+pulsar-admin topics create \
+    persistent://my-tenant/my-namespace/my-topic
 ```
 
 :::note
@@ -1595,8 +1615,8 @@ You can delete non-partitioned topics in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-bin/pulsar-admin topics delete \
-persistent://my-tenant/my-namespace/my-topic
+pulsar-admin topics delete \
+    persistent://my-tenant/my-namespace/my-topic
 ```
 
 </TabItem>
@@ -1628,6 +1648,11 @@ You can get the list of topics under a given namespace in the following ways.
 
 ```shell
 pulsar-admin topics list tenant/namespace
+```
+
+Example output:
+
+```
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -1651,7 +1676,39 @@ admin.topics().getList(namespace);
 
 ### Stats
 
-You can check the current statistics of a given topic. The following is an example. For the description of each stats, refer to [get stats](#get-stats).
+
+You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin topics stats \
+    persistent://test-tenant/namespace/topic \
+    --get-precise-backlog
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.topics().getStats(topic, false /* is precise backlog */);
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+The following is an example. For the description of each stats, refer to [get stats](#get-stats).
 
 ```json
 {
@@ -1686,45 +1743,18 @@ You can check the current statistics of a given topic. The following is an examp
 }
 ```
 
-You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
-
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
-<TabItem value="pulsar-admin">
-
-```shell
-pulsar-admin topics stats \
-persistent://test-tenant/namespace/topic \
---get-precise-backlog
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
-
-</TabItem>
-<TabItem value="Java">
-
-```java
-admin.topics().getStats(topic, false /* is precise backlog */);
-```
-
-</TabItem>
-
-</Tabs>
-````
-
 ## Manage partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check the status of partitioned topics.
 
 ### Create
 
-Partitioned topics must be explicitly created. When creating a new partitioned topic, you need to provide a name and the number of partitions for the topic.
+When creating a new partitioned topic, you need to provide a name and the number of partitions for the topic.
 
-By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
+:::note
+
+By default, if there are no messages 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
+
+:::
 
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
@@ -1740,9 +1770,9 @@ When you create partitioned topics with the [`create-partitioned-topic`](/tools/
 command, you need to specify the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
 
 ```shell
-bin/pulsar-admin topics create-partitioned-topic \
-persistent://my-tenant/my-namespace/my-topic \
---partitions 4
+pulsar-admin topics create-partitioned-topic \
+    persistent://my-tenant/my-namespace/my-topic \
+    --partitions 4
 ```
 
 :::note
@@ -1783,8 +1813,8 @@ When topic auto-creation is disabled, and you have a partitioned topic without a
 You can create missed partitions with the [`create-missed-partitions`](/tools/pulsar-admin/) command and specify the topic name as an argument.
 
 ```shell
-bin/pulsar-admin topics create-missed-partitions \
-persistent://my-tenant/my-namespace/my-topic \
+pulsar-admin topics create-missed-partitions \
+    persistent://my-tenant/my-namespace/my-topic
 ```
 
 </TabItem>
@@ -1823,9 +1853,15 @@ You can check the number of partitions in a partitioned topic with the [`get-par
 
 ```shell
 pulsar-admin topics get-partitioned-topic-metadata \
-persistent://my-tenant/my-namespace/my-topic
+    persistent://my-tenant/my-namespace/my-topic
+```
+
+Example output:
+
+```json
 {
-  "partitions": 4
+  "partitions" : 4,
+  "deleted" : false
 }
 ```
 
@@ -1863,8 +1899,8 @@ You can update partitioned topics with the [`update-partitioned-topic`](/tools/p
 
 ```shell
 pulsar-admin topics update-partitioned-topic \
-persistent://my-tenant/my-namespace/my-topic \
---partitions 8
+    persistent://my-tenant/my-namespace/my-topic \
+    --partitions 8
 ```
 
 </TabItem>
@@ -1894,8 +1930,8 @@ You can delete partitioned topics with the [`delete-partitioned-topic`](/tools/p
 <TabItem value="pulsar-admin">
 
 ```shell
-bin/pulsar-admin topics delete-partitioned-topic \
-persistent://my-tenant/my-namespace/my-topic
+pulsar-admin topics delete-partitioned-topic \
+    persistent://my-tenant/my-namespace/my-topic
 ```
 
 </TabItem>
@@ -1927,6 +1963,11 @@ You can get the list of partitioned topics under a given namespace in the follow
 
 ```shell
 pulsar-admin topics list-partitioned-topics tenant/namespace
+```
+
+Example output:
+
+```
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -1950,7 +1991,39 @@ admin.topics().getPartitionedTopicList(namespace);
 
 ### Stats
 
-You can check the current statistics of a given partitioned topic. The following is an example. For the description of each stats, refer to [get stats](#get-stats).
+
+You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+pulsar-admin topics partitioned-stats \
+    persistent://test-tenant/namespace/topic \
+    --per-partition
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is precise backlog */);
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+The following is an example. For the description of each stats, refer to [get stats](#get-stats).
 
 Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. Please use `chunkedMessageRate`. Both will be sent in the JSON for now.
 
@@ -2006,37 +2079,6 @@ Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. P
   "partitions" : { }
 }
 ```
-
-You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
-
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
-<TabItem value="pulsar-admin">
-
-```shell
-pulsar-admin topics partitioned-stats \
-persistent://test-tenant/namespace/topic \
---per-partition
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=@pulsar:version_number@}
-
-</TabItem>
-<TabItem value="Java">
-
-```java
-admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is precise backlog */);
-```
-
-</TabItem>
-
-</Tabs>
-````
 
 ### Internal stats
 
@@ -2127,8 +2169,8 @@ You can create a subscription for a topic using one of the following methods.
 
 ```shell
 pulsar-admin topics create-subscription \
---subscription my-subscription \
-persistent://test-tenant/ns1/tp1
+    --subscription my-subscription \
+    persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
@@ -2162,8 +2204,12 @@ You can check all subscription names for a given topic using one of the followin
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics subscriptions \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics subscriptions persistent://test-tenant/ns1/tp1
+```
+
+Example output:
+
+```
 my-subscription
 ```
 
@@ -2198,8 +2244,8 @@ When a subscription does not process messages anymore, you can unsubscribe it us
 
 ```shell
 pulsar-admin topics unsubscribe \
---subscription my-subscription \
-persistent://test-tenant/ns1/tp1
+    --subscription my-subscription \
+    persistent://test-tenant/ns1/tp1
 ```
 
 </TabItem>
