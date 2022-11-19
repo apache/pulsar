@@ -59,7 +59,7 @@ admin.transactions().getSlowTransactions(timeout, timeUnit)
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
   "(0,3)": {
     "txnId": "(0,3)",
@@ -218,7 +218,7 @@ admin.transactions().getTransactionMetadata(txnID);
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
  "txnId" : "(1,18)",
  "status" : "ABORTING",
@@ -276,7 +276,7 @@ admin.transactions().getTransactionInPendingAckStats(txnID, topic, subname);
 
 The following is an example of the returned value.
 
-```shell
+```json
 {
  "cumulativeAckPosition" : "137:49959"
  }
@@ -319,7 +319,7 @@ admin.transactions().getTransactionInBufferStatsAsync(txnID, topic);
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
  "startPosition" : "137:49759",
  "aborted" : false
@@ -372,7 +372,7 @@ admin.transactions().getCoordinatorStats();
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
   "state" : "Ready",
   "leastSigBits" : 1,
@@ -420,7 +420,7 @@ admin.transactions().getCoordinatorInternalStats(coordinatorId, metadata);
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
  "transactionLogStats" : {
    "managedLedgerName" : "pulsar/system/persistent/__transaction_log_1",
@@ -511,7 +511,7 @@ admin.transactions().getPendingAckStats(topic, subName, lowWaterMarks)
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
   "state" : "Ready",
   "lowWaterMarks" : {
@@ -561,7 +561,7 @@ admin.transactions().getPendingAckInternalStats(topic, subName, boolean metadata
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
  "pendingAckLogStats" : {
    "managedLedgerName" : "public/default/persistent/my-topic-mysubName__transaction_pending_ack",
@@ -656,9 +656,9 @@ admin.transactions().getPositionStatsInPendingAckAsync(topic, subName, ledgerId,
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
-"State" : "MarkDelete"
+  "State" : "MarkDelete"
 }
 ```
 
@@ -709,7 +709,7 @@ admin.transactions().getTransactionBufferStats(topic, lowWaterMarks);
 
 The following is an example of the returned values.
 
-```shell
+```json
 {
   "state" : "Ready",
   "maxReadPosition" : "38:101",

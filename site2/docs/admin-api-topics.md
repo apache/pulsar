@@ -1116,9 +1116,12 @@ You can get the range of the bundle that the given topic belongs to in the follo
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics bundle-range \
-persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics bundle-range persistent://test-tenant/ns1/tp1
+```
 
+Example output:
+
+```
 "0x00000000_0xffffffff"
 ```
 
@@ -1684,8 +1687,8 @@ You can check the current statistics of a given topic and its connected producer
 
 ```shell
 pulsar-admin topics stats \
-persistent://test-tenant/namespace/topic \
---get-precise-backlog
+    persistent://test-tenant/namespace/topic \
+    --get-precise-backlog
 ```
 
 </TabItem>

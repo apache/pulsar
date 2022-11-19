@@ -750,7 +750,7 @@ It shows the retention information of a given namespace.
 pulsar-admin namespaces get-retention test-tenant/namespace1
 ```
 
-```shell
+```json
 {
   "retentionTimeInMinutes": 10,
   "retentionSizeInMB": 100
@@ -990,7 +990,7 @@ It shows the configured message-rate for the namespace (topics under this namesp
 pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/namespace1
 ```
 
-```shell
+```json
 {
   "dispatchThrottlingRatePerTopicInMsg" : 1000,
   "dispatchThrottlingRatePerTopicInByte" : 1048576,

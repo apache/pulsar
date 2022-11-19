@@ -131,7 +131,7 @@ pulsar-admin clusters get cluster-1
 ```
 Output:
 
-```shell
+```json
 {
     "serviceUrl": "http://my-cluster.org.com:8080/",
     "serviceUrlTls": null,

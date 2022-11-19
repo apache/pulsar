@@ -199,7 +199,11 @@ Use the `get` subcommand.
 
 ```bash
 pulsar-admin schemas get <topic-name>
+```
 
+Example output:
+
+```json
 {
     "version": 0,
     "type": "String",
