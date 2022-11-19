@@ -129,7 +129,7 @@ pulsar-admin topics permissions persistent://test-tenant/ns1/tp1
 
 Example output:
 
-```shell
+```
 application1    [consume, produce]
 ```
 
@@ -774,7 +774,7 @@ pulsar-admin topics peek-messages \
 
 Example output:
 
-```shell
+```
 Message ID: 77:2
 Publish time: 1668674963028
 Event time: 0
@@ -1034,7 +1034,7 @@ pulsar-admin topics lookup persistent://test-tenant/ns1/tp1
 
 Example output:
 
-```shell
+```
 "pulsar://broker1.org.com:4480"
 ```
 
@@ -1072,7 +1072,7 @@ pulsar-admin topics partitioned-lookup persistent://test-tenant/ns1/my-topic
 
 Example output:
 
-```shell
+```
 "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
 "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
 "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
@@ -1088,7 +1088,7 @@ pulsar-admin topics partitioned-lookup \
 
 Example output:
 
-```shell
+```
 pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]
 ```
 
@@ -1156,7 +1156,7 @@ pulsar-admin topics subscriptions persistent://test-tenant/ns1/tp1
 
 Example output:
 
-```shell
+```
 my-subscription
 ```
 
@@ -1194,7 +1194,7 @@ pulsar-admin topics last-message-id topic-name
 
 Example output:
 
-```shell
+```json
 {
   "ledgerId" : 97,
   "entryId" : 9,
@@ -1649,7 +1649,7 @@ pulsar-admin topics list tenant/namespace
 
 Example output:
 
-```shell
+```
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -1853,7 +1853,7 @@ pulsar-admin topics get-partitioned-topic-metadata \
 
 Example output:
 
-```shell
+```json
 {
   "partitions" : 4,
   "deleted" : false
@@ -1962,7 +1962,7 @@ pulsar-admin topics list-partitioned-topics tenant/namespace
 
 Example output:
 
-```shell
+```
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -2204,7 +2204,7 @@ pulsar-admin topics subscriptions persistent://test-tenant/ns1/tp1
 
 Example output:
 
-```shell
+```
 my-subscription
 ```
 

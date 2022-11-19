@@ -55,7 +55,7 @@ pulsar-admin brokers list use
 
 Example output:
 
-```shell
+```
 localhost:8080
 ```
 
@@ -92,7 +92,7 @@ pulsar-admin brokers leader-broker
 
 Example output:
 
-```shell
+```json
 {
   "serviceUrl" : "http://localhost:8080"
 }
@@ -134,7 +134,7 @@ pulsar-admin brokers namespaces use \
 
 Example output:
 
-```shell
+```
 public/default/0x00000000_0x40000000    [broker_assignment=shared is_controlled=false is_active=true]
 public/default/0xc0000000_0xffffffff    [broker_assignment=shared is_controlled=false is_active=true]
 public/functions/0x40000000_0x80000000    [broker_assignment=shared is_controlled=false is_active=true]
@@ -218,7 +218,7 @@ pulsar-admin brokers list-dynamic-config
 
 Example output:
 
-```shell
+```
 forceDeleteNamespaceAllowed
 loadBalancerMemoryResourceWeight
 allowAutoTopicCreation
@@ -261,7 +261,7 @@ pulsar-admin brokers get-all-dynamic-config
 ```
 Example output:
 
-```shell
+```
 brokerShutdownTimeoutMs    100
 ```
 

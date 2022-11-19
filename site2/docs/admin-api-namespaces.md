@@ -83,7 +83,7 @@ pulsar-admin namespaces policies test-tenant/test-namespace
 
 Example output:
 
-```shell
+```json
 {
   "auth_policies": {
     "namespace_auth": {},
@@ -142,7 +142,7 @@ pulsar-admin namespaces list test-tenant
 
 Example output:
 
-```shell
+```
 test-tenant/namespace1
 test-tenant/namespace2
 ```
@@ -246,7 +246,7 @@ pulsar-admin namespaces get-clusters test-tenant/cluster1/namespace1
 
 Example output:
 
-```shell
+```
 cluster2
 ```
 
@@ -327,7 +327,7 @@ pulsar-admin namespaces get-backlog-quotas test-tenant/namespace1
 
 Example output:
 
-```shell
+```
 destination_storage    BacklogQuotaImpl(limit=10737418240, limitSize=10737418240, limitTime=36000, policy=producer_request_hold)
 ```
 
@@ -439,7 +439,7 @@ pulsar-admin namespaces get-persistence test-tenant/namespace1
 
 Example output:
 
-```shell
+```json
 {
   "bookkeeperEnsemble": 3,
   "bookkeeperWriteQuorum": 2,
@@ -577,7 +577,7 @@ pulsar-admin namespaces get-message-ttl test-tenant/namespace1
 ```
 Example output:
 
-```shell
+```
 100
 ```
 
@@ -835,7 +835,7 @@ pulsar-admin namespaces get-dispatch-rate test-tenant/namespace1
 
 Example output:
 
-```shell
+```json
 {
   "dispatchThrottlingRateInMsg" : 1000,
   "dispatchThrottlingRateInByte" : 1048576,
@@ -914,7 +914,7 @@ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/namespace1
 
 Example output:
 
-```shell
+```json
 {
   "dispatchThrottlingRateInMsg" : 1000,
   "dispatchThrottlingRateInByte" : 1048576,

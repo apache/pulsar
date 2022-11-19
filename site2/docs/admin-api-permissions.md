@@ -120,7 +120,7 @@ pulsar-admin namespaces permissions test-tenant/namespace1
 
 Example output:
 
-```shell
+```
 my.role.*    [produce, consume]
 ```
 
