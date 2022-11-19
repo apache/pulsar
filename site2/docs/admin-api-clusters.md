@@ -250,7 +250,7 @@ pulsar-admin clusters list
 
 Output:
 
-```shell
+```
 cluster-1
 cluster-2
 ```

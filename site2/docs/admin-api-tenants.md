@@ -47,7 +47,7 @@ pulsar-admin tenants list
 
 Output:
 
-```shell
+```
 my-tenant-1
 my-tenant-2
 ```
