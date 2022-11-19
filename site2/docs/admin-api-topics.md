@@ -1748,7 +1748,9 @@ You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete 
 When creating a new partitioned topic, you need to provide a name and the number of partitions for the topic.
 
 :::note
+
 By default, if there are no messages 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
+
 :::
 
 For more information about the two parameters, see [here](reference-configuration.md#broker).
