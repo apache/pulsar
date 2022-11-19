@@ -94,9 +94,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
-        conf.setTransactionCoordinatorEnabled(true);
-        conf.setTransactionLogBatchedWriteEnabled(true);
-        conf.setTransactionPendingAckBatchedWriteEnabled(true);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
     }
@@ -782,6 +779,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
+        cleanup();
+        conf.setTransactionCoordinatorEnabled(true);
+        conf.setTransactionLogBatchedWriteEnabled(true);
+        conf.setTransactionPendingAckBatchedWriteEnabled(true);
+        setup();
+
         Set<String> allPrometheusSuffixString = allPrometheusSuffixEnums();
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -861,6 +864,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
+
+        conf.setTransactionCoordinatorEnabled(false);
+        conf.setTransactionLogBatchedWriteEnabled(false);
+        conf.setTransactionPendingAckBatchedWriteEnabled(false);
     }
 
     /***
