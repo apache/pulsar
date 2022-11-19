@@ -1182,12 +1182,25 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-n", "--count" }, description = "Number of messages (default 1)", required = false)
         private int numMessages = 1;
 
+        @Parameter(names = { "-f", "--format" },
+                description = "The output format of the messages. Valid input are binary or string. (default binary)",
+                required = false)
+        private String returnString = "binary";
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
+            List<Message<byte[]>> messages = null;
+            if (returnString.equalsIgnoreCase("binary")) {
+                messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
+            } else if (returnString.equalsIgnoreCase("string")) {
+                 messages = getTopics().peekMessages(persistentTopic, subName, numMessages, true);
+            } else {
+                throw new PulsarAdminException("Invalid format. Must be binary/string.");
+            }
+
             int position = 0;
-            for (Message<byte[]> msg : messages) {
+            for (var msg : messages) {
                 MessageImpl message = (MessageImpl) msg;
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -30,6 +31,8 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,7 +50,12 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Cleanup;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
@@ -113,6 +121,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     private NonPersistentTopics nonPersistentTopic;
     private NamespaceResources namespaceResources;
 
+
+    @Builder
+    @AllArgsConstructor
+    @ToString
+    @NoArgsConstructor
+    @EqualsAndHashCode
+    private static class User {
+        String name;
+        int id;
+    }
     @BeforeClass
     public void initPersistentTopics() throws Exception {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -1105,6 +1123,79 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testNonPartitionedPeekMessagesAvro() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/topic-123";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
+        Producer<User> producer = pulsarClient.newProducer(Schema.AVRO(User.class)).topic(topicName).create();
+
+        final int numMessages = 5;
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage()
+                    .value(new User("value-" + i, i))
+                    .send();
+        }
+        producer.flush();
+
+
+        List<Message<byte[]>> messages = admin.topics().peekMessages(topicName, "my-sub", 5, true);
+
+        //JSONObject jobject = new JSONObject(new String(messages.get(0).getValue(), UTF_8));
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jObject = mapper.readTree(new String(messages.get(0).getValue(), UTF_8));
+        Assert.assertEquals(jObject.get("name").asText(), "value-0");
+        Assert.assertEquals(jObject.get("id").asText(), "0");
+        jObject = mapper.readTree(new String(messages.get(1).getValue(), UTF_8));
+        Assert.assertEquals(jObject.get("name").asText(), "value-1");
+        Assert.assertEquals(jObject.get("id").asText(), "1");
+        jObject = mapper.readTree(new String(messages.get(3).getValue(), UTF_8));
+        Assert.assertEquals(jObject.get("name").asText(), "value-3");
+        Assert.assertEquals(jObject.get("id").asText(), "3");
+        jObject = mapper.readTree(new String(messages.get(2).getValue(), UTF_8));
+        Assert.assertEquals(jObject.get("name").asText(), "value-2");
+        Assert.assertEquals(jObject.get("id").asText(), "2");
+        jObject = mapper.readTree(new String(messages.get(4).getValue(), UTF_8));
+        Assert.assertEquals(jObject.get("name").asText(), "value-4");
+        Assert.assertEquals(jObject.get("id").asText(), "4");
+    }
+
+    @Test
+    public void testPartitionedPeekMessagesAvro() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/topic-123-part";
+
+        int numPartitions = 3;
+        admin.topics().createPartitionedTopic(topicName, 2);
+        @Cleanup
+        Producer<User> producer = pulsarClient.newProducer(Schema.AVRO(User.class)).topic(topicName).create();
+
+        final int numMessages = 5;
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage()
+                    .value(new User("value-" + i, i))
+                    .send();
+        }
+        producer.flush();
+
+
+        List<Message<byte[]>> messages = new ArrayList<>();
+        for (int i = 0; i < numPartitions; i++) {
+            messages.addAll(
+                    admin.topics().peekMessages(topicName + "-partition-" + i,
+                            "my-sub", numMessages, true));
+        }
+
+        Assert.assertTrue(messages.size() > 0);
+    }
     @Test
     public void testExamineMessage() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));

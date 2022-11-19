@@ -781,7 +781,7 @@ You can peek a number of messages for a specific subscription of a given topic i
 
 ```shell
 pulsar-admin topics peek-messages \
---count 10 --subscription my-subscription \
+--count 10 --format string --subscription my-subscription \
 persistent://test-tenant/ns1/tp1 \
 
 Message ID: 315674752:0
@@ -792,7 +792,7 @@ msg-payload
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition?format=string|operation/peekNthMessage?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">

@@ -844,11 +844,16 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition) {
+    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition,
+                                                                    boolean asString) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName,
                 "position", String.valueOf(messagePosition));
+
+        if (asString) {
+            path = path.queryParam("format", "string");
+        }
         final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
@@ -873,26 +878,39 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
             throws PulsarAdminException {
-        return sync(() -> peekMessagesAsync(topic, subName, numMessages));
+        return peekMessages(topic, subName, numMessages, false);
     }
 
     @Override
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages, boolean asString)
+            throws PulsarAdminException {
+        return sync(() -> peekMessagesAsync(topic, subName, numMessages, asString));
+    }
+
+
     public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+        return peekMessagesAsync(topic, subName, numMessages, false);
+    }
+    @Override
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages,
+                                                                      boolean asString) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
-        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1);
+        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1, asString);
         return future;
     }
 
+
     private void peekMessagesAsync(String topic, String subName, int numMessages,
-            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage) {
+            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage,
+                                   boolean asString) {
         if (numMessages <= 0) {
             future.complete(messages);
             return;
         }
 
         // if peeking first message succeeds, we know that the topic and subscription exists
-        peekNthMessage(topic, subName, nthMessage).handle((r, ex) -> {
+        peekNthMessage(topic, subName, nthMessage, asString).handle((r, ex) -> {
             if (ex != null) {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
@@ -907,7 +925,8 @@ public class TopicsImpl extends BaseResource implements Topics {
             for (int i = 0; i < Math.min(r.size(), numMessages); i++) {
                 messages.add(r.get(i));
             }
-            peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future, nthMessage + 1);
+            peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future, nthMessage + 1,
+                    asString);
             return null;
         });
     }

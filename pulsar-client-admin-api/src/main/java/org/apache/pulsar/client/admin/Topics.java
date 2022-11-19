@@ -1632,6 +1632,32 @@ public interface Topics {
      *            Subscription name
      * @param numMessages
      *            Number of messages
+     *
+     * @param asString
+     *            Whether to transform the message payload to String based on its schema.
+     *
+     * @return
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages, boolean asString)
+            throws PulsarAdminException;
+
+
+    /**
+     * Peek messages from a topic subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     *
      * @return
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1654,6 +1680,9 @@ public interface Topics {
      * @return a future that can be used to track when the messages are returned
      */
     CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
+
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages,
+                                                               boolean asString);
 
     /**
      * Get a message by its messageId via a topic subscription.
