@@ -113,7 +113,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * {@param action} to do iteration jobs.
      *
      */
-    void forEachRawRange(RawRangeProcessor<T> action);
+    void forEachRawRange(RawRangeProcessor action);
 
     /**
      * Returns total number of ranges into the set.
@@ -176,10 +176,8 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * The interface exposing a method for processing raw form of ranges.
      * This method will omit the process to convert (long, long) to `T`
      * create less object during the iteration.
-     * @param <T> - The incoming type of data in the range object.
-     * @param <O> - The output type of data after apply the conversion.
      */
-    interface RawRangeProcessor<T> {
+    interface RawRangeProcessor {
         boolean processRawRange(long lowerKey, long lowerValue,
                                 long upperKey, long upperValue);
     }
@@ -304,7 +302,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> __) {
+        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> outerConsumer) {
             for (Range<T> range : asRanges()) {
                 if (!action.process(range)) {
                     break;
@@ -313,7 +311,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public void forEachRawRange(RawRangeProcessor<T> action) {
+        public void forEachRawRange(RawRangeProcessor action) {
             for (Range<T> range : asRanges()) {
                 LongPair lowerEndpoint = this.rangeEndPointConsumer.apply(range.lowerEndpoint());
                 LongPair upperEndpoint = this.rangeEndPointConsumer.apply(range.upperEndpoint());

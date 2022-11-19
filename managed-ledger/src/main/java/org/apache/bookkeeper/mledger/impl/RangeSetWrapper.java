@@ -122,7 +122,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     }
 
     @Override
-    public void forEachRawRange(RawRangeProcessor<T> action) {
+    public void forEachRawRange(RawRangeProcessor action) {
         rangeSet.forEachRawRange(action);
     }
 
