@@ -378,10 +378,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                         new ManagedLedgerException.TooManyRequestsException(message), ctx);
                 return null;
             }
-            ml.getExecutor().submitOrdered(lh.getId(), () -> {
+            ml.getExecutor().execute(() -> {
                 asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, shouldCacheEntry,
                         originalCallback, ctx, newHandle);
-                return null;
             });
             return null;
         } else {
