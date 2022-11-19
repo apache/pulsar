@@ -937,15 +937,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    protected void enableProducerReadForPublishBufferLimiting() {
-        if (producers != null) {
-            producers.values().forEach(producer -> {
-                producer.getCnx().cancelPublishBufferLimiting();
-                producer.getCnx().enableCnxAutoRead();
-            });
-        }
-    }
-
     protected void disableProducerRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
