@@ -2856,8 +2856,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                         .build();
 
                 MLDataFormats.NestedPositionInfo upperPosition = nestedPositionBuilder
-                        .setLedgerId(lowerKey)
-                        .setEntryId(lowerValue)
+                        .setLedgerId(upperKey)
+                        .setEntryId(upperValue)
                         .build();
 
                 MessageRange messageRange = messageRangeBuilder

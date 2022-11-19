@@ -176,6 +176,9 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * The interface exposing a method for processing raw form of ranges.
      * This method will omit the process to convert (long, long) to `T`
      * create less object during the iteration.
+     * the parameter is the same as {@linkplain RangeProcessor} which
+     * means (lowerKey,lowerValue) in open bound
+     * (upperKey, upperValue) in close bound in Range
      */
     interface RawRangeProcessor {
         boolean processRawRange(long lowerKey, long lowerValue,
