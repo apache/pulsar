@@ -2206,13 +2206,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         static CompletableFuture<Void> setTimeout(ReadEntryCallbackWrapper readCallback, long timeoutSeconds) {
+            final long readOpCount = readCallback.readOpCount;
+
             return new CompletableFuture<Void>()
                     .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                     .exceptionally((e) -> {
                         if (e instanceof TimeoutException) {
                             readCallback.readFailed(
                                     createManagedLedgerException(BKException.Code.TimeoutException),
-                                    readCallback.readOpCount
+                                    readOpCount
                             );
                         }
                         return null;
