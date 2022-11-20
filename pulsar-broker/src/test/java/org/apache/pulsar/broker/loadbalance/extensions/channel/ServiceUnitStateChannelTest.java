@@ -156,7 +156,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 0)
-    public void channelValidationTest() throws ExecutionException, InterruptedException {
+    public void channelValidationTest()
+            throws ExecutionException, InterruptedException, IllegalAccessException {
         var channel = new ServiceUnitStateChannelImpl(pulsar);
 
         int errorCnt = validateChannelStart(channel);
@@ -172,6 +173,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         errorCnt = validateChannelStart(channel);
         startFuture.get();
         assertTrue(errorCnt > 0);
+
+        FieldUtils.writeDeclaredField(channel, "channelState",
+                ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted, true);
+        assertNotNull(channel.getChannelOwner());
+
         Future closeFuture = executor.submit(()->{
             try {
                 channel.close();
@@ -258,7 +264,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var assigned2 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
         assertNotNull(assigned1);
         assertNotNull(assigned2);
-        waitUntilOwnerChanges(channel2, bundle, null);
+        waitUntilOwnerChanges(channel1, bundle, null);
         waitUntilOwnerChanges(channel2, bundle, null);
         String assignedAddr1 = assigned1.get(5, TimeUnit.SECONDS);
         String assignedAddr2 = assigned2.get(5, TimeUnit.SECONDS);

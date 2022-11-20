@@ -22,6 +22,10 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Closed;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Constructed;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Started;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Jittery;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Stable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
@@ -100,7 +104,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalCleanupScheduledCnt = 0;
     private long totalCleanupIgnoredCnt = 0;
     private long totalCleanupCancelledCnt = 0;
-    private volatile boolean isActive;
+    private volatile ChannelState channelState;
+
+    enum ChannelState {
+        Closed(0),
+        Constructed(1),
+        LeaderElectionServiceStarted(2),
+        Started(3);
+
+        ChannelState(int id) {
+            this.id = id;
+        }
+        int id;
+    }
 
     enum MetadataState {
         Stable,
@@ -109,7 +125,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
-        this.isActive = false;
         this.pulsar = pulsar;
         ServiceConfiguration conf = pulsar.getConfiguration();
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
@@ -120,6 +135,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
+        this.channelState = Constructed;
     }
 
     public synchronized void start() throws PulsarServerException {
@@ -140,6 +156,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         }
                     });
             leaderElectionService.start();
+            this.channelState = LeaderElectionServiceStarted;
             log.debug("Successfully started the channel leader election service.");
 
             if (producer != null) {
@@ -168,7 +185,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
             log.debug("Successfully registered the handleMetadataSessionEvent");
 
-            isActive = true;
+            channelState = Started;
             log.info("Successfully started the channel.");
         } catch (Exception e) {
             String msg = "Failed to start the channel.";
@@ -178,7 +195,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public synchronized void close() throws PulsarServerException {
-        isActive = false;
+        channelState = Closed;
         try {
             if (leaderElectionService != null) {
                 leaderElectionService.close();
@@ -215,9 +232,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void validateChannel() {
-        if (!isActive) {
-            throw new IllegalStateException("The channel has not been started.");
+    private void validateChannelState(ChannelState targetState) {
+        if (channelState.id < targetState.id) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
         }
     }
 
@@ -238,7 +255,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public String getChannelOwner() {
-        validateChannel();
+        validateChannelState(LeaderElectionServiceStarted);
         CompletableFuture<Optional<LeaderBroker>> future = leaderElectionService.readCurrentLeader();
         if (!future.isDone()) {
             return null;
@@ -259,7 +276,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<String> getOwnerAsync(String serviceUnit) {
-        validateChannel();
+        validateChannelState(Started);
         ServiceUnitStateData data = tableview.get(serviceUnit);
         if (data == null) {
             return null;
@@ -317,17 +334,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     lookupServiceAddress, serviceUnit, data);
         }
 
-        if (data == null) {
-            handleTombstoneEvent(serviceUnit);
-            return;
-        }
+        ServiceUnitState state = data == null ? ServiceUnitState.Free : data.state();
 
-        // TODO : Add state validation
-        switch (data.state()) {
+        // TODO : Add state validation in tableview by the compaction strategy
+        switch (state) {
             case Owned -> handleOwnEvent(serviceUnit, data);
             case Assigned -> handleAssignEvent(serviceUnit, data);
             case Released -> handleReleaseEvent(serviceUnit, data);
             case Splitting -> handleSplitEvent(serviceUnit, data);
+            case Free -> handleFreeEvent(serviceUnit);
             default -> throw new IllegalStateException("Failed to handle channel data:" + data);
         }
     }
@@ -405,7 +420,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleTombstoneEvent(String serviceUnit) {
+    private void handleFreeEvent(String serviceUnit) {
         closeServiceUnit(serviceUnit)
                 .thenAccept(__ -> {
                     var request = getOwnerRequests.remove(serviceUnit);
@@ -418,7 +433,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
-        validateChannel();
+        validateChannelState(Started);
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         producer.newMessage()
                 .key(serviceUnit)
@@ -592,7 +607,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void doCleanup(String broker) {
         long startTime = System.nanoTime();
-        log.info("Started ownership cleanup for the unregistered broker:{}", broker);
+        log.info("Started ownership cleanup for the inactive broker:{}", broker);
         AtomicInteger serviceUnitTombstoneCnt = new AtomicInteger();
         AtomicInteger serviceUnitTombstoneErrorCnt = new AtomicInteger();
         for (Map.Entry<String, ServiceUnitStateData> etr : tableview.entrySet()) {
@@ -647,8 +662,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         double cleanupTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));
         // TODO: clean load data stores
-        log.info("Completed a cleanup for the stale broker:{} in {} ms"
-                        + "Published tombstone for orphan service units. serviceUnitTombstoneCnt:{}, "
+        log.info("Completed a cleanup for the inactive broker:{} in {} ms. "
+                        + "Published tombstone for orphan service units: serviceUnitTombstoneCnt:{}, "
                         + "serviceUnitTombstoneErrorCnt:{}, metrics:{} ",
                 broker,
                 cleanupTime,
@@ -671,7 +686,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         log.info("Started the ownership monitor run for activeBrokerCount:{}", brokers.size());
         long startTime = System.nanoTime();
-        Set<String> staleBrokers = new HashSet<>();
+        Set<String> inactiveBrokers = new HashSet<>();
         Set<String> activeBrokers = new HashSet<>(brokers);
         AtomicInteger serviceUnitTombstoneCnt = new AtomicInteger();
         AtomicInteger serviceUnitTombstoneErrorCnt = new AtomicInteger();
@@ -681,7 +696,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             ServiceUnitStateData stateData = etr.getValue();
             String broker = stateData.broker();
             if (!activeBrokers.contains(broker)) {
-                staleBrokers.add(stateData.broker());
+                inactiveBrokers.add(stateData.broker());
             } else if (stateData.state() != Owned
                     && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
                 log.warn("Found long-running orphan(in-flight) serviceUnit:{}, stateData:{}",
@@ -714,8 +729,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to wait for outstanding cleanup tombstone messages.");
         }
 
-        for (String staleBroker : staleBrokers) {
-            handleBrokerDeletionEvent(staleBroker);
+        for (String inactiveBroker : inactiveBrokers) {
+            handleBrokerDeletionEvent(inactiveBroker);
         }
 
         if (serviceUnitTombstoneCnt.get() > 0) {
@@ -726,12 +741,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         double monitorTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));
         log.info("Completed the ownership monitor run in {} ms. "
-                        + "Scheduled cleanups for staleBrokers:{}. staleBrokerCount:{}. "
-                        + "Published tombstone for orphan service units. serviceUnitTombstoneCnt:{}, "
+                        + "Scheduled cleanups for inactiveBrokers:{}. inactiveBrokerCount:{}. "
+                        + "Published tombstone for orphan service units: serviceUnitTombstoneCnt:{}, "
                         + "serviceUnitTombstoneErrorCnt:{}, metrics:{} ",
                 monitorTime,
-                staleBrokers,
-                staleBrokers.size(),
+                inactiveBrokers,
+                inactiveBrokers.size(),
                 serviceUnitTombstoneCnt,
                 serviceUnitTombstoneErrorCnt,
                 printCleanupMetrics());
