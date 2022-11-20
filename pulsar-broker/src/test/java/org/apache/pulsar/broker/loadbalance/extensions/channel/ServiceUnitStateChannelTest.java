@@ -157,9 +157,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     @Test(priority = 0)
     public void channelValidationTest()
-            throws ExecutionException, InterruptedException, IllegalAccessException {
+            throws ExecutionException, InterruptedException, IllegalAccessException, PulsarServerException {
         var channel = new ServiceUnitStateChannelImpl(pulsar);
-
         int errorCnt = validateChannelStart(channel);
         assertEquals(6, errorCnt);
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -190,6 +189,25 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertTrue(errorCnt > 0);
         errorCnt = validateChannelStart(channel);
         assertEquals(6, errorCnt);
+
+        // check if we can close() again
+        channel.close();
+        errorCnt = validateChannelStart(channel);
+        assertEquals(6, errorCnt);
+
+        // close() -> start() test.
+        channel.start();
+        assertNotNull(channel.getChannelOwner());
+
+        // start() -> start() test.
+        IllegalStateException ex = null;
+        try {
+            channel.start();
+        } catch (IllegalStateException e) {
+            ex = e;
+        }
+        assertNotNull(ex);
+        channel.close(); // cleanup
     }
 
     private int validateChannelStart(ServiceUnitStateChannelImpl channel) {

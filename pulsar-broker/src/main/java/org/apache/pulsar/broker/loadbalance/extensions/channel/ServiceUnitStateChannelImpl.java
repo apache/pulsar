@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
@@ -47,7 +48,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
@@ -74,7 +74,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     + "://"
                     + NamespaceName.SYSTEM_NAMESPACE
                     + "/service-unit-state-channel";
-    private static final Schema<ServiceUnitStateData> SCHEMA = Schema.JSON(ServiceUnitStateData.class);
     // TODO: define StateCompactionStrategy
     private static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024; // 5mb
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
@@ -82,12 +81,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private final PulsarService pulsar;
+    private final Schema<ServiceUnitStateData> schema;
     private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
     // TODO: define BrokerRegistry
     private final Semaphore outstandingCleanupTombstoneMessages;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
-    private LeaderElectionService leaderElectionService;
+    private final LeaderElectionService leaderElectionService;
     private TableView<ServiceUnitStateData> tableview;
     private Producer<ServiceUnitStateData> producer;
     private ScheduledFuture<?> cleanupTasks;
@@ -126,8 +126,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
-        ServiceConfiguration conf = pulsar.getConfiguration();
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
+        this.schema = Schema.JSON(ServiceUnitStateData.class);
         this.outstandingCleanupTombstoneMessages = new Semaphore(MAX_OUTSTANDING_PUB_MESSAGES);
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
                 CompletableFuture<String>>newBuilder().build();
@@ -135,26 +135,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
+        this.leaderElectionService = new LeaderElectionService(
+                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
+                state -> {
+                    if (state == LeaderElectionState.Leading) {
+                        log.debug("This broker:{} is the leader now.", lookupServiceAddress);
+                        // TODO: schedule monitorOwnerships by brokerRegistry
+                    } else {
+                        log.debug("This broker:{} is a follower now.", lookupServiceAddress);
+                        // TODO: cancel scheduled monitorOwnerships if any
+                    }
+                });
         this.channelState = Constructed;
     }
 
     public synchronized void start() throws PulsarServerException {
+        validateChannelState(LeaderElectionServiceStarted, false);
         try {
-            if (leaderElectionService != null) {
-                leaderElectionService.close();
-                log.debug("Closed the channel leader election service.");
-            }
-            this.leaderElectionService = new LeaderElectionService(
-                    pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
-                    state -> {
-                        if (state == LeaderElectionState.Leading) {
-                            log.debug("This broker:{} is the leader now.", lookupServiceAddress);
-                            // TODO: schedule monitorOwnerships by brokerRegistry
-                        } else {
-                            log.debug("This broker:{} is a follower now.", lookupServiceAddress);
-                            // TODO: cancel scheduled monitorOwnerships if any
-                        }
-                    });
             leaderElectionService.start();
             this.channelState = LeaderElectionServiceStarted;
             log.debug("Successfully started the channel leader election service.");
@@ -163,7 +160,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 producer.close();
                 log.debug("Closed the channel producer.");
             }
-            producer = pulsar.getClient().newProducer(SCHEMA)
+            producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
                     .topic(TOPIC)
                     .create();
@@ -174,7 +171,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 tableview.close();
                 log.debug("Closed the channel tableview.");
             }
-            tableview = pulsar.getClient().newTableViewBuilder(SCHEMA)
+            tableview = pulsar.getClient().newTableViewBuilder(schema)
                     .topic(TOPIC)
                     // TODO: enable CompactionStrategy
                     .create();
@@ -197,11 +194,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public synchronized void close() throws PulsarServerException {
         channelState = Closed;
         try {
-            if (leaderElectionService != null) {
-                leaderElectionService.close();
-                leaderElectionService = null;
-                log.debug("Successfully closed the channel leader election service.");
-            }
+            leaderElectionService.close();
+            log.debug("Successfully closed the channel leader election service.");
 
             if (tableview != null) {
                 tableview.close();
@@ -232,8 +226,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void validateChannelState(ChannelState targetState) {
-        if (channelState.id < targetState.id) {
+    private void validateChannelState(ChannelState targetState, boolean checkLowerIds) {
+        int order = checkLowerIds ? -1 : 1;
+        if (Integer.compare(channelState.id, targetState.id) * order > 0) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
         }
     }
@@ -255,7 +250,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public String getChannelOwner() {
-        validateChannelState(LeaderElectionServiceStarted);
+        validateChannelState(LeaderElectionServiceStarted, true);
         CompletableFuture<Optional<LeaderBroker>> future = leaderElectionService.readCurrentLeader();
         if (!future.isDone()) {
             return null;
@@ -276,7 +271,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<String> getOwnerAsync(String serviceUnit) {
-        validateChannelState(Started);
+        validateChannelState(Started, true);
         ServiceUnitStateData data = tableview.get(serviceUnit);
         if (data == null) {
             return null;
@@ -334,7 +329,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     lookupServiceAddress, serviceUnit, data);
         }
 
-        ServiceUnitState state = data == null ? ServiceUnitState.Free : data.state();
+        ServiceUnitState state = data == null ? Free : data.state();
 
         // TODO : Add state validation in tableview by the compaction strategy
         switch (state) {
@@ -433,7 +428,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
-        validateChannelState(Started);
+        validateChannelState(Started, true);
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         producer.newMessage()
                 .key(serviceUnit)
@@ -441,6 +436,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .sendAsync()
                 .whenComplete((messageId, e) -> {
                     if (e != null) {
+                        log.error("Failed to publish the message: serviceUnit:{}, data:{}",
+                                serviceUnit, data, e);
                         future.completeExceptionally(e);
                     } else {
                         future.complete(messageId);
@@ -525,8 +522,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .whenComplete((__, ex) -> {
                     double splitBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));
-                    log.info("Splitting {} namespace-bundle completed in {} ms",
-                            serviceUnit, splitBundleTime, ex);
+                    if (ex == null) {
+                        log.info("Successfully split {} namespace-bundle in {} ms",
+                                serviceUnit, splitBundleTime);
+                    } else {
+                        log.error("Failed to split {} namespace-bundle in {} ms",
+                                serviceUnit, splitBundleTime, ex);
+                    }
                 });
     }
 
