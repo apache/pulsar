@@ -663,13 +663,18 @@ class LastCumulativeAck {
     }
 
     public synchronized int compareTo(MessageId messageId) {
-        // The position of a message in the batch (BatchMessageIdImpl) must precede the batch itself (MessageIdImpl)
         if (this.messageId instanceof BatchMessageIdImpl && (!(messageId instanceof BatchMessageIdImpl))) {
-            int result = ((BatchMessageIdImpl) this.messageId).toMessageIdImpl().compareTo(messageId);
-            return (result == 0) ? -1 : result;
+            final BatchMessageIdImpl lhs = (BatchMessageIdImpl) this.messageId;
+            final MessageIdImpl rhs = (MessageIdImpl) messageId;
+            return MessageIdImpl.messageIdCompare(
+                    lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), lhs.getBatchIndex(),
+                    rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), Integer.MAX_VALUE);
         } else if (messageId instanceof BatchMessageIdImpl && (!(this.messageId instanceof BatchMessageIdImpl))){
-            int result = this.messageId.compareTo(((BatchMessageIdImpl) messageId).toMessageIdImpl());
-            return (result == 0) ? 1 : result;
+            final MessageIdImpl lhs = this.messageId;
+            final BatchMessageIdImpl rhs = (BatchMessageIdImpl) messageId;
+            return MessageIdImpl.messageIdCompare(
+                    lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), Integer.MAX_VALUE,
+                    rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), rhs.getBatchIndex());
         } else {
             return this.messageId.compareTo(messageId);
         }
