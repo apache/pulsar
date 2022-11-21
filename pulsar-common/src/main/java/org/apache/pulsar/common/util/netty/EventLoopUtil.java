@@ -50,46 +50,43 @@ import org.apache.commons.lang3.StringUtils;
 @Slf4j
 public class EventLoopUtil {
 
-    private static final String ENABLE_IO_URING = "pulsar.enableUring";
-
     /**
      * @return an EventLoopGroup suitable for the current platform
      */
     public static EventLoopGroup newEventLoopGroup(int nThreads, boolean enableBusyWait, ThreadFactory threadFactory) {
-        if (Epoll.isAvailable()) {
-            String enableIoUring = System.getProperty(ENABLE_IO_URING);
-
-            // By default, io_uring will not be enabled, even if available. The environment variable will be used:
-            // enable.io_uring=1
-            if (StringUtils.equalsAnyIgnoreCase(enableIoUring, "1", "true")) {
-                // Throw exception if IOUring cannot be used
-                IOUring.ensureAvailability();
+        if (IOUring.isAvailable()) {
+            // By default, io_uring will not be enabled, even if available.
+            // We use a property pulsar.enableUring to explicit enable io_uring support.
+            final String property = System.getProperty("pulsar.enableUring");
+            if (StringUtils.equalsAnyIgnoreCase(property, "1", "true")) {
                 return new IOUringEventLoopGroup(nThreads, threadFactory);
-            } else {
-                if (!enableBusyWait) {
-                    // Regular Epoll based event loop
-                    return new EpollEventLoopGroup(nThreads, threadFactory);
-                }
-
-                // With low latency setting, put the Netty event loop on busy-wait loop to reduce cost of
-                // context switches
-                EpollEventLoopGroup eventLoopGroup = new EpollEventLoopGroup(nThreads, threadFactory,
-                        () -> (selectSupplier, hasTasks) -> SelectStrategy.BUSY_WAIT);
-
-                // Enable CPU affinity on IO threads
-                for (int i = 0; i < nThreads; i++) {
-                    eventLoopGroup.next().submit(() -> {
-                        try {
-                            CpuAffinity.acquireCore();
-                        } catch (Throwable t) {
-                            log.warn("Failed to acquire CPU core for thread {} {}", Thread.currentThread().getName(),
-                                    t.getMessage(), t);
-                        }
-                    });
-                }
-
-                return eventLoopGroup;
             }
+        }
+
+        if (Epoll.isAvailable()) {
+            if (!enableBusyWait) {
+                // Regular Epoll based event loop
+                return new EpollEventLoopGroup(nThreads, threadFactory);
+            }
+
+            // With low latency setting, put the Netty event loop on busy-wait loop to reduce cost of
+            // context switches
+            EpollEventLoopGroup eventLoopGroup = new EpollEventLoopGroup(nThreads, threadFactory,
+                    () -> (selectSupplier, hasTasks) -> SelectStrategy.BUSY_WAIT);
+
+            // Enable CPU affinity on IO threads
+            for (int i = 0; i < nThreads; i++) {
+                eventLoopGroup.next().submit(() -> {
+                    try {
+                        CpuAffinity.acquireCore();
+                    } catch (Throwable t) {
+                        log.warn("Failed to acquire CPU core for thread {} {}", Thread.currentThread().getName(),
+                                t.getMessage(), t);
+                    }
+                });
+            }
+
+            return eventLoopGroup;
         } else {
             // Fallback to NIO
             return new NioEventLoopGroup(nThreads, threadFactory);
