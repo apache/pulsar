@@ -1179,7 +1179,8 @@ public class PersistentTopic extends AbstractTopic
             closeClientFuture.thenAccept(delete -> {
                 CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                 brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
-                deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema())
+                deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema ? deleteSchema() :
+                                CompletableFuture.completedFuture(null))
                         .thenCompose(__ -> deleteTopicPolicies())
                         .thenCompose(__ -> transactionBufferCleanupAndClose())
                         .whenComplete((v, ex) -> {
