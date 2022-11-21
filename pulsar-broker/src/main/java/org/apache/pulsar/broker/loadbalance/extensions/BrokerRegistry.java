@@ -58,13 +58,6 @@ public interface BrokerRegistry extends AutoCloseable {
     String getLookupServiceAddress();
 
     /**
-     * Get available brokers.
-     *
-     * @return The brokers service url list.
-     */
-    List<String> getAvailableBrokers();
-
-    /**
      * Async get available brokers.
      *
      * @return The brokers service url list.
