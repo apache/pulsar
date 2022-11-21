@@ -2017,7 +2017,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             if (StringUtils.isEmpty(ns)){
                 continue;
             }
-            deleteNamespaceGraceFully(ns, true);
+            deleteNamespaceWithRetry(ns, true);
         }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(forceDeleteNamespaceAllowedOriginalValue);
     }

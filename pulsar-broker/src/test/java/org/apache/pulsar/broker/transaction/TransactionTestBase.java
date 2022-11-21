@@ -187,7 +187,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
 
             setupBrokerMocks(pulsar);
             pulsar.start();
-            MockedPulsarServiceBaseTest.insteadOfClientMarkerSystemTopicService(pulsar);
             pulsarServiceList.add(pulsar);
         }
     }
@@ -334,18 +333,18 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFully(String ns, boolean force)
+    protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
     }
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
+    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceGraceFully(ns, force, admin, pulsarServiceList);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
     }
 }

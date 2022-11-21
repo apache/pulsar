@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -31,15 +27,10 @@ public class CanPausedNamespaceService extends NamespaceService {
 
     private volatile boolean paused = false;
 
-    private final PulsarService pulsar;
-
     private ReentrantLock lock = new ReentrantLock();
-
-    private List<CompletableFuture<Void>> runningEventListeners = Collections.synchronizedList(new ArrayList<>());
 
     public CanPausedNamespaceService(PulsarService pulsar) {
         super(pulsar);
-        this.pulsar = pulsar;
     }
 
     @Override
@@ -49,27 +40,16 @@ public class CanPausedNamespaceService extends NamespaceService {
             if (paused){
                 return;
             }
-            // Manually calling the method "addOwnedNamespaceBundleAsync" to get the future object, but the bundle
-            // counter for that ns will +1, so "removeOwnedNamespaceBundleAsync" will later be triggered manually
-            // to make the counter -1.
-            CompletableFuture<Void> readerCreateTask =
-                    pulsar.getTopicPoliciesService().addOwnedNamespaceBundleAsync(bundle);
             super.onNamespaceBundleOwned(bundle);
-            readerCreateTask.whenComplete((ignore, ex) -> {
-                // See above.
-                pulsar.getTopicPoliciesService().removeOwnedNamespaceBundleAsync(bundle);
-            });
-            runningEventListeners.add(readerCreateTask);
         } finally {
             lock.unlock();
         }
     }
 
-    public List<CompletableFuture<Void>> pause(){
+    public void pause(){
         lock.lock();
         try {
             paused = true;
-            return runningEventListeners;
         } finally {
             lock.unlock();
         }

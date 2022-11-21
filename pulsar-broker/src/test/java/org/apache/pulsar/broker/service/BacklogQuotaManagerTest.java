@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.insteadOfClientMarkerSystemTopicService;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -85,19 +84,19 @@ public class BacklogQuotaManagerTest {
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFully(String ns, boolean force)
+    protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsar);
     }
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
+    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsar);
     }
 
     @DataProvider(name = "backlogQuotaSizeGB")
@@ -133,7 +132,6 @@ public class BacklogQuotaManagerTest {
 
             pulsar = new PulsarService(config);
             pulsar.start();
-            insteadOfClientMarkerSystemTopicService(pulsar);
 
             adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
@@ -181,9 +179,9 @@ public class BacklogQuotaManagerTest {
 
     @AfterMethod(alwaysRun = true)
     void clearNamespaces() throws Exception {
-        deleteNamespaceGraceFully("prop/ns-quota", true);
-        deleteNamespaceGraceFully("prop/quotahold", true);
-        deleteNamespaceGraceFully("prop/quotaholdasync", true);
+        deleteNamespaceWithRetry("prop/ns-quota", true);
+        deleteNamespaceWithRetry("prop/quotahold", true);
+        deleteNamespaceWithRetry("prop/quotaholdasync", true);
     }
 
     private void rolloverStats() {
