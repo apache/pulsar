@@ -646,6 +646,11 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.netty.incubator</groupId>
+        <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
+        <version>${netty-iouring.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty.incubator</groupId>
         <artifactId>netty-incubator-transport-native-io_uring</artifactId>
         <version>${netty-iouring.version}</version>
       </dependency>
