@@ -202,12 +202,13 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl                                                                                                                                                                                                                                                     .create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 

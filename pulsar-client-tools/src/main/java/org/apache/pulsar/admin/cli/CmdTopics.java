@@ -2150,6 +2150,10 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload threshold in bytes", required = true)
         private long offloadThresholdInBytes;
 
+        @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
+                , description = "ManagedLedger offload threshold in seconds")
+        private Long offloadThresholdInSeconds;
+
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
         private Long offloadDeletionLagInMillis;
@@ -2186,7 +2190,8 @@ public class CmdTopics extends CmdBase {
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes,
-                    readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+                    readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
+                    offloadDeletionLagInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
