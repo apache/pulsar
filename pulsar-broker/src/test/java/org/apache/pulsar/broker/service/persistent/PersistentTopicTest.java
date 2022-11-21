@@ -316,7 +316,6 @@ public class PersistentTopicTest extends BrokerTestBase {
             Student student = new Student();
             student.setName("Tom Jerry");
             student.setAge(30);
-            student.setGpa(6);
             student.setGpa(10);
 
             producer.send(student);
