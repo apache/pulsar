@@ -117,16 +117,15 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             throw new IllegalArgumentException("isDuplicated cannot accept "
                     + messageId.getClass().getName() + ": " + messageId);
         }
+        final MessageIdImpl messageIdImpl = (messageId instanceof BatchMessageIdImpl)
+                ? ((BatchMessageIdImpl) messageId).toMessageIdImpl()
+                : (MessageIdImpl) messageId;
         final MessageIdImpl messageIdOfLastAck = lastCumulativeAck.getMessageId();
-        if (messageIdOfLastAck != null && messageId.compareTo(messageIdOfLastAck) <= 0) {
+        if (messageIdOfLastAck != null && messageIdImpl.compareTo(messageIdOfLastAck) <= 0) {
             // Already included in a cumulative ack
             return true;
         } else {
-            if (messageId instanceof BatchMessageIdImpl) {
-                return pendingIndividualAcks.contains(((BatchMessageIdImpl) messageId).toMessageIdImpl());
-            } else {
-                return pendingIndividualAcks.contains((MessageIdImpl) messageId);
-            }
+            return pendingIndividualAcks.contains(messageIdImpl);
         }
     }
 
