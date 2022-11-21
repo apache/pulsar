@@ -117,7 +117,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             throw new IllegalArgumentException("isDuplicated cannot accept "
                     + messageId.getClass().getName() + ": " + messageId);
         }
-        if (lastCumulativeAck.isDuplicate(messageId)) {
+        if (lastCumulativeAck.compareTo(messageId) >= 0) {
             // Already included in a cumulative ack
             return true;
         } else {
@@ -628,7 +628,7 @@ class LastCumulativeAck {
     private boolean flushRequired = false;
 
     public synchronized void update(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
-        if (messageId.compareTo(this.messageId) > 0) {
+        if (compareTo(messageId) < 0) {
             if (this.bitSetRecyclable != null && this.bitSetRecyclable != bitSetRecyclable) {
                 this.bitSetRecyclable.recycle();
             }
@@ -662,19 +662,13 @@ class LastCumulativeAck {
         flushRequired = false;
     }
 
-    public synchronized boolean isDuplicate(MessageId messageId) {
-        if (this.messageId instanceof BatchMessageIdImpl) {
-            if (messageId instanceof BatchMessageIdImpl) {
-                return messageId.compareTo(this.messageId) <= 0;
-            } else {
-                return messageId.compareTo(((BatchMessageIdImpl) this.messageId).toMessageIdImpl()) <= 0;
-            }
+    public synchronized int compareTo(MessageId messageId) {
+        if (this.messageId instanceof BatchMessageIdImpl && (!(messageId instanceof BatchMessageIdImpl))) {
+            return ((BatchMessageIdImpl) this.messageId).toMessageIdImpl().compareTo(messageId);
+        } else if (messageId instanceof BatchMessageIdImpl && (!(this.messageId instanceof BatchMessageIdImpl))){
+            return this.messageId.compareTo(((BatchMessageIdImpl) messageId).toMessageIdImpl());
         } else {
-            if (messageId instanceof BatchMessageIdImpl) {
-                return ((BatchMessageIdImpl) messageId).toMessageIdImpl().compareTo(this.messageId) <= 0;
-            } else {
-                return messageId.compareTo(this.messageId) <= 0;
-            }
+            return this.messageId.compareTo(messageId);
         }
     }
 
