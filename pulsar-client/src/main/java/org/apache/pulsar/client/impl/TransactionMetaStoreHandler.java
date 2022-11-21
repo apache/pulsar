@@ -140,18 +140,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                     internalPinnedExecutor.execute(() -> {
                         LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
-                        if (!changeToReadyState()) {
-                            setState(State.Closed);
-                            cnx.channel().close();
+                        if (registerToConnection(cnx)) {
+                            this.connectionHandler.resetBackoff();
+                            pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
                         }
-
-                        connectionHandler.setClientCnx(cnx);
-                        cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-                        if (!this.connectFuture.isDone()) {
-                            this.connectFuture.complete(null);
-                        }
-                        this.connectionHandler.resetBackoff();
-                        pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
@@ -168,15 +160,24 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     return null;
                 });
             } else {
-                if (!changeToReadyState()) {
-                    cnx.channel().close();
-                } else {
-                    connectionHandler.setClientCnx(cnx);
-                    cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-                }
-                this.connectFuture.complete(null);
+                registerToConnection(cnx);
             }
         });
+    }
+
+    private boolean registerToConnection(ClientCnx cnx) {
+        if (changeToReadyState()) {
+            connectionHandler.setClientCnx(cnx);
+            cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
+            connectFuture.complete(null);
+            return true;
+        } else {
+            State state = getState();
+            cnx.channel().close();
+            connectFuture.completeExceptionally(
+                    new IllegalStateException("Failed to change the state from " + state + " to Ready"));
+            return false;
+        }
     }
 
     private void failPendingRequest() {
