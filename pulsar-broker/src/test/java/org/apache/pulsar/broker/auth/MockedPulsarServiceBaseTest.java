@@ -27,7 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
-import com.google.common.io.Resources;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
@@ -79,6 +78,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
@@ -93,20 +93,20 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public final static String BROKER_KEYSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
     public final static String BROKER_TRUSTSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
     public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/broker.truststore.nopassword.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
     public final static String BROKER_KEYSTORE_PW = "111111";
     public final static String BROKER_TRUSTSTORE_PW = "111111";
 
     public final static String CLIENT_KEYSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
     public final static String CLIENT_TRUSTSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
     public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/client.truststore.nopassword.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
     public final static String CLIENT_KEYSTORE_PW = "111111";
     public final static String CLIENT_TRUSTSTORE_PW = "111111";
 

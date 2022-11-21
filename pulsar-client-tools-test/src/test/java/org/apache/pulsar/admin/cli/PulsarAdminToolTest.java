@@ -28,7 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -2224,8 +2223,8 @@ public class PulsarAdminToolTest {
         conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
                 .getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
-        assertNull(atuh.getCertFilePath());
-        assertNull(atuh.getKeyFilePath());
+        assertEquals(atuh.getCertFilePath(), certFilePath);
+        assertEquals(atuh.getKeyFilePath(), keyFilePath);
     }
 
     @Test
