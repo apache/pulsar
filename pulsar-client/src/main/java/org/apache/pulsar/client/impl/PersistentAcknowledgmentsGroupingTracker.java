@@ -117,14 +117,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             throw new IllegalArgumentException("isDuplicated cannot accept "
                     + messageId.getClass().getName() + ": " + messageId);
         }
-        final MessageIdImpl messageIdImpl = (messageId instanceof BatchMessageIdImpl)
-                ? ((BatchMessageIdImpl) messageId).toMessageIdImpl()
-                : (MessageIdImpl) messageId;
-        final MessageIdImpl messageIdOfLastAck = lastCumulativeAck.getMessageId();
-        if (messageIdOfLastAck != null && messageIdImpl.compareTo(messageIdOfLastAck) <= 0) {
+        if (lastCumulativeAck.isDuplicate(messageId)) {
             // Already included in a cumulative ack
             return true;
         } else {
+            final MessageIdImpl messageIdImpl = (messageId instanceof BatchMessageIdImpl)
+                    ? ((BatchMessageIdImpl) messageId).toMessageIdImpl()
+                    : (MessageIdImpl) messageId;
             return pendingIndividualAcks.contains(messageIdImpl);
         }
     }
@@ -661,6 +660,22 @@ class LastCumulativeAck {
         messageId = DEFAULT_MESSAGE_ID;
         bitSetRecyclable = null;
         flushRequired = false;
+    }
+
+    public synchronized boolean isDuplicate(MessageId messageId) {
+        if (this.messageId instanceof BatchMessageIdImpl) {
+            if (messageId instanceof BatchMessageIdImpl) {
+                return messageId.compareTo(this.messageId) <= 0;
+            } else {
+                return messageId.compareTo(((BatchMessageIdImpl) this.messageId).toMessageIdImpl()) <= 0;
+            }
+        } else {
+            if (messageId instanceof BatchMessageIdImpl) {
+                return ((BatchMessageIdImpl) messageId).toMessageIdImpl().compareTo(this.messageId) <= 0;
+            } else {
+                return messageId.compareTo(this.messageId) <= 0;
+            }
+        }
     }
 
     private synchronized void set(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
