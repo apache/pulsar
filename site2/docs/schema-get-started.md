@@ -142,16 +142,28 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+   
+   Consumer<GenericRecord> consumer = client.newConsumer(Schema.generic(schemaInfo))
+        .topic(topicName)
+        .subscriptionName(subscriptionName)
+        .subscribe();
 
-   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo))
+        .topic(topicName)
+        .create();
    ```
 
 2. Use `RecordBuilder` to build the struct records.
 
    ```java
-   producer.newMessage().value(schema.newRecordBuilder()
-               .set("intField", 32)
-               .build()).send();
+   GenericSchemaImpl schema = GenericAvroSchema.of(schemaInfo);
+   // send message
+   GenericRecord record = schema.newRecordBuilder().set("intField", 32).build();
+   producer.newMessage().value(record).send();
+   // receive message
+   Message<GenericRecord> msg = consumer.receive();
+   
+   Assert.assertEquals(msg.getValue().getField("intField"), 32);
    ```
 
 </TabItem>

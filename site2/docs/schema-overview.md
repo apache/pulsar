@@ -60,15 +60,15 @@ This diagram illustrates how schema works on the Producer side.
 
 5. If no, the broker verifies whether a schema can be automatically created in this namespace:
 
-   * If `isAllowAutoUpdateSchemaEnabled` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
+   * If `isAllowAutoUpdateSchema` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
   
-   * If `isAllowAutoUpdateSchemaEnabled` sets to **false**, then a schema can not be created, and the producer is rejected to connect to the broker.
+   * If `isAllowAutoUpdateSchema` sets to **false**, then a schema can not be created, and the producer is rejected to connect to the broker.
   
    :::tip
 
-   `isAllowAutoUpdateSchemaEnabled` can be set via **Pulsar admin API** or **REST API.** 
+   `isAllowAutoUpdateSchema` can be set in broker level via config file `conf/standalone.conf` or `conf/broker.conf`. It can also be set in namespace level via **Pulsar admin API** or **REST API**. 
 
-   For how to set `isAllowAutoUpdateSchemaEnabled` via Pulsar admin API, see [Manage AutoUpdate Strategy](admin-api-schemas.md#manage-autoupdate-strategy). 
+   For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](admin-api-schemas.md#manage-autoupdate-strategy). 
 
    :::
 
@@ -94,9 +94,9 @@ This diagram illustrates how schema works on the consumer side.
 
 4. If a topic does not have all of them (a schema/data/a local consumer and a local producer):
    
-     * If `isAllowAutoUpdateSchemaEnabled` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+     * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
        
-     * If `isAllowAutoUpdateSchemaEnabled` sets to **false**, then the consumer is rejected to connect to a broker.
+     * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
        
 5. If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
    
