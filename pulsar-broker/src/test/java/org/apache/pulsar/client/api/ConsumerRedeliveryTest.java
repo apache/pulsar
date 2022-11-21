@@ -30,9 +30,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +66,19 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
+    }
+
+    @DataProvider(name = "batchedMessageAck")
+    public Object[][] batchedMessageAck() {
+        // When batch index ack is disabled (by default), only after all single messages were sent would the pending
+        // ACK be added into the ACK tracker.
+        return new Object[][] {
+                // numAcked, batchSize, ack type
+                { 3, 5, CommandAck.AckType.Individual },
+                { 5, 5, CommandAck.AckType.Individual },
+                { 3, 5, CommandAck.AckType.Cumulative },
+                { 5, 5, CommandAck.AckType.Cumulative }
+        };
     }
 
     /**
@@ -296,5 +312,58 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test(timeOut = 30000, dataProvider = "batchedMessageAck")
+    public void testAckNotSent(int numAcked, int batchSize, CommandAck.AckType ackType) throws Exception {
+        String topic = "persistent://my-property/my-ns/test-ack-not-sent-"
+                + numAcked + "-" + batchSize + "-" + ackType.getValue();
+        @Cleanup Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .enableBatchIndexAcknowledgment(false)
+                .acknowledgmentGroupTime(1, TimeUnit.HOURS) // ACK won't be sent
+                .subscribe();
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(batchSize)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+        for (int i = 0; i < batchSize; i++) {
+            String value = "msg-" + i;
+            producer.sendAsync(value).thenAccept(id -> log.info("{} was sent to {}", value, id));
+        }
+        List<Message<String>> messages = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            messages.add(consumer.receive());
+        }
+        if (ackType == CommandAck.AckType.Individual) {
+            for (int i = 0; i < numAcked; i++) {
+                consumer.acknowledge(messages.get(i));
+            }
+        } else {
+            consumer.acknowledgeCumulative(messages.get(numAcked - 1));
+        }
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        messages.clear();
+        for (int i = 0; i < batchSize; i++) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            log.info("Received {} from {}", msg.getValue(), msg.getMessageId());
+            messages.add(msg);
+        }
+        List<String> values = messages.stream().map(Message::getValue).collect(Collectors.toList());
+        // All messages are redelivered because only if the whole batch are acknowledged would the message ID be
+        // added into the ACK tracker.
+        if (numAcked < batchSize) {
+            assertEquals(values, IntStream.range(0, batchSize).mapToObj(i -> "msg-" + i).collect(Collectors.toList()));
+        } else {
+            assertTrue(values.isEmpty());
+        }
     }
 }
