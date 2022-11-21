@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.web;
 
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.concurrent.ExecutionException;
 import javax.ws.rs.Path;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
@@ -33,13 +33,33 @@ import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.Response;
 import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 import org.glassfish.jersey.server.model.Invocable;
-import org.glassfish.jersey.server.model.MethodHandler;
+import org.glassfish.jersey.server.model.ResourceMethod;
 
 public class RestEndpointMetricsFilter implements ContainerResponseFilter, ContainerRequestFilter {
-    private static final Cache<Method, String> CACHE = CacheBuilder
+    private static final LoadingCache<ResourceMethod, String> CACHE = CacheBuilder
             .newBuilder()
             .maximumSize(100)
-            .build();
+            .build(new CacheLoader<>() {
+                @Override
+                public String load(ResourceMethod method) throws Exception {
+                    try {
+                        Invocable inv = method.getInvocable();
+                        Class<?> handlingClass = inv.getHandler().getHandlerClass();
+                        Method handlingMethod = inv.getHandlingMethod();
+
+                        Path parent = handlingClass.getDeclaredAnnotation(Path.class);
+                        Path child = handlingMethod.getDeclaredAnnotation(Path.class);
+                        String parent0 = parent == null ? "" : parent.value();
+                        String child0 = child == null ? "" : child.value()
+                                .replace("{", ":").replace("}", "");
+
+                        return parent0.endsWith("/") || child0.startsWith("/")
+                                ? parent0 + child0 : parent0 + "/" + child0;
+                    } catch (Exception ex) {
+                        return "UNKNOWN";
+                    }
+                }
+            });
 
     private static final Histogram LATENCY = Histogram
             .build("pulsar_broker_rest_endpoint_latency", "-")
@@ -59,10 +79,8 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
         String path;
         try {
             UriRoutingContext info = (UriRoutingContext) req.getUriInfo();
-            Invocable inv = info.getMatchedResourceMethod().getInvocable();
-            MethodHandler handler = inv.getHandler();
-            Method handlingMethod = inv.getHandlingMethod();
-            path = getRequestPath(handler, handlingMethod);
+            ResourceMethod rm = info.getMatchedResourceMethod();
+            path = CACHE.get(rm);
         } catch (Throwable ex) {
             path = "UNKNOWN";
         }
@@ -82,19 +100,5 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
     public void filter(ContainerRequestContext req) throws IOException {
         // Set the request start time into properties.
         req.setProperty(REQUEST_START_TIME, System.currentTimeMillis());
-    }
-
-
-    private static String getRequestPath(MethodHandler handler, Method method) throws ExecutionException {
-        Class<?> klass = handler.getHandlerClass();
-
-        return CACHE.get(method, () -> {
-            Path parent = klass.getDeclaredAnnotation(Path.class);
-            Path child = method.getDeclaredAnnotation(Path.class);
-            String parent0 = parent == null ? "" : parent.value();
-            String child0 = child == null ? "" : child.value().replace("{", ":").replace("}", "");
-
-            return parent0.endsWith("/") || child0.startsWith("/") ? parent0 + child0 : parent0 + "/" + child0;
-        });
     }
 }
