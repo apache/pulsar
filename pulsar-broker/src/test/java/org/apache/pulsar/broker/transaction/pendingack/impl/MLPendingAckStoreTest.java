@@ -256,8 +256,24 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         Assert.assertTrue(mlPendingAckStoreForRead.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);
 
         // cleanup.
-        mlPendingAckStoreForWrite.closeAsync().get();
-        mlPendingAckStoreForRead.closeAsync().get();
+        closePendingAckStoreWithRetry(mlPendingAckStoreForWrite);
+        closePendingAckStoreWithRetry(mlPendingAckStoreForRead);
+    }
+
+    /**
+     * Why should retry?
+     * Because when the cursor close and cursor switch ledger are concurrent executing, the bad version exception is
+     * thrown.
+     */
+    private void closePendingAckStoreWithRetry(MLPendingAckStore pendingAckStore){
+        Awaitility.await().until(() -> {
+            try {
+                pendingAckStore.closeAsync().get();
+                return true;
+            } catch (Exception ex){
+                return false;
+            }
+        });
     }
 
     /**

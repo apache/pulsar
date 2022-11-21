@@ -1113,6 +1113,7 @@ public class ClientCnx extends PulsarHandler {
                 Commands.serializeWithSize(commandWatchTopicListClose), requestId, RequestType.Command, true);
     }
 
+    @Override
     protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
         checkArgument(state == State.Ready);
 
@@ -1131,6 +1132,7 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    @Override
     protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
         checkArgument(state == State.Ready);
 
@@ -1293,7 +1295,10 @@ public class ClientCnx extends PulsarHandler {
                 // if there is no request that is timed out then exit the loop
                 break;
             }
-            request = requestTimeoutQueue.poll();
+            if (!requestTimeoutQueue.remove(request)) {
+                // the request has been removed by another thread
+                continue;
+            }
             TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
                     && !requestFuture.hasGotResponse()) {

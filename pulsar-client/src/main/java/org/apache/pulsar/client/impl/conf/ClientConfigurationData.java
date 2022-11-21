@@ -220,6 +220,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
 
     @ApiModelProperty(
+            name = "readTimeoutMs",
+            value = "Maximum read time of a request."
+    )
+    private int readTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
+
+    @ApiModelProperty(
             name = "initialBackoffIntervalNanos",
             value = "Initial backoff interval (in nanosecond)."
     )

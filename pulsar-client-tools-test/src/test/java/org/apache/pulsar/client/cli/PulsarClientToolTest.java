@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
@@ -32,6 +33,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -281,8 +283,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
-        
-        String[] args = {"--url", url, 
+
+        String[] args = {"--url", url,
                 "--auth-plugin", authPlugin,
                 "--auth-params", authParams,
                 "--tlsTrustCertsFilePath", tlsTrustCertsFilePath,
@@ -293,8 +295,30 @@ public class PulsarClientToolTest extends BrokerTestBase {
         assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
         assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+        assertNull(pulsarClientTool.rootParams.getProxyServiceURL());
+        assertNull(pulsarClientTool.rootParams.getProxyProtocol());
     }
 
+    @Test
+    public void testParsingProxyServiceUrlAndProxyProtocolFromProperties() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("proxyServiceUrl", "pulsar+ssl://my-proxy-pulsar:4443");
+        properties.setProperty("proxyProtocol", "SNI");
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(properties);
+        final String url = "pulsar+ssl://localhost:6651";
+        final String message = "test msg";
+        final int numberOfMessages = 1;
+        final String topicName = getTopicWithRandomSuffix("test-topic");
+
+        String[] args = {"--url", url,
+                "produce", "-m", message,
+                "-n", Integer.toString(numberOfMessages), topicName};
+        pulsarClientTool.jcommander.parse(args);
+        assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+        assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
+        assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);
+    }
+    
     @Test
     public void testSendMultipleMessage() throws Exception {
         Properties properties = new Properties();
@@ -316,7 +340,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
             Assert.assertEquals(new String(msg.getData()), "msg" + i);
         }
     }
-    
+
     private static String getTopicWithRandomSuffix(String localNameBase) {
         return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }

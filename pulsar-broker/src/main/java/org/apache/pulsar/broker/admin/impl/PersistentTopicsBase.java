@@ -1897,7 +1897,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(__ -> {
                 // If the topic name is a partition name, no need to get partition topic metadata again
                 if (topicName.isPartitioned()) {
-                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName, authoritative);
+                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                 } else {
                     return getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenCompose(partitionMetadata -> {
@@ -1938,8 +1938,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                         } else {
-                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName,
-                                authoritative);
+                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                         }
                     });
                 }
@@ -1955,8 +1954,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalSkipAllMessagesForNonPartitionedTopicAsync(AsyncResponse asyncResponse,
-                                                                                       String subName,
-                                                                                       boolean authoritative) {
+                                                                                       String subName) {
         return getTopicReferenceAsync(topicName).thenCompose(t -> {
                     PersistentTopic topic = (PersistentTopic) t;
                     BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {

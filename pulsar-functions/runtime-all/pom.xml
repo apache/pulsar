@@ -42,6 +42,7 @@
     6. log4j-api
     7. log4j-core
     8. AVRO
+    9. protobuf-java
   -->
 
   <artifactId>pulsar-functions-runtime-all</artifactId>

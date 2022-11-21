@@ -15,18 +15,25 @@ After communicating with the OAuth 2.0 server, the Pulsar client gets an access 
 
 ## Enable OAuth2 authentication on brokers/proxies
 
-To configure brokers to authenticate clients using OAuth2， add the following parameters to the `conf/broker.conf` and `conf/proxy.conf` file.
+To configure brokers/proxies to authenticate clients using OAuth2, add the following parameters to the `conf/broker.conf` and the `conf/proxy.conf` file. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file:
 
 ```properties
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
-tokenPublicKey=/path/to/publicKey
-# Authentication settings of the broker itself. Used when the broker connects to other brokers,
-# either in same or other clusters
+
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, or when the proxy connects to brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
-brokerClientAuthenticationParameters={"privateKey":"/path/to/privateKey",\
-  "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/","issuerUrl":"https://dev-kt-aa9ne.us.auth0.com"}
+brokerClientAuthenticationParameters={"privateKey":"file:///path/to/privateKey","audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/","issuerUrl":"https://dev-kt-aa9ne.us.auth0.com"}
+# brokerClientAuthenticationParameters={"privateKey":"data:application/json;base64,privateKey-body-to-base64","audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/","issuerUrl":"https://dev-kt-aa9ne.us.auth0.com"}
+
+# If using secret key (Note: key files must be DER-encoded)
+tokenSecretKey=file:///path/to/secret.key
+# The key can also be passed inline:
+# tokenSecretKey=data:;base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
+
+# If using public/private (Note: key files must be DER-encoded)
+# tokenPublicKey=file:///path/to/public.key
 ```
 
 ## Configure OAuth2 authentication in Pulsar clients
