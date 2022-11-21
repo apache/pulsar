@@ -139,7 +139,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
             }
             return snapshotMetadataList;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new BucketSnapshotException(e);
         }
     }
 
