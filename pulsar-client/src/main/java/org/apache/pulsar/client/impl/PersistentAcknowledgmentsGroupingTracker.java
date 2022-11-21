@@ -663,10 +663,13 @@ class LastCumulativeAck {
     }
 
     public synchronized int compareTo(MessageId messageId) {
+        // The position of a message in the batch (BatchMessageIdImpl) must precede the batch itself (MessageIdImpl)
         if (this.messageId instanceof BatchMessageIdImpl && (!(messageId instanceof BatchMessageIdImpl))) {
-            return ((BatchMessageIdImpl) this.messageId).toMessageIdImpl().compareTo(messageId);
+            int result = ((BatchMessageIdImpl) this.messageId).toMessageIdImpl().compareTo(messageId);
+            return (result == 0) ? -1 : result;
         } else if (messageId instanceof BatchMessageIdImpl && (!(this.messageId instanceof BatchMessageIdImpl))){
-            return this.messageId.compareTo(((BatchMessageIdImpl) messageId).toMessageIdImpl());
+            int result = this.messageId.compareTo(((BatchMessageIdImpl) messageId).toMessageIdImpl());
+            return (result == 0) ? 1 : result;
         } else {
             return this.messageId.compareTo(messageId);
         }
