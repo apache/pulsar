@@ -126,7 +126,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         try {
             return SnapshotMetadata.parseFrom(ledgerEntry.getEntry());
         } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
+            throw new BucketSnapshotException(e);
         }
     }
 
