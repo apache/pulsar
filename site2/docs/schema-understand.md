@@ -87,7 +87,7 @@ Currently, Pulsar supports the following complex types:
 
 You can choose the encoding type when constructing the key/value schema.：
 * `INLINE` - Key/value pairs are encoded together in the message payload.
-* `SEPARATED` - see [Construct a key/value schema](schema-get-started.md#construct-a-keyvalue-schema).
+* `SEPARATED` - Key is stored as message key, while value is stored as message payload.
 
 #### `Struct` schema
 
@@ -148,10 +148,11 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
 
 The table below lists the possible scenarios when this connection attempt occurs and what happens in each scenario:
 
-| Scenario |  What happens | 
-| --- | --- |
-|  <li>No schema exists for the topic. </li> |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
-|  <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
+| Scenario                                                                                                        | What happens                                                                                                                                                                                                                                                                                                           | 
+|-----------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <li>No schema exists for the topic. </li>                                                                       | (1) The producer is created using the given schema. <br/>(2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. <br/>(3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.               | 
+| <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> | (1) The schema is transmitted to the broker. <br/>(2) The broker determines that the schema is compatible. <br/>(3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages. |   
+| <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li>        | (1) The schema is transmitted to the broker. <br/>(2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).                                                                                                                                     | 
 
 ## Schema AutoUpdate
 
@@ -179,9 +180,9 @@ For a producer, the `AutoUpdate` happens in the following cases:
   
   * If the schema is not registered:
   
-     * If `isAllowAutoUpdateSchema` sets to **false**, the producer is rejected to connect to a broker.
+     * If `isAllowAutoUpdateSchemaEnabled` sets to **false**, the producer is rejected to connect to a broker.
   
-      * If `isAllowAutoUpdateSchema` sets to **true**:
+      * If `isAllowAutoUpdateSchemaEnabled` sets to **true**:
    
           * If the schema passes the compatibility check, then the broker registers a new schema automatically for the topic and the producer is connected.
       
@@ -199,9 +200,9 @@ For a consumer, the `AutoUpdate` happens in the following cases:
 
   * If a topic does not have all of them (a schema/data/a local consumer and a local producer):
   
-      * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+      * If `isAllowAutoUpdateSchemaEnabled` sets to **true**, then the consumer registers a schema and it is connected to a broker.
       
-      * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
+      * If `isAllowAutoUpdateSchemaEnabled` sets to **false**, then the consumer is rejected to connect to a broker.
       
   * If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
   

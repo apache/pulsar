@@ -28,7 +28,7 @@ This example demonstrates how to construct a [string schema](schema-understand.m
 
    ```java
    Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
-   consumer.receive();
+   Message<String> message = consumer.receive();
    ```
 
 ## Construct a key/value schema
@@ -37,29 +37,29 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
 
 1. Construct a key/value schema with `INLINE` encoding type.
 
-   ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.INLINE
-   );
-   ```
+    ```java
+    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+        Schema.INT32,
+        Schema.STRING,
+        KeyValueEncodingType.INLINE
+    );
+    ```
 
 2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
-   ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.SEPARATED
-   );
-   ```
+    ```java
+    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+        Schema.INT32,
+        Schema.STRING,
+        KeyValueEncodingType.SEPARATED
+    );
+    ```
 
 3. Produce messages using a key/value schema.
 
    ```java
    Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
-       .topic(TOPIC)
+       .topic(topicName)
        .create();
 
    final int key = 100;
@@ -67,8 +67,8 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
 
    // send the key/value message
    producer.newMessage()
-   .value(new KeyValue(key, value))
-   .send();
+       .value(new KeyValue(key, value))
+       .send();
    ```
 
 4. Consume messages using a key/value schema.
@@ -76,8 +76,8 @@ This example shows how to construct a [key/value schema](schema-understand.md#ke
    ```java
    Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
        ...
-       .topic(TOPIC)
-       .subscriptionName(SubscriptionName).subscribe();
+       .topic(topicName)
+       .subscriptionName(subscriptionName).subscribe();
 
    // receive key/value pair
    Message<KeyValue<Integer, String>> msg = consumer.receive();

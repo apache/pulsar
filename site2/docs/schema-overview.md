@@ -60,17 +60,17 @@ This diagram illustrates how schema works on the Producer side.
 
 5. If no, the broker verifies whether a schema can be automatically created in this namespace:
 
-   * If `isAllowAutoUpdateSchema` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
+   * If `isAllowAutoUpdateSchemaEnabled` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
   
-   * If `isAllowAutoUpdateSchema` sets to **false**, then a schema can not be created, and the producer is rejected to connect to the broker.
+   * If `isAllowAutoUpdateSchemaEnabled` sets to **false**, then a schema can not be created, and the producer is rejected to connect to the broker.
   
    :::tip
 
-   `isAllowAutoUpdateSchema` can be set via **Pulsar admin API** or **REST API.** 
+   `isAllowAutoUpdateSchemaEnabled` can be set via **Pulsar admin API** or **REST API.** 
 
-   For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](admin-api-schemas.md#manage-autoupdate-strategy). 
+   For how to set `isAllowAutoUpdateSchemaEnabled` via Pulsar admin API, see [Manage AutoUpdate Strategy](admin-api-schemas.md#manage-autoupdate-strategy). 
 
-    :::
+   :::
 
 6. If the schema is allowed to be updated, then the compatible strategy check is performed.
   
@@ -94,9 +94,9 @@ This diagram illustrates how schema works on the consumer side.
 
 4. If a topic does not have all of them (a schema/data/a local consumer and a local producer):
    
-     * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+     * If `isAllowAutoUpdateSchemaEnabled` sets to **true**, then the consumer registers a schema and it is connected to a broker.
        
-     * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
+     * If `isAllowAutoUpdateSchemaEnabled` sets to **false**, then the consumer is rejected to connect to a broker.
        
 5. If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
    
@@ -112,12 +112,19 @@ This diagram illustrates how schema works on the consumer side.
 
 You can use language-specific types of data when constructing and handling messages from simple data types like `string` to more complex application-specific types.
 
-For example, you are using the _User_ class to define the messages sent to Pulsar topics.
+For example, you are using the `User` class to define the messages sent to Pulsar topics.
 
 ```java
 public class User {
-    String name;
-    int age;
+   public String name;
+   public int age;
+   
+   User() {}
+   
+   User(String name, int age) {
+      this.name = name;
+      this.age = age;
+   }
 }
 ```
 
@@ -136,14 +143,26 @@ producer.send(message);
 
 **With a schema**
 
-This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize POJOs into bytes.
+This example constructs a producer with the `JSONSchema`, and you can send the `User` class to topics directly without worrying about how to serialize POJOs into bytes.
 
 ```java
+// send with json schema
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
 User user = new User("Tom", 28);
 producer.send(user);
+
+// receive with json schema
+Consumer<User> consumer = client.newConsumer(JSONSchema.of(User.class))
+   .topic(schemaTopic)
+   .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+   .subscriptionName("schema-sub")
+   .subscribe();
+
+Message<User> message = consumer.receive();
+User user = message.getValue();
+assert user.age == 28 && user.name.equals("Tom");
 ```
 
 ## What's next?
