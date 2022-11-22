@@ -139,7 +139,8 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
-    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
+    <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
     <jackson.version>2.13.4.20221013</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
