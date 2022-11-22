@@ -51,7 +51,7 @@ public class DnsResolverUtil {
             log.warn("Cannot get DNS TTL settings from sun.net.InetAddressCachePolicy class", e);
         }
         TTL = ttl <= 0 ? DEFAULT_TTL : ttl;
-        NEGATIVE_TTL = negativeTtl < 0 ? DEFAULT_TTL : negativeTtl;
+        NEGATIVE_TTL = negativeTtl < 0 ? DEFAULT_NEGATIVE_TTL : negativeTtl;
     }
 
     private DnsResolverUtil() {
