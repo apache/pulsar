@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.Setter;
@@ -106,6 +107,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     private static final String RECONSUME_LATER_ERROR_MSG =
             "reconsumeLater method not supported because retryEnabled is set to false. "
           + "You can enable it via ConsumerBuilder.";
+    protected volatile boolean paused = false;
+    protected CompletableFuture pauseFuture = CompletableFuture.completedFuture(null);
 
     @Setter
     @Getter
@@ -172,6 +175,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
 
         initReceiverQueueSize();
+        this.paused = conf.isStartPaused();
+        this.pauseFuture = this.paused ? new CompletableFuture() : CompletableFuture.completedFuture(null);
     }
 
     protected void triggerBatchReceiveTimeoutTask() {
@@ -236,7 +241,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (PulsarClientException e) {
             return FutureUtil.failedFuture(e);
         }
-        return internalReceiveAsync();
+        return pauseFuture.thenCompose((v) -> {
+            return internalReceiveAsync();
+        });
     }
 
     protected abstract Message<T> internalReceive() throws PulsarClientException;
@@ -255,6 +262,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
 
         verifyConsumerState();
+        if (paused) {
+            LockSupport.parkNanos(unit.toNanos(timeout));
+            return null;
+        }
         return internalReceive(timeout, unit);
     }
 
@@ -264,6 +275,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public Messages<T> batchReceive() throws PulsarClientException {
         verifyBatchReceive();
         verifyConsumerState();
+        if (paused) {
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(batchReceivePolicy.getTimeoutMs()));
+            return getNewMessagesImpl();
+        }
         return internalBatchReceive();
     }
 
@@ -272,6 +287,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             verifyBatchReceive();
             verifyConsumerState();
+            if (paused) {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(batchReceivePolicy.getTimeoutMs()));
+                return CompletableFuture.completedFuture(getNewMessagesImpl());
+            }
             return internalBatchReceiveAsync();
         } catch (PulsarClientException e) {
             return FutureUtil.failedFuture(e);

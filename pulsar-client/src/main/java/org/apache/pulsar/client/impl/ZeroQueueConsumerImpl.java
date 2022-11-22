@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.extern.slf4j.Slf4j;
@@ -74,9 +75,13 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     protected Message<T> internalReceive() throws PulsarClientException {
         zeroQueueLock.lock();
         try {
+            pauseFuture.get();
             Message<T> msg = fetchSingleMessageFromBroker();
             trackMessage(msg);
             return beforeConsume(msg);
+        } catch (InterruptedException | ExecutionException e) {
+            stats.incrementNumReceiveFailed();
+            throw PulsarClientException.unwrap(e);
         } finally {
             zeroQueueLock.unlock();
         }

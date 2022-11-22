@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
@@ -184,8 +185,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private volatile Producer<T> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
-
-    protected volatile boolean paused;
 
     protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap =
             ConcurrentOpenHashMap.<String, ChunkedMessageCtx>newBuilder().build();
@@ -451,10 +450,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
             }
+            pauseFuture.get();
             message = incomingMessages.take();
             messageProcessed(message);
             return beforeConsume(message);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | ExecutionException e) {
             stats.incrementNumReceiveFailed();
             throw PulsarClientException.unwrap(e);
         }
@@ -1684,12 +1684,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public void pause() {
         paused = true;
+        pauseFuture = new CompletableFuture();
     }
 
     @Override
     public void resume() {
         if (paused) {
             paused = false;
+            pauseFuture.complete(null);
             increaseAvailablePermits(cnx(), 0);
         }
     }
