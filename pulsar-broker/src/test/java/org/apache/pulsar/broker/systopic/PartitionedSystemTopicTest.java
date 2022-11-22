@@ -204,7 +204,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     }
 
     @Test
-    private void testSetBacklogCausedCreatingProducerFailure() throws Exception {
+    public void testSetBacklogCausedCreatingProducerFailure() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/topic-1";
 
@@ -264,7 +264,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     }
 
     @Test
-    private void testSystemTopicNotCheckExceed() throws Exception {
+    public void testSystemTopicNotCheckExceed() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/topic-1";
 
