@@ -19,8 +19,7 @@
 
 -->
 
-Note: this lua script may cause crash in the newest version of Wireshark, see [#18439](https://github.com/apache/pulsar/issues/18439). 
-Please make sure the version of Wireshark is lower than v4.0.0.
+> **Note**: This Lua script may cause a crash in the newest version of Wireshark, see [#18439](https://github.com/apache/pulsar/issues/18439). Please make sure the version of Wireshark is lower than v4.0.0.
 
 # How to use 
 
