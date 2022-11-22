@@ -660,12 +660,6 @@ flexible messaging model and an intuitive client API.</description>
         <version>${netty-iouring.version}</version>
         <classifier>linux-x86_64</classifier>
       </dependency>
-      <dependency>
-        <groupId>io.netty.incubator</groupId>
-        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-        <version>${netty-iouring.version}</version>
-        <classifier>linux-aarch_64</classifier>
-      </dependency>
 
       <dependency>
         <groupId>com.beust</groupId>
