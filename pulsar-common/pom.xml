@@ -146,6 +146,12 @@
       <groupId>io.netty.incubator</groupId>
       <artifactId>netty-incubator-transport-native-io_uring</artifactId>
       <classifier>linux-x86_64</classifier>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty.incubator</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -179,7 +185,7 @@
       <scope>provided</scope>
       <optional>true</optional>
     </dependency>
-    
+
     <dependency>
       <groupId>com.google.protobuf</groupId>
 	  <artifactId>protobuf-java</artifactId>
