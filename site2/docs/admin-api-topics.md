@@ -1428,7 +1428,7 @@ admin.topics().getStats(topic, false /* is precise backlog */);
 </Tabs>
 ````
 
-The following is an example. For the description of each stats, refer to [get stats](#get-stats).
+The following is an example. For the description of topic stats, see [Pulsar statistics](administration-stats.md#topic-stats).
 
 ```json
 {
@@ -1743,7 +1743,7 @@ admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is 
 </Tabs>
 ````
 
-The following is an example. For the description of each stats, refer to [get stats](#get-stats).
+The following is an example. For the description of each topic stats, see [Pulsar statistics](administration-stats.md#topic-stats).
 
 Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. Please use `chunkedMessageRate`. Both will be sent in the JSON for now.
 
@@ -1802,7 +1802,7 @@ Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. P
 
 ### Internal stats
 
-You can check the detailed statistics of a topic. The following is an example. For the description of each stats, refer to [get internal stats](#get-internal-stats).
+You can check the detailed statistics of a topic. The following is an example. For the description of each internal topic stats, see [Pulsar statistics](administration-stats.md#topic-internal-stats).
 
 ```json
 {
