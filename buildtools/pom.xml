@@ -26,7 +26,7 @@
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
     <version>23</version>
-    <relativePath></relativePath>
+    <relativePath/>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
