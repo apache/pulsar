@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -278,16 +279,19 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
 
         admin.topicPolicies().setMaxProducers(topic, 1);
-        CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
-        CompletableFuture<Void> f2 = admin.topicPolicies().setCompactionThresholdAsync(topic, 2L);
-        CompletableFuture<Void> f3 = admin.topicPolicies().setCompactionThresholdAsync(topic, 3L);
 
-        FutureUtil.waitForAll(List.of(f1, f2, f3)).join();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
+
+        FutureUtil.waitForAll(List.of(writer1, writer2, f1)).join();
         Assert.assertTrue(reader1.hasMoreEvents());
         Assert.assertNotNull(reader1.readNext());
         Assert.assertTrue(reader2.hasMoreEvents());
         Assert.assertNotNull(reader2.readNext());
         reader1.close();
         reader2.close();
+        writer1.get().close();
+        writer2.get().close();
     }
 }
