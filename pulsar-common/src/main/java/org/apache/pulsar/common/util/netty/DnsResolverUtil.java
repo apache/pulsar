@@ -44,21 +44,14 @@ public class DnsResolverUtil {
             Class<?> inetAddressCachePolicyClass = Class.forName("sun.net.InetAddressCachePolicy");
             Method getTTLMethod = inetAddressCachePolicyClass.getMethod("get");
             ttl = (Integer) getTTLMethod.invoke(null);
-            if (ttl <= 0) {
-                ttl = DEFAULT_TTL;
-            }
             Method getNegativeTTLMethod = inetAddressCachePolicyClass.getMethod("getNegative");
             negativeTtl = (Integer) getNegativeTTLMethod.invoke(null);
         } catch (NoSuchMethodException | ClassNotFoundException | InvocationTargetException
                  | IllegalAccessException e) {
             log.warn("Cannot get DNS TTL settings from sun.net.InetAddressCachePolicy class", e);
         }
-        TTL = ttl;
-        NEGATIVE_TTL = useDefaultTTLWhenSetToForever(negativeTtl, DEFAULT_NEGATIVE_TTL);
-    }
-
-    private static int useDefaultTTLWhenSetToForever(int ttl, int defaultTtl) {
-        return ttl < 0 ? defaultTtl : ttl;
+        TTL = ttl <= 0 ? DEFAULT_TTL : ttl;
+        NEGATIVE_TTL = negativeTtl < 0 ? DEFAULT_TTL : negativeTtl;
     }
 
     private DnsResolverUtil() {
