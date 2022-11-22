@@ -29,6 +29,8 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.Epoll;
+import io.netty.incubator.channel.uring.IOUring;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -92,6 +94,12 @@ import org.slf4j.LoggerFactory;
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
+    static {
+        // Try loading Netty's native support immediately.
+        Epoll.isAvailable();
+        IOUring.isAvailable();
+    }
+
     public final static String BROKER_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
     public final static String BROKER_TRUSTSTORE_FILE_PATH =

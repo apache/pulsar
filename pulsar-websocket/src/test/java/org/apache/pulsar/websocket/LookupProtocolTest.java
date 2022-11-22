@@ -18,28 +18,28 @@
  */
 package org.apache.pulsar.websocket;
 
+import io.netty.channel.epoll.Epoll;
+import io.netty.incubator.channel.uring.IOUring;
 import java.lang.reflect.Field;
-
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import io.netty.channel.epoll.Epoll;
-
 public class LookupProtocolTest {
 
     static {
-        // Trigger the loading of Epoll immediately, to avoid race condition in test
+        // Try loading Netty's native support immediately.
         Epoll.isAvailable();
+        IOUring.isAvailable();
     }
 
     @Test(timeOut = 10000)
-    public void httpLookupTest() throws Exception{
+    public void httpLookupTest() throws Exception {
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
         conf.setServiceUrlTls("https://localhost:8443");
-        WebSocketService service  = new WebSocketService(conf);
+        WebSocketService service = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
         lookupField.setAccessible(true);
@@ -48,13 +48,13 @@ public class LookupProtocolTest {
     }
 
     @Test(timeOut = 10000)
-    public void httpsLookupTest() throws Exception{
+    public void httpsLookupTest() throws Exception {
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
         conf.setServiceUrlTls("https://localhost:8443");
         conf.setBrokerServiceUrl("pulsar://localhost:6650");
         conf.setBrokerClientTlsEnabled(true);
-        WebSocketService service  = new WebSocketService(conf);
+        WebSocketService service = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
         lookupField.setAccessible(true);
@@ -64,13 +64,13 @@ public class LookupProtocolTest {
     }
 
     @Test(timeOut = 10000)
-    public void binaryLookupTest() throws Exception{
+    public void binaryLookupTest() throws Exception {
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
         conf.setServiceUrlTls("https://localhost:8443");
         conf.setBrokerServiceUrl("pulsar://localhost:6650");
         conf.setBrokerServiceUrlTls("pulsar+ssl://localhost:6651");
-        WebSocketService service  = new WebSocketService(conf);
+        WebSocketService service = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
         lookupField.setAccessible(true);
@@ -79,14 +79,14 @@ public class LookupProtocolTest {
     }
 
     @Test(timeOut = 10000)
-    public void binaryTlsLookupTest() throws Exception{
+    public void binaryTlsLookupTest() throws Exception {
         WebSocketProxyConfiguration conf = new WebSocketProxyConfiguration();
         conf.setServiceUrl("http://localhost:8080");
         conf.setServiceUrlTls("https://localhost:8443");
         conf.setBrokerServiceUrl("pulsar://localhost:6650");
         conf.setBrokerServiceUrlTls("pulsar+ssl://localhost:6651");
         conf.setBrokerClientTlsEnabled(true);
-        WebSocketService service  = new WebSocketService(conf);
+        WebSocketService service = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
         lookupField.setAccessible(true);
