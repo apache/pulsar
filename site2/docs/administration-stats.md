@@ -31,9 +31,9 @@ The following table outlines the stats of a topic. For more details about how to
 | nonContiguousDeletedMessagesRanges               | The number of non-contiguous deleted messages ranges.                                                    |
 | nonContiguousDeletedMessagesRangesSerializedSize | The serialized size of non-contiguous deleted messages ranges.                                           |
 | ownerBroker                                      | The broker that owns this topic.                                                                         |
-| publishers                                       | The list of all local publishers on the topic, ranging from zero to thousands.                           |
-| subscriptions                                    | The list of all local subscriptions to the topic.                                                        |
-| replication                                      | This section gives the stats for cross-colo replication of this topic.                                   |
+| [publishers](#producer-stats)                    | The list of all local publishers on the topic, ranging from zero to thousands.                           |
+| [subscriptions](#subscription-stats)             | The list of all local subscriptions to the topic.                                                        |
+| [replication](#replication-stats)                                      | This section gives the stats for cross-colo replication of this topic.                                   |
 
 ### Producer stats
 
@@ -84,12 +84,12 @@ The following table outlines the stats of a topic. For more details about how to
 | filterAcceptedMsgCount                           | The number of messages accepted by `EntryFilter`.                                                                                                                                                                                                                    |
 | filterRejectedMsgCount                           | The number of messages rejected by `EntryFilter`.                                                                                                                                                                                                                    |
 | filterRescheduledMsgCount                        | The number of messages rescheduled by `EntryFilter`.                                                                                                                                                                                                                 |
-| consumers                                        | The list of connected consumers for this subscription.                                                                                                                                                                                                               |
 | bytesOutCounter                                  | The total bytes delivered to a consumer.                                                                                                                                                                                                                             |
 | msgOutCounter                                    | The total messages delivered to a consumer.                                                                                                                                                                                                                          |
 | backlogSize                                      | The size of backlog for this subscription (in bytes).                                                                                                                                                                                                                |
 | nonContiguousDeletedMessagesRanges               | The number of non-contiguous deleted messages ranges.                                                                                                                                                                                                                |
 | nonContiguousDeletedMessagesRangesSerializedSize | The serialized size of non-contiguous deleted messages ranges.                                                                                                                                                                                                       |
+| [consumers](#consumer-stats)                     | The list of connected consumers for this subscription.                                                                                                                                                                                                               |
 
 ### Consumer stats
 
