@@ -252,7 +252,7 @@ admin.topics().unload(topic);
 
 ### Get stats
 
-For the detailed statistics of a topic, see [Pulsar statistics](administration-stats.md#partitioned-topics).
+For the detailed statistics of a topic, see [Pulsar statistics](administration-stats.md#topic-stats).
 
 The following is an example of a topic status.
 
@@ -382,9 +382,9 @@ admin.topics().getStats(topic);
 
 ### Get internal stats
 
-For the detailed statistics of a topic, see [Pulsar statistics](administration-stats.md#topics).
+For the detailed internal statistics inside a topic, see [Pulsar statistics](administration-stats.md#topic-internal-stats).
 
-The following is an example of the detailed statistics of a topic.
+The following is an example of the internal statistics of a topic.
 
 ```json
 {
