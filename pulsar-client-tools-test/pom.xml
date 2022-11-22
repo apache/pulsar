@@ -62,6 +62,12 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <!-- add the dependency in order to let maven build the module before this module -->
     <dependency>
       <groupId>${project.groupId}</groupId>
