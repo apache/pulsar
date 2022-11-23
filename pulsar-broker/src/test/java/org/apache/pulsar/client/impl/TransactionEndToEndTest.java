@@ -942,7 +942,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Message<String> reReceiveMessage = consumer.receive(300, TimeUnit.MILLISECONDS);
         assertNull(reReceiveMessage);
 
-        reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+        reReceiveMessage = consumer.receive(5, TimeUnit.SECONDS);
 
         assertEquals(reReceiveMessage.getValue(), message.getValue());
 
