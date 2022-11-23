@@ -45,7 +45,12 @@ g++ -std=c++11 main.cc /usr/lib/libpulsar.a \
 Linking to `libpulsar.a` can be difficult for beginners because the 3rd party dependencies must be compatible. For example, the protobuf version must be 3.20.0 or higher for Pulsar C++ client 3.0.0. It's better to link to `libpulsarwithdeps.a` instead.
 
 :::
-> Before 3.0.0, there was a `libpulsarnossl.so`, which is removed now.
+
+:::danger
+
+Before 3.0.0, there was a `libpulsarnossl.so`, which is removed now.
+
+:::
 
 ## Installation
 
