@@ -13,7 +13,7 @@ You can use a Pulsar C++ client to create producers, consumers, and readers. For
 
 ## Version 3.0.0 or later
 
-The version of the Pulsar C++ client is no longer consistent with Pulsar after 2.10.x. The new client version starts from 3.0.0. You can turn to [the download page](https://pulsar.apache.org/download) to see the latest releases.
+The new version of the Pulsar C++ client starts from 3.0.0 and has been no longer consistent with Pulsar since 2.10.x. For the latest releases, see the [Download](/download/) page.
 
 Take the [3.0.0 release](https://archive.apache.org/dist/pulsar/pulsar-client-cpp-3.0.0/) for example, there are following subdirectories:
 - apk-arm64: the Alpine Linux packages for ARM64 architectures
