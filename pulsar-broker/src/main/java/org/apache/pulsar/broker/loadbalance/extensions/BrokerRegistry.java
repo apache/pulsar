@@ -69,7 +69,7 @@ public interface BrokerRegistry extends AutoCloseable {
      *
      * @param broker The service url without the protocol prefix, 'http://'. e.g. broker-xyz:port
      */
-    Optional<BrokerLookupData> lookup(String broker);
+    CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker);
 
     /**
      * For each the broker lookup data.
