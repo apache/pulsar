@@ -79,7 +79,7 @@ Let’s walk through this example step by step.
 | 4. Acknowledge the messages with the transaction.  |  In the same transaction, the application acknowledges the two input messages.  | 
 | 5. Commit the transaction.  |  The application commits the transaction by calling `Transaction.commit()` on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics.  | 
 
-[1] Example of enabling batch messages ack in transactions in the consumer builder.
+[1] Example of enabling batch messages ack for transactions in the consumer builder.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient
@@ -91,4 +91,126 @@ Consumer<byte[]> consumer = pulsarClient
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgment
     .subscribe();
 ```
+[2] Example of using transactions to ack messages individually
+```java
+// resource prepare
+String sourceTopicName = "persistent://" + NAMESPACE1 + "/sourceTopic";
+String sinkTopicName = "persistent://" + NAMESPACE1 + "/sinkTopic";
+String subName = "shared-subscription";
+String producerName = "txn-message-producer";
 
+try {
+  @Cleanup
+  Producer<String> sinkProducer = pulsarClient.newProducer(Schema.STRING)
+          .topic(sinkTopicName)
+          .producerName(producerName)
+          .create();
+  @Cleanup
+  Consumer<String> sourceConsumer = pulsarClient.newConsumer(Schema.STRING)
+          .topic(sourceTopicName)
+          .subscriptionName(subName)
+          .subscriptionType(SubscriptionType.Shared)
+          .subscribe();
+
+  Message<String> message = null;
+  Transaction transaction = null;
+  while (true) {
+      try {
+          message = sourceConsumer.receive();
+          //Open a transaction to handle the received message
+          transaction = pulsarClient.newTransaction()
+                  .withTransactionTimeout(5, TimeUnit.SECONDS)
+                  .build()
+                  .get();
+
+          //Do some things there
+
+          //Send message to another topic
+          sinkProducer.newMessage(transaction)
+                  .value("handle message " + message.getValue())
+                  .send();
+          //Ack the message that has been consumed
+          sourceConsumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+          //Commit the transaction
+          transaction.commit().get();
+
+      } catch (ExecutionException e) {
+          Throwable exception = e.getCause();
+          if (!(exception instanceof PulsarClientException.TransactionConflictException)) {
+              //The message may not be handled, so we need to redeliver it
+              sourceConsumer.negativeAcknowledge(message);
+          }
+          if (!(exception instanceof TransactionCoordinatorClientException.TransactionNotFoundException) && transaction !=null) {
+              //Abort the transaction if there is an exception and the transaction is not end.
+              transaction.abort().get();
+          }
+      }
+  }
+} catch (Exception e) {
+  log.error("Catch Exception", e);
+}
+```
+
+[3] Example of using transactions to ack batch messages cumulatively
+```java
+// resource prepare
+String sourceTopicName = "persistent://" + NAMESPACE1 + "/sourceTopic";
+String sinkTopicName = "persistent://" + NAMESPACE1 + "/sinkTopic";
+String subName = "failover-subscription";
+String producerName = "txn-message-producer";
+
+try {
+  @Cleanup
+  Producer<String> sinkProducer = pulsarClient.newProducer(Schema.STRING)
+          .topic(sinkTopicName)
+          .producerName(producerName)
+          .create();
+  @Cleanup
+  Consumer<String> sourceConsumer = pulsarClient.newConsumer(Schema.STRING)
+          .topic(sourceTopicName)
+          .subscriptionName(subName)
+          .subscriptionType(SubscriptionType.Failover)
+          .subscribe();
+
+  Messages<String> messages = null;
+  Transaction transaction = null;
+  while (true) {
+      try {
+          messages = sourceConsumer.batchReceive();
+          if (messages.size() > 0) {
+              //Open a transaction to handle the received message
+              transaction = pulsarClient.newTransaction()
+                      .withTransactionTimeout(5, TimeUnit.SECONDS)
+                      .build()
+                      .get();
+              Message<String> finalMessage = null;
+              for (Message<String> message : messages) {
+                  //Do some things there
+
+                  //Send message to another topic
+                  sinkProducer.newMessage(transaction)
+                          .value("handle message " + message.getValue())
+                          .send();
+                  finalMessage = message;
+              }
+              //Ack the messages that has been consumed
+              sourceConsumer.acknowledgeCumulativeAsync(finalMessage.getMessageId(), transaction).get();
+
+              //Commit the transaction
+              transaction.commit().get();
+          }
+      } catch (ExecutionException e) {
+          Throwable exception = e.getCause();
+          if (!(exception instanceof TransactionCoordinatorClientException.TransactionNotFoundException) && transaction !=null) {
+              //Abort the transaction if there is an exception and the transaction is not end.
+              transaction.abort().get();
+          }
+          //Redeliver messages after the transaction is aborted
+          sourceConsumer.redeliverUnacknowledgedMessages();
+      }
+  }
+} catch (Exception e) {
+  log.error("Catch Exception", e);
+}
+```
