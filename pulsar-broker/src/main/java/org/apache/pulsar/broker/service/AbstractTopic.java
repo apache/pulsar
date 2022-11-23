@@ -443,14 +443,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             return false;
         }
         Integer maxProducers = topicPolicies.getMaxProducersPerTopic().get();
-        if (maxProducers != null && maxProducers > 0 && maxProducers <= getUserCreatedProducerSize()) {
+        if (maxProducers != null && maxProducers > 0 && maxProducers <= getUserCreatedProducersSize()) {
             return true;
         }
         return false;
     }
 
-    private long getUserCreatedProducerSize() {
-        return producers.values().stream().filter(p -> !(p.isRemote() || p.getTopic().isSystemTopic())).count();
+    private long getUserCreatedProducersSize() {
+        return producers.values().stream().filter(p -> !p.isRemote()).count();
     }
 
     protected void registerTopicPolicyListener() {
@@ -494,14 +494,21 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected boolean isConsumersExceededOnTopic() {
-        int maxConsumersPerTopic = topicPolicies.getMaxConsumerPerTopic().get();
-        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
+        if (isSystemTopic()) {
+            return false;
+        }
+        Integer maxConsumersPerTopic = topicPolicies.getMaxConsumerPerTopic().get();
+        if (maxConsumersPerTopic != null && maxConsumersPerTopic > 0
+                && maxConsumersPerTopic <= getNumberOfConsumers()) {
             return true;
         }
         return false;
     }
 
     protected boolean isSameAddressConsumersExceededOnTopic(Consumer consumer) {
+        if (isSystemTopic()) {
+            return false;
+        }
         final int maxSameAddressConsumers = brokerService.pulsar().getConfiguration()
                 .getMaxSameAddressConsumersPerTopic();
 

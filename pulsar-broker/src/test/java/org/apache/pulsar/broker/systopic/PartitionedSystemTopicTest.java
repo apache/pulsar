@@ -271,6 +271,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns, 2);
         admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
 
+        admin.namespaces().setMaxConsumersPerTopic(ns, 1);
         admin.topicPolicies().setMaxConsumers(topic, 1);
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
