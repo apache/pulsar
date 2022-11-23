@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.Schema;

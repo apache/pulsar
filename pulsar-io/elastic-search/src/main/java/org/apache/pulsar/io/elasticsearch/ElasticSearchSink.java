@@ -112,6 +112,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         if (!elasticsearchClient.isFailed()) {
             Pair<String, String> idAndDoc = extractIdAndDocument(record);
             try {
+                log.info("index doc {} {}", idAndDoc.getLeft(), idAndDoc.getRight());
                 if (log.isDebugEnabled()) {
                     log.debug("index doc {} {}", idAndDoc.getLeft(), idAndDoc.getRight());
                 }
