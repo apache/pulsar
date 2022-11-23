@@ -4,12 +4,6 @@ title: Package Java Functions
 sidebar_label: "Package Java Functions"
 ---
 
-:::note
-
-For the runtime Java version, refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
-
-:::
-
 There are two methods to package Java Functions, that is [uber JAR](#package-as-jar) and [NAR](#package-as-nar).
 
 :::note
@@ -20,11 +14,21 @@ all libraries your code uses and to your distribution.
 
 :::
 
-> If you use the [NAR](#package-as-nar) method, the NAR plugin
+:::tip
+
+If you use the [NAR](#package-as-nar) method, the NAR plugin
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper
 licensing and copyrights of all libraries of your function.
 
-# Package as JAR
+:::
+
+:::note
+
+For the runtime Java version, refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
+
+:::
+
+## Package as JAR
 
 To package a Java function as JAR, complete the following steps.
 
@@ -123,7 +127,7 @@ To package a Java function as JAR, complete the following steps.
     ...
    ```
 
-# Package as NAR
+## Package as NAR
 
 To package a Java function as NAR, complete the following steps.
 
@@ -168,13 +172,13 @@ To package a Java function as NAR, complete the following steps.
     </project>
    ```
 
-You must also create a `resources/META-INF/services/pulsar-io.yaml` file. In the following code sample, the value of `functionClass` is your function class name. The `name` is the one used when the Function is deployed as a [built-in](functions-deploy-cluster-builtin.md) one.
+   You must also create a `resources/META-INF/services/pulsar-io.yaml` file. In the following code sample, the value of `functionClass` is your function class name. The `name` is the one used when the Function is deployed as a [built-in](functions-deploy-cluster-builtin.md) one.
 
-```yaml
-name: java-function
-description: my java function
-functionClass: org.example.test.ExclamationFunction
-```
+   ```yaml
+   name: java-function
+   description: my java function
+   functionClass: org.example.test.ExclamationFunction
+   ```
 
 2. Package your Java function.
 
