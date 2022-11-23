@@ -148,8 +148,7 @@ If you get an error like "libpulsar.so: cannot open shared object file: No such 
 ### APK
 
 ```bash
-apk add --allow-untrusted ./apache-pulsar-client-3.0.0-r0.apk
-apk add --allow-untrusted ./apache-pulsar-client-dev-3.0.0-r0.apk
+apk add --allow-untrusted ./apache-pulsar-client-*.apk
 ```
 
 ## Connection URLs
