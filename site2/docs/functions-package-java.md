@@ -179,7 +179,7 @@ functionClass: org.example.test.ExclamationFunction
 2. Package your Java function.
 
    ```bash
-    mvn package
+   mvn package
    ```
 
    After the Java function is packaged, a `target` directory is created automatically. Open the `target` directory to check if there is a NAR package similar to `java-function-1.0-SNAPSHOT.nar`.
