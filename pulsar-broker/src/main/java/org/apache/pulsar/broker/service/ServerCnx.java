@@ -478,6 +478,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         originalPrincipal, topicName);
                 ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
+                close();
                 return;
             }
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
@@ -503,6 +504,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                     ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                     lookupSemaphore.release();
+                    close();
                 }
                 return null;
             }).exceptionally(ex -> {
@@ -510,6 +512,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 final String msg = "Exception occurred while trying to authorize lookup";
                 ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
+                close();
                 return null;
             });
         } else {
@@ -555,6 +558,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         originalPrincipal, topicName);
                 commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId);
                 lookupSemaphore.release();
+                close();
                 return;
             }
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
@@ -571,6 +575,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 remoteAddress, topicName, ex.getMessage());
                                         commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
                                                 ex.getMessage(), requestId);
+                                        close();
                                     } else {
                                         log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
                                                 topicName, ex.getMessage(), ex);
@@ -595,6 +600,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ctx.writeAndFlush(
                             Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                     lookupSemaphore.release();
+                    close();
                 }
                 return null;
             }).exceptionally(ex -> {
@@ -603,6 +609,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg,
                         requestId));
                 lookupSemaphore.release();
+                close();
                 return null;
             });
         } else {
@@ -999,6 +1006,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
                     originalPrincipal, topicName);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+            close();
             return;
         }
 
@@ -1198,12 +1206,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
                 consumers.remove(consumerId, consumerFuture);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                close();
             }
             return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
             consumers.remove(consumerId, consumerFuture);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
+            close();
             return null;
         });
     }
@@ -1255,6 +1265,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
                     originalPrincipal, topicName);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+            close();
             return;
         }
 
@@ -1275,6 +1286,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 String msg = "Client is not authorized to Produce";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                close();
                 return null;
             }
 
@@ -2060,6 +2072,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         authRole, originalPrincipal, namespaceName);
                 commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                 lookupSemaphore.release();
+                close();
                 return;
             }
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
@@ -2107,6 +2120,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
                     commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                     lookupSemaphore.release();
+                    close();
                 }
                 return null;
             }).exceptionally(ex -> {
@@ -2115,6 +2129,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 final String msg = "Exception occurred while trying to authorize GetTopicsOfNamespace";
                 commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                 lookupSemaphore.release();
+                close();
                 return null;
             });
         } else {
@@ -2624,6 +2639,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         authRole, originalPrincipal, namespaceName);
                 commandSender.sendErrorResponse(watcherId, ServerError.AuthorizationError, msg);
                 lookupSemaphore.release();
+                close();
                 return;
             }
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
@@ -2635,6 +2651,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
                     commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                     lookupSemaphore.release();
+                    close();
                 }
                 return null;
             }).exceptionally(ex -> {
@@ -2643,6 +2660,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 final String msg = "Exception occurred while trying to handle command WatchTopicList";
                 commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                 lookupSemaphore.release();
+                close();
                 return null;
             });
         } else {
