@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 You can use a Pulsar C++ client to create producers, consumers, and readers. For Pulsar features that C++ clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914). For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
-## Version 3.0.0 or later
+## Changes for version 3.0.0 or later
 
 The new version of the Pulsar C++ client starts from 3.0.0 and has been no longer consistent with Pulsar since 2.10.x. For the latest releases, see the [Download](/download/) page.
 
