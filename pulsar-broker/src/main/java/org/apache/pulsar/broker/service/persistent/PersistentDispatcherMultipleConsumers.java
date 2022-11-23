@@ -269,33 +269,32 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
         if (currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0) {
             Pair<Integer, Long> calculateResult = calculateToRead(currentTotalAvailablePermits);
-            int messagesToRead = calculateResult.getLeft();
+            int entryCountToRead = calculateResult.getLeft();
             long bytesToRead = calculateResult.getRight();
 
-            if (messagesToRead == -1 || bytesToRead == -1) {
+            if (entryCountToRead == -1 || bytesToRead == -1) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate or previous pending read hasn't complete.
                 return;
             }
+            NavigableSet<PositionImpl> entriesToReplayNow = getMessagesToReplayNow(entryCountToRead);
 
-            NavigableSet<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
-
-            if (!messagesToReplayNow.isEmpty()) {
+            if (!entriesToReplayNow.isEmpty()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
+                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, entriesToReplayNow.size(),
                             consumerList.size());
                 }
 
                 havePendingReplayRead = true;
-                minReplayedPosition = messagesToReplayNow.first();
+                minReplayedPosition = entriesToReplayNow.first();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
+                        ? asyncReplayEntriesInOrder(entriesToReplayNow) : asyncReplayEntries(entriesToReplayNow);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> redeliveryMessages.remove(((PositionImpl) position).getLedgerId(),
                         ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+                if ((entriesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntriesAsync();
                 }
@@ -306,7 +305,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
+                    log.debug("[{}] Schedule read of {} messages for {} consumers", name, entryCountToRead,
                             consumerList.size());
                 }
                 havePendingRead = true;
@@ -318,7 +317,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     minReplayedPosition = null;
                 }
 
-                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
+                cursor.asyncReadEntriesOrWait(entryCountToRead, bytesToRead, this,
                         ReadType.Normal, topic.getMaxReadPosition());
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
@@ -345,95 +344,26 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    // left pair is messagesToRead, right pair is bytesToRead
+    // left pair is entries to read, right pair is bytesToRead
     protected Pair<Integer, Long> calculateToRead(int currentTotalAvailablePermits) {
-        int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
-        long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
-
-        Consumer c = getRandomConsumer();
-        // if turn on precise dispatcher flow control, adjust the record to read
-        if (c != null && c.isPreciseDispatcherFlowControl()) {
-            int avgMessagesPerEntry = Math.max(1, c.getAvgMessagesPerEntry());
-            messagesToRead = Math.min(
-                    (int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry),
-                    readBatchSize);
-        }
-
-        if (!isConsumerWritable()) {
-            // If the connection is not currently writable, we issue the read request anyway, but for a single
-            // message. The intent here is to keep use the request as a notification mechanism while avoiding to
-            // read and dispatch a big batch of messages which will need to wait before getting written to the
-            // socket.
-            messagesToRead = 1;
-        }
-
-        // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
-        // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
-        // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(brokerRateLimiter)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
-                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
-                }
-            }
-
-            if (topic.getDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(topicRateLimiter)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
-                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
-                }
-            }
-
-            if (dispatchRateLimiter.isPresent()) {
-                if (reachDispatchRateLimit(dispatchRateLimiter.get())) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
-                                name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
-                                dispatchRateLimiter.get().getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
-                }
-            }
-        }
-
         if (havePendingReplayRead) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
             }
             return Pair.of(-1, -1L);
         }
+        if (!isConsumerWritable()) {
+            // If the connection is not currently writable, we issue the read request anyway, but for a single
+            // message. The intent here is to keep use the request as a notification mechanism while avoiding to
+            // read and dispatch a big batch of messages which will need to wait before getting written to the
+            // socket.
+            currentTotalAvailablePermits = 1;
+        }
 
-        // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        messagesToRead = Math.max(messagesToRead, 1);
-        bytesToRead = Math.max(bytesToRead, 1);
-        return Pair.of(messagesToRead, bytesToRead);
+        Pair<Integer, Long> maxReadLimits = calculateToReadByRateLimiter(currentTotalAvailablePermits, cursor,
+                topic.getBrokerDispatchRateLimiter(), topic.getDispatchRateLimiter(), dispatchRateLimiter);
+        int entryCountToRead = calculateEntryCountToReadIfEnabledBatch(topic, maxReadLimits.getLeft());
+        return Pair.of(entryCountToRead, maxReadLimits.getRight());
     }
 
     protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
