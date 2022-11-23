@@ -92,10 +92,6 @@ public class TransactionMetadataStoreService {
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
-    private final ThreadFactory threadFactory =
-            new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
-
-
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
                                            HashedWheelTimer timer) {
@@ -108,6 +104,9 @@ public class TransactionMetadataStoreService {
         this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
         this.pendingConnectRequests =
                 ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
+
+        ThreadFactory threadFactory =
+                new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 
@@ -187,7 +186,7 @@ public class TransactionMetadataStoreService {
                         // then handle the requests witch in the queue
                         deque.add(completableFuture);
                         if (LOG.isDebugEnabled()) {
-                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId.toString());
+                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
                         }
                     }
                 })).exceptionally(ex -> {
@@ -314,18 +313,15 @@ public class TransactionMetadataStoreService {
                                                   CompletableFuture<Void> future) {
         TxnStatus newStatus;
         switch (txnAction) {
-            case TxnAction.COMMIT_VALUE:
-                newStatus = COMMITTING;
-                break;
-            case TxnAction.ABORT_VALUE:
-                newStatus = ABORTING;
-                break;
-            default:
+            case TxnAction.COMMIT_VALUE -> newStatus = COMMITTING;
+            case TxnAction.ABORT_VALUE -> newStatus = ABORTING;
+            default -> {
                 TransactionCoordinatorException.UnsupportedTxnActionException exception =
                         new TransactionCoordinatorException.UnsupportedTxnActionException(txnID, txnAction);
                 LOG.error(exception.getMessage());
                 future.completeExceptionally(exception);
                 return;
+            }
         }
         getTxnMeta(txnID)
                 .thenCompose(txnMeta -> {
@@ -358,17 +354,12 @@ public class TransactionMetadataStoreService {
 
     private CompletionStage<Void> fakeAsyncCheckTxnStatus(TxnStatus txnStatus, int txnAction,
                                                           TxnID txnID, TxnStatus expectStatus) {
-        boolean isLegal;
-        switch (txnStatus) {
-            case COMMITTING:
-                isLegal =  (txnAction == TxnAction.COMMIT.getValue());
-                break;
-            case ABORTING:
-                isLegal =  (txnAction == TxnAction.ABORT.getValue());
-                break;
-            default:
-                isLegal = false;
-        }
+        boolean isLegal = switch (txnStatus) {
+            case COMMITTING -> (txnAction == TxnAction.COMMIT.getValue());
+            case ABORTING -> (txnAction == TxnAction.ABORT.getValue());
+            default -> false;
+        };
+
         if (!isLegal) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("EndTxnInTransactionBuffer op retry! TxnId : {}, TxnAction : {}", txnID, txnAction);
@@ -410,35 +401,29 @@ public class TransactionMetadataStoreService {
         return getTxnMeta(txnID)
                 .thenCompose(txnMeta -> {
                     long lowWaterMark = getLowWaterMark(txnID);
-                    Stream<CompletableFuture<?>> onSubFutureStream = txnMeta.ackedPartitions().stream().map(tbSub -> {
-                        switch (txnAction) {
-                            case TxnAction.COMMIT_VALUE:
-                                return tbClient.commitTxnOnSubscription(
+                    Stream<CompletableFuture<?>> onSubFutureStream = txnMeta.ackedPartitions().stream().map(tbSub ->
+                            switch (txnAction) {
+                                case TxnAction.COMMIT_VALUE -> tbClient.commitTxnOnSubscription(
                                         tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
                                         txnID.getLeastSigBits(), lowWaterMark);
-                            case TxnAction.ABORT_VALUE:
-                                return tbClient.abortTxnOnSubscription(
+                                case TxnAction.ABORT_VALUE -> tbClient.abortTxnOnSubscription(
                                         tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
                                         txnID.getLeastSigBits(), lowWaterMark);
-                            default:
-                                return FutureUtil.failedFuture(
+                                default -> FutureUtil.failedFuture(
                                         new IllegalStateException("Unsupported txnAction " + txnAction));
-                        }
                     });
                     Stream<CompletableFuture<?>> onTopicFutureStream =
-                            txnMeta.producedPartitions().stream().map(partition -> {
-                                switch (txnAction) {
-                                    case TxnAction.COMMIT_VALUE:
-                                        return tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(),
-                                                txnID.getLeastSigBits(), lowWaterMark);
-                                    case TxnAction.ABORT_VALUE:
-                                        return tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(),
-                                            txnID.getLeastSigBits(), lowWaterMark);
-                                    default:
-                                        return FutureUtil.failedFuture(
+                            txnMeta.producedPartitions().stream().map(partition ->
+                                    switch (txnAction) {
+                                        case TxnAction.COMMIT_VALUE ->
+                                                tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(),
+                                                        txnID.getLeastSigBits(), lowWaterMark);
+                                        case TxnAction.ABORT_VALUE ->
+                                                tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(),
+                                                        txnID.getLeastSigBits(), lowWaterMark);
+                                        default -> FutureUtil.failedFuture(
                                                 new IllegalStateException("Unsupported txnAction " + txnAction));
-                        }
-                    });
+                            });
                     return FutureUtil.waitForAll(Stream.concat(onSubFutureStream, onTopicFutureStream)
                                     .collect(Collectors.toList()))
                             .thenCompose(__ -> endTxnInTransactionMetadataStore(txnID, txnAction));

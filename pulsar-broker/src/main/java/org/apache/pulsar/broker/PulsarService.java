@@ -678,7 +678,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
             }
 
-            if (!config.getWebServicePort().isPresent() && !config.getWebServicePortTls().isPresent()) {
+            if (config.getWebServicePort().isEmpty() && config.getWebServicePortTls().isEmpty()) {
                 throw new IllegalArgumentException("webServicePort/webServicePortTls must be present");
             }
 
@@ -707,7 +707,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
-            if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
+            if (config.getLoadBalancerOverrideBrokerNicSpeedGbps().isEmpty()
                     && config.isLoadBalancerEnabled()
                     && LinuxInfoUtils.isLinux()
                     && !LinuxInfoUtils.checkHasNicSpeeds()) {
@@ -883,7 +883,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (isNotBlank(config.getResourceUsageTransportClassName())) {
                 Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
                 Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
-                Object object = ctor.newInstance(new Object[]{this});
+                Object object = ctor.newInstance(this);
                 this.resourceUsageTransportManager = (ResourceUsageTopicTransportManager) object;
             }
             this.resourceGroupServiceManager = new ResourceGroupService(this);
@@ -1248,7 +1248,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             config.getConfigurationMetadataStoreUrl(),
             new ClientConfiguration().getZkLedgersRootPath(),
             config.isBookkeeperMetadataStoreSeparated() ? config.getBookkeeperMetadataStoreUrl() : null,
-            this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+            this.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
     }
 
     /**
@@ -1347,6 +1347,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         });
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
             throws PulsarServerException {
         try {

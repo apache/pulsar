@@ -27,6 +27,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
+
+    @SuppressWarnings("rawtypes")
     private final Class policyClass;
     private final Map<String, Object> properties;
 
@@ -36,12 +38,14 @@ public class EnsemblePlacementPolicyConfig {
         this.properties = Collections.emptyMap();
     }
 
+    @SuppressWarnings("rawtypes")
     public EnsemblePlacementPolicyConfig(Class policyClass, Map<String, Object> properties) {
         super();
         this.policyClass = policyClass;
         this.properties = properties;
     }
 
+    @SuppressWarnings("rawtypes")
     public Class getPolicyClass() {
         return policyClass;
     }
