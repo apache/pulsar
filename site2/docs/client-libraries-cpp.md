@@ -11,6 +11,41 @@ import TabItem from '@theme/TabItem';
 
 You can use a Pulsar C++ client to create producers, consumers, and readers. For Pulsar features that C++ clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914). For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
+## Version 3.0.0 or later
+
+The version of the Pulsar C++ client is no longer consistent with Pulsar after 2.10.x. The new client version starts from 3.0.0. You can turn to [the download page](https://pulsar.apache.org/download) to see the latest releases.
+
+Take the [3.0.0 release](https://archive.apache.org/dist/pulsar/pulsar-client-cpp-3.0.0/) for example, there are following subdirectories:
+- apk-arm64: the Alpine Linux packages for ARM64 architectures
+- apk-x86_64: the Alpine Linux packages for x64 architectures
+- deb-arm64: the Debian-based Linux packages for ARM64 architectures
+- deb-x86_64: the Debian-based Linux packages for x64 architectures
+- rpm-arm64: the RedHat-based Linux packages for ARM64 architectures
+- rpm-x86_64: the RedHat-based Linux packages for x64 architectures
+
+These Linux packages above all contain the C++ headers installed under `/usr/include` and the following libraries installed under `/usr/lib`:
+- libpulsar.so: the shared library that links 3rd party dependencies statically
+- libpulsar.a: the static library
+- libpulsarwithdeps.a: the fat static library that includes all 3rd party dependencies
+
+Here is an example to link these libraries for a C++ source file named `main.cc`:
+
+```bash
+# Link to libpulsar.so
+g++ -std=c++11 main.cc -lpulsar
+# Link to libpulsarwithdeps.a
+g++ -std=c++11 main.cc /usr/lib/libpulsarwithdeps.a -lpthread -ldl
+# Link to libpulsar.a
+g++ -std=c++11 main.cc /usr/lib/libpulsar.a \
+  -lprotobuf -lcurl -lssl -lcrypto -lz -lzstd -lsnappy -lpthread -ldl
+```
+
+> **NOTE**
+>
+> Linking to `libpulsar.a` might be difficult for beginners because the 3rd party dependencies must be compatible. For example, the protobuf version must be 3.20.0 or higher for Pulsar C++ client 3.0.0. It's better to link to `libpulsarwithdeps.a` instead.
+>
+> Before 3.0.0, there was a `libpulsarnossl.so`, which is removed now.
+
 ## Installation
 
 Use one of the following methods to install a Pulsar C++ client.
@@ -103,6 +138,13 @@ Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` dire
 If you get an error like "libpulsar.so: cannot open shared object file: No such file or directory" when starting a Pulsar client, you need to run `ldconfig` first.
 
 :::
+
+### APK
+
+```bash
+apk add --allow-untrusted ./apache-pulsar-client-3.0.0-r0.apk
+apk add --allow-untrusted ./apache-pulsar-client-dev-3.0.0-r0.apk
+```
 
 ## Connection URLs
 
