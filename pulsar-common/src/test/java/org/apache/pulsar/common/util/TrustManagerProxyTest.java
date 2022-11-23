@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.google.common.io.Resources;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;

@@ -412,6 +412,9 @@
               <rules>
                 <enforceBytecodeVersion>
                   <maxJdkVersion>${pulsar.client.compiler.release}</maxJdkVersion>
+                  <ignoredScopes>
+                    <ignoreScope>test</ignoreScope>
+                  </ignoredScopes>
                 </enforceBytecodeVersion>
               </rules>
             </configuration>

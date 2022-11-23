@@ -217,10 +217,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         List<Future<?>> list = new ArrayList<>();
+        LocalBrokerData data = loadManager.getLoadManager().updateLocalBrokerData();
+        data.cleanDeltas();
+        data.getBundles().clear();
         for (int i = 0; i < 1000; i++) {
-            LocalBrokerData data = loadManager.getLoadManager().updateLocalBrokerData();
-            data.cleanDeltas();
-            data.getBundles().clear();
             list.add(executor.submit(() -> {
                 try {
                     assertNotNull(loadManager.generateLoadReport());
