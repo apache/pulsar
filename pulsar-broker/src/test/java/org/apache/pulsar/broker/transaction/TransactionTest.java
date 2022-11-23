@@ -1615,5 +1615,4 @@ public class TransactionTest extends TransactionTestBase {
         Transaction abortingTxn = transaction;
         Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
     }
-
 }
