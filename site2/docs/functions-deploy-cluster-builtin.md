@@ -26,5 +26,3 @@ If you add or delete a nar file in a `functions` folder, reload the available bu
 ```bash
 bin/pulsar-admin functions reload
 ```
-
-
