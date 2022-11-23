@@ -309,7 +309,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(enabled = false)
     public void testMaxPendingChunkMessages() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
