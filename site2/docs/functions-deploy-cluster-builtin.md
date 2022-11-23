@@ -14,15 +14,3 @@ bin/pulsar-admin functions create \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
-
-To get the list of available built-in Functions, use the `available-functions` command:
-
-```bash
-bin/pulsar-admin functions available-functions
-```
-
-If you add or delete a nar file in a `functions` folder, reload the available built-in functions before using it.
-
-```bash
-bin/pulsar-admin functions reload
-```
