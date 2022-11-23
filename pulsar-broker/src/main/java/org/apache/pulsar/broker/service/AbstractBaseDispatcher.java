@@ -443,8 +443,15 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         if (!serviceConfig.isPreciseDispatcherFlowControl()) {
             return messageCountToRead;
         }
-        // If the consumer is new, the "consumer.getAvgMessagesPerEntry()" must be 0,
-        int avgMessagesPerEntry = Math.max(1, calculateAvgMessagesPerEntryInTopic(topic));
+        // When calculating the "avgMessagesPerEntry,"
+        // 1. look up the attribute avgMessagesPerEntry from the consumers under subscription.
+        // 2. if all consumers avgMessagesPerEntry is zero, look up from other subscriptions under this topic.
+        // 3. if still is zero, directly call "topic.getAvgMessagesPerEntryAccumulator()".
+        // 3. if still is zero too, just read one entry.
+        int avgMessagesPerEntry = calculateAvgMessagesPerEntryInTopic(topic);
+        if (avgMessagesPerEntry < 1){
+            return 1;
+        }
         return Math.min((int) Math.ceil(messageCountToRead * 1.0 / avgMessagesPerEntry),
                 serviceConfig.getDispatcherMaxReadBatchSize());
     }
@@ -466,6 +473,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
         }
-        return 1;
+        return Math.max(0,
+                Double.valueOf(topic.getAvgMessagesPerEntryAccumulator().getAvgMessagesPerEntry()).intValue());
     }
 }

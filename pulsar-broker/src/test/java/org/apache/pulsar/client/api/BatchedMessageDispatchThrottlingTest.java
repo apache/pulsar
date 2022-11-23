@@ -287,10 +287,7 @@ public class BatchedMessageDispatchThrottlingTest extends ProducerConsumerBase {
     }
 
     /**
-     * A wrong logic verify: Consumers will receive overdose messages. this is a bug: when enabled batch rate limit no
-     * precise even if set {conf.preciseDispatcherFlowControl} to `true`. TODO will be fixed by PR: #18581.
-     * Because the broker could not know how many messages per entry then broker think that an entry as one message.
-     * so will receive {rateLimitMsgCountPerPeriod} entries.
+     * The first dispatch.
      */
     @Test(dataProvider = "subTypes")
     public void testDispatchRateLimitAtFirstDispatch(SubscriptionType subType) throws Exception {
@@ -306,7 +303,7 @@ public class BatchedMessageDispatchThrottlingTest extends ProducerConsumerBase {
         triggerManagedLedgerStatUpdate();
 
         // verify.
-        int expectedReceiveEntryCount = rateLimitMsgCountPerPeriod;
+        int expectedReceiveEntryCount = rateLimitMsgCountPerPeriod / msgCountPerEntry;
         List<Consumer<String>> consumers = createConsumes(topicName, subName, 5, subType, 1000000);
         waitForReceivedEntryCount(consumers, Duration.ofSeconds(3),
                 entryCount -> entryCount == expectedReceiveEntryCount);

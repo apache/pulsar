@@ -121,12 +121,7 @@ public class Consumer {
 
     private final KeySharedMeta keySharedMeta;
 
-    /**
-     * It starts keep tracking the average messages per entry.
-     * The initial value is 0, when new value comes, it will update with
-     * avgMessagesPerEntry = avgMessagePerEntry * avgPercent + (1 - avgPercent) * new Value.
-     */
-    private final AtomicDouble avgMessagesPerEntry = new AtomicDouble(0);
+    private AvgMessagesPerEntryAccumulator avgMessagesPerEntryAccumulator = new AvgMessagesPerEntryAccumulator();
     private static final long [] EMPTY_ACK_SET = new long[0];
 
     private static final double avgPercent = 0.9;
@@ -319,14 +314,8 @@ public class Consumer {
             }
         }
 
-        // calculate avg message per entry
-        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
-            // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
-        } else {
-            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / totalEntries);
-        }
+        avgMessagesPerEntryAccumulator.accumulate(totalMessages, totalEntries);
+        getSubscription().getTopic().getAvgMessagesPerEntryAccumulator().accumulate(totalMessages, totalEntries);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
@@ -334,7 +323,8 @@ public class Consumer {
         if (log.isDebugEnabled()){
             log.debug("[{}-{}] Added {} minus {} messages to MESSAGE_PERMITS_UPDATER in broker.service.Consumer"
                             + " for consumerId: {}; avgMessagesPerEntry is {}",
-                   topicName, subscription, ackedCount, totalMessages, consumerId, avgMessagesPerEntry.get());
+                   topicName, subscription, ackedCount, totalMessages, consumerId,
+                    avgMessagesPerEntryAccumulator.getAvgMessagesPerEntry());
         }
         incrementUnackedMessages(unackedMessages);
         Future<Void> writeAndFlushPromise =
@@ -777,7 +767,7 @@ public class Consumer {
      * return 0 if there is no entry dispatched yet.
      */
     public int getAvgMessagesPerEntry() {
-        return (int) Math.round(avgMessagesPerEntry.get());
+        return (int) Math.round(avgMessagesPerEntryAccumulator.getAvgMessagesPerEntry());
     }
 
     public boolean isBlocked() {
@@ -836,7 +826,7 @@ public class Consumer {
         }
         unackedMessages = consumerStats.unackedMessages;
         blockedConsumerOnUnackedMsgs = consumerStats.blockedConsumerOnUnackedMsgs;
-        avgMessagesPerEntry.set(consumerStats.avgMessagesPerEntry);
+        avgMessagesPerEntryAccumulator.setAvgMessagesPerEntry(consumerStats.avgMessagesPerEntry);
     }
 
     public ConsumerStatsImpl getStats() {

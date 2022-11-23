@@ -81,6 +81,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.AvgMessagesPerEntryAccumulator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
@@ -228,6 +229,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     private volatile long lastDataMessagePublishedTimestamp = 0;
+
+    @Getter
+    protected final AvgMessagesPerEntryAccumulator avgMessagesPerEntryAccumulator =
+            new AvgMessagesPerEntryAccumulator();
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
