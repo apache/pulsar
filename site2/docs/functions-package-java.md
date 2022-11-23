@@ -144,7 +144,7 @@ To package a Java function as NAR, complete the following steps.
             <dependency>
                 <groupId>org.apache.pulsar</groupId>
                 <artifactId>pulsar-functions-api</artifactId>
-                <version>2.10.0</version>
+                <version>@pulsar:version@</version>
             </dependency>
         </dependencies>
 
