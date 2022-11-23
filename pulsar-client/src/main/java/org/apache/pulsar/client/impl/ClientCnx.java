@@ -1161,7 +1161,7 @@ public class ClientCnx extends PulsarHandler {
      * @param errMsg
      */
     private void checkServerError(ServerError error, String errMsg) {
-        if (ServerError.ServiceNotReady.equals(error)) {
+        if (ServerError.ServiceNotReady.equals(error) || ServerError.AuthorizationError.equals(error)) {
             log.error("{} Close connection because received internal-server error {}", ctx.channel(), errMsg);
             ctx.close();
         } else if (ServerError.TooManyRequests.equals(error)) {
