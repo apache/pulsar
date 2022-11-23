@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
 import java.util.Set;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 
@@ -34,8 +33,7 @@ public interface NamespaceBundleSplitStrategy {
      * Determines which bundles, if any, should be split.
      *
      * @param context The context used for decisions.
-     * @param pulsarService Pulsar service to use.
      * @return A set of the bundles that should be split.
      */
-    Set<Split> findBundlesToSplit(LoadManagerContext context, PulsarService pulsarService);
+    Set<Split> findBundlesToSplit(LoadManagerContext context);
 }
