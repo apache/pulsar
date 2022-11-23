@@ -204,21 +204,23 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
         // wrap if resourceUsage is bigger than 1.0
         if (resourceUsage > 1.0) {
-            log.error("{} broker resourceUsage is bigger than 100%. "
-                            + "Some of the resource limits are mis-configured. "
-                            + "Try to disable the error resource signals by setting their weights to zero "
-                            + "or fix the resource limit configurations. "
-                            + "Ref:https://pulsar.apache.org/docs/administration-load-balance/#thresholdshedder "
-                            + "ResourceUsage:[{}], "
-                            + "CPUResourceWeight:{}, MemoryResourceWeight:{}, DirectMemoryResourceWeight:{}, "
-                            + "BandwithInResourceWeight:{}, BandwithOutResourceWeight:{}",
-                    broker,
-                    localBrokerData.printResourceUsage(),
-                    conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(),
-                    conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+            if (sampleLog) {
+                log.error("{} broker resourceUsage is bigger than 100%. "
+                                + "Some of the resource limits are mis-configured. "
+                                + "Try to disable the error resource signals by setting their weights to zero "
+                                + "or fix the resource limit configurations. "
+                                + "Ref:https://pulsar.apache.org/docs/administration-load-balance/#thresholdshedder "
+                                + "ResourceUsage:[{}], "
+                                + "CPUResourceWeight:{}, MemoryResourceWeight:{}, DirectMemoryResourceWeight:{}, "
+                                + "BandwithInResourceWeight:{}, BandwithOutResourceWeight:{}",
+                        broker,
+                        localBrokerData.printResourceUsage(),
+                        conf.getLoadBalancerCPUResourceWeight(),
+                        conf.getLoadBalancerMemoryResourceWeight(),
+                        conf.getLoadBalancerDirectMemoryResourceWeight(),
+                        conf.getLoadBalancerBandwithInResourceWeight(),
+                        conf.getLoadBalancerBandwithOutResourceWeight());
+            }
 
             resourceUsage = localBrokerData.getMaxResourceUsageWithWeightWithinLimit(
                     conf.getLoadBalancerCPUResourceWeight(),
@@ -226,8 +228,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                     conf.getLoadBalancerBandwithInResourceWeight(),
                     conf.getLoadBalancerBandwithOutResourceWeight());
 
-            log.warn("{} broker recomputed max resourceUsage={}%. Skipped usage signals bigger than 100%",
-                    broker, toPercentage(resourceUsage));
+            if (sampleLog) {
+                log.warn("{} broker recomputed max resourceUsage={}%. Skipped usage signals bigger than 100%",
+                        broker, toPercentage(resourceUsage));
+            }
         }
         historyUsage = historyUsage == null
                 ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
