@@ -76,7 +76,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
-    private Optional<ZKSessionWatcher> sessionWatcher;
+    private final ZKSessionWatcher sessionWatcher;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
             throws MetadataStoreException {
@@ -96,20 +96,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
-                    .watchers(Collections.singleton(event -> {
-                        if (sessionWatcher != null) {
-                            sessionWatcher.ifPresent(sw -> executor.execute(() -> sw.process(event)));
-                        }
-                    }))
+                    .watchers(Collections.singleton(this::processSessionWatcher))
                     .build();
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
             if (enableSessionWatcher) {
-                sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+                sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
             } else {
-                sessionWatcher = Optional.empty();
+                sessionWatcher = null;
             }
+            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
+        }
+    }
+
+    private void processSessionWatcher(WatchedEvent event) {
+        if (sessionWatcher != null) {
+            executor.execute(() -> sessionWatcher.process(event));
         }
     }
 
@@ -129,7 +131,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
-        this.sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
     }
 
@@ -143,9 +145,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                             super.receivedSessionEvent(event);
                         } else {
                             log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
-                            sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
-                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and
-                            // we will have the chance to set the watch again.
+                            if (sessionWatcher != null) {
+                                sessionWatcher.setSessionInvalid();
+                            }
+                            // On the re-connectable client, mark the session as expired to trigger a new reconnect,
+                            // and we will have the chance to set the watch again.
                             if (zkc instanceof PulsarZooKeeperClient) {
                                 ((PulsarZooKeeperClient) zkc).process(
                                         new WatchedEvent(Watcher.Event.EventType.None,
@@ -423,8 +427,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         if (isZkManaged) {
             zkc.close();
         }
-        if (sessionWatcher.isPresent()) {
-            sessionWatcher.get().close();
+        if (sessionWatcher != null) {
+            sessionWatcher.close();
         }
         super.close();
     }

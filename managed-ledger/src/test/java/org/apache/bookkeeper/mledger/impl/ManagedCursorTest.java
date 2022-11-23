@@ -143,6 +143,36 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test
+    public void testRepeatCloseCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+        config.setThrottleMarkDelete(0);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        final ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.close();
+        cursor.close();
+        assertEquals(cursor.getState(), ManagedCursorImpl.State.Closed.toString());
+        // cleanup, "ledger.close" will trigger another "cursor.close"
+        ledger.close();
+        assertEquals(cursor.getState(), ManagedCursorImpl.State.Closed.toString());
+    }
+
+    @Test
+    public void testOpenCursorWithNullInitialPosition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testOpenCursorWithNullInitialPosition", config);
+        // Write some data.
+        ledger.addEntry(new byte[]{1});
+        ledger.addEntry(new byte[]{2});
+        ledger.addEntry(new byte[]{3});
+        ledger.addEntry(new byte[]{4});
+        ledger.addEntry(new byte[]{5});
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_testOpenCursorWithNullInitialPosition", null);
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
+    }
+
     private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
         Awaitility.await().until(managedCursor::closeCursorLedger);
     }

@@ -43,13 +43,13 @@
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bc-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
+      <version>${bouncycastle.bc-fips.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
+      <version>${bouncycastle.bcpkix-fips.version}</version>
     </dependency>
   </dependencies>
 

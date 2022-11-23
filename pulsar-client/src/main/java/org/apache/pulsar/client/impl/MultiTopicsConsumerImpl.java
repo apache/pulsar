@@ -48,7 +48,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -261,7 +260,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback
-            messages.forEach(msg -> messageReceived(consumer, msg));
+            messages.forEach(msg -> {
+                if (isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                    messageReceived(consumer, msg);
+                }
+            });
 
             int size = incomingMessages.size();
             int maxReceiverQueueSize = getCurrentReceiverQueueSize();
@@ -659,25 +662,23 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return internalConsumerConfig;
     }
 
-    @SneakyThrows
     @Override
     public void redeliverUnacknowledgedMessages() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         internalPinnedExecutor.execute(() -> {
-            CONSUMER_EPOCH.incrementAndGet(this);
-            consumers.values().stream().forEach(consumer -> {
-                futures.add(consumer.internalRedeliverUnacknowledgedMessages());
-                consumer.unAckedChunkedMessageIdSequenceMap.clear();
-            });
-            clearIncomingMessages();
-            unAckedMessageTracker.clear();
+            incomingQueueLock.lock();
+            try {
+                CONSUMER_EPOCH.incrementAndGet(this);
+                consumers.values().stream().forEach(consumer -> {
+                    consumer.redeliverUnacknowledgedMessages();
+                    consumer.unAckedChunkedMessageIdSequenceMap.clear();
+                });
+                clearIncomingMessages();
+                unAckedMessageTracker.clear();
+                resumeReceivingFromPausedConsumersIfNeeded();
+            } finally {
+                incomingQueueLock.unlock();
+            }
         });
-        try {
-            FutureUtil.waitForAll(futures).get();
-        } catch (ExecutionException e) {
-            throw e.getCause();
-        }
-        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     @Override

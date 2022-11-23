@@ -12,7 +12,7 @@ import TabItem from '@theme/TabItem';
 
 You can use a Pulsar C++ client to create producers, consumers, and readers.
 
-All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the [API docs](/api/cpp) for the C++ client.
+All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the [API docs](@pulsar:apidoc:cpp@) for the C++ client.
 
 ## Installation
 

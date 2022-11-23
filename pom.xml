@@ -107,7 +107,7 @@ flexible messaging model and an intuitive client API.</description>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
-    <testJacocoAgentArgument></testJacocoAgentArgument>
+    <testJacocoAgentArgument/>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
@@ -118,7 +118,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.15.1</bookkeeper.version>
+    <bookkeeper.version>4.15.3</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
@@ -127,6 +127,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.77.Final</netty.version>
     <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
+    <netty-iouring.version>0.0.15.Final</netty-iouring.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -138,8 +139,9 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
-    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.13.4</jackson.version>
+    <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
+    <jackson.version>2.13.4.20221013</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
@@ -177,7 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
-    <debezium.version>1.9.5.Final</debezium.version>
+    <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
@@ -240,7 +242,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.13</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>7.3.0</testng.version>
+    <testng.version>7.6.1</testng.version>
     <mockito.version>3.12.4</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
@@ -283,6 +285,7 @@ flexible messaging model and an intuitive client API.</description>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
+    <lombok.plugin.version>1.18.20.0</lombok.plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -640,6 +643,24 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.netty</groupId>
         <artifactId>netty-codec-haproxy</artifactId>
         <version>${netty.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty.incubator</groupId>
+        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+        <version>${netty-iouring.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty.incubator</groupId>
+        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+        <version>${netty-iouring.version}</version>
+        <classifier>linux-x86_64</classifier>
+      </dependency>
+      <dependency>
+        <groupId>io.netty.incubator</groupId>
+        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+        <version>${netty-iouring.version}</version>
+        <classifier>linux-aarch_64</classifier>
       </dependency>
 
       <dependency>
@@ -1799,7 +1820,21 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
+            <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok-maven-plugin</artifactId>
+          <version>${lombok.plugin.version}</version>
+          <executions>
+            <execution>
+              <phase>generate-sources</phase>
+              <goals>
+                <goal>delombok</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
@@ -2064,7 +2099,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
-        <module>pulsar-broker-shaded</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>

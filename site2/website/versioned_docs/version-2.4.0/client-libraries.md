@@ -9,8 +9,8 @@ Pulsar supports the following client libraries:
 |Language|Documentation|Release note|Code repo
 |---|---|---|---
 Java |- [User doc](client-libraries-java.md) <br /><br />- [API doc](https://pulsar.apache.org/api/client/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client) 
-C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](https://pulsar.apache.org/api/cpp/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar-client-cpp) 
-Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](https://pulsar.apache.org/api/python/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar-client-python) 
+C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](@pulsar:apidoc:cpp@)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar-client-cpp) 
+Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](@pulsar:apidoc:python@)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar-client-python) 
 WebSocket| [User doc](client-libraries-websocket.md) | [Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
 Go client|[User doc](client-libraries-go.md)|[Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) |[Here](https://github.com/apache/pulsar-client-go) 
 Node.js|[User doc](client-libraries-node.md)|[Here](https://github.com/apache/pulsar-client-node/releases) |[Here](https://github.com/apache/pulsar-client-node) 

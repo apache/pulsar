@@ -1,3 +1,3 @@
-# Pulsar Documentation Contribution Overview
+# Pulsar Documentation Contribution Guide
 
-Read https://pulsar.apache.org/contribute/documentation/overview for more information.
+Read https://pulsar.apache.org/contribute/document-intro/ for more information.

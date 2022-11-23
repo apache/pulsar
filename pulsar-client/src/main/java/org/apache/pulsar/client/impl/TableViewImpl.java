@@ -36,8 +36,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.naming.TopicDomain;
 
 @Slf4j
 public class TableViewImpl<T> implements TableView<T> {
@@ -51,26 +53,35 @@ public class TableViewImpl<T> implements TableView<T> {
 
     private final List<BiConsumer<String, T>> listeners;
     private final ReentrantLock listenersMutex;
+    private final boolean isPersistentTopic;
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
+        this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
-        this.reader = client.newReader(schema)
+        ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
                 .autoUpdatePartitions(true)
                 .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
-                .readCompacted(true)
-                .poolMessages(true)
-                .createAsync();
+                .poolMessages(true);
+        if (isPersistentTopic) {
+            readerBuilder.readCompacted(true);
+        }
+        this.reader = readerBuilder.createAsync();
     }
 
     CompletableFuture<TableView<T>> start() {
-        return reader.thenCompose(this::readAllExistingMessages)
-                .thenApply(__ -> this);
+        return reader.thenCompose((reader) -> {
+            if (!isPersistentTopic) {
+                readTailMessages(reader);
+                return CompletableFuture.completedFuture(reader);
+            }
+            return this.readAllExistingMessages(reader);
+        }).thenApply(__ -> this);
     }
 
     @Override

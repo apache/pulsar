@@ -35,7 +35,7 @@ env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
-  changed_files_job:
+  preconditions:
     name: Preconditions
     runs-on: ubuntu-20.04
     outputs:
@@ -65,8 +65,8 @@ jobs:
           build/pulsar_ci_tool.sh check_ready_to_test
 
   check-style:
-    needs: changed_files_job
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: preconditions
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     name: Go ${{ matrix.go-version }} Functions style check
     runs-on: ubuntu-20.04
     strategy:

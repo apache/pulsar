@@ -120,7 +120,7 @@ Leave the consume command from the previous step running. If you've already clos
 Now open a new terminal window and produce more messages. The default message separator is `,`:
 
 ```bash
-bin/pulsar-client produce my-topic --messages "$(seq -s, -f 'Message NO.%g' -t '\n' 1 10)"
+bin/pulsar-client produce my-topic --messages "$(seq -s, -f 'Message NO.%g' 1 10)"
 ```
 
 Note how they are displayed almost instantaneously in the consumer terminal.
