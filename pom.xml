@@ -176,7 +176,7 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
-    <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
+    <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <debezium.version>1.9.7.Final</debezium.version>
@@ -236,7 +236,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.17.2</testcontainers.version>
+    <testcontainers.version>1.17.6</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
 
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
