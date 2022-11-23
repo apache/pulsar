@@ -164,7 +164,10 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
-    protected boolean isProducersExceeded() {
+    protected boolean isProducersExceeded(Producer producer) {
+        if (isSystemTopic() || producer.isRemote()) {
+            return false;
+        }
         Integer maxProducers = getTopicPolicies().map(TopicPolicies::getMaxProducerPerTopic).orElse(null);
 
         if (maxProducers == null) {
@@ -175,10 +178,14 @@ public abstract class AbstractTopic implements Topic {
         }
         maxProducers = maxProducers != null ? maxProducers : brokerService.pulsar()
                 .getConfiguration().getMaxProducersPerTopic();
-        if (maxProducers > 0 && maxProducers <= producers.size()) {
+        if (maxProducers > 0 && maxProducers <= producers.size() && maxProducers <= getUserCreatedProducersSize()) {
             return true;
         }
         return false;
+    }
+
+    private long getUserCreatedProducersSize() {
+        return producers.values().stream().filter(p -> !p.isRemote()).count();
     }
 
     protected boolean isSameAddressProducersExceeded(Producer producer) {
@@ -206,6 +213,9 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isConsumersExceededOnTopic() {
+        if (isSystemTopic()) {
+            return false;
+        }
         Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
         if (maxConsumers == null) {
 
@@ -225,6 +235,9 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isSameAddressConsumersExceededOnTopic(Consumer consumer) {
+        if (isSystemTopic()) {
+            return false;
+        }
         final int maxSameAddressConsumers = brokerService.pulsar().getConfiguration()
                 .getMaxSameAddressConsumersPerTopic();
 
@@ -652,7 +665,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected void internalAddProducer(Producer producer) throws BrokerServiceException {
-        if (isProducersExceeded()) {
+        if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
         }
