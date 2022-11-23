@@ -18,8 +18,7 @@
  */
 package io.debezium.connector.mysql;
 
-import java.sql.SQLException;
-import io.debezium.DebeziumException;
+
 import io.debezium.connector.mysql.signal.ExecuteSnapshotPulsarSignal;
 import io.debezium.connector.mysql.signal.PulsarSignalThread;
 import io.debezium.jdbc.JdbcConnection;
@@ -32,11 +31,12 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.schema.DataCollectionId;
 import io.debezium.schema.DatabaseSchema;
 import io.debezium.util.Clock;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.function.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Mysql readonly incremental snapshot change event source.
@@ -52,13 +52,14 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
     private final PulsarSignalThread<T> pulsarSignal;
 
 
-    public MySqlReadOnlyIncrementalSnapshotChangeEventSource(RelationalDatabaseConnectorConfig config,
-                                                             JdbcConnection jdbcConnection,
-                                                             EventDispatcher<MySqlPartition, T> dispatcher,
-                                                             DatabaseSchema<?> databaseSchema,
-                                                             Clock clock,
-                                                             SnapshotProgressListener<MySqlPartition> progressListener,
-                                                             DataChangeEventListener<MySqlPartition> dataChangeEventListener) {
+    public MySqlReadOnlyIncrementalSnapshotChangeEventSource(
+            RelationalDatabaseConnectorConfig config,
+            JdbcConnection jdbcConnection,
+            EventDispatcher<MySqlPartition, T> dispatcher,
+            DatabaseSchema<?> databaseSchema,
+            Clock clock,
+            SnapshotProgressListener<MySqlPartition> progressListener,
+            DataChangeEventListener<MySqlPartition> dataChangeEventListener) {
         super(config,
                 jdbcConnection,
                 dispatcher,
@@ -190,7 +191,7 @@ public class MySqlReadOnlyIncrementalSnapshotChangeEventSource<T extends DataCol
             });
             jdbcConnection.commit();
         } catch (SQLException e) {
-            throw new DebeziumException(e);
+            throw new RuntimeException(e);
         }
     }
 

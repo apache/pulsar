@@ -20,9 +20,7 @@
 package io.debezium.connector.mysql.signal;
 
 import static org.apache.commons.lang.StringUtils.isBlank;
-import java.nio.charset.StandardCharsets;
 import io.debezium.config.CommonConnectorConfig;
-import java.io.IOException;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.mysql.MySqlReadOnlyIncrementalSnapshotChangeEventSource;
@@ -31,6 +29,10 @@ import io.debezium.document.DocumentReader;
 import io.debezium.pipeline.signal.ExecuteSnapshot;
 import io.debezium.schema.DataCollectionId;
 import io.debezium.util.Threads;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -43,8 +45,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.debezium.SerDeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
+
 
 
 
