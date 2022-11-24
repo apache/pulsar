@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -40,7 +39,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletResponse;
@@ -50,7 +48,6 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -1040,22 +1037,14 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     private void stopWebSocketClient(WebSocketClient... clients) {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = newFixedThreadPool(1);
-        try {
-            executor.submit(() -> {
-                for (WebSocketClient client : clients) {
-                    try {
-                        client.stop();
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }
-                log.info("proxy clients are stopped successfully");
-            }).get(2, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("failed to close proxy clients", e);
+        for (WebSocketClient client : clients) {
+            try {
+                client.stop();
+            } catch (Exception e) {
+                log.error(e.getMessage());
+            }
         }
+        log.info("proxy clients are stopped successfully");
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

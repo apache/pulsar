@@ -48,7 +48,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -95,7 +94,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
-    private final ConsumerStatsRecorder stats;
+    private final MultiTopicConsumerStatsRecorderImpl stats;
     private UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
@@ -156,7 +155,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0
-                ? new ConsumerStatsRecorderImpl(this)
+                ? new MultiTopicConsumerStatsRecorderImpl(this)
                 : null;
 
         // start track and auto subscribe partition increment
@@ -256,8 +255,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
             }
+            // Stop to process the remaining message after the consumer is closed.
+            if (getState() == State.Closed) {
+                return;
+            }
             // Process the message, add to the queue and trigger listener or async callback
-            messages.forEach(msg -> messageReceived(consumer, msg));
+            messages.forEach(msg -> {
+                if (isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                    messageReceived(consumer, msg);
+                }
+            });
 
             int size = incomingMessages.size();
             int maxReceiverQueueSize = getCurrentReceiverQueueSize();
@@ -562,14 +569,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .map(ConsumerImpl::unsubscribeAsync).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
-            .thenCompose((r) -> {
+            .thenComposeAsync((r) -> {
                 setState(State.Closed);
                 cleanupMultiConsumer();
                 log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer",
                         topic, subscription, consumerName);
                 // fail all pending-receive futures to notify application
                 return failPendingReceive();
-            })
+            }, internalPinnedExecutor)
             .whenComplete((r, ex) -> {
                 if (ex == null) {
                     unsubscribeFuture.complete(null);
@@ -604,13 +611,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .map(ConsumerImpl::closeAsync).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
-            .thenCompose((r) -> {
+            .thenComposeAsync((r) -> {
                 setState(State.Closed);
                 cleanupMultiConsumer();
                 log.info("[{}] [{}] Closed Topics Consumer", topic, subscription);
                 // fail all pending-receive futures to notify application
                 return failPendingReceive();
-            })
+            }, internalPinnedExecutor)
             .whenComplete((r, ex) -> {
                 if (ex == null) {
                     closeFuture.complete(null);
@@ -655,25 +662,23 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return internalConsumerConfig;
     }
 
-    @SneakyThrows
     @Override
     public void redeliverUnacknowledgedMessages() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         internalPinnedExecutor.execute(() -> {
-            CONSUMER_EPOCH.incrementAndGet(this);
-            consumers.values().stream().forEach(consumer -> {
-                futures.add(consumer.internalRedeliverUnacknowledgedMessages());
-                consumer.unAckedChunkedMessageIdSequenceMap.clear();
-            });
-            clearIncomingMessages();
-            unAckedMessageTracker.clear();
+            incomingQueueLock.lock();
+            try {
+                CONSUMER_EPOCH.incrementAndGet(this);
+                consumers.values().stream().forEach(consumer -> {
+                    consumer.redeliverUnacknowledgedMessages();
+                    consumer.unAckedChunkedMessageIdSequenceMap.clear();
+                });
+                clearIncomingMessages();
+                unAckedMessageTracker.clear();
+                resumeReceivingFromPausedConsumersIfNeeded();
+            } finally {
+                incomingQueueLock.unlock();
+            }
         });
-        try {
-            FutureUtil.waitForAll(futures).get();
-        } catch (ExecutionException e) {
-            throw e.getCause();
-        }
-        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     @Override
@@ -826,7 +831,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         stats.reset();
 
-        consumers.values().stream().forEach(consumer -> stats.updateCumulativeStats(consumer.getStats()));
+        consumers.forEach((partition, consumer) -> stats.updateCumulativeStats(partition, consumer.getStats()));
         return stats;
     }
 

@@ -61,10 +61,12 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -295,6 +297,14 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected WorkerService validateAndGetWorkerService() {
+        try {
+            return pulsar().getWorkerService();
+        } catch (UnsupportedOperationException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        }
+    }
+
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
             Policies policies = namespaceResources().getPolicies(namespaceName)
@@ -426,6 +436,13 @@ public abstract class AdminResource extends PulsarWebResource {
                 pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
                 pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
         );
+    }
+
+    protected AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride() {
+        boolean allowAutoSubscriptionCreation = pulsar().getConfiguration().isAllowAutoSubscriptionCreation();
+        return AutoSubscriptionCreationOverrideImpl.builder()
+                .allowAutoSubscriptionCreation(allowAutoSubscriptionCreation)
+                .build();
     }
 
     public static ObjectMapper jsonMapper() {

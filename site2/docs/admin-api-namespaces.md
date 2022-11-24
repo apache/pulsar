@@ -79,6 +79,11 @@ Use the [`policies`](/tools/pulsar-admin/) subcommand and specify the namespace:
 
 ```shell
 pulsar-admin namespaces policies test-tenant/test-namespace
+```
+
+Example output:
+
+```json
 {
   "auth_policies": {
     "namespace_auth": {},
@@ -133,8 +138,13 @@ Use the [`list`](/tools/pulsar-admin/) subcommand and specify the tenant:
 
 ```shell
 pulsar-admin namespaces list test-tenant
-test-tenant/ns1
-test-tenant/ns2
+```
+
+Example output:
+
+```
+test-tenant/namespace1
+test-tenant/namespace2
 ```
 
 </TabItem>
@@ -167,7 +177,7 @@ You can delete existing namespaces from a tenant.
 Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the namespace:
 
 ```shell
-pulsar-admin namespaces delete test-tenant/ns1
+pulsar-admin namespaces delete test-tenant/namespace1
 ```
 
 </TabItem>
@@ -200,8 +210,7 @@ You can set replication clusters for a namespace to enable Pulsar to internally 
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-clusters test-tenant/ns1 \
---clusters cl1
+pulsar-admin namespaces set-clusters test-tenant/namespace1 --clusters cl1
 ```
 
 </TabItem>
@@ -232,11 +241,13 @@ You can get the list of replication clusters for a given namespace.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-clusters test-tenant/cl1/ns1
+pulsar-admin namespaces get-clusters test-tenant/cluster1/namespace1
 ```
 
-```shell
-cl2
+Example output:
+
+```
+cluster2
 ```
 
 </TabItem>
@@ -277,7 +288,10 @@ Backlog quota restriction can be taken care of by defining the restriction of ba
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-backlog-quota --limit 10G --limitTime 36000 --policy producer_request_hold test-tenant/ns1
+pulsar-admin namespaces set-backlog-quota --limit 10G \
+    --limitTime 36000 \
+    --policy producer_request_hold \
+    test-tenant/namespace1
 ```
 
 </TabItem>
@@ -308,16 +322,13 @@ You can get a configured backlog quota for a given namespace.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
+pulsar-admin namespaces get-backlog-quotas test-tenant/namespace1
 ```
 
-```json
-{
-  "destination_storage": {
-    "limit": 10,
-    "policy": "producer_request_hold"
-  }
-}
+Example output:
+
+```
+destination_storage    BacklogQuotaImpl(limit=10737418240, limitSize=10737418240, limitTime=36000, policy=producer_request_hold)
 ```
 
 </TabItem>
@@ -348,7 +359,7 @@ You can remove backlog quota policies for a given namespace.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces remove-backlog-quota test-tenant/ns1
+pulsar-admin namespaces remove-backlog-quota test-tenant/namespace1
 ```
 
 </TabItem>
@@ -389,7 +400,10 @@ Persistence policies allow users to configure persistency-level for all topic me
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
+pulsar-admin namespaces set-persistence \
+    --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 \
+    --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 \
+    test-tenant/namespace1
 ```
 
 </TabItem>
@@ -420,8 +434,10 @@ You can get the configured persistence policies of a given namespace.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-persistence test-tenant/ns1
+pulsar-admin namespaces get-persistence test-tenant/namespace1
 ```
+
+Example output:
 
 ```json
 {
@@ -462,7 +478,7 @@ A namespace bundle is a virtual group of topics that belong to the same namespac
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
+pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/namespace1
 ```
 
 </TabItem>
@@ -493,7 +509,7 @@ One namespace bundle can contain multiple topics but can be served by only one b
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
+pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/namespace1
 ```
 
 </TabItem>
@@ -526,7 +542,7 @@ You can configure the time to live (in seconds) duration for messages. In the ex
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/ns1
+pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/namespace1
 ```
 
 </TabItem>
@@ -557,8 +573,9 @@ When the message-ttl for a namespace is set, you can use the command below to ge
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-message-ttl test-tenant/ns1
+pulsar-admin namespaces get-message-ttl test-tenant/namespace1
 ```
+Example output:
 
 ```
 100
@@ -596,7 +613,7 @@ Remove a message TTL of the configured namespace.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces remove-message-ttl test-tenant/ns1
+pulsar-admin namespaces remove-message-ttl test-tenant/namespace1
 ```
 
 </TabItem>
@@ -630,7 +647,7 @@ It clears all message backlogs for all the topics that belong to a specific name
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/ns1
+pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/namespace1
 ```
 
 </TabItem>
@@ -661,7 +678,10 @@ It clears all message backlogs for all the topics that belong to a specific Name
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-tenant/ns1
+pulsar-admin namespaces clear-backlog \
+    --bundle 0x00000000_0xffffffff \
+    --sub my-subscription \
+    test-tenant/namespace1
 ```
 
 </TabItem>
@@ -696,7 +716,7 @@ Each namespace contains multiple topics and the retention size (storage size) of
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-retention --size 100 --time 10 test-tenant/ns1
+pulsar-admin namespaces set-retention --size 100M --time 10m test-tenant/namespace1
 ```
 
 </TabItem>
@@ -727,7 +747,7 @@ It shows the retention information of a given namespace.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-retention test-tenant/ns1
+pulsar-admin namespaces get-retention test-tenant/namespace1
 ```
 
 ```json
@@ -776,10 +796,10 @@ disables the throttling.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
---msg-dispatch-rate 1000 \
---byte-dispatch-rate 1048576 \
---dispatch-rate-period 1
+pulsar-admin namespaces set-dispatch-rate test-tenant/namespace1 \
+    --msg-dispatch-rate 1000 \
+    --byte-dispatch-rate 1048576 \
+    --dispatch-rate-period 1
 ```
 
 </TabItem>
@@ -810,13 +830,16 @@ It shows the configured message-rate for the namespace (topics under this namesp
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
+pulsar-admin namespaces get-dispatch-rate test-tenant/namespace1
 ```
+
+Example output:
 
 ```json
 {
-  "dispatchThrottlingRatePerTopicInMsg" : 1000,
-  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "dispatchThrottlingRateInMsg" : 1000,
+  "dispatchThrottlingRateInByte" : 1048576,
+  "relativeToPublishRate" : false,
   "ratePeriodInSecond" : 1
 }
 ```
@@ -852,10 +875,10 @@ disables the throttling.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/ns1 \
---msg-dispatch-rate 1000 \
---byte-dispatch-rate 1048576 \
---dispatch-rate-period 1
+pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/namespace1 \
+    --msg-dispatch-rate 1000 \
+    --byte-dispatch-rate 1048576 \
+    --dispatch-rate-period 1
 ```
 
 </TabItem>
@@ -886,13 +909,16 @@ It shows the configured message-rate for the namespace (topics under this namesp
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
+pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/namespace1
 ```
+
+Example output:
 
 ```json
 {
-  "dispatchThrottlingRatePerTopicInMsg" : 1000,
-  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "dispatchThrottlingRateInMsg" : 1000,
+  "dispatchThrottlingRateInByte" : 1048576,
+  "relativeToPublishRate" : false,
   "ratePeriodInSecond" : 1
 }
 ```
@@ -927,10 +953,10 @@ It sets the message dispatch rate for all the replicators between replication cl
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/ns1 \
---msg-dispatch-rate 1000 \
---byte-dispatch-rate 1048576 \
---dispatch-rate-period 1
+pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/namespace1 \
+    --msg-dispatch-rate 1000 \
+    --byte-dispatch-rate 1048576 \
+    --dispatch-rate-period 1
 ```
 
 </TabItem>
@@ -961,7 +987,7 @@ It shows the configured message-rate for the namespace (topics under this namesp
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
+pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/namespace1
 ```
 
 ```json
@@ -1002,7 +1028,7 @@ It shows the configured `deduplicationSnapshotInterval` for a namespace (Each to
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces get-deduplication-snapshot-interval test-tenant/ns1
+pulsar-admin namespaces get-deduplication-snapshot-interval test-tenant/namespace1
 ```
 
 </TabItem>
@@ -1033,7 +1059,7 @@ Set the configured `deduplicationSnapshotInterval` for a namespace. Each topic u
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces set-deduplication-snapshot-interval test-tenant/ns1 --interval 1000
+pulsar-admin namespaces set-deduplication-snapshot-interval test-tenant/namespace1 --interval 1000
 ```
 
 </TabItem>
@@ -1064,7 +1090,7 @@ Remove configured `deduplicationSnapshotInterval` of a namespace (Each topic und
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin namespaces remove-deduplication-snapshot-interval test-tenant/ns1
+pulsar-admin namespaces remove-deduplication-snapshot-interval test-tenant/namespace1
 ```
 
 </TabItem>
@@ -1135,9 +1161,11 @@ Entry filter helps with filtering message on server side.
 <TabItem value="pulsar-admin">
 
 ```
-
-$ pulsar-admin namespaces set-entry-filters --desc "The description of the entry filter to be used for user help."  
---entry-filters-name "The class name for the entry filter." --entry-filters-dir "The directory for all the entry filter implementations." test-tenant/ns1
+pulsar-admin namespaces set-entry-filters \
+    --desc "The description of the entry filter to be used for user help." \
+    --entry-filters-name "The class name for the entry filter." \
+    --entry-filters-dir "The directory for all the entry filter implementations." \
+    test-tenant/namespace1
 ```
 
 </TabItem>
@@ -1150,9 +1178,7 @@ version=@pulsar:version_number@}
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().setEntryFilters(namespace, new EntryFilters("desc", "classes name", "class files localtion"))
-
 ```
 
 </TabItem>
@@ -1170,10 +1196,8 @@ You can get a configured entry filter for a given namespace.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
-$ pulsar-admin namespaces get-entry-filters test-tenant/ns1
-
+```shell
+pulsar-admin namespaces get-entry-filters test-tenant/namespace1
 ```
 
 </TabItem>
@@ -1186,9 +1210,7 @@ version=@pulsar:version_number@}
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().getEntryFilters(namespace);
-
 ```
 
 </TabItem>
@@ -1206,10 +1228,8 @@ You can remove entry filters policies for a given namespace.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
-$ pulsar-admin namespaces remove-entry-filters test-tenant/ns1
-
+```shell
+pulsar-admin namespaces remove-entry-filters test-tenant/namespace1
 ```
 
 </TabItem>
@@ -1222,9 +1242,7 @@ version=@pulsar:version_number@}
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().removeEntryFilters(namespace)
-
 ```
 
 </TabItem>

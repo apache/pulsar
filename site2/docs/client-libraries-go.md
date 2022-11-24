@@ -4,42 +4,42 @@ title: Pulsar Go client
 sidebar_label: "Go"
 ---
 
-You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Golang.
-
-API docs are available on the [Godoc](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar) page
+You can use a Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Golang. For Pulsar features that Go clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
 
 ## Installation
 
-### Install go package
+You can install the `pulsar` library by using either `go get` or `go module`.
 
-You can get the `pulsar` library by using `go get` or use it with `go module`.
+### Use `go get`
 
-Download the library of Go client to your local environment:
+1. Download the library of Go client to your local environment:
 
-```bash
-go get -u "github.com/apache/pulsar-client-go/pulsar"
-```
+   ```bash
+   go get -u "github.com/apache/pulsar-client-go/pulsar"
+   ```
 
-Once installed locally, you can import it into your project:
+2. Import it into your project:
 
-```go
-import "github.com/apache/pulsar-client-go/pulsar"
-```
+   ```go
+   import "github.com/apache/pulsar-client-go/pulsar"
+   ```
 
-Use with go module:
+### Use `go module`
 
-```bash
-mkdir test_dir && cd test_dir
-```
+1. Create a directory named `test_dir` and change your working directory to it.
 
-Write a sample script in the `test_dir` directory (such as `test_example.go`) and write `package main` at the beginning of the file.
+   ```bash
+   mkdir test_dir && cd test_dir
+   ```
 
-```bash
-go mod init test_dir 
-go mod tidy && go mod download
-go build test_example.go
-./test_example
-```
+2. Write a sample script (such as `test_example.go`) in the `test_dir` directory and write `package main` at the beginning of the file.
+
+   ```bash
+   go mod init test_dir 
+   go mod tidy && go mod download
+   go build test_example.go
+   ./test_example
+   ```
 
 ## Connection URLs
 
@@ -62,6 +62,14 @@ If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in t
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
+
+## API reference
+
+API docs are available on the [Godoc](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar) page.
+
+## Release notes
+
+For the changelog of Pulsar Go clients, see [release notes](/release-notes/#go).
 
 ## Create a client
 

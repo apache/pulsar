@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
 public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers
     implements StreamingDispatcher {
 
+    private int sendingTaskCounter = 0;
     private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
 
@@ -92,21 +93,27 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
 
+        long size = entry.getLength();
+        updatePendingBytesToDispatch(size);
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), false)) {
                     readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), true)) {
                 readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
             }
         }
         ctx.recycle();
@@ -153,8 +160,23 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized void acquireSendInProgress() {
+        sendingTaskCounter++;
+    }
+
+    @Override
+    protected synchronized void releaseSendInProgress() {
+        sendingTaskCounter--;
+    }
+
+    @Override
+    protected synchronized boolean isSendInProgress() {
+        return sendingTaskCounter > 0;
+    }
+
+    @Override
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;

@@ -27,7 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
-import com.google.common.io.Resources;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
@@ -36,6 +35,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -63,7 +63,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -79,6 +78,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
@@ -87,26 +87,27 @@ import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public final static String BROKER_KEYSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
     public final static String BROKER_TRUSTSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
     public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/broker.truststore.nopassword.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
     public final static String BROKER_KEYSTORE_PW = "111111";
     public final static String BROKER_TRUSTSTORE_PW = "111111";
 
     public final static String CLIENT_KEYSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
     public final static String CLIENT_TRUSTSTORE_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
     public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            Resources.getResource("certificate-authority/jks/client.truststore.nopassword.jks").getPath();
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
     public final static String CLIENT_KEYSTORE_PW = "111111";
     public final static String CLIENT_TRUSTSTORE_PW = "111111";
 
@@ -384,7 +385,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 : createConfigurationMetadataStore()).when(pulsar).createConfigurationMetadataStore(any());
 
         Supplier<NamespaceService> namespaceServiceSupplier =
-                () -> spyWithClassAndConstructorArgs(CanPausedNamespaceService.class, pulsar);
+                () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
@@ -669,27 +670,44 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFully(String ns, boolean force)
+    protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFully(String ns, boolean force, PulsarAdmin admin)
+    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsar);
+        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
     }
 
     /**
-     * see see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
      */
-    protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
-                                                           PulsarService...pulsars) throws Exception {
-        BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
+            throws Exception {
+        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+    }
+
+    /**
+     * 1. Pause system "__change_event" topic creates.
+     * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
+     */
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
+                                                Collection<PulsarService> pulsars) throws Exception {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try {
+                // Maybe fail by race-condition with create topics, just retry.
+                admin.namespaces().deleteNamespace(ns, force);
+                return true;
+            } catch (Exception ex) {
+                return false;
+            }
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

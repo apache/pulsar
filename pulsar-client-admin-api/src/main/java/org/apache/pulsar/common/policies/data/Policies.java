@@ -94,6 +94,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
+    public long offload_threshold_in_seconds = -1;
+    @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_topics_per_namespace = null;
@@ -145,7 +147,7 @@ public class Policies {
                 max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
                 max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
-                compaction_threshold, offload_threshold,
+                compaction_threshold, offload_threshold, offload_threshold_in_seconds,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
@@ -191,6 +193,7 @@ public class Policies {
                     && Objects.equals(max_consumers_per_subscription, other.max_consumers_per_subscription)
                     && Objects.equals(compaction_threshold, other.compaction_threshold)
                     && offload_threshold == other.offload_threshold
+                    && offload_threshold_in_seconds == other.offload_threshold_in_seconds
                     && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced

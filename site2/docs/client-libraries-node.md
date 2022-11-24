@@ -4,29 +4,21 @@ title: The Pulsar Node.js client
 sidebar_label: "Node.js"
 ---
 
-The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
-
-All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
+You can use a Pulsar Node.js client to create producers, consumers, and readers. For Pulsar features that Python clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
 
 For 1.3.0 or later versions, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) used in TypeScript are available.
 
 ## Installation
 
-You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
+:::tip
 
-### Requirements
-Pulsar Node.js client library is based on the C++ client library.
-Follow [these instructions](client-libraries-cpp.md#compilation) and install the Pulsar C++ client library.
+Pulsar Node.js client library is based on the C++ client library. 
+* You must install the Pulsar C++ client library before installing a Node.js client. For more details, see [instructions](client-libraries-cpp.md).
+* If an incompatible version of the C++ client is installed, you may fail to build or run the Node.js library. For the compatibility between each version of the Node.js client and the C++ client, see [README](https://github.com/apache/pulsar-client-node/blob/master/README.md).
 
-### Compatibility
+:::
 
-Compatibility between each version of the Node.js client and the C++ client is listed on [github](https://github.com/apache/pulsar-client-node/blob/master/README.md).
-
-If an incompatible version of the C++ client is installed, you may fail to build or run this library.
-
-### Installation using npm
-
-Install the `pulsar-client` library via [npm](https://www.npmjs.com/):
+Install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/):
 
 ```shell
 npm install pulsar-client
@@ -34,7 +26,7 @@ npm install pulsar-client
 
 :::note
 
-Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
+This library only works in Node.js 10.x or later versions because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
 
 :::
 
@@ -59,6 +51,10 @@ If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in t
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
+
+## Release notes
+
+For the changelog of Pulsar Node.js clients, see [release notes](/release-notes/#nodejs).
 
 ## Create a client
 

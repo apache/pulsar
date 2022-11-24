@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 
 /**
- * Override of autoSubscriptionCreation settings on a namespace level.
+ * Override of autoSubscriptionCreation settings on a topic or namespace level.
  */
 @Data
 @AllArgsConstructor

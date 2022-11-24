@@ -202,7 +202,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceGraceFully(namespace, true);
+                deleteNamespaceWithRetry(namespace, true);
             }
             admin.tenants().deleteTenant(tenant, true);
         }
@@ -297,7 +297,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> assertEquals(admin.clusters().getClusters(), List.of("test")));
 
-        deleteNamespaceGraceFully("prop-xyz/ns1", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.clusters().deleteCluster("test");
         assertEquals(admin.clusters().getClusters(), new ArrayList<>());
 
@@ -526,7 +526,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
         Assert.assertEquals(nsMap2.size(), 2);
 
-        deleteNamespaceGraceFully("prop-xyz/ns1", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.clusters().deleteCluster("test");
         assertEquals(admin.clusters().getClusters(), new ArrayList<>());
     }
@@ -757,7 +757,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getStatusCode(), 409);
             assertEquals(e.getMessage(), "The tenant still has active namespaces");
         }
-        deleteNamespaceGraceFully("prop-xyz/ns1", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), new ArrayList<>());
 
@@ -786,7 +786,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns3").bundles.getNumBundles(), 4);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns3").bundles.getBoundaries().size(), 5);
 
-        deleteNamespaceGraceFully("prop-xyz/ns3", false);
+        deleteNamespaceWithRetry("prop-xyz/ns3", false);
 
         try {
             admin.namespaces().createNamespace("non-existing/ns1");
@@ -860,7 +860,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         assertTrue(i < 10);
 
-        deleteNamespaceGraceFully("prop-xyz/ns1", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1", false);
         assertEquals(admin.namespaces().getNamespaces("prop-xyz"), List.of("prop-xyz/ns2"));
 
         try {
@@ -1289,7 +1289,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "numBundles")
     public void testDeleteNamespaceBundle(Integer numBundles) throws Exception {
-        deleteNamespaceGraceFully("prop-xyz/ns1", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
         admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"));
 
@@ -1301,7 +1301,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.namespaces().getTopics("prop-xyz/ns1-bundles"), new ArrayList<>());
 
-        deleteNamespaceGraceFully("prop-xyz/ns1-bundles", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1-bundles", false);
         assertEquals(admin.namespaces().getNamespaces("prop-xyz", "test"), new ArrayList<>());
     }
 
@@ -1388,14 +1388,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         try {
-            deleteNamespaceGraceFully(namespace, false);
+            admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
         } catch (PulsarAdminException e) {
             // Expected: cannot delete non-empty tenant
         }
 
         // delete namespace forcefully
-        deleteNamespaceGraceFully(namespace, true);
+        deleteNamespaceWithRetry(namespace, true);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -2287,7 +2287,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(result.someNewIntField, 0);
         assertNull(result.someNewString);
 
-        deleteNamespaceGraceFully("prop-xyz/ns1", false);
+        deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), new ArrayList<>());
     }
@@ -3202,9 +3202,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic1);
         admin.topics().delete(topic2);
         admin.topics().delete(topic3);
-        deleteNamespaceGraceFully(namespace1, false);
-        deleteNamespaceGraceFully(namespace2, false);
-        deleteNamespaceGraceFully(namespace3, false);
+        deleteNamespaceWithRetry(namespace1, false);
+        deleteNamespaceWithRetry(namespace2, false);
+        deleteNamespaceWithRetry(namespace3, false);
     }
 
     @Test
@@ -3217,11 +3217,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
 
         admin.namespaces().createNamespace(ns, 24);
-        deleteNamespaceGraceFully(ns, false);
+        deleteNamespaceWithRetry(ns, false);
 
         // Re-create and re-delete
         admin.namespaces().createNamespace(ns, 32);
-        deleteNamespaceGraceFully(ns, false);
+        deleteNamespaceWithRetry(ns, false);
     }
 
     @Test

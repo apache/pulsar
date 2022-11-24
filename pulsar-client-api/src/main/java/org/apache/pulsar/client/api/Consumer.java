@@ -695,8 +695,7 @@ public interface Consumer<T> extends Closeable {
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
      *
-     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
-     * the seek() on the individual partitions.
+     * <p>Note: For multi-topics consumer, you can only seek to the earliest or latest message.
      *
      * @param messageId
      *            the message id where to reposition the subscription
@@ -752,8 +751,7 @@ public interface Consumer<T> extends Closeable {
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
      *
-     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
-     * the seek() on the individual partitions.
+     * <p>Note: For multi-topics consumer, you can only seek to the earliest or latest message.
      *
      * @param messageId
      *            the message id where to reposition the subscription

@@ -141,7 +141,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @SuppressWarnings("unchecked")
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;

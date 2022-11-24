@@ -184,11 +184,13 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                              String credentialId, String credentialSecret,
                                              Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
                                              Long offloadThresholdInBytes,
+                                             Long offloadThresholdInSeconds,
                                              Long offloadDeletionLagInMillis,
                                              OffloadedReadPriority readPriority) {
         OffloadPoliciesImplBuilder builder = builder()
                 .managedLedgerOffloadDriver(driver)
                 .managedLedgerOffloadThresholdInBytes(offloadThresholdInBytes)
+                .managedLedgerOffloadThresholdInSeconds(offloadThresholdInSeconds)
                 .managedLedgerOffloadDeletionLagInMillis(offloadDeletionLagInMillis)
                 .managedLedgerOffloadBucket(bucket)
                 .managedLedgerOffloadRegion(region)
@@ -402,7 +404,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      * @return offload policies
      */
     public static OffloadPoliciesImpl oldPoliciesCompatible(OffloadPoliciesImpl nsLevelPolicies, Policies policies) {
-        if (policies == null || (policies.offload_threshold == -1 && policies.offload_deletion_lag_ms == null)) {
+        if (policies == null || (policies.offload_threshold == -1 && policies.offload_threshold_in_seconds == -1
+                && policies.offload_deletion_lag_ms == null)) {
             return nsLevelPolicies;
         }
         if (nsLevelPolicies == null) {
@@ -411,6 +414,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
                 && policies.offload_threshold != -1) {
             nsLevelPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+        }
+        if (nsLevelPolicies.getManagedLedgerOffloadThresholdInSeconds() == null
+                && policies.offload_threshold_in_seconds != -1) {
+            nsLevelPolicies.setManagedLedgerOffloadThresholdInSeconds(policies.offload_threshold_in_seconds);
         }
         if (nsLevelPolicies.getManagedLedgerOffloadDeletionLagInMillis() == null
                 && policies.offload_deletion_lag_ms != null) {

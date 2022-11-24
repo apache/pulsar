@@ -106,6 +106,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -129,6 +130,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
@@ -1895,7 +1897,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(__ -> {
                 // If the topic name is a partition name, no need to get partition topic metadata again
                 if (topicName.isPartitioned()) {
-                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName, authoritative);
+                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                 } else {
                     return getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenCompose(partitionMetadata -> {
@@ -1936,8 +1938,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                         } else {
-                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName,
-                                authoritative);
+                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                         }
                     });
                 }
@@ -1953,8 +1954,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalSkipAllMessagesForNonPartitionedTopicAsync(AsyncResponse asyncResponse,
-                                                                                       String subName,
-                                                                                       boolean authoritative) {
+                                                                                       String subName) {
         return getTopicReferenceAsync(topicName).thenCompose(t -> {
                     PersistentTopic topic = (PersistentTopic) t;
                     BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
@@ -5516,5 +5516,31 @@ public class PersistentTopicsBase extends AdminResource {
                     return pulsar().getTopicPoliciesService().
                             updateTopicPoliciesAsync(topicName, topicPolicies);
                 });
+    }
+
+    protected CompletableFuture<Void> internalSetAutoSubscriptionCreation(
+            AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setAutoSubscriptionCreationOverride(autoSubscriptionCreationOverride);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<AutoSubscriptionCreationOverride> internalGetAutoSubscriptionCreation(boolean applied,
+                                                                                                    boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.map(TopicPolicies::getAutoSubscriptionCreationOverride)
+                        .orElseGet(() -> {
+                            if (applied) {
+                                AutoSubscriptionCreationOverride namespacePolicy = getNamespacePolicies(namespaceName)
+                                        .autoSubscriptionCreationOverride;
+                                return namespacePolicy == null ? autoSubscriptionCreationOverride()
+                                        : (AutoSubscriptionCreationOverrideImpl) namespacePolicy;
+                            }
+                            return null;
+                        }));
     }
 }

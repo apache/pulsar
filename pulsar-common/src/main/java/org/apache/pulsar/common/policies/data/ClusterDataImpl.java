@@ -132,10 +132,39 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     )
     private String brokerClientTlsTrustStorePassword;
     @ApiModelProperty(
-        name = "brokerClientTrustCertsFilePath",
-        value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
+            name = "brokerClientTlsKeyStoreType",
+            value = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
+                    + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStoreType;
+    @ApiModelProperty(
+            name = "brokerClientTlsKeyStore",
+            value = "TLS KeyStore path for internal client, "
+                    + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStore;
+    @ApiModelProperty(
+            name = "brokerClientTlsKeyStorePassword",
+            value = "TLS KeyStore password for internal client, "
+                    + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStorePassword;
+    @ApiModelProperty(
+            name = "brokerClientTrustCertsFilePath",
+            value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
     private String brokerClientTrustCertsFilePath;
+    @ApiModelProperty(
+            name = "brokerClientKeyFilePath",
+            value = "TLS private key file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
+    private String brokerClientKeyFilePath;
+    @ApiModelProperty(
+            name = "brokerClientCertificateFilePath",
+            value = "TLS certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientCertificateFilePath;
     @ApiModelProperty(
             name = "listenerName",
             value = "listenerName when client would like to connect to cluster",
@@ -176,7 +205,12 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
                 .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
                 .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                .brokerClientTlsKeyStoreType(brokerClientTlsTrustStoreType)
+                .brokerClientTlsKeyStore(brokerClientTlsTrustStore)
+                .brokerClientTlsKeyStorePassword(brokerClientTlsTrustStorePassword)
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
+                .brokerClientKeyFilePath(brokerClientKeyFilePath)
                 .listenerName(listenerName);
     }
 
@@ -197,6 +231,11 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientTlsTrustStoreType = "JKS";
         private String brokerClientTlsTrustStore;
         private String brokerClientTlsTrustStorePassword;
+        private String brokerClientTlsKeyStoreType = "JKS";
+        private String brokerClientTlsKeyStore;
+        private String brokerClientTlsKeyStorePassword;
+        private String brokerClientCertificateFilePath;
+        private String brokerClientKeyFilePath;
         private String brokerClientTrustCertsFilePath;
         private String listenerName;
         private boolean migrated;
@@ -280,10 +319,41 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             return this;
         }
 
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsKeyStoreType(String keyStoreType) {
+            this.brokerClientTlsKeyStoreType = keyStoreType;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsKeyStorePassword(String keyStorePassword) {
+            this.brokerClientTlsKeyStorePassword = keyStorePassword;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsKeyStore(String keyStore) {
+            this.brokerClientTlsKeyStore = keyStore;
+            return this;
+        }
+
         public ClusterDataImplBuilder brokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
             this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
             return this;
         }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientCertificateFilePath(String certificateFilePath) {
+            this.brokerClientCertificateFilePath = certificateFilePath;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientKeyFilePath(String keyFilePath) {
+            this.brokerClientKeyFilePath = keyFilePath;
+            return this;
+        }
+
 
         public ClusterDataImplBuilder listenerName(String listenerName) {
             this.listenerName = listenerName;
@@ -317,7 +387,12 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     brokerClientTlsTrustStoreType,
                     brokerClientTlsTrustStore,
                     brokerClientTlsTrustStorePassword,
+                    brokerClientTlsKeyStoreType,
+                    brokerClientTlsKeyStore,
+                    brokerClientTlsKeyStorePassword,
                     brokerClientTrustCertsFilePath,
+                    brokerClientKeyFilePath,
+                    brokerClientCertificateFilePath,
                     listenerName,
                     migrated,
                     migratedClusterUrl);

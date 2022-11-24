@@ -132,6 +132,18 @@
     </dependency>
 
     <dependency>
+      <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+      <classifier>linux-x86_64</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+      <classifier>linux-aarch_64</classifier>
+    </dependency>
+
+    <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-codec-haproxy</artifactId>
     </dependency>
@@ -172,7 +184,7 @@
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bc-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
+      <version>${bouncycastle.bc-fips.version}</version>
       <scope>test</scope>
     </dependency>
 

@@ -45,7 +45,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
-import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -133,7 +132,7 @@ public class OwnerShipForCurrentServerTestBase {
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore(null);
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore(null);
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(
-                CanPausedNamespaceService.class, pulsar);
+                NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         SameThreadOrderedSafeExecutor executor = new SameThreadOrderedSafeExecutor();
