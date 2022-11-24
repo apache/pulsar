@@ -107,7 +107,7 @@ flexible messaging model and an intuitive client API.</description>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
-    <testJacocoAgentArgument></testJacocoAgentArgument>
+    <testJacocoAgentArgument/>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
@@ -139,7 +139,8 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
-    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
+    <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
     <jackson.version>2.13.4.20221013</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
@@ -175,7 +176,7 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
-    <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
+    <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <debezium.version>1.9.7.Final</debezium.version>
@@ -235,13 +236,13 @@ flexible messaging model and an intuitive client API.</description>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.17.2</testcontainers.version>
+    <testcontainers.version>1.17.6</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
 
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.13</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>7.3.0</testng.version>
+    <testng.version>7.6.1</testng.version>
     <mockito.version>3.12.4</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
@@ -284,6 +285,7 @@ flexible messaging model and an intuitive client API.</description>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
+    <lombok.plugin.version>1.18.20.0</lombok.plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1818,7 +1820,21 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
+            <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok-maven-plugin</artifactId>
+          <version>${lombok.plugin.version}</version>
+          <executions>
+            <execution>
+              <phase>generate-sources</phase>
+              <goals>
+                <goal>delombok</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>

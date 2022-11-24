@@ -16,26 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io.sinks;
+package org.apache.pulsar.common.util.netty;
 
-import java.util.Optional;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import io.netty.channel.EventLoop;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
+public class DnsResolverTest {
 
-    public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
-
-
-    public ElasticSearch7SinkTester(boolean schemaEnable) {
-        super(schemaEnable);
+    @Test
+    public void testMaxTtl() {
+        EventLoop eventLoop = Mockito.mock(EventLoop.class);
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoop);
+        DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
+        // If the maxTtl is <=0, it will throw IllegalArgumentException.
+        try {
+            dnsNameResolverBuilder.build();
+        } catch (Exception ex) {
+            Assert.assertFalse(ex instanceof IllegalArgumentException);
+        }
     }
-
-    @Override
-    protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
-        return new ElasticsearchContainer(ELASTICSEARCH_7)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
-    }
-
 }

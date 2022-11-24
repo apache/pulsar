@@ -56,13 +56,13 @@ Use the [`create`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions create \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---inputs test-input-topic \
---output persistent://public/default/test-output-topic \
---classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
---jar /examples/api-examples.jar
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
+    --inputs test-input-topic \
+    --output persistent://public/default/test-output-topic \
+    --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+    --jar /examples/api-examples.jar
 ```
 
 </TabItem>
@@ -110,11 +110,11 @@ Use the [`update`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions update \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---output persistent://public/default/update-output-topic \
-# other options
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
+    --output persistent://public/default/update-output-topic \
+    # other options
 ```
 
 </TabItem>
@@ -157,10 +157,10 @@ Use the [`start`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions start \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---instance-id 1
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
+    --instance-id 1
 ```
 
 </TabItem>
@@ -196,9 +196,9 @@ Use the [`start`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions start \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
 ```
 
 </TabItem>
@@ -234,10 +234,10 @@ Use the [`stop`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions stop \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---instance-id 1
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -273,9 +273,9 @@ Use the [`stop`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions stop \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -311,11 +311,10 @@ Use the [`restart`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions restart \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---instance-id 1
-
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -351,9 +350,9 @@ Use the [`restart`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions restart \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -389,8 +388,8 @@ Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions list \
---tenant public \
---namespace default
+	--tenant public \
+	--namespace default
 ```
 
 </TabItem>
@@ -426,9 +425,9 @@ Use the [`delete`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions delete \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions)
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -464,9 +463,9 @@ Use the [`get`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions get \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions)
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -501,10 +500,10 @@ Use the [`status`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions status \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --instance-id 1
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -540,9 +539,9 @@ Use the [`status`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions status \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions)
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -578,10 +577,10 @@ Use the [`stats`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions stats \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---instance-id 1
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -617,9 +616,9 @@ Use the [`stats`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions stats \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions)
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -655,12 +654,12 @@ Use the [`trigger`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions trigger \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---topic (the name of input topic) \
---trigger-value \"hello pulsar\"
-# or --trigger-file (the path of trigger file)
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--topic (the name of input topic) \
+	--trigger-value \"hello pulsar\"
+	# or --trigger-file (the path of trigger file)
 ```
 
 </TabItem>
@@ -696,10 +695,10 @@ Use the [`putstate`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions putstate \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}"
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}"
 ```
 
 </TabItem>
@@ -737,10 +736,10 @@ Use the [`querystate`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin functions querystate \
---tenant public \
---namespace default \
---name (the name of Pulsar Functions) \
---key (the key of state)
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--key (the key of state)
 ```
 
 </TabItem>

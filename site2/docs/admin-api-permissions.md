@@ -43,9 +43,9 @@ You can grant permissions to specific roles for lists of operations such as `pro
 Use the [`grant-permission`](/tools/pulsar-admin/) subcommand and specify a namespace, actions using the `--actions` flag, and a role using the `--role` flag:
 
 ```shell
-pulsar-admin namespaces grant-permission test-tenant/ns1 \
---actions produce,consume \
---role admin10
+pulsar-admin namespaces grant-permission test-tenant/namespace1 \
+    --actions produce,consume \
+    --role admin10
 ```
 
 Wildcard authorization can be performed when `authorizationAllowWildcardsMatching` is set to `true` in `broker.conf`.
@@ -53,18 +53,17 @@ Wildcard authorization can be performed when `authorizationAllowWildcardsMatchin
 **Example**
 
 ```shell
-pulsar-admin namespaces grant-permission test-tenant/ns1 \
-                      --actions produce,consume \
-                      --role 'my.role.*'
-
+pulsar-admin namespaces grant-permission test-tenant/namespace1 \
+      --actions produce,consume \
+      --role 'my.role.*'
 ```
 
 Then, roles `my.role.1`, `my.role.2`, `my.role.foo`, `my.role.bar`, etc. can produce and consume.  
 
 ```shell
-pulsar-admin namespaces grant-permission test-tenant/ns1 \
-                      --actions produce,consume \
-                      --role '*.role.my'
+pulsar-admin namespaces grant-permission test-tenant/namespace1 \
+      --actions produce,consume \
+      --role '*.role.my'
 ```
 
 Then, roles `1.role.my`, `2.role.my`, `foo.role.my`, `bar.role.my`, etc. can produce and consume.
@@ -78,9 +77,9 @@ A wildcard matching works at **the beginning or end of the role name only**.
 **Example**
 
 ```shell
-pulsar-admin namespaces grant-permission test-tenant/ns1 \
-                      --actions produce,consume \
-                      --role 'my.*.role'
+pulsar-admin namespaces grant-permission test-tenant/namespace1 \
+      --actions produce,consume \
+      --role 'my.*.role'
 ```
 
 In this case, only the role `my.*.role` has permissions.  
@@ -116,13 +115,13 @@ You can see which permissions have been granted to which roles in a namespace.
 Use the [`permissions`](/tools/pulsar-admin/) subcommand and specify a namespace:
 
 ```shell
-pulsar-admin namespaces permissions test-tenant/ns1
-{
-  "admin10": [
-    "produce",
-    "consume"
-  ]
-}
+pulsar-admin namespaces permissions test-tenant/namespace1
+```
+
+Example output:
+
+```
+my.role.*    [produce, consume]
 ```
 
 </TabItem>
@@ -155,8 +154,8 @@ You can revoke permissions from specific roles, which means that those roles wil
 Use the [`revoke-permission`](/tools/pulsar-admin/) subcommand and specify a namespace and a role using the `--role` flag:
 
 ```shell
-pulsar-admin namespaces revoke-permission test-tenant/ns1 \
---role admin10
+pulsar-admin namespaces revoke-permission test-tenant/namespace1 \
+      --role admin10
 ```
 
 </TabItem>

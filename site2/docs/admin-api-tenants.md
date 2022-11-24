@@ -43,6 +43,11 @@ Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin tenants list
+```
+
+Output:
+
+```
 my-tenant-1
 my-tenant-2
 ```
@@ -86,12 +91,14 @@ as a comma-separated list. Here are some examples:
 
 ```shell
 pulsar-admin tenants create my-tenant \
---admin-roles role1,role2,role3 \
---allowed-clusters cluster1
+    --admin-roles role1,role2,role3 \
+    --allowed-clusters cluster1
+```
 
+```shell
 pulsar-admin tenants create my-tenant \
--r role1
--c cluster1
+    -r role1 \
+    -c cluster1
 ```
 
 </TabItem>
@@ -125,6 +132,9 @@ Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the ten
 
 ```shell
 pulsar-admin tenants get my-tenant
+```
+
+```json
 {
   "adminRoles": [
     "admin1",
@@ -200,7 +210,9 @@ You can update a tenant's configuration.
 Use the [`update`](/tools/pulsar-admin/) subcommand.
 
 ```shell
-pulsar-admin tenants update my-tenant
+pulsar-admin tenants update my-tenant \
+    --admin-roles role1,role2 \
+    --allowed-clusters cluster1,cluster2
 ```
 
 </TabItem>

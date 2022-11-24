@@ -16,26 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io.sinks;
+package org.apache.pulsar.client.impl;
 
-import java.util.Optional;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import static org.testng.Assert.assertEquals;
+import java.util.Map;
+import org.testng.annotations.Test;
 
-public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
+public class AuthenticationUtilTest {
 
-    public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
-
-
-    public ElasticSearch7SinkTester(boolean schemaEnable) {
-        super(schemaEnable);
+    @Test
+    public void testConfigureAuthParamString() {
+        Map<String, String> params = AuthenticationUtil.configureFromPulsar1AuthParamString(
+                "key:value,path:C:\\path\\to\\file,null-key:,:null-value,:,key:value-2");
+        assertEquals(params.size(), 3);
+        assertEquals(params.get("key"), "value-2");
+        assertEquals(params.get("path"), "C:\\path\\to\\file");
+        assertEquals(params.get("null-key"), "");
     }
-
-    @Override
-    protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
-        return new ElasticsearchContainer(ELASTICSEARCH_7)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
-    }
-
 }

@@ -16,26 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io.sinks;
+package org.apache.pulsar.utils;
 
-import java.util.Optional;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import com.google.common.io.Resources;
+import java.io.File;
 
-public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
+public class ResourceUtils {
 
-    public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
-
-
-    public ElasticSearch7SinkTester(boolean schemaEnable) {
-        super(schemaEnable);
+    public static String getAbsolutePath(String resourceName) {
+        // On Windows, URL#getPath might return a string that starts with a disk name, e.g. "/C:/"
+        // It's invalid to use this path to open a file, so we need to get the absolute path via File.
+        return new File(Resources.getResource(resourceName).getPath()).getAbsolutePath();
     }
-
-    @Override
-    protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
-        return new ElasticsearchContainer(ELASTICSEARCH_7)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
-    }
-
 }
