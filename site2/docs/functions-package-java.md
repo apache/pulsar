@@ -12,17 +12,9 @@ If you plan to package and distribute your function for others to use, you are o
 license and copyright your own code properly. Remember to add the license and copyright to
 all libraries your code uses and to your distribution.
 
-:::
-
-:::tip
-
 If you use the [NAR](#package-as-nar) method, the NAR plugin
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper
 licensing and copyrights of all libraries of your function.
-
-:::
-
-:::note
 
 For the runtime Java version, refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
 
