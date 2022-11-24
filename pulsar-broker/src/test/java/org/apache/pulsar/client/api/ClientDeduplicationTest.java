@@ -377,10 +377,10 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testUpdateSequenceIdInSyncCodeSe7gment() throws Exception {
+    public void testUpdateSequenceIdInSyncCodeSegment() throws Exception {
         final String topic = "persistent://my-property/my-ns/testUpdateSequenceIdInSyncCodeSegment";
-        int totalMessage = 10;
-        int threadSize = 30;
+        int totalMessage = 200;
+        int threadSize = 5;
         String topicName = "subscription";
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
         conf.setBrokerDeduplicationEnabled(true);
