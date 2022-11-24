@@ -63,7 +63,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -386,7 +385,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 : createConfigurationMetadataStore()).when(pulsar).createConfigurationMetadataStore(any());
 
         Supplier<NamespaceService> namespaceServiceSupplier =
-                () -> spyWithClassAndConstructorArgs(CanPausedNamespaceService.class, pulsar);
+                () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
@@ -700,13 +699,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      */
     public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
                                                 Collection<PulsarService> pulsars) throws Exception {
-        for (PulsarService pulsar : pulsars) {
-            // Prevents new events from triggering system topic creation.
-            if (pulsar.getNamespaceService() instanceof CanPausedNamespaceService canPausedNamespaceService){
-                canPausedNamespaceService.pause();
-            }
-        }
-
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try {
                 // Maybe fail by race-condition with create topics, just retry.
@@ -716,12 +708,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 return false;
             }
         });
-
-        for (PulsarService pulsar : pulsars) {
-            if (pulsar.getNamespaceService() instanceof CanPausedNamespaceService canPausedNamespaceService){
-                canPausedNamespaceService.resume();
-            }
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

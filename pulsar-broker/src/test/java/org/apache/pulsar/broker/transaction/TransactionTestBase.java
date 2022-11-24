@@ -50,7 +50,6 @@ import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -199,7 +198,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore(null);
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore(null);
         Supplier<NamespaceService> namespaceServiceSupplier =
-                () -> spyWithClassAndConstructorArgs(CanPausedNamespaceService.class, pulsar);
+                () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         SameThreadOrderedSafeExecutor executor = new SameThreadOrderedSafeExecutor();
