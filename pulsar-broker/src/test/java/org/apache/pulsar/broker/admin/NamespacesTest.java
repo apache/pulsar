@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
@@ -1492,8 +1493,22 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
         admin.namespaces().setOffloadThresholdInSeconds(namespace, 100);
-        assertEquals(admin.namespaces().getOffloadThreshold(namespace), 100);
-        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), 100);
+
+        assertEqualsWithRetry(() -> {
+            try {
+                return admin.namespaces().getOffloadThreshold(namespace);
+            } catch (PulsarAdminException e) {
+                throw new RuntimeException(e);
+            }
+        }, 100);
+        assertEqualsWithRetry(() -> {
+            try {
+                return admin.namespaces().getOffloadThresholdInSeconds(namespace);
+            } catch (PulsarAdminException e) {
+                throw new RuntimeException(e);
+            }
+        }, 100);
+
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         admin.namespaces().getOffloadPolicies(namespace);
         offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
@@ -2083,5 +2098,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(topic, 5);
         // 4. delete the policies topic and the topic wil not to clear topic polices
         admin.topics().delete(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, true);
+    }
+
+
+    private static void assertEqualsWithRetry(Supplier<Long> actual, long expect) throws Exception {
+        for (int i = 1; i <= 5; i++) {
+            try {
+                Assert.assertEquals(actual.get(), expect);
+            } catch (Exception ex) {
+                if (i == 5) {
+                    throw ex;
+                }
+                Thread.sleep(500);
+            }
+        }
     }
 }
