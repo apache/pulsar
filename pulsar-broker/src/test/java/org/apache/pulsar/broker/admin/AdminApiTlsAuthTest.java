@@ -443,7 +443,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete("tenant1/ns1/foobar", true);
 
             log.info("Deleting namespace");
-            admin.namespaces().deleteNamespace("tenant1/ns1");
+            deleteNamespaceWithRetry("tenant1/ns1", false, admin);
         }
     }
 

@@ -33,13 +33,20 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.TimeoutHandler;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -51,6 +58,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -67,6 +75,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
@@ -496,6 +505,139 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
             admin.namespaces().createNamespace(namespace);
         }
+    }
+
+    protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
+        TestAsyncResponse ctx = new TestAsyncResponse();
+        function.accept(ctx);
+        ctx.latch.await();
+        if (ctx.e != null) {
+            throw (Exception) ctx.e;
+        }
+        return ctx.response;
+    }
+
+    public static class TestAsyncResponse implements AsyncResponse {
+
+        Object response;
+        Throwable e;
+        CountDownLatch latch = new CountDownLatch(1);
+
+        @Override
+        public boolean resume(Object response) {
+            this.response = response;
+            latch.countDown();
+            return true;
+        }
+
+        @Override
+        public boolean resume(Throwable response) {
+            this.e = response;
+            latch.countDown();
+            return true;
+        }
+
+        @Override
+        public boolean cancel() {
+            return false;
+        }
+
+        @Override
+        public boolean cancel(int retryAfter) {
+            return false;
+        }
+
+        @Override
+        public boolean cancel(Date retryAfter) {
+            return false;
+        }
+
+        @Override
+        public boolean isSuspended() {
+            return false;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return false;
+        }
+
+        @Override
+        public boolean isDone() {
+            return false;
+        }
+
+        @Override
+        public boolean setTimeout(long time, TimeUnit unit) {
+            return false;
+        }
+
+        @Override
+        public void setTimeoutHandler(TimeoutHandler handler) {
+
+        }
+
+        @Override
+        public Collection<Class<?>> register(Class<?> callback) {
+            return null;
+        }
+
+        @Override
+        public Map<Class<?>, Collection<Class<?>>> register(Class<?> callback, Class<?>... callbacks) {
+            return null;
+        }
+
+        @Override
+        public Collection<Class<?>> register(Object callback) {
+            return null;
+        }
+
+        @Override
+        public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
+            return null;
+        }
+
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceWithRetry(String ns, boolean force)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     */
+    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
+    }
+
+    /**
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     */
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
+            throws Exception {
+        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+    }
+
+    /**
+     * 1. Pause system "__change_event" topic creates.
+     * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
+     */
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
+                                                Collection<PulsarService> pulsars) throws Exception {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try {
+                // Maybe fail by race-condition with create topics, just retry.
+                admin.namespaces().deleteNamespace(ns, force);
+                return true;
+            } catch (Exception ex) {
+                return false;
+            }
+        });
     }
 
     @DataProvider(name = "invalidPersistentPolicies")

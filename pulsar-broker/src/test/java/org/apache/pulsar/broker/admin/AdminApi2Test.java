@@ -1386,7 +1386,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertTrue(admin.topics().getList(namespace).isEmpty());
 
         // delete namespace
-        admin.namespaces().deleteNamespace(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -1475,7 +1475,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topic);
 
         // delete namespace
-        admin.namespaces().deleteNamespace(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -1572,7 +1572,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         });
         producer.close();
         admin.topics().delete(topic);
-        admin.namespaces().deleteNamespace(namespace);
+        deleteNamespaceWithRetry(namespace, false);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
         });
@@ -1783,7 +1783,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + namespaceName + "/test" + UUID.randomUUID();
         pulsarClient.newProducer(Schema.DOUBLE).topic(topic).create().close();
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.schemas().getSchemaInfo(topic)));
-        admin.namespaces().deleteNamespace(namespaceName, true);
+        deleteNamespaceWithRetry(namespaceName, true);
         try {
             admin.schemas().getSchemaInfo(topic);
         } catch (PulsarAdminException e) {
