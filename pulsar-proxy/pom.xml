@@ -180,11 +180,6 @@
       <artifactId>ipaddress</artifactId>
       <version>${seancfoley.ipaddress.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
   <build>
     <plugins>
