@@ -492,7 +492,7 @@ public abstract class AdminResource extends PulsarWebResource {
                         return pulsar().getBrokerService()
                                 .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
                     } else {
-                        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
+                        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName, true);
                     }
                 });
     }

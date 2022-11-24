@@ -582,7 +582,9 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         ret = CompletableFuture.completedFuture(null);
                     }
-                    return ret.thenApply(__ -> metadata);
+                    return ret.thenApply(__ -> (metadata.partitions < 0)
+                            ? new PartitionedTopicMetadata(0, metadata.properties)
+                            : metadata);
                 });
     }
 
