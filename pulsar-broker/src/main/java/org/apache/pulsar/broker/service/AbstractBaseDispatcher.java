@@ -283,8 +283,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     protected abstract boolean isConsumersExceededOnSubscription();
 
     protected boolean isConsumersExceededOnSubscription(AbstractTopic topic, int consumerSize) {
+        if (topic.isSystemTopic()) {
+            return false;
+        }
         Integer maxConsumersPerSubscription = topic.getHierarchyTopicPolicies().getMaxConsumersPerSubscription().get();
-        return maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerSize;
+        return maxConsumersPerSubscription != null && maxConsumersPerSubscription > 0
+                && maxConsumersPerSubscription <= consumerSize;
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
