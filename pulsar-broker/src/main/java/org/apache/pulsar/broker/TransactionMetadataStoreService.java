@@ -92,9 +92,6 @@ public class TransactionMetadataStoreService {
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
-    private final ThreadFactory threadFactory =
-            new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
-
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
@@ -108,6 +105,8 @@ public class TransactionMetadataStoreService {
         this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
         this.pendingConnectRequests =
                 ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
+        ThreadFactory threadFactory =
+                new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 

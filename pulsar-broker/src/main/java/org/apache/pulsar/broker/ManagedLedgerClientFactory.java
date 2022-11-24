@@ -52,6 +52,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             bkEnsemblePolicyToBkClientMap = new ConcurrentHashMap<>();
     private StatsProvider statsProvider = new NullStatsProvider();
 
+    @SuppressWarnings("unchecked")
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
                            BookKeeperClientFactory bookkeeperProvider,
                            EventLoopGroup eventLoopGroup) throws Exception {
@@ -154,7 +155,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 // factory, however that might be introducing more unknowns.
                 log.warn("Encountered exceptions on closing bookkeeper client", ree);
             }
-            if (bkEnsemblePolicyToBkClientMap != null) {
+            if (!bkEnsemblePolicyToBkClientMap.isEmpty()) {
                 bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
                     try {
                         if (bk != null) {
