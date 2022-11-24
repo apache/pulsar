@@ -34,7 +34,7 @@ import org.apache.bookkeeper.mledger.util.WindowWrap;
 public class OffloadReadHandle implements ReadHandle {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     private static volatile Long flowPermits;
-    private static volatile TimeWindow<AtomicLong> flowPermitsWindow;
+    private static volatile TimeWindow<AtomicLong> window;
 
     private final ReadHandle delegator;
     private final OrderedScheduler scheduler;
@@ -48,8 +48,8 @@ public class OffloadReadHandle implements ReadHandle {
 
     private static void initialize(ManagedLedgerConfig config) {
         if (INITIALIZED.compareAndSet(false, true)) {
-            flowPermits = config.getManagedLedgerOffloadBrokerFlowPermit();
-            flowPermitsWindow = new TimeWindow<>(2, 1000);
+            flowPermits = config.getManagedLedgerOffloadFlowPermitsPerSecond();
+            window = new TimeWindow<>(2, 1000);
         }
     }
 
@@ -134,7 +134,7 @@ public class OffloadReadHandle implements ReadHandle {
             return 0;
         }
 
-        WindowWrap<AtomicLong> wrap = flowPermitsWindow.current(__ -> new AtomicLong(0));
+        WindowWrap<AtomicLong> wrap = window.current(__ -> new AtomicLong(0));
         if (wrap == null) {
             // it should never goes here
             return 0;
@@ -161,7 +161,7 @@ public class OffloadReadHandle implements ReadHandle {
         AtomicLong num = new AtomicLong(0);
         entries.forEach(en -> num.addAndGet(en.getLength()));
 
-        WindowWrap<AtomicLong> wrap = flowPermitsWindow.current(__ -> new AtomicLong(0));
+        WindowWrap<AtomicLong> wrap = window.current(__ -> new AtomicLong(0));
         if (wrap == null) {
             // it should never goes here
             return;

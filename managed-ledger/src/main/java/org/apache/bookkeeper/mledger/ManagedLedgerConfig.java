@@ -85,7 +85,7 @@ public class ManagedLedgerConfig {
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
-    private Long managedLedgerOffloadBrokerFlowPermit;
+    private Long managedLedgerOffloadFlowPermitsPerSecond;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -756,8 +756,8 @@ public class ManagedLedgerConfig {
      *
      * @param managedLedgerOffloadBrokerFlowPermit
      */
-    public void setGlobalOffloadingPermitBytesPerSecond(long managedLedgerOffloadBrokerFlowPermit) {
-        this.managedLedgerOffloadBrokerFlowPermit = managedLedgerOffloadBrokerFlowPermit;
+    public void setManagedLedgerOffloadFlowPermitsPerSecond(long managedLedgerOffloadBrokerFlowPermit) {
+        this.managedLedgerOffloadFlowPermitsPerSecond = managedLedgerOffloadBrokerFlowPermit;
     }
 
     /**
@@ -765,8 +765,8 @@ public class ManagedLedgerConfig {
      *
      * @return
      */
-    public long getManagedLedgerOffloadBrokerFlowPermit() {
-        return managedLedgerOffloadBrokerFlowPermit;
+    public long getManagedLedgerOffloadFlowPermitsPerSecond() {
+        return managedLedgerOffloadFlowPermitsPerSecond;
     }
 
 }

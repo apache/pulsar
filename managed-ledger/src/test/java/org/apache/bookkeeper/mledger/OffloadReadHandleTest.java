@@ -49,7 +49,7 @@ public class OffloadReadHandleTest {
 
         long start = System.currentTimeMillis();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setGlobalOffloadingPermitBytesPerSecond(100L);
+        config.setManagedLedgerOffloadFlowPermitsPerSecond(100L);
 
         CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, config,
                 OrderedScheduler.newSchedulerBuilder().numThreads(2).build());
