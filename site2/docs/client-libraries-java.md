@@ -1129,6 +1129,7 @@ You can use the available parameters in the `loadConf` configuration or related 
 |---|---|---|---|---
 | `topic` | string | yes | The topic name of the TableView. | N/A
 | `autoUpdatePartitionInterval` | int | no | The interval to check for newly added partitions. | 60 (seconds)
+| `subscriptionName` | string | no | The subscription name of the TableView. | null
 
 ### Register listeners
  
