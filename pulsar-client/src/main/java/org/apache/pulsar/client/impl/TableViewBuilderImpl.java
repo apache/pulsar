@@ -75,4 +75,11 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
        conf.setAutoUpdatePartitionsSeconds(unit.toSeconds(interval));
        return this;
     }
+
+    @Override
+    public TableViewBuilder<T> subscriptionName(String subscriptionName) {
+        checkArgument(StringUtils.isNotBlank(subscriptionName), "subscription name cannot be blank");
+        conf.setSubscriptionName(StringUtils.trim(subscriptionName));
+        return this;
+    }
 }

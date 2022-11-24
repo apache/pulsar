@@ -91,4 +91,13 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+
+    /**
+     * Set the subscription name of the {@link TableView}.
+     *
+     * @param subscriptionName the name of the subscription to the topic
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> subscriptionName(String subscriptionName);
 }
