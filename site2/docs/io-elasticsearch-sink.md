@@ -33,17 +33,17 @@ entry.<br /><br />The `DELETE` operation can be performed when the primary key i
 not empty and the remaining value is empty. Use the `nullValueAction` to
 configure this behavior. The default configuration simply ignores such empty
 values.
-		
+
 ### Map multiple indexes
-		
+
 Since Pulsar 2.9.0, the `indexName` property is no more required. If you omit it, the sink writes to an index name after the Pulsar topic name.
-		
+
 ### Enable bulk writes
-		
+
 Since Pulsar 2.9.0, you can use bulk writes by setting the `bulkEnabled` property to `true`.
-		
+
 ### Enable secure connections via TLS
-		
+
 Since Pulsar 2.9.0, you can enable secure connections with TLS.  
 
 ## Configuration
