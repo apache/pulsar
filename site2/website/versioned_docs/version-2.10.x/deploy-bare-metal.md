@@ -271,8 +271,8 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](refer
 
 $ bin/pulsar initialize-cluster-metadata \
   --cluster pulsar-cluster-1 \
-  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
-  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
   --web-service-url http://pulsar.us-west.example.com:8080 \
   --web-service-url-tls https://pulsar.us-west.example.com:8443 \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
@@ -386,8 +386,8 @@ The most important element of broker configuration is ensuring that each broker 
 
 ```properties
 
-metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-configurationMetadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk://zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+configurationMetadataStoreUrl=zk://zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
 ```
 

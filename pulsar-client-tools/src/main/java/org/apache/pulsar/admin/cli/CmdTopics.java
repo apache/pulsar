@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -255,6 +255,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-shadow-topics", new GetShadowTopics());
         jcommander.addCommand("set-shadow-topics", new SetShadowTopics());
         jcommander.addCommand("remove-shadow-topics", new RemoveShadowTopics());
+        jcommander.addCommand("create-shadow-topic", new CreateShadowTopic());
+        jcommander.addCommand("get-shadow-source", new GetShadowSource());
 
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
@@ -1714,6 +1716,38 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Create a shadow topic for an existing source topic.")
+    private class CreateShadowTopic extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--source", "-s"}, description = "source topic name", required = true)
+        private String sourceTopic;
+
+        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(eg: a=a b=b c=c)")
+        private java.util.List<String> propertyList;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> properties = parseListKeyValueMap(propertyList);
+            getTopics().createShadowTopic(topic, TopicName.get(sourceTopic).toString(), properties);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the source topic for a shadow topic")
+    private class GetShadowSource extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String shadowTopic = validatePersistentTopic(params);
+            print(getTopics().getShadowSource(shadowTopic));
+        }
+    }
+
     @Parameters(commandDescription = "Get the delayed delivery policy for a topic")
     private class GetDelayedDelivery extends CliCommand {
         @Parameter(description = "tenant/namespace/topic", required = true)
@@ -2116,6 +2150,10 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload threshold in bytes", required = true)
         private long offloadThresholdInBytes;
 
+        @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
+                , description = "ManagedLedger offload threshold in seconds")
+        private Long offloadThresholdInSeconds;
+
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
         private Long offloadDeletionLagInMillis;
@@ -2152,7 +2190,8 @@ public class CmdTopics extends CmdBase {
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes,
-                    readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+                    readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
+                    offloadDeletionLagInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

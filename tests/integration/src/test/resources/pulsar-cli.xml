@@ -22,6 +22,7 @@
 <suite name="Pulsar CLI Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-cli-test-suite" preserve-order="true" >
         <classes>
+            <class name="org.apache.pulsar.tests.integration.cli.ClientToolTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.ClusterMetadataTearDownTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.CLITest" />
             <class name="org.apache.pulsar.tests.integration.cli.HealthCheckTest" />
@@ -31,6 +32,7 @@
             <class name="org.apache.pulsar.tests.integration.cli.PackagesCliTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.PulsarVersionTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.tenant.TenantTest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.PerfToolTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.topicpolicies.SchemaCompatibilityStrategyTest"/>
         </classes>
     </test>

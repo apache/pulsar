@@ -7,7 +7,7 @@ original_id: io-quickstart
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
-It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
 
 At the end of this tutorial, you will be able to:
 
@@ -17,7 +17,7 @@ At the end of this tutorial, you will be able to:
 
 :::tip
 
-* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone). However all
+* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone.md). However all
 the commands used in this tutorial should be able to be used in a multi-nodes Pulsar cluster without any changes.
 * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
@@ -214,11 +214,11 @@ configs:
 
 ```
 
-To learn more about Cassandra Connector, see [Cassandra Connector](io-cassandra).
+To learn more about Cassandra Connector, see [Cassandra Connector](io-cassandra.md).
 
 ### Submit a Cassandra sink
 
-Pulsar provides the [CLI](reference-cli-tools) for running and managing Pulsar I/O connectors.
+Pulsar provides the [CLI](reference-cli-tools.md) for running and managing Pulsar I/O connectors.
 
 We can run following command to sink a sink connector with type `cassandra` and config file `examples/cassandra-sink.yml`.
 
@@ -582,7 +582,7 @@ Now that we have a MySQL running locally. In this section, we will configure a J
 
 ### Submit a JDBC sink
 
-Pulsar provides the [CLI](admin-api-overview) for running and managing Pulsar I/O connectors.
+Pulsar provides the [CLI](admin-api-overview.md) for running and managing Pulsar I/O connectors.
 
 This example creates a sink connector and specifies the desired information.
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -106,7 +106,7 @@ public class WebSocketService implements Closeable {
 
         if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
-                configMetadataStore = createMetadataStore(config.getConfigurationMetadataStoreUrl(),
+                configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
                         (int) config.getMetadataStoreSessionTimeoutMillis());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
@@ -140,9 +140,9 @@ public class WebSocketService implements Closeable {
         log.info("Pulsar WebSocket Service started");
     }
 
-    public MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs)
             throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(serverUrls, sessionTimeoutMs);
+        return PulsarResources.createConfigMetadataStore(serverUrls, sessionTimeoutMs);
     }
 
     @Override

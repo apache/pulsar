@@ -14,11 +14,11 @@
 
 <!-- Either this PR fixes an issue, -->
 
-Fixes #<xyz>
+Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #<xyz>
+Master Issue: #xyz
 
 ### Motivation
 
@@ -56,6 +56,7 @@ This change added tests and can be verified as follows:
 - [ ] The public API
 - [ ] The schema
 - [ ] The default values of configurations
+- [ ] The threading model
 - [ ] The binary protocol
 - [ ] The REST endpoints
 - [ ] The admin CLI options
@@ -65,14 +66,24 @@ This change added tests and can be verified as follows:
 
 <!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
-- [ ] `doc-required` 
-(Your PR needs to update docs and you will update later)
+- [ ] `doc` <!-- Your PR contains doc changes. Please attach the local preview screenshots (run `sh start.sh` at `pulsar/site2/website`) to your PR description, or else your PR might not get merged. -->
+- [ ] `doc-required` <!-- Your PR changes impact docs and you will update later -->
+- [ ] `doc-not-needed` <!-- Your PR changes do not impact docs -->
+- [ ] `doc-complete` <!-- Docs have been already added -->
 
-- [ ] `doc-not-needed` 
-(Please explain why)
+### Matching PR in forked repository
 
-- [ ] `doc` 
-(Your PR contains doc changes)
+PR in forked repository: <!-- ENTER URL HERE -->
 
-- [ ] `doc-complete`
-(Docs have been already added)
+<!--
+After opening this PR, the build in apache/pulsar will fail and instructions will
+be provided for opening a PR in the PR author's forked repository.
+
+apache/pulsar pull requests should be first tested in your own fork since the 
+apache/pulsar CI based on GitHub Actions has constrained resources and quota.
+GitHub Actions provides separate quota for pull requests that are executed in 
+a forked repository.
+
+The tests will be run in the forked repository until all PR review comments have
+been handled, the tests pass and the PR is approved by a reviewer.
+-->

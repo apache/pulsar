@@ -300,8 +300,11 @@ if [[ -z "$IS_JAVA_8" ]]; then
   # https://github.com/netty/netty/issues/12265
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
   # netty.DnsResolverUtil
-  # JvmDefaultGCMetricsLogger
-  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED"
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED"
+  # JvmDefaultGCMetricsLogger & MBeanStatsGenerator
+  OPTS="$OPTS --add-opens java.management/sun.management=ALL-UNNAMED"
+  # MBeanStatsGenerator
+  OPTS="$OPTS --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
@@ -345,9 +348,13 @@ ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
 
-# Adding pulsar metadata as a recognized provider
-BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
-OPTS="$OPTS $BK_METADATA_OPTIONS"
+# By default, Pulsar Metadata driver will be used for Bookkeeper client and server metadata operations
+# This can be disabled by setting BK_METADATA_OPTIONS=none
+if [[ "$BK_METADATA_OPTIONS" != "none" ]]; then
+  # Adding pulsar metadata as a recognized provider
+  BK_METADATA_OPTIONS="${BK_METADATA_OPTIONS:-"-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"}"
+  OPTS="$OPTS $BK_METADATA_OPTIONS"
+fi
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

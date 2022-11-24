@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,47 +19,49 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker")
 public class PartitionedSystemTopicTest extends BrokerTestBase {
@@ -69,7 +71,6 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
         conf.setAllowAutoTopicCreation(false);
         conf.setAllowAutoTopicCreationType("partitioned");
         conf.setDefaultNumPartitions(PARTITIONS);
@@ -173,15 +174,36 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
         Assert.assertEquals(config.getLedgerOffloader(), ledgerOffloader);
-        admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
-        Awaitility.await().pollDelay(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(persistentTopic.getManagedLedger().getConfig().getLedgerOffloader(),
-                    NullLedgerOffloader.INSTANCE);
+    }
+
+    @Test
+    public void testSystemNamespaceNotCreateChangeEventsTopic() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        Optional<Topic> optionalTopic = pulsar.getBrokerService()
+                .getTopic(topicName.getPartition(1).toString(), false).join();
+        Assert.assertTrue(optionalTopic.isEmpty());
+    }
+
+    @Test
+    public void testHeartbeatTopicNotAllowedToSendEvent() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        for (int partition = 0; partition < PARTITIONS; partition ++) {
+            pulsar.getBrokerService()
+                    .getTopic(topicName.getPartition(partition).toString(), true).join();
+        }
+        Assert.assertThrows(PulsarAdminException.ConflictException.class, () -> {
+            admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
         });
     }
 
     @Test
-    private void testSetBacklogCausedCreatingProducerFailure() throws Exception {
+    public void testSetBacklogCausedCreatingProducerFailure() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/topic-1";
 
@@ -207,7 +229,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
         config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
         persistentTopic.getManagedLedger().setConfig(config);
-        Whitebox.invokeMethod(persistentTopic.getManagedLedger(), "updateLastLedgerCreatedTimeAndScheduleRolloverTask");
+        MethodUtils.invokeMethod(
+                persistentTopic.getManagedLedger(),
+                true,
+                "updateLastLedgerCreatedTimeAndScheduleRolloverTask");
         String msg1 = "msg-1";
         producer.send(msg1);
         Thread.sleep(3 * 1000);
@@ -235,5 +260,38 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         } catch (Exception ex) {
             Assert.fail("failed to create producer");
         }
+    }
+
+    @Test
+    public void testSystemTopicNotCheckExceed() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/topic-1";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+
+        admin.namespaces().setMaxConsumersPerTopic(ns, 1);
+        admin.topicPolicies().setMaxConsumers(topic, 1);
+        NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
+        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
+
+        admin.topicPolicies().setMaxProducers(topic, 1);
+
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
+
+        FutureUtil.waitForAll(List.of(writer1, writer2, f1)).join();
+        Assert.assertTrue(reader1.hasMoreEvents());
+        Assert.assertNotNull(reader1.readNext());
+        Assert.assertTrue(reader2.hasMoreEvents());
+        Assert.assertNotNull(reader2.readNext());
+        reader1.close();
+        reader2.close();
+        writer1.get().close();
+        writer2.get().close();
     }
 }

@@ -26,7 +26,9 @@ The configuration of the Debezium source connector has the following properties.
 | `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: this topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
-| `json-with-envelope` | false | false | Present the message only consist of payload.
+| `json-with-envelope` | false | false | Present the message that only consists of payload. |
+| `database.history.pulsar.reader.config` | false | null | The configs of the reader for the database schema history topic, in the form of a JSON string with key-value pairs. |
+| `offset.storage.reader.config` | false | null | The configs of the reader for the kafka connector offsets topic, in the form of a JSON string with key-value pairs. |
 
 ### Converter Options
 
@@ -50,7 +52,29 @@ Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message consist
 | `mongodb.password` | true | null | Password to be used when connecting to MongoDB. This is required only when MongoDB is configured to use authentication. |
 | `mongodb.task.id` | true | null | The taskId of the MongoDB connector that attempts to use a separate task for each replica set. |
 
+### Customize the Reader config for the metadata topics
 
+The Debezium Connector exposes `database.history.pulsar.reader.config` and `offset.storage.reader.config` to configure the reader of database schema history topic and the Kafka connector offsets topic. For example, it can be used to configure the subscription name and other reader configurations. You can find the available configurations at [ReaderConfigurationData](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ReaderConfigurationData.java).
+
+For example, to configure the subscription name for both Readers, you can add the following configuration:
+* JSON
+
+   ```json
+   {
+     "configs": {
+        "database.history.pulsar.reader.config": "{\"subscriptionName\":\"history-reader\"}",
+        "offset.storage.reader.config": "{\"subscriptionName\":\"offset-reader\"}",
+     }
+   }
+   ```
+
+* YAML
+
+   ```yaml
+   configs:
+      database.history.pulsar.reader.config: "{\"subscriptionName\":\"history-reader\"}"
+      offset.storage.reader.config: "{\"subscriptionName\":\"offset-reader\"}"
+   ```
 
 ## Example of MySQL
 
@@ -585,7 +609,7 @@ For the full list of configuration properties supported by Debezium, see [Debezi
 ### Configuration
 
 Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview) SQL Server with CDC enabled.
-Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
 For more information, see [Enable and disable change data capture in Microsoft SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server).
 
 Similarly to other connectors, you can use JSON or YAML to configure the connector.

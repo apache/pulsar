@@ -127,7 +127,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
 `concurrentLookupRequest`|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
 `maxLookupRequest`|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (60 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 `keepAliveIntervalSeconds`|int|Seconds of keeping alive interval for each client broker connection|30
 `connectionTimeoutMs`|int|Duration of waiting for a connection to a broker to be established <br /><br />If the duration passes without a response from a broker, the connection attempt is dropped|10000
 `requestTimeoutMs`|int|Maximum duration for completing a request |60000
@@ -262,7 +262,6 @@ Mode     | Description
 The following is an example:
 
 ```java
-
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
@@ -272,7 +271,6 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRoutingMode(MessageRoutingMode.SinglePartition)
         .create();
 producer.send("Partitioned topic message".getBytes());
-
 ```
 
 #### Custom message router
@@ -280,29 +278,24 @@ producer.send("Partitioned topic message".getBytes());
 To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
-
 public interface MessageRouter extends Serializable {
     int choosePartition(Message msg);
 }
-
 ```
 
 The following router routes every message to partition 10:
 
 ```java
-
 public class AlwaysTenRouter implements MessageRouter {
     public int choosePartition(Message msg) {
         return 10;
     }
 }
-
 ```
 
 With that implementation, you can send messages to partitioned topics as below.
 
 ```java
-
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
@@ -312,14 +305,12 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
-
 ```
 
 #### How to choose partitions when using a key
 If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.
 
 ```java
-
 // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
@@ -331,7 +322,6 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-
 ```
 
 ### Async send
@@ -387,17 +377,16 @@ To enable chunking, you need to disable batching (`enableBatching`=`false`) conc
 
 ### Intercept messages
 
-`ProducerInterceptor`s intercept and possibly mutate messages received by the producer before they are published to the brokers.
+`ProducerInterceptor` intercepts and possibly mutates messages received by the producer before they are published to the brokers.
 
 The interface has three main events:
 * `eligible` checks if the interceptor can be applied to the message.
 * `beforeSend` is triggered before the producer sends the message to the broker. You can modify messages within this event.
 * `onSendAcknowledgement` is triggered when the message is acknowledged by the broker or the sending failed.
 
-To intercept messages, you can add one or multiple `ProducerInterceptor`s when creating a `Producer` as follows.
+To intercept messages, you can add a `ProducerInterceptor` or multiple ones when creating a `Producer` as follows.
 
 ```java
-
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .intercept(new ProducerInterceptor {
@@ -417,12 +406,11 @@ Producer<byte[]> producer = client.newProducer()
 			}
         })
         .create();
-
 ```
 
 :::note
 
-If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+Multiple interceptors apply in the order they are passed to the `intercept` method.
 
 :::
 
@@ -1158,7 +1146,7 @@ tv.forEach((key, value) -> /*operations on all existing messages*/)
 
 ## Schema
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-overview.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
 
 ```java
 Producer<byte[]> producer = client.newProducer()
@@ -1166,184 +1154,23 @@ Producer<byte[]> producer = client.newProducer()
         .create();
 ```
 
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you need to specify a **schema** that informs Pulsar which data type will be transmitted over the topic. For more examples, see [Schema - Get started](schema-get-started.md).
 
-### AvroBaseStructSchema example
-
-Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
-
-```java
-public class SensorReading {
-    public float temperature;
-
-    public SensorReading(float temperature) {
-        this.temperature = temperature;
-    }
-
-    // A no-arg constructor is required
-    public SensorReading() {
-    }
-
-    public float getTemperature() {
-        return temperature;
-    }
-
-    public void setTemperature(float temperature) {
-        this.temperature = temperature;
-    }
-}
-```
-
-You could then create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like this:
-
-```java
-Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
-        .topic("sensor-readings")
-        .create();
-```
-
-The following schema formats are currently available for Java:
-
-* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
-
-  ```java
-  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
-      .topic("some-raw-bytes-topic")
-      .create();
-  ```
-
-  Or, equivalently:
-
-  ```java
-  Producer<byte[]> bytesProducer = client.newProducer()
-      .topic("some-raw-bytes-topic")
-      .create();
-  ```
-
-* `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
-
-  ```java
-  Producer<String> stringProducer = client.newProducer(Schema.STRING)
-      .topic("some-string-topic")
-      .create();
-  ```
-
-* Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
-
-  ```java
-  Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
-      .topic("some-pojo-topic")
-      .create();
-  ```
-
-* Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
-
-  ```java
-  Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
-      .topic("some-protobuf-topic")
-      .create();
-  ```
-
-* Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
-
-  ```java
-  Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
-      .topic("some-avro-topic")
-      .create();
-  ```
-
-### ProtobufNativeSchema example
-
-For examples of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](schema-understand.md#complex-type).
 
 ## Authentication
 
-Pulsar currently supports three authentication schemes: [TLS](security-tls-authentication.md), [Athenz](security-athenz.md), and [Oauth2](security-oauth2.md). You can use the Pulsar Java client with all of them.
+Pulsar Java clients currently support the following authentication mechansims:
+* [TLS](security-tls-authentication.md#configure-tls-authentication-in-pulsar-clients)
+* [JWT](security-jwt.md#configure-jwt-authentication-in-pulsar-clients)
+* [Athenz](security-athenz.md#configure-athenz-authentication-in-pulsar-clients)
+* [Kerberos](security-kerberos.md#configure-kerberos-authentication-in-pulsar-clients)
+* [OAuth2](security-oauth2.md#configure-oauth2-authentication-in-pulsar-clients)
+* [HTTP basic](security-basic-auth.md#configure-basic-authentication-in-pulsar-clients)
 
-### TLS Authentication
-
-To use [TLS](security-tls-authentication.md), `enableTls` method is deprecated and you need to use "pulsar+ssl://" in serviceUrl to enable, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
-
-The following is an example.
-
-```java
-Map<String, String> authParams = new HashMap();
-authParams.put("tlsCertFile", "/path/to/client-cert.pem");
-authParams.put("tlsKeyFile", "/path/to/client-key.pem");
-
-Authentication tlsAuth = AuthenticationFactory
-        .create(AuthenticationTls.class.getName(), authParams);
-
-PulsarClient client = PulsarClient.builder()
-        .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .tlsTrustCertsFilePath("/path/to/cacert.pem")
-        .authentication(tlsAuth)
-        .build();
-```
-
-### Athenz
-
-To use [Athenz](security-athenz.md) as an authentication provider, you need to [use TLS](#tls-authentication.md) and provide values for four parameters in a hash:
-
-* `tenantDomain`
-* `tenantService`
-* `providerDomain`
-* `privateKey`
-
-You can also set an optional `keyId`. The following is an example.
-
-```java
-Map<String, String> authParams = new HashMap();
-authParams.put("tenantDomain", "shopping"); // Tenant domain name
-authParams.put("tenantService", "some_app"); // Tenant service name
-authParams.put("providerDomain", "pulsar"); // Provider domain name
-authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
-authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
-
-Authentication athenzAuth = AuthenticationFactory
-        .create(AuthenticationAthenz.class.getName(), authParams);
-
-PulsarClient client = PulsarClient.builder()
-        .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .tlsTrustCertsFilePath("/path/to/cacert.pem")
-        .authentication(athenzAuth)
-        .build();
-```
-
-#### Supported pattern formats
-The `privateKey` parameter supports the following three pattern formats:
-* `file:///path/to/file`
-* `file:/path/to/file`
-* `data:application/x-pem-file;base64,<base64-encoded value>`
-
-### Oauth2
-
-The following example shows how to use [Oauth2](security-oauth2.md) as an authentication provider for the Pulsar Java client.
-
-You can use the factory method to configure authentication for Pulsar Java client.
-
-```java
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(
-        AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
-    .build();
-```
-
-In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
-
-```java
-Authentication auth = AuthenticationFactory
-    .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"...","issuerUrl":"...","audience":"..."}");
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(auth)
-    .build();
-```
 
 ## Cluster-level failover
 
-For more concepts and reference information about cluster-level failover, including concept, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
+For more concepts and reference information about cluster-level failover, including concepts, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
 
 :::tip
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,6 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoor
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -108,6 +106,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -131,6 +130,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
@@ -251,7 +251,7 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                 }
 
-                Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
+                Map<String, Set<AuthAction>> permissions = new HashMap<>();
                 String topicUri = topicName.toString();
                 AuthPolicies auth = policies.get().auth_policies;
                 // First add namespace level permissions
@@ -621,7 +621,7 @@ public class PersistentTopicsBase extends AdminResource {
             return CompletableFuture.completedFuture(null);
         }
         return validateTopicOwnershipAsync(topicName, authoritative)
-            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PRODUCE))
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.UPDATE_METADATA))
             .thenCompose(__ -> {
                 if (topicName.isPartitioned()) {
                     return internalUpdateNonPartitionedTopicProperties(properties);
@@ -747,8 +747,9 @@ public class PersistentTopicsBase extends AdminResource {
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
-                ).thenCompose(__ -> namespaceResources()
-                                .getPartitionedTopicResources().deletePartitionedTopicAsync(topicName))
+                ).thenCompose(__ -> getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .runWithMarkDeleteAsync(topicName, () -> namespaceResources()
+                                .getPartitionedTopicResources().deletePartitionedTopicAsync(topicName)))
                 .thenAccept(__ -> {
                     log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                     asyncResponse.resume(Response.noContent().build());
@@ -782,6 +783,13 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalRemovePartitionsTopicAsync(int numPartitions, boolean force) {
+        return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .runWithMarkDeleteAsync(topicName,
+                    () -> internalRemovePartitionsTopicNoAutocreationDisableAsync(numPartitions, force));
+    }
+
+    private CompletableFuture<Void> internalRemovePartitionsTopicNoAutocreationDisableAsync(int numPartitions,
+                                                                                            boolean force) {
         return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
                 .mapToObj(i -> {
                     TopicName topicNamePartition = topicName.getPartition(i);
@@ -871,8 +879,7 @@ public class PersistentTopicsBase extends AdminResource {
                getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                        .thenAccept(meta -> {
                            if (meta.partitions > 0) {
-                               final List<CompletableFuture<Void>> futures =
-                                       Lists.newArrayListWithCapacity(meta.partitions);
+                               final List<CompletableFuture<Void>> futures = new ArrayList<>(meta.partitions);
                                for (int i = 0; i < meta.partitions; i++) {
                                    TopicName topicNamePartition = topicName.getPartition(i);
                                    try {
@@ -1145,7 +1152,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     final Set<String> subscriptions =
                                             Collections.newSetFromMap(
                                                     new ConcurrentHashMap<>(partitionMetadata.partitions));
-                                    final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
+                                    final List<CompletableFuture<Object>> subscriptionFutures = new ArrayList<>();
                                     if (topicName.getDomain() == TopicDomain.persistent) {
                                         final Map<Integer, CompletableFuture<Boolean>> existsFutures =
                                                 new ConcurrentHashMap<>(partitionMetadata.partitions);
@@ -1153,7 +1160,7 @@ public class PersistentTopicsBase extends AdminResource {
                                             existsFutures.put(i,
                                                     topicResources().persistentTopicExists(topicName.getPartition(i)));
                                         }
-                                        FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values()))
+                                        FutureUtil.waitForAll(new ArrayList<>(existsFutures.values()))
                                                 .thenApply(unused2 ->
                                                 existsFutures.entrySet().stream().filter(e -> e.getValue().join())
                                                         .map(item -> topicName.getPartition(item.getKey()).toString())
@@ -1243,7 +1250,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse) {
         getTopicReferenceAsync(topicName)
-                .thenAccept(topic -> asyncResponse.resume(Lists.newArrayList(topic.getSubscriptions().keys())))
+                .thenAccept(topic -> asyncResponse.resume(new ArrayList<>(topic.getSubscriptions().keys())))
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
@@ -1309,7 +1316,7 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
                         final List<CompletableFuture<String>> futures =
-                                Lists.newArrayListWithCapacity(partitionMetadata.partitions);
+                                new ArrayList<>(partitionMetadata.partitions);
                         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -1509,7 +1516,7 @@ public class PersistentTopicsBase extends AdminResource {
 
             PartitionedTopicInternalStats stats = new PartitionedTopicInternalStats(partitionMetadata);
 
-            List<CompletableFuture<PersistentTopicInternalStats>> topicStatsFutureList = Lists.newArrayList();
+            List<CompletableFuture<PersistentTopicInternalStats>> topicStatsFutureList = new ArrayList<>();
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 try {
                     topicStatsFutureList.add(pulsar().getAdminClient().topics()
@@ -1571,7 +1578,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenAcceptAsync(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
-                        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                        final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -1792,7 +1799,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
-                        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                        final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -1890,12 +1897,12 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(__ -> {
                 // If the topic name is a partition name, no need to get partition topic metadata again
                 if (topicName.isPartitioned()) {
-                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName, authoritative);
+                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                 } else {
                     return getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenCompose(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
-                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                            final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 TopicName topicNamePartition = topicName.getPartition(i);
@@ -1931,8 +1938,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                         } else {
-                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName,
-                                authoritative);
+                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                         }
                     });
                 }
@@ -1948,8 +1954,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalSkipAllMessagesForNonPartitionedTopicAsync(AsyncResponse asyncResponse,
-                                                                                       String subName,
-                                                                                       boolean authoritative) {
+                                                                                       String subName) {
         return getTopicReferenceAsync(topicName).thenCompose(t -> {
                     PersistentTopic topic = (PersistentTopic) t;
                     BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
@@ -2072,8 +2077,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 partitionMetadata, expireTimeInSeconds, authoritative);
                     } else {
                         if (partitionMetadata.partitions > 0) {
-                            final List<CompletableFuture<Void>> futures =
-                                    Lists.newArrayListWithCapacity(partitionMetadata.partitions);
+                            final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
 
                             // expire messages for each partition topic
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
@@ -2145,9 +2149,9 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     PersistentTopic topic = (PersistentTopic) t;
                     final List<CompletableFuture<Void>> futures =
-                            Lists.newArrayListWithCapacity((int) topic.getReplicators().size());
+                            new ArrayList<>((int) topic.getReplicators().size());
                     List<String> subNames =
-                            Lists.newArrayListWithCapacity((int) topic.getReplicators().size()
+                            new ArrayList<>((int) topic.getReplicators().size()
                                     + (int) topic.getSubscriptions().size());
                     subNames.addAll(topic.getReplicators().keys());
                     subNames.addAll(topic.getSubscriptions().keys());
@@ -2308,79 +2312,81 @@ public class PersistentTopicsBase extends AdminResource {
                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
                         subscriptionName, targetMessageId, authoritative, replicated, properties);
             } else {
-                boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
-                getPartitionedTopicMetadataAsync(topicName,
-                        authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
-                    final int numPartitions = partitionMetadata.partitions;
-                    if (numPartitions > 0) {
-                        final CompletableFuture<Void> future = new CompletableFuture<>();
-                        final AtomicInteger count = new AtomicInteger(numPartitions);
-                        final AtomicInteger failureCount = new AtomicInteger(0);
-                        final AtomicReference<Throwable> partitionException = new AtomicReference<>();
+                pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
+                        .thenCompose(allowAutoTopicCreation -> getPartitionedTopicMetadataAsync(topicName,
+                                authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
+                            final int numPartitions = partitionMetadata.partitions;
+                            if (numPartitions > 0) {
+                                final CompletableFuture<Void> future = new CompletableFuture<>();
+                                final AtomicInteger count = new AtomicInteger(numPartitions);
+                                final AtomicInteger failureCount = new AtomicInteger(0);
+                                final AtomicReference<Throwable> partitionException = new AtomicReference<>();
 
-                        // Create the subscription on each partition
-                        for (int i = 0; i < numPartitions; i++) {
-                            TopicName topicNamePartition = topicName.getPartition(i);
-                            try {
-                                pulsar().getAdminClient().topics()
-                                        .createSubscriptionAsync(topicNamePartition.toString(),
-                                                subscriptionName, targetMessageId, false, properties)
-                                        .handle((r, ex) -> {
-                                            if (ex != null) {
-                                                // fail the operation on unknown exception or
-                                                // if all the partitioned failed due to
-                                                // subscription-already-exist
-                                                if (failureCount.incrementAndGet() == numPartitions
-                                                        || !(ex instanceof PulsarAdminException.ConflictException)) {
-                                                    partitionException.set(ex);
-                                                }
-                                            }
+                                // Create the subscription on each partition
+                                for (int i = 0; i < numPartitions; i++) {
+                                    TopicName topicNamePartition = topicName.getPartition(i);
+                                    try {
+                                        pulsar().getAdminClient().topics()
+                                                .createSubscriptionAsync(topicNamePartition.toString(),
+                                                        subscriptionName, targetMessageId, false, properties)
+                                                .handle((r, ex) -> {
+                                                    if (ex != null) {
+                                                        // fail the operation on unknown exception or
+                                                        // if all the partitioned failed due to
+                                                        // subscription-already-exist
+                                                        if (failureCount.incrementAndGet() == numPartitions
+                                                                || !(ex instanceof PulsarAdminException
+                                                                        .ConflictException)) {
+                                                            partitionException.set(ex);
+                                                        }
+                                                    }
 
-                                            if (count.decrementAndGet() == 0) {
-                                                future.complete(null);
-                                            }
+                                                    if (count.decrementAndGet() == 0) {
+                                                        future.complete(null);
+                                                    }
 
-                                            return null;
-                                        });
-                            } catch (Exception e) {
-                                log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(),
-                                        topicNamePartition, subscriptionName, targetMessageId, e);
-                                future.completeExceptionally(e);
-                            }
-                        }
-
-                        future.whenComplete((r, ex) -> {
-                            if (ex != null) {
-                                if (ex instanceof PulsarAdminException) {
-                                    asyncResponse.resume(new RestException((PulsarAdminException) ex));
-                                    return;
-                                } else {
-                                    asyncResponse.resume(new RestException(ex));
-                                    return;
+                                                    return null;
+                                                });
+                                    } catch (Exception e) {
+                                        log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
+                                              clientAppId(), topicNamePartition, subscriptionName, targetMessageId, e);
+                                        future.completeExceptionally(e);
+                                    }
                                 }
+
+                                future.whenComplete((r, ex) -> {
+                                    if (ex != null) {
+                                        if (ex instanceof PulsarAdminException) {
+                                            asyncResponse.resume(new RestException((PulsarAdminException) ex));
+                                            return;
+                                        } else {
+                                            asyncResponse.resume(new RestException(ex));
+                                            return;
+                                        }
+                                    }
+
+                                    if (partitionException.get() != null) {
+                                        log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
+                                                clientAppId(), topicName,
+                                                subscriptionName, targetMessageId, partitionException.get());
+                                        if (partitionException.get() instanceof PulsarAdminException) {
+                                            asyncResponse.resume(
+                                                    new RestException((PulsarAdminException) partitionException.get()));
+                                            return;
+                                        } else {
+                                            asyncResponse.resume(new RestException(partitionException.get()));
+                                            return;
+                                        }
+                                    }
+
+                                    asyncResponse.resume(Response.noContent().build());
+                                });
+                            } else {
+                                internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
+                                        subscriptionName, targetMessageId, authoritative, replicated, properties);
                             }
 
-                            if (partitionException.get() != null) {
-                                log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
-                                        clientAppId(), topicName,
-                                        subscriptionName, targetMessageId, partitionException.get());
-                                if (partitionException.get() instanceof PulsarAdminException) {
-                                    asyncResponse.resume(
-                                            new RestException((PulsarAdminException) partitionException.get()));
-                                    return;
-                                } else {
-                                    asyncResponse.resume(new RestException(partitionException.get()));
-                                    return;
-                                }
-                            }
-
-                            asyncResponse.resume(Response.noContent().build());
-                        });
-                    } else {
-                        internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
-                                subscriptionName, targetMessageId, authoritative, replicated, properties);
-                    }
-                }).exceptionally(ex -> {
+                        })).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to create subscription {} on topic {}",
@@ -2406,12 +2412,12 @@ public class PersistentTopicsBase extends AdminResource {
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated,
             Map<String, String> properties) {
 
-        boolean isAllowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
-
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> {
                     validateTopicOperation(topicName, TopicOperation.SUBSCRIBE, subscriptionName);
-                    return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
+                    return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
+                            .thenCompose(isAllowAutoTopicCreation -> pulsar().getBrokerService()
+                                    .getTopic(topicName.toString(), isAllowAutoTopicCreation));
                 }).thenApply(optTopic -> {
             if (optTopic.isPresent()) {
                 return optTopic.get();
@@ -2472,7 +2478,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenAcceptAsync(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
-                        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                        final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -2590,7 +2596,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenAcceptAsync(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
-                        final List<CompletableFuture<Map<String, String>>> futures = Lists.newArrayList();
+                        final List<CompletableFuture<Map<String, String>>> futures = new ArrayList<>();
 
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -3242,10 +3248,10 @@ public class PersistentTopicsBase extends AdminResource {
                 Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = op
                         .map(TopicPolicies::getBackLogQuotaMap)
                         .map(map -> {
-                            HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
+                            HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = new HashMap<>();
                             map.forEach((key, value) -> hashMap.put(BacklogQuota.BacklogQuotaType.valueOf(key), value));
                             return hashMap;
-                        }).orElse(Maps.newHashMap());
+                        }).orElse(new HashMap<>());
                 if (applied && quotaMap.isEmpty()) {
                     quotaMap = getNamespacePolicies(namespaceName).backlog_quota_map;
                     if (quotaMap.isEmpty()) {
@@ -3804,7 +3810,7 @@ public class PersistentTopicsBase extends AdminResource {
                     if (partitionMetadata.partitions > 0) {
                         Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>(partitionMetadata.partitions);
                         final List<CompletableFuture<MessageId>> futures =
-                                Lists.newArrayListWithCapacity(partitionMetadata.partitions);
+                                new ArrayList<>(partitionMetadata.partitions);
 
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -3882,7 +3888,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     } else {
                                         if (partitionMetadata.partitions > 0) {
                                             return CompletableFuture.completedFuture(null).thenAccept(unused -> {
-                                                final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                                                final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                                                 // expire messages for each partition topic
                                                 for (int i = 0; i < partitionMetadata.partitions; i++) {
@@ -4148,7 +4154,7 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenAccept(partitionMetadata -> {
                     final int numPartitions = partitionMetadata.partitions;
                     if (numPartitions > 0) {
-                        final List<CompletableFuture<Void>> futures = Lists.newArrayListWithCapacity(numPartitions);
+                        final List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
 
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -4528,7 +4534,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
 
                 FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
-                    log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
+                    log.info("[{}] Successfully created subscriptions on new partitions {}", clientAppId(), topicName);
                     result.complete(null);
                 }).exceptionally(ex -> {
                     log.warn("[{}] Failed to create subscriptions on new partitions for {}",
@@ -4958,7 +4964,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetSubscriptionTypesEnabled(
             Set<SubscriptionType> subscriptionTypesEnabled, boolean isGlobal) {
-        List<SubType> subTypes = Lists.newArrayList();
+        List<SubType> subTypes = new ArrayList<>();
         subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
@@ -4975,7 +4981,7 @@ public class PersistentTopicsBase extends AdminResource {
                     if (!op.isPresent()) {
                         return CompletableFuture.completedFuture(null);
                     }
-                    op.get().setSubscriptionTypesEnabled(Lists.newArrayList());
+                    op.get().setSubscriptionTypesEnabled(new ArrayList<>());
                     op.get().setIsGlobal(isGlobal);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
                 });
@@ -5114,7 +5120,7 @@ public class PersistentTopicsBase extends AdminResource {
                     thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
-                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                            final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 TopicName topicNamePartition = topicName.getPartition(i);
@@ -5252,7 +5258,7 @@ public class PersistentTopicsBase extends AdminResource {
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
                             List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
-                            Map<String, Boolean> status = Maps.newHashMap();
+                            Map<String, Boolean> status = new HashMap<>();
 
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 TopicName partition = topicName.getPartition(i);
@@ -5510,5 +5516,31 @@ public class PersistentTopicsBase extends AdminResource {
                     return pulsar().getTopicPoliciesService().
                             updateTopicPoliciesAsync(topicName, topicPolicies);
                 });
+    }
+
+    protected CompletableFuture<Void> internalSetAutoSubscriptionCreation(
+            AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setAutoSubscriptionCreationOverride(autoSubscriptionCreationOverride);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<AutoSubscriptionCreationOverride> internalGetAutoSubscriptionCreation(boolean applied,
+                                                                                                    boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.map(TopicPolicies::getAutoSubscriptionCreationOverride)
+                        .orElseGet(() -> {
+                            if (applied) {
+                                AutoSubscriptionCreationOverride namespacePolicy = getNamespacePolicies(namespaceName)
+                                        .autoSubscriptionCreationOverride;
+                                return namespacePolicy == null ? autoSubscriptionCreationOverride()
+                                        : (AutoSubscriptionCreationOverrideImpl) namespacePolicy;
+                            }
+                            return null;
+                        }));
     }
 }

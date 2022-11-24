@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,7 @@ import org.apache.pulsar.admin.cli.utils.CustomCommandFactoryProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+import org.apache.pulsar.common.util.ShutdownUtil;
 
 public class PulsarAdminTool {
 
@@ -305,7 +306,7 @@ public class PulsarAdminTool {
         if (allowSystemExit) {
             // we are using halt and not System.exit, we do not mind about shutdown hooks
             // they are only slowing down the tool
-            Runtime.getRuntime().halt(code);
+            ShutdownUtil.triggerImmediateForcefulShutdown(code);
         } else {
             System.out.println("Exit code is " + code + " (System.exit not called, as we are in test mode)");
         }

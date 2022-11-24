@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -459,7 +459,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete("tenant1/ns1/foobar", true);
 
             log.info("Deleting namespace");
-            admin.namespaces().deleteNamespace("tenant1/ns1");
+            deleteNamespaceWithRetry("tenant1/ns1", false, admin);
         }
     }
 
@@ -480,7 +480,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                     .allowTlsInsecureConnection(false)
                     .enableTlsHostnameVerification(false)
                     .serviceHttpUrl(brokerUrlTls.toString())
-                    .autoCertRefreshTime(1, TimeUnit.SECONDS)
+                    .autoCertRefreshTime(autoCertRefreshTimeSec, TimeUnit.SECONDS)
                     .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                                     String.format("tlsCertFile:%s,tlsKeyFile:%s",
                                                   getTLSFile(adminUser + ".cert"), keyFile))

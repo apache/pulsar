@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin.impl;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +39,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -48,6 +48,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -68,6 +69,33 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore
 
 @Slf4j
 public abstract class TransactionsBase extends AdminResource {
+
+    protected void internalListCoordinators(AsyncResponse asyncResponse) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException ex) {
+            asyncResponse.resume(new RestException(ex));
+            return;
+        }
+        Map<Integer, TransactionCoordinatorInfo> result = new HashMap<>();
+        admin.lookups()
+                .lookupPartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName())
+                .thenAccept(map -> {
+                    map.forEach((topicPartition, brokerServiceUrl) -> {
+                        final int coordinatorId = TopicName.getPartitionIndex(topicPartition);
+                        result.put(coordinatorId, new TransactionCoordinatorInfo(coordinatorId, brokerServiceUrl));
+                    });
+
+                    asyncResponse.resume(result.values());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to list transaction coordinators: {}",
+                            clientAppId(), ex.getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
 
     protected void internalGetCoordinatorStats(AsyncResponse asyncResponse, boolean authoritative,
                                                Integer coordinatorId) {
@@ -92,7 +120,7 @@ public abstract class TransactionsBase extends AdminResource {
                     return;
                 }
                 List<CompletableFuture<TransactionCoordinatorStats>> transactionMetadataStoreInfoFutures =
-                        Lists.newArrayList();
+                        new ArrayList<>();
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                     try {
                         transactionMetadataStoreInfoFutures
@@ -309,7 +337,7 @@ public abstract class TransactionsBase extends AdminResource {
                         return;
                     }
                     List<CompletableFuture<Map<String, TransactionMetadata>>> completableFutures =
-                            Lists.newArrayList();
+                            new ArrayList<>();
                     for (int i = 0; i < partitionMetadata.partitions; i++) {
                         try {
                             completableFutures

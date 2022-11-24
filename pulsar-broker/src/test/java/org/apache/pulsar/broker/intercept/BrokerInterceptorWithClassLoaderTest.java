@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,6 +67,12 @@ public class BrokerInterceptorWithClassLoaderTest {
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
             public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
+                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+            }
+
+            @Override
+            public void beforeSendMessage(Subscription subscription,
+                                          Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
             @Override
@@ -177,6 +183,8 @@ public class BrokerInterceptorWithClassLoaderTest {
         // test beforeSendMessage
         brokerInterceptorWithClassLoader
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
+        brokerInterceptorWithClassLoader
+                .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null, null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test close
         brokerInterceptorWithClassLoader.close();

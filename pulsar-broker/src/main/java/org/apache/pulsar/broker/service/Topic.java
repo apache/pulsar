@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.Optional;
@@ -101,6 +100,10 @@ public interface Topic {
             return  1L;
         }
 
+        default long getMsgSize() {
+            return  -1L;
+        }
+
         default boolean isMarkerMessage() {
             return false;
         }
@@ -114,6 +117,14 @@ public interface Topic {
 
         default boolean isChunked() {
             return false;
+        }
+
+        default long getEntryTimestamp() {
+            return -1L;
+        }
+
+        default void setEntryTimestamp(long entryTimestamp) {
+
         }
     }
 
@@ -186,6 +197,8 @@ public interface Topic {
 
     void checkGC();
 
+    CompletableFuture<Void> checkClusterMigration();
+
     void checkInactiveSubscriptions();
 
     /**
@@ -234,9 +247,11 @@ public interface Topic {
 
     boolean isReplicated();
 
+    boolean isShadowReplicated();
+
     EntryFilters getEntryFiltersPolicy();
 
-    ImmutableMap<String, EntryFilterWithClassLoader> getEntryFilters();
+    Map<String, EntryFilterWithClassLoader> getEntryFilters();
 
     BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
@@ -247,6 +262,8 @@ public interface Topic {
     Subscription getSubscription(String subscription);
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+
+    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);

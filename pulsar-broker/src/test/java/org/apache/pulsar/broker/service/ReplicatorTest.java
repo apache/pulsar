@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
@@ -51,7 +52,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -75,6 +75,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
@@ -107,7 +108,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
 /**
  * Starts 3 brokers that are in 3 different clusters
@@ -148,7 +148,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // This test is to verify that the config change on global namespace is successfully applied in broker during
         // runtime.
         // Run a set of producer tasks to create the topics
-        List<Future<Void>> results = Lists.newArrayList();
+        List<Future<Void>> results = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             final TopicName dest = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i));
 
@@ -526,7 +526,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(consumer3.drained());
 
             // Produce a message not replicated to r2
-            producer1.produce(1, producer1.newMessage().replicationClusters(Lists.newArrayList("r1", "r3")));
+            producer1.produce(1, producer1.newMessage().replicationClusters(List.of("r1", "r3")));
             consumer1.receive(1);
             assertTrue(consumer2.drained());
             consumer3.receive(1);
@@ -823,7 +823,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Test(timeOut = 60000, priority = -1)
     public void testResumptionAfterBacklogRelaxed() throws Exception {
-        List<RetentionPolicy> policies = Lists.newArrayList();
+        List<RetentionPolicy> policies = new ArrayList<>();
         policies.add(RetentionPolicy.producer_exception);
         policies.add(RetentionPolicy.producer_request_hold);
 
@@ -1098,7 +1098,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         byte[] value = "test".getBytes();
 
         // publish message local only
-        TypedMessageBuilder<byte[]> msg = producer1.newMessage().replicationClusters(Lists.newArrayList("r1")).value(value);
+        TypedMessageBuilder<byte[]> msg = producer1.newMessage().replicationClusters(List.of("r1")).value(value);
         msg.send();
         assertEquals(consumer1.receive().getValue(), value);
 
@@ -1498,12 +1498,44 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(topic.getReplicators().containsKey("r2"));
         });
 
-        admin1.topics().setReplicationClusters(dest.toString(), Lists.newArrayList("r1"));
+        admin1.topics().setReplicationClusters(dest.toString(), List.of("r1"));
 
         Awaitility.await().untilAsserted(() -> {
             Set<String> replicationClusters = admin1.topics().getReplicationClusters(dest.toString(), false);
             assertTrue(replicationClusters != null && replicationClusters.size() == 1);
             assertTrue(topic.getReplicators().isEmpty());
         });
+    }
+
+    @Test
+    public void testReplicatorProducerNotExceed() throws Exception {
+        log.info("--- testReplicatorProducerNotExceed ---");
+        String namespace1 = "pulsar/ns11";
+        admin1.namespaces().createNamespace(namespace1);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1", "r2"));
+        final TopicName dest1 = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace1 + "/testReplicatorProducerNotExceed1"));
+        String namespace2 = "pulsar/ns22";
+        admin2.namespaces().createNamespace(namespace2);
+        admin2.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r1", "r2"));
+        final TopicName dest2 = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace1 + "/testReplicatorProducerNotExceed2"));
+        admin1.topics().createPartitionedTopic(dest1.toString(), 1);
+        admin1.topicPolicies().setMaxProducers(dest1.toString(), 1);
+        admin2.topics().createPartitionedTopic(dest2.toString(), 1);
+        admin2.topicPolicies().setMaxProducers(dest2.toString(), 1);
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest1);
+        log.info("--- Starting producer1 --- " + url1);
+
+        producer1.produce(1);
+
+        @Cleanup
+        MessageProducer producer2 = new MessageProducer(url2, dest2);
+        log.info("--- Starting producer2 --- " + url2);
+
+        producer2.produce(1);
+
+        Assert.assertThrows(PulsarClientException.ProducerBusyException.class, () -> new MessageProducer(url2, dest2));
     }
 }

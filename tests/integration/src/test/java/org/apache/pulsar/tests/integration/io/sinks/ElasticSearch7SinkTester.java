@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import java.util.Optional;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
+
+    public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
+
 
     public ElasticSearch7SinkTester(boolean schemaEnable) {
         super(schemaEnable);
@@ -29,7 +34,7 @@ public class ElasticSearch7SinkTester extends ElasticSearchSinkTester {
 
     @Override
     protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
-        return new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64")
+        return new ElasticsearchContainer(ELASTICSEARCH_7)
                 .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
     }
 

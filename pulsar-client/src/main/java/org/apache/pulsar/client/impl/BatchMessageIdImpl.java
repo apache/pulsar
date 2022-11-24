@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -145,6 +145,12 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     public MessageIdImpl prevBatchMessageId() {
         return new MessageIdImpl(
             ledgerId, entryId - 1, partitionIndex);
+    }
+
+    // MessageIdImpl is widely used as the key of a hash map, in this case, we should convert the batch message id to
+    // have the correct hash code.
+    public MessageIdImpl toMessageIdImpl() {
+        return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 
     public BatchMessageAcker getAcker() {

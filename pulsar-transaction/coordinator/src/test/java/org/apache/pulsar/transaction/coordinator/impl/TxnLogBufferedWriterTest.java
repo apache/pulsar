@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,6 +61,7 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.*;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -189,10 +191,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter txnLogBufferedWriter =  new TxnLogBufferedWriter<Integer>(
                     managedLedger, orderedExecutor, transactionTimer,
                     dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
-                    batchedWriteMaxDelayInMillis, batchEnabled);
+                    batchedWriteMaxDelayInMillis, batchEnabled, DISABLED_BUFFERED_WRITER_METRICS);
         // Store the param-context, param-position, param-exception of callback function and complete-count for verify.
         List<Integer> contextArrayOfCallback = Collections.synchronizedList(new ArrayList<>());
-        List<ManagedLedgerException> exceptionArrayOfCallback = Collections.synchronizedList(new ArrayList<>());
+        Map<Integer, ManagedLedgerException> exceptionArrayOfCallback = new ConcurrentHashMap<>();
         Map<PositionImpl, List<Position>> positionsOfCallback = Collections.synchronizedMap(new LinkedHashMap<>());
         AtomicBoolean anyFlushCompleted = new AtomicBoolean();
         TxnLogBufferedWriter.AddDataCallback callback = new TxnLogBufferedWriter.AddDataCallback(){
@@ -214,7 +216,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                     return;
                 }
                 contextArrayOfCallback.add((int)ctx);
-                exceptionArrayOfCallback.add(exception);
+                exceptionArrayOfCallback.put((int)ctx, exception);
             }
         };
         // Write many times.
@@ -251,8 +253,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             Collections.sort(contextArrayOfCallback);
         }
         assertEquals(contextArrayOfCallback.size(), writeCmdExecuteCount);
-        for (int ctxIndex = 0; ctxIndex < writeCmdExecuteCount; ctxIndex++){
-            assertEquals(contextArrayOfCallback.get(ctxIndex).intValue(), ctxIndex);
+        for (int ctxIndex = 0, successIndex = 0; ctxIndex < writeCmdExecuteCount; ctxIndex++){
+            // When calling `txnLogBufferedWriter.close`, all tasks in the queue will fail immediately, this makes the
+            // callback of failure task earlier.
+            if (exceptionArrayOfCallback.containsKey(ctxIndex)){
+                continue;
+            }
+            assertEquals(contextArrayOfCallback.get(successIndex).intValue(), ctxIndex);
+            successIndex++;
         }
         // if {@param bookieError} is true. verify the ex count.
         // if {@param bookieError} is false. verify the param-position count.
@@ -394,7 +402,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
         // Test threshold: writeMaxDelayInMillis (use timer).
         TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 32, 1024 * 4, 100, true);
+                transactionTimer, dataSerializer, 32, 1024 * 4,
+                100, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         txnLogBufferedWriter1.asyncAddData(100, callback, 100);
         Thread.sleep(90);
@@ -406,7 +415,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         // Test threshold: batchedWriteMaxRecords.
         TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 32, 1024 * 4, 10000, true);
+                transactionTimer, dataSerializer, 32, 1024 * 4,
+                10000, true, DISABLED_BUFFERED_WRITER_METRICS);
         for (int i = 0; i < 32; i++){
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
         }
@@ -416,7 +426,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         // Test threshold: batchedWriteMaxSize.
         TxnLogBufferedWriter txnLogBufferedWriter3 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 1024, 64 * 4, 10000, true);
+                transactionTimer, dataSerializer, 1024, 64 * 4,
+                10000, true, DISABLED_BUFFERED_WRITER_METRICS);
         for (int i = 0; i < 64; i++){
             txnLogBufferedWriter3.asyncAddData(1, callback, 1);
         }
@@ -444,7 +455,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Create components.
         OrderedExecutor orderedExecutor =  Mockito.mock(OrderedExecutor.class);
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(65536 * 2);
-        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, workQueue);
+        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5,
+                TimeUnit.SECONDS, workQueue);
         Mockito.when(orderedExecutor.chooseThread(Mockito.anyString())).thenReturn(threadPoolExecutor);
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
@@ -452,8 +464,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Mock managed ledger and write counter.
         MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
         // Start tests.
-        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger, orderedExecutor,
-                    transactionTimer, dataSerializer, 2, 1024 * 4, 1, true);
+        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger,
+                orderedExecutor, transactionTimer, dataSerializer, 2, 1024 * 4,
+                1, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Append heavier tasks to the Ledger thread.
         final ExecutorService executorService = orderedExecutor.chooseThread(mlName);
@@ -984,17 +997,17 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     private void verifyTheHistogramMetrics(int batchFlushCount, int totalRecordsCount, int totalSize){
         // Total flush count.
         assertEquals(
-                getHistogramCount(String.format("%s_bufferedwriter_batch_record_count", metricsPrefix)),
+                getHistogramCount(String.format("%s_bufferedwriter_batch_records", metricsPrefix)),
                 batchFlushCount);
         assertEquals(
                 getHistogramCount(String.format("%s_bufferedwriter_batch_size_bytes", metricsPrefix)),
                 batchFlushCount);
         assertEquals(
-                getHistogramCount(String.format("%s_bufferedwriter_batch_oldest_record_delay_time_second", metricsPrefix)),
+                getHistogramCount(String.format("%s_bufferedwriter_batch_oldest_record_delay_seconds", metricsPrefix)),
                 batchFlushCount);
         // Total records count.
         assertEquals(
-                getHistogramSum(String.format("%s_bufferedwriter_batch_record_count", metricsPrefix)),
+                getHistogramSum(String.format("%s_bufferedwriter_batch_records", metricsPrefix)),
                 totalRecordsCount);
         // Total data size.
         assertEquals(

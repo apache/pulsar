@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -44,6 +46,8 @@ import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.PulsarInitialNamespaceSetup;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -84,6 +88,40 @@ public class ClusterMetadataSetupTest {
         PulsarClusterMetadataSetup.main(args);
         SortedMap<String, String> data3 = localZkS.dumpData();
         assertEquals(data1, data3);
+    }
+
+    @DataProvider(name = "bundleNumberForDefaultNamespace")
+    public static Object[][] bundleNumberForDefaultNamespace() {
+        return new Object[][] { { 0 }, {  128 } };
+    }
+
+    @Test(dataProvider = "bundleNumberForDefaultNamespace")
+    public void testSetBundleNumberForDefaultNamespace(int bundleNumber) throws Exception {
+        String[] args = {
+                "--cluster", "testSetDefaultNamespaceBundleNumber-cluster",
+                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651",
+                "--default-namespace-bundle-number", String.valueOf(bundleNumber)
+        };
+        PulsarClusterMetadataSetup.main(args);
+        try (ZooKeeper zk = ZooKeeperClient.newBuilder()
+                .connectString("127.0.0.1:" + localZkS.getZookeeperPort())
+                .build()) {
+            Policies policies =
+                    ObjectMapperFactory.getThreadLocal().readValue(
+                            zk.getData("/admin/policies/public/default", false, null),
+                            TypeFactory.defaultInstance().constructSimpleType(Policies.class, null));
+            assertNotNull(policies);
+            if (bundleNumber > 0) {
+                assertEquals(policies.bundles.getNumBundles(), bundleNumber);
+            } else {
+                assertEquals(policies.bundles.getNumBundles(), 16);
+            }
+        }
     }
 
     @DataProvider(name = "useMetadataStoreUrl")
@@ -251,7 +289,7 @@ public class ClusterMetadataSetupTest {
         PulsarClusterMetadataSetup.main(args);
 
         try (MetadataStoreExtended localStore = PulsarClusterMetadataSetup
-                .initMetadataStore(zkConnection, 30000)) {
+                .initLocalMetadataStore(zkConnection, 30000)) {
             // expected not exist
             assertFalse(localStore.exists("/ledgers").get());
 
@@ -268,7 +306,7 @@ public class ClusterMetadataSetupTest {
 
             PulsarClusterMetadataSetup.main(bookkeeperMetadataServiceUriArgs);
             try (MetadataStoreExtended bookkeeperMetadataServiceUriStore = PulsarClusterMetadataSetup
-                    .initMetadataStore(zkConnection, 30000)) {
+                    .initLocalMetadataStore(zkConnection, 30000)) {
                 // expected not exist
                 assertFalse(bookkeeperMetadataServiceUriStore.exists("/ledgers").get());
             }

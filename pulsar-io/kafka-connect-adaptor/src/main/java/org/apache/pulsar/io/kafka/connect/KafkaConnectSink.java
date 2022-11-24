@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -26,6 +25,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +39,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -52,9 +54,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
@@ -320,45 +319,83 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             }
 
             MessageId messageId = sourceRecord.getMessage().get().getMessageId();
-            MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
-                    ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
-                    : messageId);
-
             // sourceRecord.getRecordSequence() is not unique
             // for the messages from the same batch.
             // Special case for FunctionCommon.getSequenceId()
-            if (maxBatchBitsForOffset > 0 && msgId instanceof BatchMessageIdImpl) {
-                BatchMessageIdImpl batchMsgId = (BatchMessageIdImpl) msgId;
-                long ledgerId = batchMsgId.getLedgerId();
-                long entryId = batchMsgId.getEntryId();
+            if (maxBatchBitsForOffset > 0) {
+                BatchMessageSequenceRef messageSequenceRef = getMessageSequenceRefForBatchMessage(messageId);
+                if (messageSequenceRef != null) {
+                    long ledgerId = messageSequenceRef.getLedgerId();
+                    long entryId = messageSequenceRef.getEntryId();
 
-                if (entryId > (1 << (28 - maxBatchBitsForOffset))) {
-                    log.error("EntryId of the message {} over max, chance of duplicate offsets", entryId);
+                    if (entryId > (1 << (28 - maxBatchBitsForOffset))) {
+                        log.error("EntryId of the message {} over max, chance of duplicate offsets", entryId);
+                    }
+                    int batchIdx = messageSequenceRef.getBatchIdx();
+
+                    if (batchIdx < 0) {
+                        // Should not happen unless data corruption
+                        log.error("BatchIdx {} of the message is negative, chance of duplicate offsets", batchIdx);
+                        batchIdx = 0;
+                    }
+                    if (batchIdx > (1 << maxBatchBitsForOffset)) {
+                        log.error("BatchIdx of the message {} over max, chance of duplicate offsets", batchIdx);
+                    }
+                    // Combine entry id and batchIdx
+                    entryId = (entryId << maxBatchBitsForOffset) | batchIdx;
+
+                    // The same as FunctionCommon.getSequenceId():
+                    // Combine ledger id and entry id to form offset
+                    // Use less than 32 bits to represent entry id since it will get
+                    // rolled over way before overflowing the max int range
+                    long offset = (ledgerId << 28) | entryId;
+                    return offset;
                 }
-
-                int batchIdx = batchMsgId.getBatchIndex();
-
-                if (batchIdx < 0) {
-                    // Should not happen unless data corruption
-                    log.error("BatchIdx {} of the message is negative, chance of duplicate offsets", batchIdx);
-                    batchIdx = 0;
-                }
-                if (batchIdx > (1 << maxBatchBitsForOffset)) {
-                    log.error("BatchIdx of the message {} over max, chance of duplicate offsets", batchIdx);
-                }
-                // Combine entry id and batchIdx
-                entryId = (entryId << maxBatchBitsForOffset) | batchIdx;
-
-                // The same as FunctionCommon.getSequenceId():
-                // Combine ledger id and entry id to form offset
-                // Use less than 32 bits to represent entry id since it will get
-                // rolled over way before overflowing the max int range
-                long offset = (ledgerId << 28) | entryId;
-                return offset;
             }
         }
         return sourceRecord.getRecordSequence()
                 .orElse(-1L);
+    }
+
+    @Getter
+    @AllArgsConstructor
+    static class BatchMessageSequenceRef {
+        long ledgerId;
+        long entryId;
+        int batchIdx;
+    }
+
+    @VisibleForTesting
+    static BatchMessageSequenceRef getMessageSequenceRefForBatchMessage(MessageId messageId) {
+        long ledgerId;
+        long entryId;
+        int batchIdx;
+        try {
+            try {
+                messageId = (MessageId) messageId.getClass().getDeclaredMethod("getInnerMessageId").invoke(messageId);
+            } catch (NoSuchMethodException noSuchMethodException) {
+                // not a TopicMessageIdImpl
+            }
+
+            try {
+                batchIdx = (int) messageId.getClass().getDeclaredMethod("getBatchIndex").invoke(messageId);
+            } catch (NoSuchMethodException noSuchMethodException) {
+                // not a BatchMessageIdImpl, returning null to use the standard sequenceId
+                return null;
+            }
+
+            // if getBatchIndex exists it means messageId is a 'BatchMessageIdImpl' instance.
+            final Class<?> messageIdImplClass = messageId.getClass().getSuperclass();
+
+            ledgerId = (long) messageIdImplClass.getDeclaredMethod("getLedgerId").invoke(messageId);
+            entryId = (long) messageIdImplClass.getDeclaredMethod("getEntryId").invoke(messageId);
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException ex) {
+            log.error("Unexpected error while retrieving sequenceId, messageId class: {}, error: {}",
+                    messageId.getClass().getName(), ex.getMessage(), ex);
+            throw new RuntimeException(ex);
+        }
+
+        return new BatchMessageSequenceRef(ledgerId, entryId, batchIdx);
     }
 
     @SuppressWarnings("rawtypes")

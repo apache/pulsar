@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
@@ -26,8 +25,6 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -35,8 +32,10 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -73,7 +72,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -130,6 +131,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
@@ -172,7 +174,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
 
-    private final ConcurrentOpenHashMap<String, Replicator> replicators;
+    private final ConcurrentOpenHashMap<String/*RemoteCluster*/, Replicator> replicators;
+    private final ConcurrentOpenHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
+    @Getter
+    private volatile List<String> shadowTopics;
+    private final TopicName shadowSourceTopic;
 
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
     private static final String TOPIC_EPOCH_PROPERTY_NAME = "pulsar.topic.epoch";
@@ -221,7 +227,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final TransactionBuffer transactionBuffer;
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
-    private long lastDataMessagePublishedTimestamp = 0;
+    private volatile long lastDataMessagePublishedTimestamp = 0;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -256,6 +262,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .concurrencyLevel(1)
                         .build();
         this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
+        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
@@ -295,6 +305,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.transactionBuffer = new TransactionBufferDisable();
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        if (ledger instanceof ShadowManagedLedgerImpl) {
+            shadowSourceTopic = ((ShadowManagedLedgerImpl) ledger).getShadowSource();
+        } else {
+            shadowSourceTopic = null;
+        }
     }
 
     @Override
@@ -360,6 +375,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
+        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
@@ -370,6 +389,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             this.transactionBuffer = new TransactionBufferDisable();
         }
+        shadowSourceTopic = null;
     }
 
     private void initializeDispatchRateLimiterIfNeeded() {
@@ -382,9 +402,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @VisibleForTesting
+    public AtomicLong getPendingWriteOps() {
+        return pendingWriteOps;
+    }
+
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
-        checkNotNull(compactedTopic);
+        Objects.requireNonNull(compactedTopic);
         if (isCompactionSubscription(subscriptionName)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
@@ -536,7 +561,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // close all producers
             CompletableFuture<Void> disconnectProducersFuture;
             if (producers.size() > 0) {
-                List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                List<CompletableFuture<Void>> futures = new ArrayList<>();
+                // send migration url metadata to producers before disconnecting them
+                if (isMigrated()) {
+                    producers.forEach((__, producer) -> producer.topicMigrated(getMigratedClusterUrl()));
+                }
                 producers.forEach((__, producer) -> futures.add(producer.disconnect()));
                 disconnectProducersFuture = FutureUtil.waitForAll(futures);
             } else {
@@ -561,7 +590,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
             }
 
-            if (exception instanceof ManagedLedgerTerminatedException) {
+            if (exception instanceof ManagedLedgerTerminatedException && !isMigrated()) {
                 // Signal the producer that this topic is no longer available
                 callback.completed(new TopicTerminatedException(exception), -1, -1);
             } else {
@@ -652,14 +681,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public CompletableFuture<Void> stopReplProducers() {
-        List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
-        List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true)));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true)));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -1013,10 +1044,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
 
+        TopicName tn = TopicName.get(MLPendingAckStore
+                .getTransactionPendingAckStoreSuffix(topic,
+                        Codec.encode(subscriptionName)));
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            getBrokerService().getManagedLedgerFactory().asyncDelete(TopicName.get(MLPendingAckStore
-                            .getTransactionPendingAckStoreSuffix(topic,
-                                    Codec.encode(subscriptionName))).getPersistenceNamingEncoding(),
+            getBrokerService().getManagedLedgerFactory().asyncDelete(tn.getPersistenceNamingEncoding(),
+                    getBrokerService().getManagedLedgerConfig(tn),
                     new AsyncCallbacks.DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
@@ -1110,6 +1143,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      *            Flag indicating whether delete should succeed if topic still has unconnected subscriptions. Set to
      *            false when called from admin API (it will delete the subs too), and set to true when called from GC
      *            thread
+     * @param failIfHasBacklogs
+     *            Flag indicating whether delete should succeed if topic has backlogs. Set to false when called from
+     *            admin API (it will delete the subs too), and set to true when called from GC thread
      * @param closeIfClientsConnected
      *            Flag indicate whether explicitly close connected
      *            producers/consumers/replicators before trying to delete topic.
@@ -1121,32 +1157,55 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
                                            boolean failIfHasBacklogs,
                                            boolean closeIfClientsConnected) {
-        CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
         try {
             if (isClosingOrDeleting) {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
                 return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
-            } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
-            } else if (failIfHasBacklogs && hasBacklogs()) {
-                List<String> backlogSubs =
-                        subscriptions.values().stream()
-                                .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
-                                .map(PersistentSubscription::getName).toList();
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
+            }
+            // We can proceed with the deletion if either:
+            //  1. No one is connected and no subscriptions
+            //  2. The topic have subscriptions but no backlogs for all subscriptions
+            //     if delete_when_no_subscriptions is applied
+            //  3. We want to kick out everyone and forcefully delete the topic.
+            //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
+            if (!closeIfClientsConnected) {
+                if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
+                    return FutureUtil.failedFuture(
+                            new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
+                } else if (failIfHasBacklogs) {
+                    if (hasBacklogs()) {
+                        List<String> backlogSubs =
+                                subscriptions.values().stream()
+                                        .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
+                                        .map(PersistentSubscription::getName).toList();
+                        return FutureUtil.failedFuture(
+                                new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
+                    } else if (!producers.isEmpty()) {
+                        return FutureUtil.failedFuture(new TopicBusyException(
+                                "Topic has " + producers.size() + " connected producers"));
+                    }
+                } else if (currentUsageCount() > 0) {
+                    return FutureUtil.failedFuture(new TopicBusyException(
+                            "Topic has " + currentUsageCount() + " connected producers/consumers"));
+                }
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
-            CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
-            if (closeIfClientsConnected) {
-                List<CompletableFuture<Void>> futures = Lists.newArrayList();
-                replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-                producers.values().forEach(producer -> futures.add(producer.disconnect()));
+
+            return getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
+                        .getPartitionedTopicResources().runWithMarkDeleteAsync(TopicName.get(topic), () -> {
+                CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
+
+                CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
+                List<CompletableFuture<Void>> futures = new ArrayList<>();
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                if (closeIfClientsConnected) {
+                    replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                    shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
+                    producers.values().forEach(producer -> futures.add(producer.disconnect()));
+                }
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -1155,86 +1214,87 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     closeClientFuture.completeExceptionally(ex);
                     return null;
                 });
-            } else {
-                closeClientFuture.complete(null);
-            }
 
-            closeClientFuture.thenAccept(delete -> {
-                // We can proceed with the deletion if either:
-                //  1. No one is connected
-                //  2. We want to kick out everyone and forcefully delete the topic.
-                //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
-                if (currentUsageCount() ==  0 || (closeIfClientsConnected && !failIfHasSubscriptions)) {
+                closeClientFuture.thenAccept(__ -> {
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
-                    deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema())
-                            .thenCompose(__ -> deleteTopicPolicies())
-                            .thenCompose(__ -> transactionBufferCleanupAndClose())
-                            .whenComplete((v, ex) -> {
-                        if (ex != null) {
-                            log.error("[{}] Error deleting topic", topic, ex);
-                            unfenceTopicToResume();
-                            deleteFuture.completeExceptionally(ex);
-                        } else {
-                            List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
-                            subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
+                        deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
+                                .thenCompose(ignore -> {
+                                    if (!this.getBrokerService().getPulsar().getBrokerService()
+                                            .isSystemTopic(TopicName.get(topic))) {
+                                        return deleteTopicPolicies();
+                                    } else {
+                                        return CompletableFuture.completedFuture(null);
+                                    }
+                                })
+                                .thenCompose(ignore -> transactionBufferCleanupAndClose())
+                                .whenComplete((v, ex) -> {
+                                    if (ex != null) {
+                                        log.error("[{}] Error deleting topic", topic, ex);
+                                        unfenceTopicToResume();
+                                        deleteFuture.completeExceptionally(ex);
+                                    } else {
+                                        List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
+                                        subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
 
-                            FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
-                                if (e != null) {
-                                    log.error("[{}] Error deleting topic", topic, e);
-                                    unfenceTopicToResume();
-                                    deleteFuture.completeExceptionally(e);
-                                } else {
-                                    ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
-                                        @Override
-                                        public void deleteLedgerComplete(Object ctx) {
-                                            brokerService.removeTopicFromCache(topic);
+                                    FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
+                                        if (e != null) {
+                                            log.error("[{}] Error deleting topic", topic, e);
+                                            unfenceTopicToResume();
+                                            deleteFuture.completeExceptionally(e);
+                                        } else {
+                                            ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
+                                                @Override
+                                                public void deleteLedgerComplete(Object ctx) {
+                                                    brokerService.removeTopicFromCache(PersistentTopic.this);
 
-                                            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                                            subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+                                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                            unregisterTopicPolicyListener();
+                                                    unregisterTopicPolicyListener();
 
-                                            log.info("[{}] Topic deleted", topic);
-                                            deleteFuture.complete(null);
+                                                    log.info("[{}] Topic deleted", topic);
+                                                    deleteFuture.complete(null);
+                                                }
+
+                                                @Override
+                                                public void
+                                                deleteLedgerFailed(ManagedLedgerException exception,
+                                                                   Object ctx) {
+                                                    if (exception.getCause()
+                                                            instanceof MetadataStoreException.NotFoundException) {
+                                                        log.info("[{}] Topic is already deleted {}",
+                                                                topic, exception.getMessage());
+                                                        deleteLedgerComplete(ctx);
+                                                    } else {
+                                                        unfenceTopicToResume();
+                                                        log.error("[{}] Error deleting topic",
+                                                                topic, exception);
+                                                        deleteFuture.completeExceptionally(
+                                                                new PersistenceException(exception));
+                                                    }
+                                                }
+                                            }, null);
+
                                         }
-
-                                        @Override
-                                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                            if (exception.getCause()
-                                                    instanceof MetadataStoreException.NotFoundException) {
-                                                log.info("[{}] Topic is already deleted {}",
-                                                        topic, exception.getMessage());
-                                                deleteLedgerComplete(ctx);
-                                            } else {
-                                                unfenceTopicToResume();
-                                                log.error("[{}] Error deleting topic", topic, exception);
-                                                deleteFuture.completeExceptionally(new PersistenceException(exception));
-                                            }
-                                        }
-                                    }, null);
+                                    });
                                 }
                             });
-                        }
-                    });
-                } else {
+                }).exceptionally(ex->{
                     unfenceTopicToResume();
-                    deleteFuture.completeExceptionally(new TopicBusyException(
-                            "Topic has " + currentUsageCount() + " connected producers/consumers"));
-                }
-            }).exceptionally(ex->{
-                unfenceTopicToResume();
-                deleteFuture.completeExceptionally(
-                        new TopicBusyException("Failed to close clients before deleting topic."));
-                return null;
-            });
+                    deleteFuture.completeExceptionally(
+                            new TopicBusyException("Failed to close clients before deleting topic."));
+                    return null;
+                });
+
+                return deleteFuture;
+                });
         } finally {
             lock.writeLock().unlock();
         }
 
-        return deleteFuture;
     }
 
     public CompletableFuture<Void> close() {
@@ -1266,10 +1326,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             lock.writeLock().unlock();
         }
 
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+        shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
@@ -1300,31 +1361,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
-                    brokerService.removeTopicFromCache(topic)
-                            .thenRun(() -> {
-                                replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
-
-                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-
-                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                                unregisterTopicPolicyListener();
-                                log.info("[{}] Topic closed", topic);
-                                cancelFencedTopicMonitoringTask();
-                                closeFuture.complete(null);
-                            })
-                    .exceptionally(ex -> {
-                        closeFuture.completeExceptionally(ex);
-                        return null;
-                    });
+                    disposeTopic(closeFuture);
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    brokerService.removeTopicFromCache(topic);
-                    unregisterTopicPolicyListener();
-                    closeFuture.complete(null);
+                    disposeTopic(closeFuture);
                 }
             }, null);
         }).exceptionally(exception -> {
@@ -1335,6 +1378,26 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return closeFuture;
+    }
+
+    private void disposeTopic(CompletableFuture<?> closeFuture) {
+        brokerService.removeTopicFromCache(topic)
+                .thenRun(() -> {
+                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+
+                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+
+                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+
+                    unregisterTopicPolicyListener();
+                    log.info("[{}] Topic closed", topic);
+                    cancelFencedTopicMonitoringTask();
+                    closeFuture.complete(null);
+                })
+                .exceptionally(ex -> {
+                    closeFuture.completeExceptionally(ex);
+                    return null;
+                });
     }
 
     @VisibleForTesting
@@ -1388,7 +1451,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
-        int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
@@ -1400,7 +1463,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return deleteForcefully();
         }
 
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // Check for missing replicators
         for (String cluster : configuredClusters) {
@@ -1415,7 +1478,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Check for replicators to be stopped
         replicators.forEach((cluster, replicator) -> {
             // Update message TTL
-            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
             if (!cluster.equals(localCluster)) {
                 if (!configuredClusters.contains(cluster)) {
                     futures.add(removeReplicator(cluster));
@@ -1423,6 +1486,38 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
 
+        futures.add(checkShadowReplication());
+
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> checkShadowReplication() {
+        if (CollectionUtils.isEmpty(shadowTopics)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<String> configuredShadowTopics = shadowTopics;
+        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Checking shadow replication status, shadowTopics={}", topic, configuredShadowTopics);
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        // Check for missing replicators
+        for (String shadowTopic : configuredShadowTopics) {
+            if (!shadowReplicators.containsKey(shadowTopic)) {
+                futures.add(startShadowReplicator(shadowTopic));
+            }
+        }
+
+        // Check for replicators to be stopped
+        shadowReplicators.forEach((shadowTopic, replicator) -> {
+            // Update message TTL
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
+            if (!configuredShadowTopics.contains(shadowTopic)) {
+                futures.add(removeShadowReplicator(shadowTopic));
+            }
+        });
         return FutureUtil.waitForAll(futures);
     }
 
@@ -1432,6 +1527,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
             replicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+            shadowReplicators.forEach((__, replicator)
                     -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
         }
     }
@@ -1579,6 +1676,79 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
+    CompletableFuture<Void> startShadowReplicator(String shadowTopic) {
+        log.info("[{}] Starting shadow topic replicator to remote: {}", topic, shadowTopic);
+
+        String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
+        ManagedCursor cursor;
+        try {
+            cursor = ledger.newNonDurableCursor(PositionImpl.LATEST, name);
+        } catch (ManagedLedgerException e) {
+            log.error("[{}]Open non-durable cursor for shadow replicator failed, name={}", topic, name, e);
+            return FutureUtil.failedFuture(e);
+        }
+        CompletableFuture<Void> future = addShadowReplicationCluster(shadowTopic, cursor);
+        future.exceptionally(ex -> {
+            log.error("[{}] Add shadow replication cluster failed, shadowTopic={}", topic, shadowTopic, ex);
+            return null;
+        });
+        return future;
+    }
+
+    protected CompletableFuture<Void> addShadowReplicationCluster(String shadowTopic, ManagedCursor cursor) {
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
+                .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
+                        .getClusterAsync(localCluster)
+                        .thenApply(clusterData -> brokerService.getReplicationClient(localCluster, clusterData)))
+                .thenAccept(replicationClient -> {
+                    Replicator replicator = shadowReplicators.computeIfAbsent(shadowTopic, r -> {
+                        try {
+                            return new ShadowReplicator(shadowTopic, PersistentTopic.this, cursor, brokerService,
+                                    (PulsarClientImpl) replicationClient);
+                        } catch (PulsarServerException e) {
+                            log.error("[{}] ShadowReplicator startup failed {}", topic, shadowTopic, e);
+                        }
+                        return null;
+                    });
+
+                    // clean up replicator if startup is failed
+                    if (replicator == null) {
+                        shadowReplicators.removeNullValue(shadowTopic);
+                    }
+                });
+    }
+
+    CompletableFuture<Void> removeShadowReplicator(String shadowTopic) {
+        log.info("[{}] Removing shadow topic replicator to {}", topic, shadowTopic);
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
+        shadowReplicators.get(shadowTopic).disconnect().thenRun(() -> {
+
+            ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
+                @Override
+                public void deleteCursorComplete(Object ctx) {
+                    shadowReplicators.remove(shadowTopic);
+                    future.complete(null);
+                }
+
+                @Override
+                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("[{}] Failed to delete shadow topic replication cursor {} {}",
+                            topic, name, exception.getMessage(), exception);
+                    future.completeExceptionally(new PersistenceException(exception));
+                }
+            }, null);
+
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to close shadow topic replication producer {} {}", topic, name, e.getMessage(), e);
+            future.completeExceptionally(e);
+            return null;
+        });
+
+        return future;
+    }
+
     public boolean isDeduplicationEnabled() {
         return messageDeduplication.isEnabled();
     }
@@ -1610,6 +1780,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
         return replicators;
+    }
+
+    @Override
+    public ConcurrentOpenHashMap<String, Replicator> getShadowReplicators() {
+        return shadowReplicators;
     }
 
     public Replicator getPersistentReplicator(String remoteCluster) {
@@ -2007,7 +2182,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
         stats.state = ml.getState().toString();
 
-        stats.ledgers = Lists.newArrayList();
+        stats.ledgers = new ArrayList<>();
         Set<CompletableFuture<?>> futures = Sets.newConcurrentHashSet();
         CompletableFuture<Set<String>> availableBookiesFuture =
                 brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
@@ -2062,7 +2237,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         stats.compactedLedger = info;
 
-        stats.cursors = Maps.newTreeMap();
+        stats.cursors = new HashMap<>();
         ml.getCursors().forEach(c -> {
             ManagedCursorImpl cursor = (ManagedCursorImpl) c;
             CursorStats cs = new CursorStats();
@@ -2076,6 +2251,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
             cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
             cs.state = cursor.getState();
+            cs.active = cursor.isActive();
             cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
             cs.properties = cursor.getProperties();
@@ -2210,6 +2386,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    public CompletableFuture<Void> checkClusterMigration() {
+        Optional<ClusterUrl> clusterUrl = getMigratedClusterUrl();
+        if (!isMigrated() && clusterUrl.isPresent()) {
+            log.info("{} triggering topic migration", topic);
+            return ledger.asyncMigrate().thenCompose(r -> null);
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    @Override
     public void checkGC() {
         if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
@@ -2292,7 +2479,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (!partitionedTopicExist) {
                         return CompletableFuture.completedFuture(null);
                     } else {
-                        return getBrokerService()
+                        return getBrokerService().pulsar().getPulsarResources().getNamespaceResources()
+                                .getPartitionedTopicResources().runWithMarkDeleteAsync(topicName, () ->
+                            getBrokerService()
                                 .fetchPartitionedTopicMetadataAsync(topicName)
                                 .thenCompose((metadata -> {
                                     List<CompletableFuture<Boolean>> persistentTopicExists =
@@ -2323,7 +2512,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                             .deletePartitionedTopicAsync(topicName);
                                                 }
                                             });
-                                }));
+                                }))
+                            );
                     }
                 });
     }
@@ -2346,8 +2536,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                     if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
-                                topic, subName));
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
                     }
                 });
             }
@@ -2443,6 +2633,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return FutureUtil.waitForAll(producerCheckFutures).thenCompose((__) -> {
             return updateSubscriptionsDispatcherRateLimiter().thenCompose((___) -> {
                 replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
+                shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
                 checkMessageExpiry();
                 CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
                 CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
@@ -2612,6 +2803,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return !replicators.isEmpty();
     }
 
+    @Override
+    public boolean isShadowReplicated() {
+        return !shadowReplicators.isEmpty();
+    }
+
     public CompletableFuture<MessageId> terminate() {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         ledger.asyncTerminate(new TerminateCallback() {
@@ -2664,9 +2860,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     public CompletableFuture<Void> clearBacklog() {
         log.info("[{}] Clearing backlog on all cursors in the topic.", topic);
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         List<String> cursors = getSubscriptions().keys();
         cursors.addAll(getReplicators().keys());
+        cursors.addAll(getShadowReplicators().keys());
         for (String cursor : cursors) {
             futures.add(clearBacklog(cursor));
         }
@@ -2690,6 +2887,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         PersistentReplicator repl = (PersistentReplicator) getPersistentReplicator(cursorName);
+        if (repl != null) {
+            return repl.clearBacklog();
+        }
+
+        repl = (PersistentReplicator) shadowReplicators.get(cursorName);
         if (repl != null) {
             return repl.clearBacklog();
         }
@@ -3064,12 +3266,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
         updateTopicPolicy(policies);
-
+        shadowTopics = policies.getShadowTopics();
         updateDispatchRateLimiter();
         updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
             updatePublishDispatcher();
             updateSubscribeRateLimiter();
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
+            shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
             checkReplicationAndRetryOnFailure();
 
@@ -3118,6 +3321,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed(String subscriptionName) {
+        if (isSystemTopic()) {
+            return false;
+        }
         //Existing subscriptions are not affected
         if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
             return false;
@@ -3149,8 +3355,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this.transactionBuffer.getMaxReadPosition();
     }
 
-    public boolean isTxnAborted(TxnID txnID) {
-        return this.transactionBuffer.isTxnAborted(txnID);
+    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+        return this.transactionBuffer.isTxnAborted(txnID, readPosition);
     }
 
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
@@ -3160,6 +3366,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     protected boolean isTerminated() {
         return ledger.isTerminated();
+    }
+
+    @Override
+    public boolean isMigrated() {
+        return ledger.isMigrated();
     }
 
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {
@@ -3181,5 +3392,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public long getLastDataMessagePublishedTimestamp() {
         return lastDataMessagePublishedTimestamp;
+    }
+
+    public Optional<TopicName> getShadowSourceTopic() {
+        return Optional.ofNullable(shadowSourceTopic);
     }
 }

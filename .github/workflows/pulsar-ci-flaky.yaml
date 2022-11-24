@@ -36,16 +36,15 @@ env:
   ARTIFACT_RETENTION_DAYS: 3
 
 jobs:
-  changed_files_job:
-    name: 'Changed files check'
+  preconditions:
+    name: Preconditions
     runs-on: ubuntu-20.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
-      cpp_only: ${{ steps.check_changes.outputs.cpp_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Detect changed files
         id:   changes
@@ -57,18 +56,25 @@ jobs:
       - name: Check changed files
         id: check_changes
         run: |
-          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
-          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
+          echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
+
+      - name: Check if the PR has been approved for testing
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        env:
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          build/pulsar_ci_tool.sh check_ready_to_test
 
   build-and-test:
-    needs: changed_files_job
+    needs: preconditions
     name: Flaky tests suite
     runs-on: ubuntu-20.04
     timeout-minutes: 100
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -81,7 +87,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -91,7 +97,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: 17
@@ -102,7 +108,7 @@ jobs:
 
       - name: Run unit test group BROKER_FLAKY
         run: |
-          CHANGED_TESTS="${{ needs.changed_files_job.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_FLAKY
+          CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_FLAKY
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()

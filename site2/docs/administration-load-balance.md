@@ -120,7 +120,7 @@ Pulsar supports the following types of automatic load shedding strategies.
 :::note
 
 * From Pulsar 2.10, the **default** shedding strategy is `ThresholdShedder`.
-* You need to restart brokers if the shedding strategy is [dynamically updated](admin-api-brokers.md/#dynamic-broker-configuration).
+* You need to restart brokers if the shedding strategy is [dynamically updated](admin-api-brokers.md#dynamic-broker-configuration).
 
 :::
 

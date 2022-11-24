@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.eclipse.jetty.http.HttpStatus.INTERNAL_SERVER_ERROR_500;
+import static org.eclipse.jetty.http.HttpStatus.PRECONDITION_FAILED_412;
+import javax.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Response;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-
-import javax.servlet.http.HttpServletResponse;
-
-import static org.eclipse.jetty.http.HttpStatus.INTERNAL_SERVER_ERROR_500;
-import static org.eclipse.jetty.http.HttpStatus.PRECONDITION_FAILED_412;
 
 /**
  * Unit test for ExceptionHandler.
