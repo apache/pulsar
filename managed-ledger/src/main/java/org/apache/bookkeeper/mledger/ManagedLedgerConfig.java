@@ -85,8 +85,6 @@ public class ManagedLedgerConfig {
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
     private Long managedLedgerOffloadBrokerFlowPermit;
-    private Map<String, Long> managedLedgerOffloadNamespaceFlowPermit;
-    private Map<String, Long> managedLedgerOffloadTopicFlowPermit;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -764,39 +762,4 @@ public class ManagedLedgerConfig {
         return managedLedgerOffloadBrokerFlowPermit;
     }
 
-    /**
-     * Set permitted size to offload on the broker.
-     *
-     * @param managedLedgerOffloadNamespaceFlowPermit
-     */
-    public void setManagedLedgerOffloadNamespaceFlowPermit(Map<String, Long> managedLedgerOffloadNamespaceFlowPermit) {
-        this.managedLedgerOffloadNamespaceFlowPermit = managedLedgerOffloadNamespaceFlowPermit;
-    }
-
-    /**
-     * Get permitted size to offload on the broker.
-     *
-     * @return
-     */
-    public Map<String, Long> getManagedLedgerOffloadNamespaceFlowPermit() {
-        return managedLedgerOffloadNamespaceFlowPermit;
-    }
-
-    /**
-     * Set permitted size to offload on the broker.
-     *
-     * @param managedLedgerOffloadTopicFlowPermit
-     */
-    public void setManagedLedgerOffloadTopicFlowPermit(Map<String, Long> managedLedgerOffloadTopicFlowPermit) {
-        this.managedLedgerOffloadTopicFlowPermit = managedLedgerOffloadTopicFlowPermit;
-    }
-
-    /**
-     * Get permitted size to offload on the broker.
-     *
-     * @return
-     */
-    public Map<String, Long> getManagedLedgerOffloadTopicFlowPermit() {
-        return managedLedgerOffloadTopicFlowPermit;
-    }
 }

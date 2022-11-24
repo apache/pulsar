@@ -2994,7 +2994,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                     .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                    .thenCompose(handle -> OffloadReadHandle.create(handle, name, config, scheduledExecutor))
+                    .thenCompose(handle -> OffloadReadHandle.create(handle, config, scheduledExecutor))
                     .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                     .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),

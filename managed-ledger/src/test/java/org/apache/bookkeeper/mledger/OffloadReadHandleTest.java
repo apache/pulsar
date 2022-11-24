@@ -28,6 +28,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -47,7 +48,11 @@ public class OffloadReadHandleTest {
         Mockito.doAnswer(inv -> CompletableFuture.completedFuture(entries)).when(handle).readAsync(1, 1);
 
         long start = System.currentTimeMillis();
-        CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, 100);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setGlobalOffloadingPermitBytesPerSecond(100L);
+
+        CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, config,
+                OrderedScheduler.newSchedulerBuilder().numThreads(2).build());
         ReadHandle h = future.get();
         h.readAsync(1, 1);
         h.readAsync(1, 1);
