@@ -370,6 +370,10 @@
     {
       "type": "category",
       "label": "Reference",
+      "link": {
+        "type": "doc",
+        "id": "reference-landing"
+      },
       "items": [
         "reference-terminology",
         "reference-cli-tools",
