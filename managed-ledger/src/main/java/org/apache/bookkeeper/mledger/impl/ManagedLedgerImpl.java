@@ -1741,6 +1741,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
+    public void removeNonRecoverableLedger(long ledgerId){
+        ledgers.remove(ledgerId);
+        Iterator<ManagedCursor> managedCursorIterator = cursors.iterator();
+        while (managedCursorIterator.hasNext()){
+            ManagedCursor managedCursor = managedCursorIterator.next();
+            if (managedCursor instanceof ManagedCursorImpl managedCursorImpl){
+                managedCursorImpl.clearIncompleteAckedRecordsByLedgerId(ledgerId);
+            }
+        }
+    }
+
     synchronized void createLedgerAfterClosed() {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
             log.info("[{}] Creating a new ledger after closed", name);

@@ -631,6 +631,8 @@ public interface ManagedLedger {
      */
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
+    void removeNonRecoverableLedger(long ledgerId);
+
     /**
      * Roll current ledger if it is full.
      */

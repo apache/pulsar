@@ -40,6 +40,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,6 +60,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -511,7 +513,24 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
                     log.info("[{}] Consumer {} meta-data recover from ledger {}", ledger.getName(), name,
                             info.getCursorsLedgerId());
-                    recoverFromLedger(info, callback);
+                    recoverFromLedger(info, new VoidCallback() {
+                        @Override
+                        public void operationComplete() {
+                            LinkedHashSet<Long> ledgersDeletedButNotAcked = checkLedgersDeletedButNotAcked();
+                            if (!ledgersDeletedButNotAcked.isEmpty()){
+                                log.warn("[{}] ledgers {} has deleted from topic, but still in the records of"
+                                                + " incomplete-ack {}. If it is not cleaned up in time, it will cause"
+                                                + " the mark deleted position to not move forward.",
+                                        ledger.getName(), ledgersDeletedButNotAcked, name);
+                            }
+                            callback.operationComplete();
+                        }
+
+                        @Override
+                        public void operationFailed(ManagedLedgerException exception) {
+                            callback.operationFailed(exception);
+                        }
+                    });
                 }
             }
 
@@ -520,6 +539,34 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.operationFailed(e);
             }
         });
+    }
+
+    private LinkedHashSet<Long> checkLedgersDeletedButNotAcked(){
+        lock.readLock().lock();
+        LinkedHashSet<Long> ledgersDeletedButNotAcked = new LinkedHashSet<>();
+        try {
+            for (Range<PositionImpl> positionRange : individualDeletedMessages.asRanges()){
+                long ledgerId = positionRange.lowerEndpoint().getLedgerId();
+                if (ledgersDeletedButNotAcked.contains(ledgerId)){
+                    continue;
+                }
+                if (!ledger.ledgers.containsKey(ledgerId)){
+                    ledgersDeletedButNotAcked.add(ledgerId);
+                }
+            }
+            for (PositionImpl position : batchDeletedIndexes.keySet()){
+                long ledgerId = position.getLedgerId();
+                if (ledgersDeletedButNotAcked.contains(ledgerId)){
+                    continue;
+                }
+                if (!ledger.ledgers.containsKey(ledgerId)){
+                    ledgersDeletedButNotAcked.add(ledgerId);
+                }
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
+        return ledgersDeletedButNotAcked;
     }
 
     protected void recoverFromLedger(final ManagedCursorInfo info, final VoidCallback callback) {
@@ -2715,6 +2762,34 @@ public class ManagedCursorImpl implements ManagedCursor {
                 || ((PositionImpl) newReadPositionInt).compareTo(this.markDeletePosition) > 0) {
             this.readPosition = (PositionImpl) newReadPositionInt;
             ledger.onCursorReadPositionUpdated(this, newReadPositionInt);
+        }
+    }
+
+    void clearIncompleteAckedRecordsByLedgerId(final long ledgerId){
+        lock.writeLock().lock();
+        try {
+            List<Range> rangeListToDelete = individualDeletedMessages.asRanges().stream()
+                    .filter(range -> range.lowerEndpoint().getLedgerId() == ledgerId)
+                    .map(range -> Range.openClosed(
+                            new LongPairRangeSet.LongPair(ledgerId, range.lowerEndpoint().getEntryId()),
+                            new LongPairRangeSet.LongPair(ledgerId, range.upperEndpoint().getEntryId())
+                    )).collect(Collectors.toList());
+            if (!rangeListToDelete.isEmpty()) {
+                rangeListToDelete.forEach(individualDeletedMessages::remove);
+            }
+
+            if (batchDeletedIndexes != null) {
+                Set<PositionImpl> batchedIndexesToDelete = batchDeletedIndexes.keySet().stream()
+                        .filter(position -> position.getLedgerId() == ledgerId)
+                        .collect(Collectors.toSet());
+                if (!batchedIndexesToDelete.isEmpty()) {
+                    batchedIndexesToDelete.forEach(batchDeletedIndexes::remove);
+                }
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
