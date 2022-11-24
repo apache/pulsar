@@ -210,6 +210,10 @@
     {
       "type": "category",
       "label": "Deployment",
+      "link": {
+        "type": "doc",
+        "id": "install-deploy-upgrade-landing"
+      },
       "items": [
         "deploy-aws",
         {
@@ -366,6 +370,10 @@
     {
       "type": "category",
       "label": "Reference",
+      "link": {
+        "type": "doc",
+        "id": "reference-landing"
+      },
       "items": [
         "reference-terminology",
         "reference-cli-tools",

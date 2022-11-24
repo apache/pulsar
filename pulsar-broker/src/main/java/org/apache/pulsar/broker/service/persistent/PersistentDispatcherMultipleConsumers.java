@@ -94,7 +94,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile PositionImpl minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
-    protected boolean sendInProgress;
+    private boolean sendInProgress = false;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -255,7 +255,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -558,9 +558,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, entries)) {
+                if (sendMessagesToConsumers(readType, entries, false)) {
                     updatePendingBytesToDispatch(-size);
                     readMoreEntries();
                 } else {
@@ -568,7 +568,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, entries)) {
+            if (sendMessagesToConsumers(readType, entries, true)) {
                 updatePendingBytesToDispatch(-size);
                 readMoreEntriesAsync();
             } else {
@@ -577,12 +577,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized void acquireSendInProgress() {
         sendInProgress = true;
+    }
+
+    protected synchronized void releaseSendInProgress() {
+        sendInProgress = false;
+    }
+
+    protected synchronized boolean isSendInProgress() {
+        return sendInProgress;
+    }
+
+    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
+                                                                 boolean needAcquireSendInProgress) {
+        if (needAcquireSendInProgress) {
+            acquireSendInProgress();
+        }
         try {
             return trySendMessagesToConsumers(readType, entries);
         } finally {
-            sendInProgress = false;
+            releaseSendInProgress();
         }
     }
 
