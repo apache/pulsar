@@ -126,7 +126,6 @@ flexible messaging model and an intuitive client API.</description>
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.77.Final</netty.version>
-    <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
     <netty-iouring.version>0.0.15.Final</netty-iouring.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -631,18 +630,6 @@ flexible messaging model and an intuitive client API.</description>
         <version>${netty.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tc-native.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-haproxy</artifactId>
-        <version>${netty.version}</version>
       </dependency>
 
       <dependency>
