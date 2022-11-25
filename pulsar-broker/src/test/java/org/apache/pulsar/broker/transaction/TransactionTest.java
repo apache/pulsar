@@ -606,6 +606,7 @@ public class TransactionTest extends TransactionTestBase {
                 .getTopic(topic, false).get().get();
 
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        @Cleanup
         PulsarClient noTxnClient = PulsarClient.builder().enableTransaction(false)
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl()).build();
 

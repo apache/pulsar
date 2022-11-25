@@ -142,7 +142,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                 .subscriptionName(subName).topic(topic).subscribe();
 
         List<TxnID> list = new ArrayList<>();
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
         for (int i = 0; i < txnCount; i++) {
             TransactionImpl transaction =
                     (TransactionImpl) pulsarClient.newTransaction()
@@ -150,7 +150,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
             TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
             list.add(txnID);
             if (i == 1) {
-                pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+                replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
                 consumer.acknowledgeAsync(new MessageIdImpl(1000, 1000, -1), transaction).get();
                 continue;
             }
@@ -247,7 +247,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .receiverQueueSize(10)
@@ -310,7 +310,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
@@ -370,7 +370,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
         Awaitility.await().until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
         Producer<byte[]> p1 = pulsarClient
                 .newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")

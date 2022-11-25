@@ -184,10 +184,9 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
     }
 
     private void initClientWithMemoryLimit() throws PulsarClientException {
-        pulsarClient = PulsarClient.builder().
+        replacePulsarClient(PulsarClient.builder().
                 serviceUrl(lookupUrl.toString())
-                .memoryLimit(50, SizeUnit.KILO_BYTES)
-                .build();
+                .memoryLimit(50, SizeUnit.KILO_BYTES));
     }
 
 }
