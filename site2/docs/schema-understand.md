@@ -138,6 +138,8 @@ Schema evolution may impact existing consumers. The following control measures h
 * [Schema compatibility check](#schema-compatibility-check)
 * [Schema `AutoUpdate`](#schema-autoupdate)
 
+For further readings about schema evolution, see [Avro documentation](https://avro.apache.org/docs/1.10.2/spec.html#Schema+Resolution).
+
 ### Schema versioning
 
 Each `SchemaInfo` stored with a topic has a version. The schema version manages schema changes happening within a topic. 
@@ -177,7 +179,7 @@ The default value of `schemaRegistryCompatibilityCheckers` in the `conf/broker.c
 schemaRegistryCompatibilityCheckers=org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck
 ```
 
-Each schema type corresponds to one instance of the schema compatibility checker. Avro, JSON, and Protobuf have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables the schema evolution.
+Each schema type corresponds to one instance of the schema compatibility checker. Avro, JSON, and Protobuf schemas have their own compatibility checkers, while all the other schema types share the default compatibility checker that disables the schema evolution.
 
 #### Schema compatibility check strategy
 
@@ -202,50 +204,6 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is t
 * For more instructions, see [Admin API](admin-api-schemas.md#set-schema-compatibility-check-strategy).
 
 :::
-
-#### `ALWAYS_COMPATIBLE` example
-  
-In some situations, an application needs to store events of several different types in the same Pulsar topic. In particular, when developing a data model in an `Event Sourcing` style, you might have several kinds of events that affect the state of an entity. 
-
-  For example, there are `userCreated`, `userAddressChanged`, and `userEnquiryReceived` events for a user entity. The application requires that those events are always read in the same order. 
-
-  Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events to co-exist on the same topic.
-
-#### `ALWAYS_INCOMPATIBLE` example
-
-When performing incompatible changes, for example, you are modifying a field type from `string` to `int`, and you need to:
-* Upgrade all producers and consumers to the new schema versions at the same time.
-* Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.
-
-#### `BACKWARD` example
-  
-Suppose you want to load all Pulsar data into a Hive data warehouse and run SQL queries against the data. The same SQL queries must continue to work even if the data is changed. With the `BACKWARD` strategy, the consumer constructed to process events containing one field can process events written with the old schema without the field.
-
-![schema compatibility check strategy - BACKWARD](/assets/schema-compatibility-backward.svg)
-
-#### `BACKWARD_TRANSITIVE` example
-
-`BACKWARD_TRANSITIVE` is an expanded strategy upon `BACKWARD`. Backwards transitive compatible changes allow a consumer that is using a newer schema version to still be able to process messages that are written using any of the previous versions.
-
-![schema compatibility check strategy - BACKWARD_TRANSITIVE](/assets/schema-compatibility-backward-transitive.svg)
-
-#### `FORWARD` example
-
-If a consumer has an application logic tied to a full version of a schema, the application logic may not be updated instantly when the schema evolves. In this case, you need to project data with a new schema onto an old schema that the application understands. With the `FORWARD` strategy, consumers written to process events without new fields can continue doing so even when they receive new events containing new fields.
-
-![schema compatibility check strategy - FORWARD](/assets/schema-compatibility-forward.svg)
-
-#### `FORWARD_TRANSITIVE` example
-
-`FORWARD_TRANSITIVE` is an expanded strategy upon `FORWARD`. Forward transitive compatible changes allow a consumer that is using an older version of the schema to still be able to process messages that are written using any of the newer versions.
-
-![schema compatibility check strategy - FORWARD_TRANSITIVE](/assets/schema-compatibility-forward-transitive.svg)
-
-#### `FULL` and `FULL_TRANSITIVE` example
-
-In some data formats, such as JSON, there are no full-compatible changes. Every modification is either only forward or only backward-compatible.
-
-While in other data formats, like Avro or Protobuf, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change. To support this type of use case, you can use either the `FULL` or `FULL_TRANSITIVE` schema compatibility strategy.
 
 ### Schema AutoUpdate
 
