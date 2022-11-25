@@ -23,10 +23,10 @@ The configuration of the HTTP sink connector has the following properties.
 
 ### Property
 
-| Name      | Type   | Required | Default          | Description |
-|-----------|--------|----------|------------------|-------------|
-| `url`     | String | false    | http://localhost | The URL of the HTTP server |
-| `headers` | Map    | false    | empty map        |The HDFS directory where files read from or written to. |
+| Name      | Type   | Required | Default          | Description                                       |
+|-----------|--------|----------|------------------|---------------------------------------------------|
+| `url`     | String | false    | http://localhost | The URL of the HTTP server                        |
+| `headers` | Map    | false    | empty map        | The list of default headers added to each request |
 
 ### Example
 
