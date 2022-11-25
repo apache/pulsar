@@ -98,7 +98,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
 
                 if (mlInfo.hasTerminatedPosition()) {
-                    state = State.Terminated;
                     lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
                     log.info("[{}][{}] Recovering managed ledger terminated at {}", name, sourceMLName,
                             lastConfirmedEntry);
@@ -229,11 +228,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (!beforeAddEntry(addOperation)) {
             return;
         }
-        if (state == State.Terminated) {
-            addOperation.failed(new ManagedLedgerException.ManagedLedgerTerminatedException(
-                    "Managed ledger was already terminated"));
-            return;
-        }
         if (state != State.LedgerOpened) {
             addOperation.failed(new ManagedLedgerException("Managed ledger is not opened"));
             return;
@@ -260,6 +254,16 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     /**
+     * terminate is not allowed on shadow topic.
+     * @param callback
+     * @param ctx
+     */
+    @Override
+    public synchronized void asyncTerminate(AsyncCallbacks.TerminateCallback callback, Object ctx) {
+        callback.terminateFailed(new ManagedLedgerException("Terminate is not allowed on shadow topic."), ctx);
+    }
+
+    /**
      * Handle source ManagedLedgerInfo updates.
      * Update types:
      * 1. new ledgers.
@@ -280,7 +284,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
-            state = State.Terminated;
             lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
             log.info("[{}][{}] Process managed ledger terminated at {}", name, sourceMLName, lastConfirmedEntry);
         }
