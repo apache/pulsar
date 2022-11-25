@@ -37,7 +37,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.Stat;
 
 /**
@@ -45,8 +44,6 @@ import org.apache.pulsar.metadata.api.Stat;
  */
 @Slf4j
 public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
-
-    private final TopicName shadowSource;
     private final String sourceMLName;
     private volatile Stat sourceLedgersStat;
 
@@ -55,14 +52,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                    OrderedScheduler scheduledExecutor,
                                    String name, final Supplier<Boolean> mlOwnershipChecker) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
-        if (config.getTopicName().isPartitioned() && TopicName.getPartitionIndex(config.getShadowSource()) == -1) {
-            this.shadowSource =
-                    TopicName.get(config.getShadowSource()).getPartition(config.getTopicName().getPartitionIndex());
-        } else {
-            this.shadowSource = TopicName.get(config.getShadowSource());
-        }
-        this.sourceMLName =
-                shadowSource.getPersistenceNamingEncoding();
+        this.sourceMLName = config.getShadowSourceName();
     }
 
     /**
@@ -71,6 +61,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      * 2. super.initialize : read its own read source managedLedgerInfo
      * 3. this.initializeBookKeeper
      * 4. super.initializeCursors
+     *
      * @param callback
      * @param ctx
      */
@@ -168,10 +159,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
             }
         });
-    }
-
-    public TopicName getShadowSource() {
-        return shadowSource;
     }
 
     @Override
@@ -273,7 +260,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      * 1. new ledgers.
      * 2. old ledgers deleted.
      * 3. old ledger offload info updated (including ledger deleted from bookie by offloader)
-     *
      */
     private synchronized void processSourceManagedLedgerInfo(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
 
@@ -326,31 +312,31 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             //open ledger in readonly mode.
             bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
                     (rc, lh, ctx1) -> executor.executeOrdered(name, safeRun(() -> {
-                mbean.endDataLedgerOpenOp();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Opened new source ledger {}", name, lastLedgerId);
-                }
-                if (rc == BKException.Code.OK) {
-                    LedgerInfo info = LedgerInfo.newBuilder()
-                            .setLedgerId(lastLedgerId)
-                            .setEntries(lh.getLastAddConfirmed() + 1)
-                            .setSize(lh.getLength())
-                            .setTimestamp(clock.millis()).build();
-                    ledgers.put(lastLedgerId, info);
-                    currentLedger = lh;
-                    currentLedgerEntries = 0;
-                    currentLedgerSize = 0;
-                    initLastConfirmedEntry();
-                    updateLedgersIdsComplete();
-                    maybeUpdateCursorBeforeTrimmingConsumedLedger();
-                } else if (isNoSuchLedgerExistsException(rc)) {
-                    log.warn("[{}] Source ledger not found: {}", name, lastLedgerId);
-                    ledgers.remove(lastLedgerId);
-                } else {
-                    log.error("[{}] Failed to open source ledger {}: {}", name, lastLedgerId,
-                            BKException.getMessage(rc));
-                }
-            })), null);
+                        mbean.endDataLedgerOpenOp();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Opened new source ledger {}", name, lastLedgerId);
+                        }
+                        if (rc == BKException.Code.OK) {
+                            LedgerInfo info = LedgerInfo.newBuilder()
+                                    .setLedgerId(lastLedgerId)
+                                    .setEntries(lh.getLastAddConfirmed() + 1)
+                                    .setSize(lh.getLength())
+                                    .setTimestamp(clock.millis()).build();
+                            ledgers.put(lastLedgerId, info);
+                            currentLedger = lh;
+                            currentLedgerEntries = 0;
+                            currentLedgerSize = 0;
+                            initLastConfirmedEntry();
+                            updateLedgersIdsComplete();
+                            maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                        } else if (isNoSuchLedgerExistsException(rc)) {
+                            log.warn("[{}] Source ledger not found: {}", name, lastLedgerId);
+                            ledgers.remove(lastLedgerId);
+                        } else {
+                            log.error("[{}] Failed to open source ledger {}: {}", name, lastLedgerId,
+                                    BKException.getMessage(rc));
+                        }
+                    })), null);
         }
 
         //handle old ledgers deleted.

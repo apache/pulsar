@@ -89,7 +89,7 @@ public class ManagedLedgerConfig {
 
     @Getter
     @Setter
-    private TopicName topicName = null;
+    private String shadowSourceName;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;

@@ -306,7 +306,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
         if (ledger instanceof ShadowManagedLedgerImpl) {
-            shadowSourceTopic = ((ShadowManagedLedgerImpl) ledger).getShadowSource();
+            shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
             shadowSourceTopic = null;
         }
