@@ -95,8 +95,15 @@ For example, you are using the _User_ class to define the messages sent to Pulsa
 
 ```java
 public class User {
-    String name;
-    int age;
+   public String name;
+   public int age;
+   
+   User() {}
+   
+   User(String name, int age) {
+      this.name = name;
+      this.age = age;
+   }
 }
 ```
 
@@ -118,11 +125,22 @@ producer.send(message);
 This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize POJOs into bytes.
 
 ```java
+// send with json schema
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
 User user = new User("Tom", 28);
 producer.send(user);
+
+// receive with json schema
+Consumer<User> consumer = client.newConsumer(JSONSchema.of(User.class))
+   .topic(schemaTopic)
+   .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+   .subscriptionName("schema-sub")
+   .subscribe();
+Message<User> message = consumer.receive();
+User user = message.getValue();
+assert user.age == 28 && user.name.equals("Tom");
 ```
 
 ## What's next?

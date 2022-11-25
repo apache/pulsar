@@ -78,7 +78,7 @@ The following table outlines the complex types that Pulsar schema supports:
 
 | Complex Type | Description |
 |---|---|
-| `Keyvalue` | Represents a complex type of a key/value pair. |
+| `Keyvalue` | Represents a complex key/value pair. |
 | `Struct` | Represents structured data, including `AvroBaseStructSchema`, `ProtobufNativeSchema` and `Schema.NATIVE_AVRO`. |
 
 #### `KeyValue` schema
@@ -142,7 +142,7 @@ Schema evolution may impact existing consumers. The following control measures h
 
 Each `SchemaInfo` stored with a topic has a version. The schema version manages schema changes happening within a topic. 
 
-Messages produced with `SchemaInfo` is tagged with a schema version. When a message is consumed by a Pulsar client, the client can use the schema version to retrieve the corresponding `SchemaInfo` and use the correct schema to deserialize data. Once a version is assigned to or fetched from a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
+Messages produced with `SchemaInfo` are tagged with a schema version. When a message is consumed by a Pulsar client, the client can use the schema version to retrieve the corresponding `SchemaInfo` and use the correct schema to deserialize data. Once a version is assigned to or fetched from a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
 
 Suppose you are using a Pulsar [Java client](client-libraries-java.md) to create a producer and send messages.
 
@@ -159,11 +159,11 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
 
 The table below outlines the possible scenarios when this connection attempt occurs and the result of each scenario:
 
-| Scenario |  Result | 
-| --- | --- |
-|  <li>No schema exists for the topic. </li> |   (1) The producer is created with the given schema. <br /> (2) The schema is transmitted to the broker and stored since there is no existing schema. <br /> (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
-|  <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> |   (1) The schema is transmitted to the broker.<br />  (2) The broker determines that the schema is compatible. <br /> (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |
-|   <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li> |   (1) The schema is transmitted to the broker. <br /> (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
+| Scenario                                                                                                        | Result                                                                                                                                                                                                                                                                                                                      |
+|-----------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <li>No schema exists for the topic. </li>                                                                       | (1) The producer is created with the given schema. <br /> (2) The schema is transmitted to the broker and stored since there is no existing schema. <br /> (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.                                                       |
+| <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> | (1) The schema is transmitted to the broker.<br />  (2) The broker determines that the schema is compatible. <br /> (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages. |
+| <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li>        | (1) The schema is transmitted to the broker. <br /> (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).                                                                                                                                   |
 
 ### Schema compatibility check
 
@@ -263,7 +263,7 @@ For a producer, the `AutoUpdate` happens in the following cases:
   
     * Otherwise, the producer is rejected.
 
-  * If a **topic has a schema** and  the **producer carries a schema**, see [How schema works on producer side](schema-overview.md#producer-side) for more information.
+  * If a **topic has a schema** and the **producer carries a schema**, see [How schema works on producer side](schema-overview.md#producer-side) for more information.
 
 #### Consumer side
 
