@@ -215,7 +215,7 @@ public class LedgerLostTest {
     }
 
     @Test(timeOut = 30000, dataProvider = "batchEnabled")
-    public void testCompactionLedgerLost(boolean enabledBatch) throws Exception {
+    public void testTopicLedgerLost(boolean enabledBatch) throws Exception {
         String topicSimpleName = UUID.randomUUID().toString().replaceAll("-", "");
         String subName = UUID.randomUUID().toString().replaceAll("-", "");
         String topicName = String.format("persistent://%s/%s", "public/default", topicSimpleName);

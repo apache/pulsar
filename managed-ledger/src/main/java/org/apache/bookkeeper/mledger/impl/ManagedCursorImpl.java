@@ -2786,8 +2786,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     batchedIndexesToDelete.forEach(batchDeletedIndexes::remove);
                 }
             }
-        } catch (Exception e){
-            e.printStackTrace();
         } finally {
             lock.writeLock().unlock();
         }
