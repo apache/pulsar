@@ -4,7 +4,7 @@ title: HTTTP sink connector
 sidebar_label: "HTTP sink connector"
 ---
 
-The HTTP sink connector pulls the records from Pulsar topics and makes a POST request to a configurable HTTP url (webhook).
+The HTTP sink connector pulls the records from Pulsar topics and makes a POST request to a configurable HTTP URL (webhook).
 
 The body of the HTTP request is the JSON representation of the record value. The header `Content-Type: application/json` is added to the HTTP request.
 
