@@ -125,6 +125,9 @@ public class TopicResources {
     }
 
     void handleNotification(Notification notification) {
+        if (topicListeners.isEmpty()) {
+            return;
+        }
         if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
                 && (notification.getType() == NotificationType.Created
                 || notification.getType() == NotificationType.Deleted)) {
