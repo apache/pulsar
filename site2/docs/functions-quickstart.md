@@ -427,26 +427,9 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
 
 5. In a new terminal window, produce 10 messages with `hello` to the **input topic** `test_wordcount_src` using one of the following methods. The value of `hello` is updated to 10.
 
-   * **Method 1**
-
-     ```bash
-     bin/pulsar-client produce -m "hello" -n 10 test_wordcount_src
-     ```
-
-   * **Method 2**
-
-     ```bash
-     bin/pulsar-admin functions putstate \
-        --tenant test \
-        --namespace test-namespace \
-        --name word_count hello-word
-     ```
-
-     :::tip
-      
-     For more information about the `pulsar-admin functions putstate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](/tools/pulsar-admin/).
-    
-     :::
+  ```bash
+  bin/pulsar-client produce -m "hello" -n 10 test_wordcount_src
+  ```
 
 6. In the same terminal window as step 1, check the result. 
 
