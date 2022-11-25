@@ -22,7 +22,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
