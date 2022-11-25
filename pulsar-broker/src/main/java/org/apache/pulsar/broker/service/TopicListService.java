@@ -211,7 +211,11 @@ public class TopicListService {
                     if (exception != null) {
                         watcherFuture.completeExceptionally(exception);
                     } else {
-                        watcherFuture.complete(watcher);
+                        if (!watcherFuture.complete(watcher)) {
+                            log.warn("[{}] Watcher future was already completed. Deregistering watcherId={}.",
+                                    connection.toString(), watcherId);
+                            topicResources.deregisterPersistentTopicListener(watcher);
+                        }
                     }
                 });
     }
