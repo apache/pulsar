@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
 import lombok.Data;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
@@ -31,7 +31,6 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
  */
 @Data
 public class BrokerLoadData {
-    private static final double gigaBitToByte = 128 * 1024 * 1024.0;
 
     // Most recently available system resource usage.
     private ResourceUsage cpu;
@@ -97,92 +96,16 @@ public class BrokerLoadData {
     }
 
     public double getMaxResourceUsage() {
-        return max(cpu.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+        return LocalBrokerData.max(cpu.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage()) / 100;
     }
 
     public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
-        return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
+        return LocalBrokerData.max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
-    public double getMaxResourceUsageWithWeightWithinLimit(final double cpuWeight, final double memoryWeight,
-                                                           final double directMemoryWeight,
-                                                           final double bandwidthInWeight,
-                                                           final double bandwidthOutWeight) {
-        return maxWithinLimit(100.0d,
-                cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
-                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
-    }
-
-    private static double getNicSpeedBytesInSec(ServiceConfiguration conf) {
-        return conf.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
-                ? conf.getLoadBalancerOverrideBrokerNicSpeedGbps().get() * gigaBitToByte : -1.0;
-    }
-
-    synchronized ResourceUsage getMsgThroughputInUsage(double nicSpeedBytesInSec) {
-        if (msgThroughputInUsage.usage != msgThroughputIn) {
-            msgThroughputInUsage = new ResourceUsage(msgThroughputIn, nicSpeedBytesInSec);
-        }
-        return msgThroughputInUsage;
-    }
-
-    synchronized ResourceUsage getMsgThroughputOutUsage(double nicSpeedBytesInSec) {
-        if (msgThroughputOutUsage.usage != msgThroughputOut) {
-            msgThroughputOutUsage = new ResourceUsage(msgThroughputOut, nicSpeedBytesInSec);
-        }
-        return msgThroughputOutUsage;
-    }
-
-    public double getMaxResourceUsageWithExtendedNetworkSignal(ServiceConfiguration conf) {
-
-        double nicSpeedBytesInSec = getNicSpeedBytesInSec(conf);
-        return maxWithinLimit(100.0d,
-                cpu.percentUsage() * conf.getLoadBalancerCPUResourceWeight(),
-                memory.percentUsage() * conf.getLoadBalancerMemoryResourceWeight(),
-                directMemory.percentUsage() * conf.getLoadBalancerDirectMemoryResourceWeight(),
-                bandwidthIn.percentUsage() * conf.getLoadBalancerBandwithInResourceWeight(),
-                bandwidthOut.percentUsage() * conf.getLoadBalancerBandwithOutResourceWeight(),
-                getMsgThroughputInUsage(nicSpeedBytesInSec).percentUsage()
-                        * conf.getLoadBalancerBandwithInResourceWeight(),
-                getMsgThroughputOutUsage(nicSpeedBytesInSec).percentUsage()
-                        * conf.getLoadBalancerBandwithOutResourceWeight())
-                / 100;
-    }
-
-    public double getMaxResourceUsage(ServiceConfiguration conf) {
-        return max(
-                cpu.percentUsage() * conf.getLoadBalancerCPUResourceWeight(),
-                memory.percentUsage() * conf.getLoadBalancerMemoryResourceWeight(),
-                directMemory.percentUsage() * conf.getLoadBalancerDirectMemoryResourceWeight(),
-                bandwidthIn.percentUsage() * conf.getLoadBalancerBandwithInResourceWeight(),
-                bandwidthOut.percentUsage() * conf.getLoadBalancerBandwithOutResourceWeight())
-                / 100;
-    }
-
-    private static double maxWithinLimit(double limit, double...args) {
-        double max = 0.0;
-        for (double d : args) {
-            if (d > max && d <= limit) {
-                max = d;
-            }
-        }
-        return max;
-    }
-
-    private static double max(double...args) {
-        double max = Double.NEGATIVE_INFINITY;
-
-        for (double d : args) {
-            if (d > max) {
-                max = d;
-            }
-        }
-
-        return max;
-    }
 }
