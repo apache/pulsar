@@ -83,6 +83,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Source ML info:{}", name, sourceMLName, mlInfo);
                 }
+                if (sourceLedgersStat != null && sourceLedgersStat.getVersion() >= stat.getVersion()) {
+                    log.warn("Newer version of mlInfo is already processed. Previous stat={}, current stat={}",
+                            sourceLedgersStat, stat);
+                    return;
+                }
                 sourceLedgersStat = stat;
                 if (mlInfo.getLedgerInfoCount() == 0) {
                     // Small chance here, since shadow topic is created after source topic exists.
@@ -267,7 +272,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             log.debug("[{}][{}] new SourceManagedLedgerInfo:{}, prevStat={},stat={}", name, sourceMLName, mlInfo,
                     sourceLedgersStat, stat);
         }
-
+        if (sourceLedgersStat != null && sourceLedgersStat.getVersion() >= stat.getVersion()) {
+            log.warn("Newer version of mlInfo is already processed. Previous stat={}, current stat={}",
+                    sourceLedgersStat, stat);
+            return;
+        }
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
