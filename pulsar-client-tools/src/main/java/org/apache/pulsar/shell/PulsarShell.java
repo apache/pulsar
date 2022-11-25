@@ -122,6 +122,10 @@ public class PulsarShell {
         boolean noProgress;
     }
 
+    enum ExecState {
+        IDLE,
+        RUNNING
+    }
     private Properties properties;
     @Getter
     private final ConfigStore configStore;
@@ -132,6 +136,7 @@ public class PulsarShell {
     private Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder;
     private InteractiveLineReader reader;
     private final ConfigShell configShell;
+    private ExecState execState = ExecState.IDLE;
 
     public PulsarShell(String args[]) throws IOException {
         this(args, new Properties());
@@ -217,7 +222,18 @@ public class PulsarShell {
     }
 
     public void run() throws Exception {
-        final Terminal terminal = TerminalBuilder.builder().build();
+        final Terminal terminal = TerminalBuilder.builder()
+                .nativeSignals(true)
+                .signalHandler(signal -> {
+                    if (signal == Terminal.Signal.INT || signal == Terminal.Signal.QUIT) {
+                        if (execState == ExecState.RUNNING) {
+                            throw new InterruptShellException();
+                        } else {
+                            exit(0);
+                        }
+                    }
+                })
+                .build();
         run((providersMap) -> {
             List<Completer> completers = new ArrayList<>();
             String serviceUrl = "";
@@ -404,6 +420,7 @@ public class PulsarShell {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> quit(terminal)));
         while (true) {
+            execState = ExecState.IDLE;
             final List<String> words;
             try {
                 words = commandReader.readCommand();
@@ -411,6 +428,7 @@ public class PulsarShell {
                 exit(0);
                 return;
             }
+            execState = ExecState.RUNNING;
             final String line = words.stream().collect(Collectors.joining(" "));
             if (StringUtils.isBlank(line)) {
                 continue;
@@ -434,6 +452,8 @@ public class PulsarShell {
             try {
                 printExecutingCommands(terminal, commandsInfo, false);
                 commandOk = pulsarShellCommandsProvider.runCommand(argv);
+            } catch (InterruptShellException t) {
+                // no-op
             } catch (Throwable t) {
                 t.printStackTrace(terminal.writer());
             } finally {
