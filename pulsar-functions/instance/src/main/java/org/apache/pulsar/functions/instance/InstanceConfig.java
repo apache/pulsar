@@ -48,6 +48,7 @@ public class InstanceConfig {
     private boolean exposePulsarAdminClientEnabled = false;
     private int metricsPort;
     private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
+    private String configFile;
 
     /**
      * Get the string representation of {@link #getInstanceId()}.
