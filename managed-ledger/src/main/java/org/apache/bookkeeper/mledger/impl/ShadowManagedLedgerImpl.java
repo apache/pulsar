@@ -40,7 +40,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.pulsar.metadata.api.Stat;
 
 /**
- * Working in progress until <a href="https://github.com/apache/pulsar/issues/16153">PIP-180</a> is finished.
+ * Detailed design can be found in <a href="https://github.com/apache/pulsar/issues/16153">PIP-180</a>.
  */
 @Slf4j
 public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
@@ -61,14 +61,10 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      * 2. super.initialize : read its own read source managedLedgerInfo
      * 3. this.initializeBookKeeper
      * 4. super.initializeCursors
-     *
-     * @param callback
-     * @param ctx
      */
     @Override
     synchronized void initialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
         log.info("Opening shadow managed ledger {} with source={}", name, sourceMLName);
-
         executor.executeOrdered(name, safeRun(() -> doInitialize(callback, ctx)));
     }
 
@@ -207,7 +203,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     private void initLastConfirmedEntry() {
-        if (lastConfirmedEntry != null || currentLedger == null) {
+        if (currentLedger == null) {
             return;
         }
         lastConfirmedEntry = new PositionImpl(currentLedger.getId(), currentLedger.getLastAddConfirmed());
@@ -243,13 +239,15 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     name, currentLedger.getId(), currentLedgerEntries, position.getLedgerId(), position.getEntryId());
         }
         pendingAddEntries.add(addOperation);
-        if (position.getLedgerId() == currentLedger.getId()) {
+        if (position.getLedgerId() <= currentLedger.getId()) {
             // Write into lastLedger
-            addOperation.setLedger(currentLedger);
+            if (position.getLedgerId() == currentLedger.getId()) {
+                addOperation.setLedger(currentLedger);
+            }
             currentLedgerEntries = position.getEntryId();
             currentLedgerSize += addOperation.data.readableBytes();
             addOperation.initiateShadowWrite();
-        }
+        } // for addOperation with ledgerId > currentLedger, will be processed in `updateLedgersIdsComplete`
         lastAddEntryTimeMs = System.currentTimeMillis();
     }
 
@@ -372,7 +370,36 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
+    protected synchronized void updateLedgersIdsComplete() {
+        STATE_UPDATER.set(this, State.LedgerOpened);
+        updateLastLedgerCreatedTimeAndScheduleRolloverTask();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
+        }
+
+        createNewOpAddEntryForNewLedger();
+
+        // Process all the pending addEntry requests
+        for (OpAddEntry op : pendingAddEntries) {
+            Position position = (Position) op.getCtx();
+            if (position.getLedgerId() <= currentLedger.getId()) {
+                if (position.getLedgerId() == currentLedger.getId()) {
+                    op.setLedger(currentLedger);
+                } else {
+                    op.setLedger(null);
+                }
+                currentLedgerEntries = position.getEntryId();
+                currentLedgerSize += op.data.readableBytes();
+                op.initiateShadowWrite();
+            } else {
+                break;
+            }
+        }
+    }
+
+    @Override
     protected void updateLastLedgerCreatedTimeAndScheduleRolloverTask() {
-        // do nothing.
+        this.lastLedgerCreatedTimestamp = clock.millis();
     }
 }

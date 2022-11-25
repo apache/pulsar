@@ -169,7 +169,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     @Override
     public void addComplete(int rc, final LedgerHandle lh, long entryId, Object ctx) {
-
         if (!STATE_UPDATER.compareAndSet(OpAddEntry.this, State.INITIATED, State.COMPLETED)) {
             log.warn("[{}] The add op is terminal legacy callback for entry {}-{} adding.", ml.getName(), lh.getId(),
                     entryId);
@@ -177,11 +176,13 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             return;
         }
 
-        if (ledger.getId() != lh.getId()) {
-            log.warn("[{}] ledgerId {} doesn't match with acked ledgerId {}", ml.getName(), ledger.getId(), lh.getId());
+        if (ledger != null && lh != null) {
+            if (ledger.getId() != lh.getId()) {
+                log.warn("[{}] ledgerId {} doesn't match with acked ledgerId {}", ml.getName(), ledger.getId(), lh.getId());
+            }
+            checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
+                    lh.getId());
         }
-        checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
-                lh.getId());
 
         if (!checkAndCompleteOp(ctx)) {
             // means callback might have been completed by different thread (timeout task thread).. so do nothing
@@ -191,7 +192,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         this.entryId = entryId;
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] write-complete: ledger-id={} entry-id={} size={} rc={}", this, ml.getName(),
-                    lh.getId(), entryId, dataLength, rc);
+                    lh == null ? -1 : lh.getId(), entryId, dataLength, rc);
         }
 
         if (rc != BKException.Code.OK) {
@@ -220,23 +221,27 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
         ManagedLedgerImpl.NUMBER_OF_ENTRIES_UPDATER.incrementAndGet(ml);
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
+
+        long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
-            EntryImpl entry = EntryImpl.create(ledger.getId(), entryId, data);
+            EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
             ml.entryCache.insert(entry);
             entry.release();
         }
 
-        PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
+        PositionImpl lastEntry = PositionImpl.get(ledgerId, entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {
-            log.info("[{}] Closing ledger {} for being full", ml.getName(), ledger.getId());
+            log.info("[{}] Closing ledger {} for being full", ml.getName(), ledgerId);
             // `data` will be released in `closeComplete`
-            ledger.asyncClose(this, ctx);
+            if (ledger != null) {
+                ledger.asyncClose(this, ctx);
+            }
         } else {
             updateLatency();
             AddEntryCallback cb = callbackUpdater.getAndSet(this, null);

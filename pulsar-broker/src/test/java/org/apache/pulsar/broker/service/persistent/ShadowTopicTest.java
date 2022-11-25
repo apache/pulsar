@@ -150,7 +150,8 @@ public class ShadowTopicTest extends BrokerTestBase {
                 pulsarClient.newConsumer().topic(shadowTopic).subscriptionName("sub").subscribe();
         byte[] content = "Hello Shadow Topic".getBytes(StandardCharsets.UTF_8);
         MessageId id = producer.send(content);
-        Message<byte[]> msg = consumer.receive();
+        log.info("msg send to source topic, id={}", id);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertEquals(msg.getMessageId(), id);
         Assert.assertEquals(msg.getValue(), content);
     }
