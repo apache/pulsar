@@ -35,7 +35,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
@@ -70,9 +69,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "subType")
     public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType)
             throws PulsarClientException {
-        PulsarClient pulsarClient = PulsarClient.builder().
-                serviceUrl(lookupUrl.toString())
-                .build();
         final int totalMsg = 1000;
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
         Map<Consumer<?>, List<MessageId>> nameToId = new ConcurrentHashMap<>();
