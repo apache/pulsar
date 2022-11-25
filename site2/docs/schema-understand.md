@@ -58,9 +58,9 @@ The following table outlines the primitive types that Pulsar schema supports, an
 | `BYTES` | A sequence of 8-bit unsigned bytes. | byte[], ByteBuffer, ByteBuf | bytes | []byte | void * | byte[], `ReadOnlySequence<byte>` |
 | `STRING` | An Unicode character sequence. | string | str | string| std::string | string |
 | `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br />It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value. |  java.sql.Timestamp (java.sql.Time, java.util.Date) | | |  | DateTime,TimeSpan |
-| INSTANT | A single instantaneous point on the time-line with nanoseconds precision. | java.time.Instant | | |  | |
-| LOCAL_DATE | An immutable date-time object that represents a date, often viewed as year-month-day. | java.time.LocalDate | | |  | |
-| LOCAL_TIME | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision. | java.time.LocalDateTime | |   | |
+| `INSTANT`| A single instantaneous point on the time-line with nanoseconds precision. | java.time.Instant | | |  | |
+| `LOCAL_DATE` | An immutable date-time object that represents a date, often viewed as year-month-day. | java.time.LocalDate | | |  | |
+| `LOCAL_TIME` | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision. | java.time.LocalDateTime | |   | |
 | LOCAL_DATE_TIME | An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second. | java.time.LocalTime | |  | |
 
 :::note
@@ -69,7 +69,7 @@ Pulsar does not store any schema data in `SchemaInfo` for primitive types. Some 
 
 :::
 
-For more instructions and examples, see [Construct a string schema](schema-get-started.md#construct-a-string-schema).
+For more instructions and examples, see [Construct a string schema](schema-get-started.md#string).
 
 
 ### Complex type
@@ -87,7 +87,7 @@ The following table outlines the complex types that Pulsar schema supports:
 
 Pulsar provides the following methods to encode a **single** key/value pair in a message：
 * `INLINE` - Key/value pairs are encoded together in the message payload.
-* `SEPARATED` - The Key is stored as a message key, while the value is stored as the message payload. See [Construct a key/value schema](schema-get-started.md#construct-a-keyvalue-schema).
+* `SEPARATED` - The Key is stored as a message key, while the value is stored as the message payload. See [Construct a key/value schema](schema-get-started.md#keyvalue).
 
 #### `Struct` schema
 
@@ -111,8 +111,8 @@ For more examples, see [Construct a struct schema](schema-get-started.md#constru
 If there is no chance to know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce/consume generic records to/from brokers.
 
 Auto schema contains two categories:
-* `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#construct-an-auto_produce-schema).
-* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#construct-an-auto_consume-schema).
+* `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#auto_produce).
+* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#auto_consume).
 
 ## Schema validation
 
@@ -130,7 +130,7 @@ Schemas store the details of attributes and types. To satisfy new business needs
 
 :::note
 
-Schema evolution only applies to Avro, JSON, and Protobuf schemas. 
+Schema evolution only applies to Avro, JSON, Protobuf, and ProtobufNative schemas. 
 
 :::
 
@@ -138,7 +138,7 @@ Schema evolution may impact existing consumers. The following control measures h
 * [Schema compatibility check](#schema-compatibility-check)
 * [Schema `AutoUpdate`](#schema-autoupdate)
 
-For further readings about schema evolution, see [Avro documentation](https://avro.apache.org/docs/1.10.2/spec.html#Schema+Resolution).
+For further readings about schema evolution, see [Avro documentation](https://avro.apache.org/docs/1.10.2/spec.html#Schema+Resolution) and [Protobuf documentation](https://developers.google.com/protocol-buffers/docs/proto#optional).
 
 ### Schema versioning
 
