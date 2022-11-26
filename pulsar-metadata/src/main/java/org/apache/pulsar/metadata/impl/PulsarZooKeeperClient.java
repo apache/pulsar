@@ -126,7 +126,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         }
                         waitForConnection();
                         zk.set(newZk);
-                        log.info("ZooKeeper session {} is created to {}.",
+                        log.info("ZooKeeper session 0x{} is created to {}.",
                                 Long.toHexString(newZk.getSessionId()), connectString);
                         return newZk;
                     }
@@ -352,7 +352,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             return;
         }
 
-        log.info("ZooKeeper session {} is expired from {}.",
+        log.info("ZooKeeper session 0x{} is expired from {}.",
                 Long.toHexString(getSessionId()), connectString);
         try {
             connectExecutor.execute(clientCreator);

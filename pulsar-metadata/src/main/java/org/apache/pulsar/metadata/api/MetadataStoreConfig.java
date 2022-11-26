@@ -86,4 +86,11 @@ public class MetadataStoreConfig {
      * separate clusters.
      */
     private MetadataEventSynchronizer synchronizer;
+
+    /**
+     * if enable sessionWatcherCheckConnection logic.
+     * set false for some unit test.
+     */
+    @Builder.Default
+    private final boolean sessionWatcherCheckConnectionStatus = true;
 }

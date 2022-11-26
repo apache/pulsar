@@ -43,7 +43,7 @@ import org.apache.zookeeper.ZooKeeper;
 public class ZKSessionWatcher implements AutoCloseable, Watcher {
     private final ZooKeeper zk;
 
-    private SessionEvent currentStatus;
+    private volatile SessionEvent currentStatus;
     private final Consumer<SessionEvent> sessionListener;
 
     // Maximum time to wait for ZK session to be re-connected to quorum (set to 5/6 of SessionTimeout)
@@ -55,28 +55,42 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     private final ScheduledExecutorService scheduler;
     private final ScheduledFuture<?> task;
 
-    private long disconnectedAt = 0;
+    private volatile long disconnectedAt = 0;
 
     public ZKSessionWatcher(ZooKeeper zk, Consumer<SessionEvent> sessionListener) {
+        this(zk, sessionListener, true);
+    }
+
+    public ZKSessionWatcher(ZooKeeper zk, Consumer<SessionEvent> sessionListener, boolean enableCheckConnectionStatus) {
         this.zk = zk;
         this.monitorTimeoutMillis = zk.getSessionTimeout() * 5 / 6;
         this.tickTimeMillis = zk.getSessionTimeout() / 15;
         this.sessionListener = sessionListener;
 
-        this.scheduler = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
-        this.task =
-                scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
-                        tickTimeMillis,
-                        TimeUnit.MILLISECONDS);
-        this.currentStatus = SessionEvent.SessionReestablished;
+        if (enableCheckConnectionStatus) {
+            this.scheduler = Executors
+                    .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
+            this.task =
+                    scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
+                            tickTimeMillis,
+                            TimeUnit.MILLISECONDS);
+        } else {
+            this.scheduler = null;
+            this.task = null;
+        }
+
+        this.changeCurrentStatus(SessionEvent.SessionReestablished, "init status");
     }
 
     @Override
     public void close() throws Exception {
-        task.cancel(true);
-        scheduler.shutdownNow();
-        scheduler.awaitTermination(10, TimeUnit.SECONDS);
+        if (task != null) {
+            task.cancel(true);
+        }
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+            scheduler.awaitTermination(10, TimeUnit.SECONDS);
+        }
     }
 
     // task that runs every TICK_TIME to check zk connection
@@ -109,7 +123,9 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
             checkState(zkClientState);
         } catch (RejectedExecutionException | InterruptedException e) {
-            task.cancel(true);
+            if (task != null) {
+                task.cancel(true);
+            }
         } catch (Throwable t) {
             log.warn("Error while checking ZK connection status", t);
         }
@@ -122,15 +138,20 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     }
 
     synchronized void setSessionInvalid() {
-        currentStatus = SessionEvent.SessionLost;
+        changeCurrentStatus(SessionEvent.SessionLost, "invalid session");
+    }
+
+    private synchronized void changeCurrentStatus(SessionEvent targetStatus, String reason) {
+        log.info("change current status from {} to {} reason: {}", this.currentStatus, targetStatus, reason);
+        currentStatus = targetStatus;
     }
 
     private void checkState(Watcher.Event.KeeperState zkClientState) {
         switch (zkClientState) {
         case Expired:
             if (currentStatus != SessionEvent.SessionLost) {
-                log.error("ZooKeeper session expired");
-                currentStatus = SessionEvent.SessionLost;
+                log.error("[0x{}] ZooKeeper session expired", Long.toHexString(zk.getSessionId()));
+                changeCurrentStatus(SessionEvent.SessionLost, "zk session expired");
                 sessionListener.accept(currentStatus);
             }
             break;
@@ -145,31 +166,39 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             long timeRemainingMillis = monitorTimeoutMillis
                     - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - disconnectedAt);
             if (timeRemainingMillis <= 0 && currentStatus != SessionEvent.SessionLost) {
-                log.error("ZooKeeper session reconnection timeout. Notifying session is lost.");
-                currentStatus = SessionEvent.SessionLost;
+                log.error("[0x{}] ZooKeeper session reconnection timeout. Notifying session is lost.",
+                        Long.toHexString(zk.getSessionId()));
+                changeCurrentStatus(SessionEvent.SessionLost, "zk reconnection timeout");
                 sessionListener.accept(currentStatus);
             } else if (currentStatus != SessionEvent.SessionLost) {
-                log.warn("[{}] ZooKeeper client is disconnected. Waiting to reconnect, time remaining = {} seconds",
-                        zk.getSessionId(), timeRemainingMillis / 1000.0);
+                log.warn("[0x{}] ZooKeeper client is disconnected. Waiting to reconnect, time remaining = {} seconds",
+                        Long.toHexString(zk.getSessionId()), timeRemainingMillis / 1000.0);
                 if (currentStatus == SessionEvent.SessionReestablished) {
-                    currentStatus = SessionEvent.ConnectionLost;
+                    changeCurrentStatus(SessionEvent.ConnectionLost, "zk client disconnected");
                     sessionListener.accept(currentStatus);
                 }
             }
             break;
 
-        default:
+        case SyncConnected:
             if (currentStatus != SessionEvent.SessionReestablished) {
-                // since it reconnected to zoo keeper, we reset the disconnected time
-                log.info("ZooKeeper client reconnection with server quorum. Current status: {}", currentStatus);
+                // since it reconnected to zookeeper, we reset the disconnected time
+                log.info("[0x{}] ZooKeeper client reconnection with server quorum. " +
+                                "Current status: {}. Current zkClientState {}", Long.toHexString(zk.getSessionId()),
+                        currentStatus, zkClientState);
                 disconnectedAt = 0;
 
                 sessionListener.accept(SessionEvent.Reconnected);
                 if (currentStatus == SessionEvent.SessionLost) {
                     sessionListener.accept(SessionEvent.SessionReestablished);
                 }
-                currentStatus = SessionEvent.SessionReestablished;
+                changeCurrentStatus(SessionEvent.SessionReestablished, "session reconnected");
             }
+            break;
+        default:
+            log.info("[0x{}] ZooKeeper client receive WatchedEvent[{}] " +
+                            "Current status: {}. Current zkClientState {}", Long.toHexString(zk.getSessionId()),
+                    zkClientState, currentStatus, zkClientState);
             break;
         }
     }

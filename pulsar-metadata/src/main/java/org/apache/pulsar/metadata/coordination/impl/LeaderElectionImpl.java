@@ -66,7 +66,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         Init, ElectionInProgress, LeaderIsPresent, Closed
     }
 
-    private InternalState internalState;
+    private volatile InternalState internalState;
 
     private static final int LEADER_ELECTION_RETRY_DELAY_SECONDS = 5;
 
@@ -103,6 +103,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> elect() {
+        if (internalState == InternalState.Closed) {
+            return CompletableFuture.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException("leaderElection closed"));
+        }
+
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
         return store.get(path).thenCompose(optLock -> {
@@ -258,7 +263,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             return CompletableFuture.completedFuture(null);
         }
 
-        return store.delete(path, version);
+        return store.delete(path, version).whenComplete((Void, e) -> {
+            log.info("leaderElection close complete", e);
+        });
     }
 
     @Override
@@ -277,6 +284,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private void handleSessionNotification(SessionEvent event) {
+        if (internalState == InternalState.Closed) {
+            // ignore if we are in closed state.
+            log.info("ignore session [{}] event because in [{}] state, path={}", event, internalState, path);
+            return;
+        }
+
         // Ensure we're only processing one session event at a time.
         executor.execute(SafeRunnable.safeRun(() -> {
             if (event == SessionEvent.SessionReestablished) {

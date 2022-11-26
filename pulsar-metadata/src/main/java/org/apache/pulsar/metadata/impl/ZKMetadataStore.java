@@ -99,7 +99,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .watchers(Collections.singleton(this::processSessionWatcher))
                     .build();
             if (enableSessionWatcher) {
-                sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+                sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent,
+                        metadataStoreConfig.isSessionWatcherCheckConnectionStatus());
             } else {
                 sessionWatcher = null;
             }
