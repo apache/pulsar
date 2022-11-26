@@ -250,10 +250,12 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Thread.sleep(3 * 1000);
 
         try {
-            Producer<String> producerN = PulsarClient.builder()
+            @Cleanup
+            PulsarClient pulsarClient1 = PulsarClient.builder()
                     .maxBackoffInterval(3, TimeUnit.SECONDS)
                     .operationTimeout(5, TimeUnit.SECONDS)
-                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build()
+                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build();
+            Producer<String> producerN = pulsarClient1
                     .newProducer(Schema.STRING).topic(topic).sendTimeout(3, TimeUnit.SECONDS).create();
             Assert.assertTrue(producerN.isConnected());
             producerN.close();
