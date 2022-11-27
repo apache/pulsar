@@ -1019,7 +1019,7 @@ public class PersistentTopicsBase extends AdminResource {
             Throwable t = e.getCause();
             log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
             if (t instanceof TopicBusyException) {
-                throw new RestException(Status.PRECONDITION_FAILED, "Topic has active producers/subscriptions");
+                throw new RestException(Status.PRECONDITION_FAILED, t.getMessage());
             } else if (isManagedLedgerNotFoundException(e)) {
                 throw new RestException(Status.NOT_FOUND, "Topic not found");
             } else {
