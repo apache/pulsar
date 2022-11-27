@@ -196,6 +196,10 @@
                 <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                  <excludes>
+                    <exclude>io.netty.resolver.dns.macos.*</exclude>
+                    <exclude>io.netty.resolver.dns.*</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
