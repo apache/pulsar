@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -1332,6 +1333,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
+        admin.namespaces().setOffloadDeleteLag(namespace, 10000, TimeUnit.SECONDS);
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // assert we get the default which indicates it will fall back to default
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // the ledger config should have the expected value
