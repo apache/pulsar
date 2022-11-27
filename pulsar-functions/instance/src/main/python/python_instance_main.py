@@ -54,6 +54,49 @@ def atexit_function(signo, _frame):
   Log.info("Interrupted by %d, shutting down" % signo)
   to_run = False
 
+def merge_arguments(args, config_file):
+  """
+  This function is used to merge arguments passed in via the command line
+  and those passed in via the configuration file during initialization.
+
+  :param args: arguments passed in via the command line
+  :param config_file: configuration file name (path)
+
+  During the merge process, the arguments passed in via the command line have higher priority,
+  so only optional arguments need to be merged.
+  """
+  config = util.read_config(config_file)
+  if not config:
+    return
+  if not args.client_auth_plugin and config.get("client_auth_plugin", None):
+    args.client_auth_plugin = config.get("client_auth_plugin")
+  if not args.client_auth_params and config.get("client_auth_params", None):
+    args.client_auth_params = config.get("client_auth_params")
+  if not args.use_tls and config.get("use_tls", None):
+    args.use_tls = config.get("use_tls")
+  if not args.tls_allow_insecure_connection and config.get("tls_allow_insecure_connection", None):
+    args.tls_allow_insecure_connection = config.get("tls_allow_insecure_connection")
+  if not args.hostname_verification_enabled and config.get("hostname_verification_enabled", None):
+    args.hostname_verification_enabled = config.get("hostname_verification_enabled")
+  if not args.tls_trust_cert_path and config.get("tls_trust_cert_path", None):
+    args.tls_trust_cert_path = config.get("tls_trust_cert_path")
+  if not args.logging_level and config.get("logging_level", None):
+    args.logging_level = config.get("logging_level")
+  if not args.secrets_provider and config.get("secrets_provider", None):
+    args.secrets_provider = config.get("secrets_provider")
+  if not args.secrets_provider_config and config.get("secrets_provider_config", None):
+    args.secrets_provider_config = config.get("secrets_provider_config")
+  if not args.install_usercode_dependencies and config.get("install_usercode_dependencies", None):
+    args.install_usercode_dependencies = config.get("install_usercode_dependencies")
+  if not args.dependency_repository and config.get("dependency_repository", None):
+    args.dependency_repository = config.get("dependency_repository")
+  if not args.extra_dependency_repository and config.get("extra_dependency_repository", None):
+    args.extra_dependency_repository = config.get("extra_dependency_repository")
+  if not args.state_storage_serviceurl and config.get("state_storage_serviceurl", None):
+    args.state_storage_serviceurl = config.get("state_storage_serviceurl")
+  if not args.enable_live_update and config.get("enable_live_update", None):
+    args.enable_live_update = config.get("enable_live_update")
+
 def main():
   # Setup signal handlers
   signal.signal(signal.SIGTERM, atexit_function)
@@ -88,8 +131,11 @@ def main():
   parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
   parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
   parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
+  parser.add_argument('--config_file', required=False, default="", help='Configuration file name', type=str)
+  parser.add_argument('--enable_live_update', required=False, default=False, help='Configuration file name', type=bool)
 
   args = parser.parse_args()
+  merge_arguments(args, args.config_file)
   function_details = Function_pb2.FunctionDetails()
   args.function_details = str(args.function_details)
   if args.function_details[0] == '\'':
@@ -216,7 +262,9 @@ def main():
                                               pulsar_client,
                                               secrets_provider,
                                               args.cluster_name,
-                                              state_storage_serviceurl)
+                                              state_storage_serviceurl,
+                                              args.config_file,
+                                              args.enable_live_update)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

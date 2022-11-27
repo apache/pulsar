@@ -25,6 +25,7 @@ import os
 import inspect
 import sys
 import importlib
+import configparser
 from threading import Timer
 from pulsar.functions import serde
 
@@ -79,6 +80,23 @@ def getFullyQualifiedInstanceId(tenant, namespace, name, instance_id):
 
 def get_properties(fullyQualifiedName, instanceId):
     return {"application": "pulsar-function", "id": str(fullyQualifiedName), "instance_id": str(instanceId)}
+
+def read_config(config_file):
+    """
+    The content of the configuration file is styled as follows:
+
+    [DEFAULT]
+    parameter1 = value1
+    parameter2 = value2
+    parameter3 = value3
+    ...
+    """
+    if config_file == "":
+        return None
+
+    cfg = configparser.ConfigParser()
+    cfg.read(config_file)
+    return cfg.get("DEFAULT", None)
 
 class FixedTimer():
 
