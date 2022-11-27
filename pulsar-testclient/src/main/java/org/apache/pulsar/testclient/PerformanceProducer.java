@@ -49,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -392,7 +393,6 @@ public class PerformanceProducer {
                     msgRatePerThread,
                     payloadByteList,
                     payloadBytes,
-                    random,
                     doneLatch
                 );
             });
@@ -529,7 +529,6 @@ public class PerformanceProducer {
                                     int msgRate,
                                     List<byte[]> payloadByteList,
                                     byte[] payloadBytes,
-                                    Random random,
                                     CountDownLatch doneLatch) {
         PulsarClient client = null;
         try {
@@ -626,9 +625,10 @@ public class PerformanceProducer {
                     if (arguments.payloadFilename != null) {
                         if (messageFormatter != null) {
                             payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent,
-                                    payloadByteList.get(random.nextInt(payloadByteList.size())));
+                                    payloadByteList.get(ThreadLocalRandom.current().nextInt(payloadByteList.size())));
                         } else {
-                            payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
+                            payloadData = payloadByteList.get(
+                                    ThreadLocalRandom.current().nextInt(payloadByteList.size()));
                         }
                     } else {
                         payloadData = payloadBytes;
@@ -656,7 +656,7 @@ public class PerformanceProducer {
                     }
                     //generate msg key
                     if (msgKeyMode == MessageKeyGenerationMode.random) {
-                        messageBuilder.key(String.valueOf(random.nextInt()));
+                        messageBuilder.key(String.valueOf(ThreadLocalRandom.current().nextInt()));
                     } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
                         messageBuilder.key(String.valueOf(totalSent));
                     }
