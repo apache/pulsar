@@ -2027,6 +2027,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean autoSkipNonRecoverableData = false;
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "When autoSkipNonRecoverableData=true, "
+                    + "the upper limit of the number of entries skipped by automatic ack."
+    )
+    private int maxAckEntryNumForAutoSkipNonRecoverableData = 10000;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "operation timeout while updating managed-ledger metadata."
     )

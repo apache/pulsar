@@ -42,6 +42,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long timestamp;
     private long ledgerId;
     private long entryId;
+    private boolean skipped;
     ByteBuf data;
 
     private Runnable onDeallocate;
@@ -64,6 +65,17 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl createSkippedEntry(long ledgerId, long entryId) {
+        EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
+        entry.ledgerId = ledgerId;
+        entry.entryId = entryId;
+        entry.skipped = true;
+        entry.data = Unpooled.EMPTY_BUFFER;
         entry.setRefCnt(1);
         return entry;
     }
@@ -164,6 +176,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         return entryId;
     }
 
+    public boolean skipped() {
+        return skipped;
+    }
+
     @Override
     public int compareTo(EntryImpl other) {
         if (this.ledgerId != other.ledgerId) {
@@ -197,6 +213,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
+        skipped = false;
         recyclerHandle.recycle(this);
     }
 

@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -122,6 +123,18 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             final Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
+            }
+            if (entry instanceof EntryImpl) {
+                EntryImpl entryImpl = (EntryImpl) entry;
+                if (entryImpl.skipped()) {
+                    if (entriesToFiltered == null) {
+                        entriesToFiltered = new ArrayList<>();
+                    }
+                    entriesToFiltered.add(entryImpl.getPosition());
+                    entries.set(i, null);
+                    entry.release();
+                    continue;
+                }
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;

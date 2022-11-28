@@ -116,6 +116,22 @@ class OpReadEntry implements ReadEntriesCallback {
                 recycle();
                 return;
             }
+
+            int toAckEntryNum = 0;
+            List<Entry> skippedEntries = new ArrayList<>();
+            PositionImpl startPosition = readPosition;
+            PositionImpl endPosition = (PositionImpl) nexReadPosition;
+            while (startPosition.compareTo(endPosition) < 0) {
+                skippedEntries.add(EntryImpl.createSkippedEntry(startPosition.ledgerId, startPosition.entryId));
+                startPosition = ledger.getNextValidPosition(startPosition);
+                toAckEntryNum++;
+                if (toAckEntryNum > cursor.getConfig().getMaxAckEntryNumForAutoSkipNonRecoverableData()) {
+                    nexReadPosition = startPosition;
+                    break;
+                }
+            }
+            List<Entry> filteredEntries = cursor.filterReadEntries(skippedEntries);
+            entries.addAll(filteredEntries);
             updateReadPosition(nexReadPosition);
             checkReadCompletion();
         } else {

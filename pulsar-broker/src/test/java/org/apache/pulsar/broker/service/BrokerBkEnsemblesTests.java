@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
@@ -43,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -164,6 +166,101 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testSkipCorruptDataLedgerAndCheckMarkdelete() throws Exception {
+        // Ensure intended state for autoSkipNonRecoverableData
+        admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "true");
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String ns1 = "prop/usc/crash-broker";
+        final int totalMessages = 100;
+        final int totalDataLedgers = 5;
+        final int entriesPerLedger = totalMessages / totalDataLedgers;
+
+        try {
+            admin.namespaces().createNamespace(ns1);
+        } catch (Exception e) {
+        }
+
+        final String topic1 = "persistent://" + ns1 + "/my-topic-" + System.currentTimeMillis();
+        // Create subscription
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
+                .receiverQueueSize(5).subscribe();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        Field configField = ManagedCursorImpl.class.getDeclaredField("config");
+        configField.setAccessible(true);
+        // Create multiple data-ledger
+        ManagedLedgerConfig config = (ManagedLedgerConfig) configField.get(cursor);
+        config.setMaxEntriesPerLedger(entriesPerLedger);
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        // bookkeeper client
+        Field bookKeeperField = ManagedLedgerImpl.class.getDeclaredField("bookKeeper");
+        bookKeeperField.setAccessible(true);
+        // Create multiple data-ledger
+        BookKeeper bookKeeper = (BookKeeper) bookKeeperField.get(ml);
+
+        // (1) publish messages in 5 data-ledgers each with 20 entries under managed-ledger
+        Producer<byte[]> producer = client.newProducer().topic(topic1).create();
+        for (int i = 0; i < totalMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        producer.close();
+
+        Message<byte[]> msg = null;
+        // (2) consume 20 messages from first ledger
+        for (int i = 0; i < entriesPerLedger; i++) {
+            msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+        consumer.close();
+        PositionImpl markDeletePosition1 = (PositionImpl) cursor.getMarkDeletedPosition();
+
+        // (3) delete first 4 data-ledgers and clear cache
+        NavigableMap<Long, LedgerInfo> ledgerInfo = ml.getLedgersInfo();
+        Entry<Long, LedgerInfo> lastLedger = ledgerInfo.lastEntry();
+        ledgerInfo.entrySet().forEach(entry -> {
+            if (!entry.equals(lastLedger)) {
+                assertEquals(entry.getValue().getEntries(), entriesPerLedger);
+                try {
+                    bookKeeper.deleteLedger(entry.getKey());
+                } catch (Exception e) {
+                    log.warn("failed to delete ledger {}", entry.getKey(), e);
+                }
+            }
+        });
+        pulsar.getBrokerService().removeTopicFromCache(topic1);
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
+        Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field
+                .get(factory);
+        ledgers.clear();
+
+        // (4) consumer will be able to consume 20 messages from last non-deleted ledger
+        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
+                .receiverQueueSize(5).subscribe();
+        for (int i = 0; i < entriesPerLedger; i++) {
+            msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+        consumer.close();
+
+        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        ml = (ManagedLedgerImpl) topic.getManagedLedger();
+        cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        PositionImpl markDeletePosition2 = (PositionImpl) cursor.getMarkDeletedPosition();
+        // markDeletePosition moves forward
+        assertTrue(markDeletePosition2.compareTo(markDeletePosition1) > 0);
     }
 
     /**
