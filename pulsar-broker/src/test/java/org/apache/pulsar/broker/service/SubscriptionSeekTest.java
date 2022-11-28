@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -226,6 +227,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(batchMsgId0.getEntryId(), batchMsgId1.getEntryId());
         assertEquals(batchMsgId1.getEntryId(), msgIdToSeekFirst.getEntryId());
 
+        @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()
                 // set start backoff interval short enough to make sure client will re-connect quickly
                 .startingBackoffInterval(1, TimeUnit.MICROSECONDS)
@@ -261,8 +263,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             MessageId receiveId = consumer.receive().getMessageId();
             assertEquals(receiveId, messageId);
         }
-
-        newPulsarClient.close();
     }
 
     @Test

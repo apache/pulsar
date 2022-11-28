@@ -158,9 +158,8 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
             return AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.of(calendar.getTime()));
         });
 
-        pulsarClient = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-                .authentication(authenticationToken)
-                .build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .authentication(authenticationToken));
 
         String topic = "persistent://my-tenant/my-ns/my-topic1";
         @Cleanup
