@@ -39,27 +39,33 @@ To package a Python function into **one Python file**, complete the following st
 2. Install a Python client. The implementation of a Python function depends on the Python client. 
 
    ```bash
-    pip install pulsar-client==2.10.0
+   pip install pulsar-client==2.10.0
+   ```
+   
+   And install protobuf tools to generate proto file:
+
+   ```bash
+   pip install 'protobuf==3.20.*'
    ```
 
 3. Copy the Python function file to the Pulsar image.
 
    ```bash
-    docker exec -it [CONTAINER ID] /bin/bash
-    docker cp <path of Python function file>  CONTAINER ID:/pulsar
+   docker exec -it [CONTAINER ID] /bin/bash
+   docker cp <path of Python function file>  CONTAINER ID:/pulsar
    ```
 
 4. Run the Python function using the following command.
 
    ```bash
-    ./bin/pulsar-admin functions localrun \
-    --classname <Python Function file name>.<Python Function class name> \
-    --py <path of Python Function file> \
-    --inputs persistent://public/default/my-topic-1 \
-    --output persistent://public/default/test-1 \
-    --tenant public \
-    --namespace default \
-    --name PythonFunction
+   ./bin/pulsar-admin functions localrun \
+       --classname <Python Function file name>.<Python Function class name> \
+       --py <path of Python Function file> \
+       --inputs persistent://public/default/my-topic-1 \
+       --output persistent://public/default/test-1 \
+       --tenant public \
+       --namespace default \
+       --name PythonFunction
    ```
 
    The following log indicates that the Python function starts successfully.
@@ -102,15 +108,15 @@ To package a Python function into a **ZIP file**, complete the following steps.
 
 3. Run the Python function using the following command.
 
-   ```bash
-    ./bin/pulsar-admin functions localrun \
-    --classname exclamation \
-    --py <path of ZIP file> \
-    --inputs persistent://public/default/in-topic \
-    --output persistent://public/default/out-topic \
-    --tenant public \
-    --namespace default \
-    --name PythonFunction
+   ```shell
+   ./bin/pulsar-admin functions localrun \
+       --classname exclamation \
+       --py <path of ZIP file> \
+       --inputs persistent://public/default/in-topic \
+       --output persistent://public/default/out-topic \
+       --tenant public \
+       --namespace default \
+       --name PythonFunction
    ```
 
     The following log indicates that the Python function starts successfully.
