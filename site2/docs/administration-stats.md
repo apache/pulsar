@@ -33,7 +33,7 @@ The following table outlines the stats of a topic. For more details about how to
 | ownerBroker                                      | The broker that owns this topic.                                                                         |
 | [publishers](#producer-stats)                    | The list of all local publishers on the topic, ranging from zero to thousands.                           |
 | [subscriptions](#subscription-stats)             | The list of all local subscriptions to the topic.                                                        |
-| [replication](#replication-stats)                                      | This section gives the stats for cross-colo replication of this topic.                                   |
+| [replication](#replication-stats)                | This section gives the stats for cross-colo replication of this topic.                                   |
 
 ### Producer stats
 
