@@ -140,6 +140,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
+
+    public static final AtomicInteger LOCK = new AtomicInteger();
+
+    public static boolean waitForValue(int expectValue, int toValue){
+
+        while (true){
+            if (LOCK.compareAndSet(expectValue, toValue)){
+                return true;
+            }
+            if (LOCK.get() >= toValue){
+                return false;
+            }
+            System.out.println("===> " + Thread.currentThread().getName() + ", wait for " + expectValue + " --> " + toValue + ", current:" + LOCK.get());
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     private static final long MegaByte = 1024 * 1024;
 
     protected static final int AsyncOperationTimeoutSeconds = 30;
@@ -924,10 +945,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
+                if (ManagedLedgerImpl.waitForValue(0, 1)){
+                    log.info("=== ledger lost [{}] step-1: create sub {}", name, cursor.getName());
+                }
+
+                if (ManagedLedgerImpl.waitForValue(3, 4)) {
+                    log.info("=== ledger lost [{}] step-4: set {} markd-delete to {}", initialPosition, name,
+                            cursor.getName());
+                }
+
                 cursor.setActive();
-                // Update the ack position (ignoring entries that were written while the cursor was being created)
                 cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest ? getLastPositionAndCounter()
                         : getFirstPositionAndCounter());
+                if (ManagedLedgerImpl.waitForValue(5, 6)){
+                    log.info("=== ledger lost [{}] step-6: cursor {} create finished, mark-deleted-position is {}",
+                            name, cursor.getName(), cursor.getMarkDeletedPosition());
+                }
 
                 synchronized (ManagedLedgerImpl.this) {
                     cursors.add(cursor);
@@ -2373,6 +2406,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 ? config.getLedgerOffloader().getOffloadPolicies()
                 : null);
+        if (ManagedLedgerImpl.waitForValue(1, 2)){
+            log.info("=== ledger lost [{}] step-2: start trim ledger", name);
+        }
+
         synchronized (this) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
@@ -2464,7 +2501,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 }
             }
-
+            if (!ledgersToDelete.isEmpty()){
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if (ManagedLedgerImpl.waitForValue(2, 3)) {
+                log.info("=== ledger lost [{}] step-3: check ledgers to delete finished, need delete ledger: {}",
+                        name, ledgersToDelete.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()));
+            }
             for (LedgerInfo ls : ledgers.values()) {
                 if (isOffloadedNeedsDelete(ls.getOffloadContext(), optionalOffloadPolicies)
                         && !ledgersToDelete.contains(ls)) {
@@ -2472,6 +2519,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             ls.getLedgerId());
                     offloadedLedgersToDelete.add(ls);
                 }
+            }
+            if (ManagedLedgerImpl.waitForValue(4, 5)) {
+                log.info("=== ledger lost [{}] step-5: check ledgers to offload finished", name);
             }
 
             if (ledgersToDelete.isEmpty() && offloadedLedgersToDelete.isEmpty()) {
@@ -2497,7 +2547,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
-            // Update metadata
             for (LedgerInfo ls : ledgersToDelete) {
                 if (currentLastConfirmedEntry != null && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
                     // this info is relevant because the lastMessageId won't be available anymore
@@ -2508,6 +2557,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 invalidateReadHandle(ls.getLedgerId());
 
                 ledgers.remove(ls.getLedgerId());
+                log.info("=== ledger lost [{}] step-7: do delete ledger[{}] from prop ledgers", name, ls.getLedgerId());
                 NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
                 TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
 

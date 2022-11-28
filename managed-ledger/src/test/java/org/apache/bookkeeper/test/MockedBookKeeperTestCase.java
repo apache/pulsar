@@ -112,7 +112,7 @@ public abstract class MockedBookKeeperTestCase {
 
     @BeforeClass(alwaysRun = true)
     public final void setUpClass() {
-        executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(20).name("test").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
