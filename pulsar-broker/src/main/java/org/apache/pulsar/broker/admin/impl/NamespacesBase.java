@@ -904,7 +904,7 @@ public abstract class NamespacesBase extends AdminResource {
 
                 // Redirect
                 if (log.isDebugEnabled()) {
-                    log.debug("Redirecting the rest call to leader - {}", redirect);
+                    log.debug("Redirecting the request call to leader - {}", redirect);
                 }
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             } catch (MalformedURLException exception) {

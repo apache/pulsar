@@ -890,12 +890,7 @@ public class CmdNamespaces extends CmdBase {
             if (bundle == null) {
                 getAdmin().namespaces().unload(namespace);
             } else {
-                if (destinationBroker == null) {
-                    getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle);
-                } else {
-                    getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle, destinationBroker);
-                }
-
+                getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle, destinationBroker);
             }
         }
     }
