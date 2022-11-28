@@ -540,6 +540,31 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testExclusiveSubscribe() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.topics().createPartitionedTopic(topicName, 3);
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("subscriptionName")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribeAsync().get(10, TimeUnit.SECONDS);
+
+
+        try{
+            Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName("subscriptionName")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribeAsync().get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            String errorLog = e.getCause().getMessage();
+          assertTrue(errorLog.contains("Exclusive consumer is already connected"));
+        }
+    }
+
+    @Test
     public void testSubscribeUnsubscribeSingleTopic() throws Exception {
         String key = "TopicsConsumerSubscribeUnsubscribeSingleTopicTest";
         final String subscriptionName = "my-ex-subscription-" + key;
