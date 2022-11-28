@@ -219,11 +219,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             try {
                 long startEntry = 0;
                 int partId = 1;
-                long start = System.nanoTime();
                 long entryBytesWritten = 0;
                 while (startEntry <= readHandle.getLastAddConfirmed()) {
-                    int blockSize = BlockAwareSegmentInputStreamImpl
-                            .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
+                    int blockSize = BlockAwareSegmentInputStreamImpl.calculateBlockSize(
+                                    config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
 
                     try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
                             readHandle, startEntry, blockSize, this.offloaderStats, topicName)) {
