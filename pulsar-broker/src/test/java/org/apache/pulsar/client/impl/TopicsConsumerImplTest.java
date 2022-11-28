@@ -69,6 +69,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
@@ -545,22 +546,29 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, 3);
+        List<Integer> partitions = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            partitions.add(i);
+        }
+        List<String> realTopics = partitions.stream()
+                .map(idx -> topicName + "-partition-" + idx)
+                .collect(Collectors.toList());
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topic(topicName)
+                .topics(realTopics)
                 .subscriptionName("subscriptionName")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscribeAsync().get(10, TimeUnit.SECONDS);
 
 
-        try{
+        try {
             Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                    .topic(topicName)
+                    .topics(realTopics)
                     .subscriptionName("subscriptionName")
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscribeAsync().get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
-            String errorLog = e.getCause().getMessage();
-          assertTrue(errorLog.contains("Exclusive consumer is already connected"));
+            String errorLog = e.getMessage();
+            assertTrue(errorLog != null && errorLog.contains("Exclusive consumer is already connected"));
         }
     }
 
