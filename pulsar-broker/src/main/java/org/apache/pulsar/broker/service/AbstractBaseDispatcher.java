@@ -202,18 +202,21 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     protected abstract boolean isConsumersExceededOnSubscription();
 
     protected boolean isConsumersExceededOnSubscription(BrokerService brokerService,
-                                                        String topic, int consumerSize) {
+                                                        AbstractTopic topic, int consumerSize) {
+        if (topic.isSystemTopic()) {
+            return false;
+        }
         Policies policies = null;
         Integer maxConsumersPerSubscription = null;
         try {
             maxConsumersPerSubscription = brokerService
-                    .getTopicPolicies(TopicName.get(topic))
+                    .getTopicPolicies(TopicName.get(topic.getName()))
                     .map(TopicPolicies::getMaxConsumersPerSubscription)
                     .orElse(null);
             if (maxConsumersPerSubscription == null) {
                 // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
                 policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject()).orElse(null);
+                        .getPoliciesIfCached(TopicName.get(topic.getName()).getNamespaceObject()).orElse(null);
             }
         } catch (Exception e) {
             log.debug("Get topic or namespace policies fail", e);

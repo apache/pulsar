@@ -131,7 +131,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumers.size());
+        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic, consumers.size());
     }
 
     @Override

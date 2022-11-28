@@ -168,7 +168,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumerList.size());
+        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic, consumerList.size());
     }
 
     @Override
