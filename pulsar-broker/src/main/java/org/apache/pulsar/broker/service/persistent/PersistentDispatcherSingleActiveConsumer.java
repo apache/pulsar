@@ -63,7 +63,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private final AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final PersistentTopic topic;
     protected final Executor topicExecutor;
-    protected final Executor dispatcherExecutor;
+
     protected final String name;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
@@ -83,7 +83,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         this.topicExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(topicName);
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
-        this.dispatcherExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(name);
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.readFailureBackoff = new Backoff(serviceConfig.getDispatcherReadFailureBackoffInitialTimeInMs(),
             TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMaxTimeInMs(),
