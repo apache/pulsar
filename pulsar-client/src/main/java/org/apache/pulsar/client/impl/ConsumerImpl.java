@@ -1258,6 +1258,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (!verifyChecksum(headersAndPayload, messageId)) {
             // discard message with checksum error
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
+            headersAndPayload.release();
             return;
         }
 
@@ -1268,6 +1269,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         } catch (Throwable t) {
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
+            headersAndPayload.release();
             return;
         }
 
