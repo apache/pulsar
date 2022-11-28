@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -202,7 +203,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     }
 
     @Test
-    private void testSetBacklogCausedCreatingProducerFailure() throws Exception {
+    public void testSetBacklogCausedCreatingProducerFailure() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/topic-1";
 
@@ -249,15 +250,52 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Thread.sleep(3 * 1000);
 
         try {
-            Producer<String> producerN = PulsarClient.builder()
+            @Cleanup
+            PulsarClient pulsarClient1 = PulsarClient.builder()
                     .maxBackoffInterval(3, TimeUnit.SECONDS)
                     .operationTimeout(5, TimeUnit.SECONDS)
-                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build()
+                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build();
+            Producer<String> producerN = pulsarClient1
                     .newProducer(Schema.STRING).topic(topic).sendTimeout(3, TimeUnit.SECONDS).create();
             Assert.assertTrue(producerN.isConnected());
             producerN.close();
         } catch (Exception ex) {
             Assert.fail("failed to create producer");
         }
+    }
+
+    @Test
+    public void testSystemTopicNotCheckExceed() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/topic-1";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+
+        conf.setMaxSameAddressConsumersPerTopic(1);
+        admin.namespaces().setMaxConsumersPerTopic(ns, 1);
+        admin.topicPolicies().setMaxConsumers(topic, 1);
+        NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
+        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
+
+        conf.setMaxSameAddressProducersPerTopic(1);
+        admin.namespaces().setMaxProducersPerTopic(ns, 1);
+        admin.topicPolicies().setMaxProducers(topic, 1);
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
+
+        FutureUtil.waitForAll(List.of(writer1, writer2, f1)).join();
+        Assert.assertTrue(reader1.hasMoreEvents());
+        Assert.assertNotNull(reader1.readNext());
+        Assert.assertTrue(reader2.hasMoreEvents());
+        Assert.assertNotNull(reader2.readNext());
+        reader1.close();
+        reader2.close();
+        writer1.get().close();
+        writer2.get().close();
     }
 }
