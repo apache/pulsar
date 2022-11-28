@@ -79,7 +79,7 @@ RUN apt-get -y --purge autoremove \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install pyyaml==5.4.1
+RUN pip3 install pyyaml==5.4.1 watchdog==2.1.9
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
