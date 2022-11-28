@@ -112,11 +112,11 @@ This hands-on tutorial provides step-by-step instructions and examples on how to
 
 :::note
 
-Before starting functions, you need to [start Pulsar](#start-standalone-pulsar) and [create test namespace](#create-a-tenantnamespace-for-test).
+Before starting functions, you need to [start Pulsar](#start-standalone-pulsar) and [create test namespace](#create-a-namespace-for-test).
 
 :::
 
-1. create a function named `examples`.
+1. Create a function named `examples`.
 
    :::tip
 
@@ -151,8 +151,8 @@ Before starting functions, you need to [start Pulsar](#start-standalone-pulsar) 
    parallelism: 1
    ```
 
-   You can see the source code of `ExclamationFunction` [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java).
-   More information about the yaml config see [here](functions-cli.md#yaml-configurations-for-pulsar-functions). 
+   You can see the [source code](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java) of `ExclamationFunction`.
+   For more information about the yaml config, see the [reference](functions-cli.md#yaml-configurations-for-pulsar-functions). 
 
 2. In the same terminal window as step 1, verify the function's configurations.
 
@@ -286,7 +286,7 @@ The following example provides instructions to validate counter functions.
 
 :::note
 
-Before starting stateful functions, you need to [start Pulsar](#start-standalone-pulsar) and [create test namespace](#create-a-tenantnamespace-for-test).
+Before starting stateful functions, you need to [start Pulsar](#start-standalone-pulsar) and [create test namespace](#create-a-namespace-for-test).
 
 :::
 
@@ -316,8 +316,8 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
    parallelism: 1
    ```
    
-   You can see the source code of `WordCountFunction` [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java). This function won't return any value but store the occurrence of words in function context. So we don't need to specify an output topic.
-   More information about the yaml config see [here](functions-cli.md#yaml-configurations-for-pulsar-functions).
+   You can see the [source code](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java) of `WordCountFunction`. This function won't return any value but store the occurrence of words in function context. So you don't need to specify an output topic.
+   For more information about the yaml config, see the [reference](functions-cli.md#yaml-configurations-for-pulsar-functions).
 
 2. In the same terminal window as step 1, get the information of the `word_count` function.
 
@@ -471,11 +471,11 @@ The following example provides instructions to start a window function to calcul
 
 :::note
 
-Before starting window functions, you need to [start Pulsar](#start-standalone-pulsar)  and [create test namespace](#create-a-tenantnamespace-for-test).
+Before starting window functions, you need to [start Pulsar](#start-standalone-pulsar)  and [create test namespace](#create-a-namespace-for-test).
 
 :::
 
-1. create a function using `example-window-function-config.yaml`.
+1. Create a function using `example-window-function-config.yaml`.
 
    ```bash
    bin/pulsar-admin functions create \
@@ -508,7 +508,7 @@ Before starting window functions, you need to [start Pulsar](#start-standalone-p
    ```
 
    You can see the source code of `AddWindowFunction` [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/AddWindowFunction.java).
-   More information about the yaml config see [here](functions-cli.md#yaml-configurations-for-pulsar-functions).
+   For more information about the yaml config, see the [reference](functions-cli.md#yaml-configurations-for-pulsar-functions).
 
 
 2. In the same terminal window as step 1, verify the function's configurations.
