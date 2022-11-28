@@ -999,8 +999,7 @@ pulsarProducer.produce(kafkaMessageBytes);
 
 ### AUTO_CONSUME
 
-Suppose you have a Pulsar topic _P_, a consumer (for example, _MySQL_) receiving messages from the topic _P_, an application reading the messages from _P_ and writing the messages to _MySQL_.
-Need more eyes on it.
+Suppose you have a Pulsar topic _P_ and a consumer _MySQL_ that receives messages from _P_, and you want to check if these messages have the information that your application needs to count.
 
 This example shows how to construct an [AUTO_CONSUME schema](schema-understand.md#auto-schema) to verify whether the bytes produced by _P_ can be sent to _MySQL_.
 
@@ -1011,6 +1010,12 @@ Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME(
 
 Message<GenericRecord> msg = consumer.receive() ; 
 GenericRecord record = msg.getValue();
+record.getFields().forEach((field -> {
+   if (field.getName().equals("theNeedFieldName")) {
+       Object recordField = record.getField(field);
+       //Do some things 
+   }
+}));
 ```
 
 ## Customize schema storage

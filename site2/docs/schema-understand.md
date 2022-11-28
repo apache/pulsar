@@ -112,7 +112,7 @@ If there is no chance to know the schema type of a Pulsar topic in advance, you 
 
 Auto schema contains two categories:
 * `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#auto_produce).
-* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#auto_consume).
+* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#auto_consume).
 
 ## Schema validation
 
@@ -169,7 +169,7 @@ The table below outlines the possible scenarios when this connection attempt occ
 
 ### Schema compatibility check
 
-The purpose of schema compatibility check is to ensure the existing consumers can process the introduced messages.
+The purpose of schema compatibility check is to ensure that existing consumers can process the introduced messages.
 
 When receiving a `SchemaInfo` from producers, brokers recognize the schema type and deploy the schema compatibility checker ([`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java)) for that schema type to check if the `SchemaInfo` is compatible with the schema of the topic by applying the configured compatibility check strategy. 
 
