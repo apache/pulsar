@@ -142,6 +142,25 @@ import org.slf4j.LoggerFactory;
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final long MegaByte = 1024 * 1024;
 
+    public static final AtomicInteger PROCESS_COODINATOR = new AtomicInteger();
+
+    public static boolean waitForValue(int expectValue, int toValue){
+        while (true){
+            if (PROCESS_COODINATOR.compareAndSet(expectValue, toValue)){
+                return true;
+            }
+            if (PROCESS_COODINATOR.get() >= toValue){
+                return false;
+            }
+            System.out.println("===> " + Thread.currentThread().getName() + ", wait for " + expectValue + " --> " + toValue + ", current:" + PROCESS_COODINATOR.get());
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     protected static final int AsyncOperationTimeoutSeconds = 30;
 
     protected final BookKeeper bookKeeper;
@@ -1297,6 +1316,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
+        ManagedLedgerImpl.waitForValue(1, 2);
         asyncClose(new CloseCallback() {
             @Override
             public void closeComplete(Object ctx) {
@@ -1603,6 +1623,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     synchronized void createLedgerAfterClosed() {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
             log.info("[{}] Creating a new ledger after closed", name);
+            ManagedLedgerImpl.waitForValue(0, 1);
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
@@ -3748,6 +3769,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         log.info("[{}] Creating ledger, metadata: {} - metadata ops timeout : {} seconds",
             name, finalMetadata, config.getMetadataOperationsTimeoutSeconds());
         try {
+            ManagedLedgerImpl.waitForValue(2, 3);
             bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(), config.getAckQuorumSize(),
                 digestType, config.getPassword(), cb, ledgerCreated, finalMetadata);
         } catch (Throwable cause) {
