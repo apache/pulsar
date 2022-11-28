@@ -1225,6 +1225,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String topicMlName = namespace + "/persistent/cleanTopic";
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -1350,6 +1351,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.topics().createNonPartitionedTopic(topic);
         // Replicator will not replicate System Topic other than topic policies
         initTransaction(2, admin1, pulsar1.getBrokerServiceUrl(), pulsar1);
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl())
                 .enableTransaction(true).build();
         TransactionImpl transaction = (TransactionImpl) client.newTransaction()
