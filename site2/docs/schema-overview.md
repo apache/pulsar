@@ -23,7 +23,7 @@ Pulsar uses a schema registry as a central repository to store the registered sc
 
 :::note
 
-Currently, Pulsar schema is available for [Java client](client-libraries-java.md), [Go client](client-libraries-go.md), [Python client](client-libraries-python.md), [C++ client](client-libraries-cpp.md) and [C# client](client-libraries-dotnet.md).
+Currently, Pulsar schema is available for [Java clients](client-libraries-java.md), [Go clients](client-libraries-go.md), [Python clients](client-libraries-python.md), [C++ clients](client-libraries-cpp.md), and [C# clients](client-libraries-dotnet.md).
 
 :::
 
@@ -55,11 +55,11 @@ This diagram illustrates how Pulsar schema works on the Producer side.
    
 3. The broker looks up the schema registry to check if it is a registered schema. 
    * If the schema is registered, the broker returns the schema version to the producer.
-   * Otherwise, go to step4.
+   * Otherwise, go to step 4.
 
 4. The broker checks whether the schema can be auto-updated. 
    * If it’s not allowed to be auto-updated, then the schema cannot be registered, and the broker rejects the producer.
-   * Otherwise, go to step5.
+   * Otherwise, go to step 5.
 
 5. The broker performs the [schema compatibility check](schema-understand.md#schema-compatibility-check) defined for the topic.
    * If the schema passes the compatibility check, the broker stores it in the schema registry and returns the schema version to the producer. All the messages produced by this producer are tagged with the schema version. 
@@ -76,8 +76,8 @@ This diagram illustrates how schema works on the consumer side.
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
 
 3. The broker checks if the topic is in use (has at least one of the objects: schema, data, active producer or consumer).
-   * If a topic has at least one of the above objects, go to step5.
-   * Otherwise, go to step4.
+   * If a topic has at least one of the above objects, go to step 5.
+   * Otherwise, go to step 4.
 
 4. The broker checks whether the schema can be auto-updated.
      * If the schema can be auto-updated, the broker registers the schema and connects the consumer.

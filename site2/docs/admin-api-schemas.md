@@ -14,7 +14,7 @@ import TabItem from '@theme/TabItem';
 
 This page only shows **some frequently used operations**.
 
-- For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+- For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/).
 
 - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 
@@ -51,9 +51,9 @@ The `schema-definition-file` is in JSON format.
 }
 ```
 
-Here are examples of the `schema-definition-file` for a JSON schema.
+The following is an example of the `schema-definition-file` for a JSON schema.
 
-**Example 1**
+**Example**
 
 ```json
 {
@@ -300,6 +300,7 @@ admin.deleteSchema("my-tenant/my-ns/my-topic");
 
 To enable/enforce schema auto-update at the namespace level, you can use one of the following methods.
 
+````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
@@ -348,6 +349,7 @@ When schema auto-update is disabled, you can only [register a new schema](#uploa
 
 To disable schema auto-update at the **namespace** level, you can use one of the following commands.
 
+````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
@@ -394,6 +396,7 @@ To enforce schema validation at the **cluster** level, you can configure `schema
 
 To enable schema validation at the **namespace** level, you can use one of the following commands.
 
+````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
@@ -436,6 +439,7 @@ admin.namespaces().setSchemaValidationEnforced("my-namspace", true);
 
 To disable schema validation at the **namespace** level, you can use one of the following commands.
 
+````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
