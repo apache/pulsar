@@ -16,16 +16,16 @@ To package a Python function into **one Python file**, complete the following st
 1. Write a Python function.
 
    ```python
-    from pulsar import Function #  import the Function module from Pulsar
-
-    # The classic ExclamationFunction that appends an exclamation at the end
-    # of the input
-    class ExclamationFunction(Function):
+   from pulsar import Function #  import the Function module from Pulsar
+   
+   # The classic ExclamationFunction that appends an exclamation at the end
+   # of the input
+   class ExclamationFunction(Function):
       def __init__(self):
-        pass
-
+         pass
+      
       def process(self, input, context):
-        return input + '!'
+         return input + '!'
    ```
 
     In this example, when you write a Python function, you need to inherit the Function class and implement the `process()` method.
