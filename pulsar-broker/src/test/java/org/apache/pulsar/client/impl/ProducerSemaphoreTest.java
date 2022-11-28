@@ -271,7 +271,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             batchMessageContainerField.setAccessible(true);
             BatchMessageContainerImpl batchMessageContainer = (BatchMessageContainerImpl) batchMessageContainerField.get(spyProducer);
             batchMessageContainer.setProducer(spyProducer);
-            spyProducer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            spyProducer.send("semaphore".getBytes(StandardCharsets.UTF_8));
 
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.TimeoutException ex) {

@@ -109,6 +109,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         final String topic = "persistent://prop/ns-abc/testBlockByPublishRateLimiting";
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
+                .batchingMaxBytes(1024 * 1024)
                 .producerName("producer-name")
                 .create();
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
