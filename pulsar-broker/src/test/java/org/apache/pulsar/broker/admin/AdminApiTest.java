@@ -3234,6 +3234,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
+                .batchingMaxBytes(1024 * 1024)
                 .topic(topic)
                 .create();
 
