@@ -470,6 +470,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
 
+        if (isBatchMessagingEnabled() && compressedPayload.readableBytes() > this.conf.getBatchingMaxBytes()) {
+            // If the message is larger than the max batch size, fail quickly
+            PulsarClientException.InvalidMessageException invalidMessageException =
+                    new PulsarClientException.InvalidMessageException(
+                            format("The producer %s of the topic %s sends a message with %d bytes that exceeds"
+                                            + " the max batch size %d bytes",
+                            producerName, topic, compressedPayload.readableBytes(), this.conf.getBatchingMaxBytes()));
+            completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
+            compressedPayload.release();
+            return;
+        }
+
         if (!msg.isReplicated() && msgMetadata.hasProducerName()) {
             PulsarClientException.InvalidMessageException invalidMessageException =
                 new PulsarClientException.InvalidMessageException(
