@@ -90,6 +90,40 @@ public class ThresholdShedderTest {
     }
 
     @Test
+    public void testBrokerReachThreshold() {
+        LoadData loadData = new LoadData();
+
+        LocalBrokerData broker1 = new LocalBrokerData();
+        broker1.setCpu(new ResourceUsage(140, 100));
+        broker1.setMemory(new ResourceUsage(10, 100));
+        broker1.setDirectMemory(new ResourceUsage(10, 100));
+        broker1.setBandwidthIn(new ResourceUsage(500, 1000));
+        broker1.setBandwidthOut(new ResourceUsage(500, 1000));
+        broker1.setBundles(Sets.newHashSet("bundle-1", "bundle-2"));
+        broker1.setMsgThroughputIn(Double.MAX_VALUE);
+
+        LocalBrokerData broker2 = new LocalBrokerData();
+        broker2.setCpu(new ResourceUsage(10, 100));
+        broker2.setMemory(new ResourceUsage(10, 100));
+        broker2.setDirectMemory(new ResourceUsage(10, 100));
+        broker2.setBandwidthIn(new ResourceUsage(500, 1000));
+        broker2.setBandwidthOut(new ResourceUsage(500, 1000));
+        broker2.setBundles(Sets.newHashSet("bundle-3", "bundle-4"));
+
+        BundleData bundleData = new BundleData();
+        TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+        timeAverageMessageData.setMsgThroughputIn(1000);
+        timeAverageMessageData.setMsgThroughputOut(1000);
+        bundleData.setShortTermData(timeAverageMessageData);
+
+        loadData.getBundleData().put("bundle-2", bundleData);
+        loadData.getBrokerData().put("broker-2", new BrokerData(broker1));
+        loadData.getBrokerData().put("broker-3", new BrokerData(broker2));
+
+        assertFalse(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
+    }
+
+    @Test
     public void testBrokerWithSingleBundle() {
         LoadData loadData = new LoadData();
 
