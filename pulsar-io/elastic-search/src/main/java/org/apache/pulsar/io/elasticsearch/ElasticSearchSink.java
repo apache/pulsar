@@ -240,10 +240,10 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             if (id != null
                     && idHashingAlgorithm != null
                     && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
+                final byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
 
                 boolean performHashing = true;
-                if (elasticSearchConfig.isConditionalIdHashing()
-                        && id.getBytes(StandardCharsets.UTF_8).length <= 512) {
+                if (elasticSearchConfig.isConditionalIdHashing() && idBytes.length <= 512) {
                     performHashing = false;
                 }
                 if (performHashing) {
@@ -259,7 +259,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
                                     + idHashingAlgorithm);
                     }
-                    hasher.putString(id, StandardCharsets.UTF_8);
+                    hasher.putBytes(idBytes);
                     id = base64Encoder.encodeToString(hasher.hash().asBytes());
                 }
             }
