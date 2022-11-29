@@ -235,25 +235,35 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 }
             }
 
+            log.info("checking for hashing {}", id);
             final ElasticSearchConfig.IdHashingAlgorithm idHashingAlgorithm =
                     elasticSearchConfig.getIdHashingAlgorithm();
             if (id != null
                     && idHashingAlgorithm != null
                     && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
-                Hasher hasher;
-                switch (idHashingAlgorithm) {
-                    case SHA256:
-                        hasher = Hashing.sha256().newHasher();
-                        break;
-                    case SHA512:
-                        hasher = Hashing.sha512().newHasher();
-                        break;
-                    default:
-                        throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
-                                + idHashingAlgorithm);
+
+                boolean performHashing = true;
+                if (elasticSearchConfig.isConditionalIdHashing()
+                        && id.getBytes(StandardCharsets.UTF_8).length <= 512) {
+                    performHashing = false;
                 }
-                hasher.putString(id, StandardCharsets.UTF_8);
-                id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                if (performHashing) {
+                    Hasher hasher;
+                    switch (idHashingAlgorithm) {
+                        case SHA256:
+                            hasher = Hashing.sha256().newHasher();
+                            break;
+                        case SHA512:
+                            hasher = Hashing.sha512().newHasher();
+                            break;
+                        default:
+                            throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
+                                    + idHashingAlgorithm);
+                    }
+                    hasher.putString(id, StandardCharsets.UTF_8);
+                    id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                    log.info("got new id {}", id);
+                }
             }
 
             if (log.isDebugEnabled()) {
