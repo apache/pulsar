@@ -908,7 +908,7 @@ public class Consumer {
     public boolean equals(Object obj) {
         if (obj instanceof Consumer) {
             Consumer other = (Consumer) obj;
-            return Objects.equals(cnx.clientAddress(), other.cnx.clientAddress()) && consumerId == other.consumerId;
+            return consumerId == other.consumerId && Objects.equals(cnx.clientAddress(), other.cnx.clientAddress());
         }
         return false;
     }
