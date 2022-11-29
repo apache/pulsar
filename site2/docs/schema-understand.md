@@ -57,11 +57,11 @@ The following table outlines the primitive types that Pulsar schema supports, an
 | `DOUBLE` | A double-precision (64-bit) IEEE 754 floating-point number. | double | double | float64| double | double |
 | `BYTES` | A sequence of 8-bit unsigned bytes. | byte[], ByteBuffer, ByteBuf | bytes | []byte | void * | byte[], `ReadOnlySequence<byte>` |
 | `STRING` | An Unicode character sequence. | string | str | string| std::string | string |
-| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br />It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value. |  java.sql.Timestamp (java.sql.Time, java.util.Date) | | |  | DateTime,TimeSpan |
-| `INSTANT`| A single instantaneous point on the timeline with nanoseconds precision. | java.time.Instant | | |  | |
-| `LOCAL_DATE` | An immutable date-time object that represents a date, often viewed as year-month-day. | java.time.LocalDate | | |  | |
-| `LOCAL_TIME` | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision. | java.time.LocalDateTime | |   | |
-| LOCAL_DATE_TIME | An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second. | java.time.LocalTime | |  | |
+| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br />It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value. |  java.sql.Timestamp (java.sql.Time, java.util.Date) | N/A | N/A | N/A | DateTime,TimeSpan |
+| `INSTANT`| A single instantaneous point on the timeline with nanoseconds precision. | java.time.Instant | N/A | N/A | N/A | N/A |
+| `LOCAL_DATE` | An immutable date-time object that represents a date, often viewed as year-month-day. | java.time.LocalDate | N/A | N/A | N/A | N/A |
+| `LOCAL_TIME` | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision. | java.time.LocalDateTime | N/A | N/A  | N/A | N/A |
+| LOCAL_DATE_TIME | An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second. | java.time.LocalTime | N/A | N/A | N/A | N/A |
 
 :::note
 
@@ -137,7 +137,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
    ```java
    Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
-   producer.newMessage().value(new User(“pulsar-user”, 1)).send();
+   producer.newMessage().value(new User("pulsar-user", 1)).send();
    ```
 
 3. Create a consumer with a `struct` schema and receive messages
@@ -211,7 +211,7 @@ You can define the `schemaDefinition` to generate a `struct` schema.
    ```java
    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
    Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
-   producer.newMessage().value(new User (“pulsar-user”, 1)).send();
+   producer.newMessage().value(new User ("pulsar-user", 1)).send();
    ```
 
 3. Create a consumer with a `SchemaDefinition` schema and receive messages.
@@ -228,7 +228,7 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 
 ### Auto Schema
 
-If there is no chance to know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce/consume generic records to/from brokers.
+If there is no chance to know the schema type of a Pulsar topic in advance, you can use AUTO schemas to produce/consume generic records to/from brokers.
 
 Auto schema contains two categories:
 * `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#auto_produce).

@@ -70,14 +70,14 @@ consumer.receive(msg, 3000);
 
 ```python
 producer = client.create_producer(
-'bytes-schema-topic',
-schema=BytesSchema())
+   'bytes-schema-topic',
+   schema=BytesSchema())
 producer.send(b"Hello")
 
 consumer = client.subscribe(
-'bytes-schema-topic',
-		'sub',
-		schema=BytesSchema())
+   'bytes-schema-topic',
+	'sub',
+	schema=BytesSchema())
 msg = consumer.receive()
 data = msg.value()
 ```
@@ -87,18 +87,18 @@ data = msg.value()
 
 ```go
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
-  Topic:  "my-topic",
-  Schema: pulsar.NewBytesSchema(nil),
+    Topic:  "my-topic",
+    Schema: pulsar.NewBytesSchema(nil),
 })
 id, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
-  Value: []byte("message"),
+    Value: []byte("message"),
 })
 
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-  Topic:            "my-topic",
-  Schema:           pulsar.NewBytesSchema(nil),
-  SubscriptionName: "my-sub",
-  Type:             pulsar.Exclusive,
+    Topic:            "my-topic",
+    Schema:           pulsar.NewBytesSchema(nil),
+    SubscriptionName: "my-sub",
+    Type:             pulsar.Exclusive,
 })
 ```
 
@@ -145,8 +145,8 @@ consumer.receive(msg, 3000);
 
 ```python
 producer = client.create_producer(
-                'string-schema-topic',
-                schema=StringSchema())
+      'string-schema-topic',
+      schema=StringSchema())
 producer.send("Hello")
 
 consumer = client.subscribe(
@@ -162,18 +162,18 @@ str = msg.value()
 
 ```go
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
-  Topic:  "my-topic",
-  Schema: pulsar.NewStringSchema(nil),
+    Topic:  "my-topic",
+    Schema: pulsar.NewStringSchema(nil),
 })
 id, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
-  Value: "message",
+    Value: "message",
 })
 
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-  Topic:            "my-topic",
-  Schema:           pulsar.NewStringSchema(nil),
-  SubscriptionName: "my-sub",
-  Type:             pulsar.Exclusive,
+    Topic:            "my-topic",
+    Schema:           pulsar.NewStringSchema(nil),
+    SubscriptionName: "my-sub",
+    Type:             pulsar.Exclusive,
 })
 msg, err := consumer.Receive(context.Background())
 ```
@@ -366,15 +366,15 @@ class Example(Record):
     b = Integer()
 
 producer = client.create_producer(
-'avro-schema-topic',
-schema=AvroSchema(Example))
+   'avro-schema-topic',
+   schema=AvroSchema(Example))
 r = Example(a=1, b=2)
 producer.send(r)
 
 consumer = client.subscribe(
-'avro-schema-topic',
-		'sub',
-		schema=AvroSchema(Example))
+   'avro-schema-topic',
+	'sub',
+	schema=AvroSchema(Example))
 msg = consumer.receive()
 e = msg.value()
 ```
@@ -450,9 +450,9 @@ e = msg.value()
 Suppose you have an `avroExampleStruct` class as follows, and you'd like to transmit it over a Pulsar topic.
 
 ```go
-  type avroExampleStruct struct {
-  ID   int
-  Name string
+    type avroExampleStruct struct {
+    ID   int
+    Name string
 }
 ```
 
@@ -460,7 +460,7 @@ Suppose you have an `avroExampleStruct` class as follows, and you'd like to tran
 
    ```go
    var (
-     exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+       exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
      "\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
    )
    ```
@@ -470,23 +470,23 @@ Suppose you have an `avroExampleStruct` class as follows, and you'd like to tran
    ```go
    //Create producer and send message
    producer, err := client.CreateProducer(pulsar.ProducerOptions{
-     Topic:  "my-topic",
-     Schema: pulsar.NewAvroSchema(exampleSchemaDef, nil),
+       Topic:  "my-topic",
+       Schema: pulsar.NewAvroSchema(exampleSchemaDef, nil),
    })
 
    msgId, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
-     Value: avroExampleStruct{
-        ID:   10,
-        Name: "avroExampleStruct",
+       Value: avroExampleStruct{
+          ID:   10,
+          Name: "avroExampleStruct",
      },
    })
 
    //Create Consumer and receive message
    consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-     Topic:            "my-topic",
-     Schema:           pulsar.NewAvroSchema(exampleSchemaDef, nil),
-     SubscriptionName: "my-sub",
-     Type:             pulsar.Shared,
+       Topic:            "my-topic",
+       Schema:           pulsar.NewAvroSchema(exampleSchemaDef, nil),
+       SubscriptionName: "my-sub",
+       Type:             pulsar.Shared,
    })
    message, err := consumer.Receive(context.Background())
    ```
@@ -564,8 +564,8 @@ You can declare a `JsonSchema` by passing a class that inherits from `pulsar.sch
 
 ```python
 producer = client.create_producer(
-'avro-schema-topic',
-schema=JsonSchema(Example))
+   'avro-schema-topic',
+   schema=JsonSchema(Example))
 
 consumer = client.subscribe(
 	'avro-schema-topic',
@@ -580,8 +580,8 @@ Suppose you have an `avroExampleStruct` class as follows, and you'd like to tran
 
 ```go
 type jsonExampleStruct struct {
-  ID   int    `json:"id"`
-  Name string `json:"name"`
+    ID   int    `json:"id"`
+    Name string `json:"name"`
 }
 ```
 
@@ -597,23 +597,23 @@ type jsonExampleStruct struct {
    ```go
    //Create producer and send message
    producer, err := client.CreateProducer(pulsar.ProducerOptions{
-     Topic:  "my-topic",
-     Schema: pulsar.NewJSONSchema(jsonSchemaDef, nil),
+       Topic:  "my-topic",
+       Schema: pulsar.NewJSONSchema(jsonSchemaDef, nil),
    })
 
    msgId, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
-     Value: jsonExampleStruct{
-        ID:   10,
-        Name: "jsonExampleStruct",
+       Value: jsonExampleStruct{
+           ID:   10,
+           Name: "jsonExampleStruct",
      },
    })
 
    //Create Consumer and receive message
    consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-     Topic:            "my-topic",
-     Schema:           pulsar.NewJSONSchema(jsonSchemaDef, nil),
-     SubscriptionName: "my-sub",
-     Type:             pulsar.Exclusive,
+       Topic:            "my-topic",
+       Schema:           pulsar.NewJSONSchema(jsonSchemaDef, nil),
+       SubscriptionName: "my-sub",
+       Type:             pulsar.Exclusive,
    })
    message, err := consumer.Receive(context.Background())
    ```
@@ -732,7 +732,7 @@ The following example shows how to create a producer/consumer with a ProtobufNat
 
 <TabItem value="Java">
 
-Constructing a protobuf schema using Java is similar to construct a `ProtobufNative` schema. The only difference is to use `PROTOBUF` instead of `PROTOBUF_NATIVE` when defining schema type as shown below.
+Constructing a protobuf schema using Java is similar to constructing a `ProtobufNative` schema. The only difference is to use `PROTOBUF` instead of `PROTOBUF_NATIVE` when defining schema type as shown below.
 
 1. Generate the `DemoMessage` class using Protobuf3 or later versions.
 
@@ -805,11 +805,11 @@ Suppose you have a `protobufDemo` class as follows, and you'd like to transmit i
 
 ```go
 type protobufDemo struct {
-  Num                  int32    `protobuf:"varint,1,opt,name=num,proto3" json:"num,omitempty"`
-  Msf                  string   `protobuf:"bytes,2,opt,name=msf,proto3" json:"msf,omitempty"`
-  XXX_NoUnkeyedLiteral struct{} `json:"-"`
-  XXX_unrecognized     []byte   `json:"-"`
-  XXX_sizecache        int32    `json:"-"`
+    Num                  int32    `protobuf:"varint,1,opt,name=num,proto3" json:"num,omitempty"`
+    Msf                  string   `protobuf:"bytes,2,opt,name=msf,proto3" json:"msf,omitempty"`
+    XXX_NoUnkeyedLiteral struct{} `json:"-"`
+    XXX_unrecognized     []byte   `json:"-"`
+    XXX_sizecache        int32    `json:"-"`
 }
 ```
 
@@ -817,8 +817,8 @@ type protobufDemo struct {
 
    ```go
    var (
-     protoSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
-        "\"fields\":[{\"name\":\"num\",\"type\":\"int\"},{\"name\":\"msf\",\"type\":\"string\"}]}"
+       protoSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+           "\"fields\":[{\"name\":\"num\",\"type\":\"int\"},{\"name\":\"msf\",\"type\":\"string\"}]}"
    )
    ```
 
@@ -827,21 +827,21 @@ type protobufDemo struct {
    ```go
    psProducer := pulsar.NewProtoSchema(protoSchemaDef, nil)
    producer, err := client.CreateProducer(pulsar.ProducerOptions{
-     Topic:  "proto",
-     Schema: psProducer,
+       Topic:  "proto",
+       Schema: psProducer,
    })
    msgId, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
-     Value: &protobufDemo{
-        Num: 100,
-        Msf: "pulsar",
+       Value: &protobufDemo{
+           Num: 100,
+           Msf: "pulsar",
      },
    })
    psConsumer := pulsar.NewProtoSchema(protoSchemaDef, nil)
    consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-     Topic:                       "proto",
-     SubscriptionName:            "sub-1",
-     Schema:                      psConsumer,
-     SubscriptionInitialPosition: pulsar.SubscriptionPositionEarliest,
+       Topic:                       "proto",
+       SubscriptionName:            "sub-1",
+       Schema:                      psConsumer,
+       SubscriptionInitialPosition: pulsar.SubscriptionPositionEarliest,
    })
    msg, err := consumer.Receive(context.Background())
    ```
