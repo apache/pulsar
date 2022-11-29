@@ -27,9 +27,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
+import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.meta.exceptions.Code;
 import org.apache.bookkeeper.meta.exceptions.MetadataException;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -37,6 +40,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
+import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -66,6 +70,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
+    private final BookieAddressResolver resolver = new DefaultBookieAddressResolver(new DummyRegistrationClient());
 
     public static MetadataStore createMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -143,25 +148,20 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieId bookieId = BookieId.parse(addr);
-                        BookieAddressResolver addressResolver = getBookieAddressResolver();
-                        if (addressResolver == null) {
-                            LOG.warn("Bookie address resolver not yet initialized, skipping resolution");
-                        } else {
-                            BookieSocketAddress bsa = addressResolver.resolve(bookieId);
-                            newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+                        BookieSocketAddress bsa = resolver.resolve(bookieId);
+                        newRacksWithHost.updateBookie(group, bsa.toString(), bi);
 
-                            String hostname = bsa.getSocketAddress().getHostName();
-                            newBookieInfoMap.put(hostname, bi);
+                        String hostname = bsa.getSocketAddress().getHostName();
+                        newBookieInfoMap.put(hostname, bi);
 
-                            InetAddress address = bsa.getSocketAddress().getAddress();
-                            if (null != address) {
-                                String hostIp = address.getHostAddress();
-                                if (null != hostIp) {
-                                    newBookieInfoMap.put(hostIp, bi);
-                                }
-                            } else {
-                                LOG.info("Network address for {} is unresolvable yet.", addr);
+                        InetAddress address = bsa.getSocketAddress().getAddress();
+                        if (null != address) {
+                            String hostIp = address.getHostAddress();
+                            if (null != hostIp) {
+                                newBookieInfoMap.put(hostIp, bi);
                             }
+                        } else {
+                            LOG.info("Network address for {} is unresolvable yet.", addr);
                         }
                     } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
                         LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
@@ -247,4 +247,48 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public void registerRackChangeListener(ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy) {
         this.rackawarePolicy = rackawarePolicy;
     }
+
+    static class DummyRegistrationClient implements RegistrationClient {
+
+        @Override
+        public void close() {
+
+        }
+
+        @Override
+        public CompletableFuture<Versioned<Set<BookieId>>> getWritableBookies() {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Versioned<Set<BookieId>>> getAllBookies() {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Versioned<Set<BookieId>>> getReadOnlyBookies() {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> watchWritableBookies(RegistrationListener registrationListener) {
+            return null;
+        }
+
+        @Override
+        public void unwatchWritableBookies(RegistrationListener registrationListener) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> watchReadOnlyBookies(RegistrationListener registrationListener) {
+            return null;
+        }
+
+        @Override
+        public void unwatchReadOnlyBookies(RegistrationListener registrationListener) {
+
+        }
+    }
+
 }
