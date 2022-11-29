@@ -48,7 +48,7 @@ public final class LedgerMetadataUtils {
     private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
     private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
 
-    private static final String METADATA_PROPERTY_BUCKETID = "pulsar/bucketId";
+    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKETID = "pulsar/delayedIndexBucketId";
 
     /**
      * Build base metadata for every ManagedLedger.
@@ -115,7 +115,7 @@ public final class LedgerMetadataUtils {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
-                METADATA_PROPERTY_BUCKETID, bucketKey.getBytes(StandardCharsets.UTF_8)
+                METADATA_PROPERTY_DELAYED_INDEX_BUCKETID, bucketKey.getBytes(StandardCharsets.UTF_8)
         );
     }
 
