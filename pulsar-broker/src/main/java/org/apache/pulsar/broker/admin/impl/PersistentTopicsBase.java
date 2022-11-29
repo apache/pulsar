@@ -4519,12 +4519,13 @@ public class PersistentTopicsBase extends AdminResource {
                         // We must not re-create non-durable subscriptions on the new partitions
                         return;
                     }
+                    boolean replicated = ss.isReplicated();
 
                     for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
                         final String topicNamePartition = topicName.getPartition(i).toString();
                         CompletableFuture<Void> future = new CompletableFuture<>();
                         admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest).whenComplete((__, ex) -> {
+                                        subscription, MessageId.latest, replicated).whenComplete((__, ex) -> {
                             if (ex == null) {
                                 future.complete(null);
                             } else {
