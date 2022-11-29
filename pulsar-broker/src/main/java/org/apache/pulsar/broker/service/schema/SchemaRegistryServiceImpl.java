@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -57,9 +58,11 @@ import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 
 @Slf4j
-public class SchemaRegistryServiceImpl implements SchemaRegistryService {
+public class SchemaRegistryServiceImpl<T> implements SchemaRegistryService {
     private static HashFunction hashFunction = Hashing.sha256();
     private final Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
     private final SchemaStorage schemaStorage;
@@ -150,10 +153,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
-        long start = this.clock.millis();
+        return getAllSchemas(schemaId, null);
+    }
 
-        return schemaStorage.getAll(schemaId)
-                .thenApply(schemas -> {
+    public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId,
+            T locatorEntry) {
+        long start = this.clock.millis();
+        CompletableFuture<List<CompletableFuture<StoredSchema>>> storedSchemaFuture = locatorEntry == null
+                ? schemaStorage.getAll(schemaId) : schemaStorage.getAll(schemaId, locatorEntry);
+        return storedSchemaFuture.thenApply(schemas -> {
                     List<CompletableFuture<SchemaAndMetadata>> futures = schemas.stream()
                             .map(future -> future.thenCompose(stored ->
                                     Functions.bytesToSchemaInfo(stored.data)
@@ -180,57 +188,108 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                              SchemaCompatibilityStrategy strategy) {
-        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
-                getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
-            if (schemaVersion != null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schema is already exists", schemaId);
-                }
-                return CompletableFuture.completedFuture(schemaVersion);
-            }
-            CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
-            if (schemaAndMetadataList.size() != 0) {
-                if (isTransitiveStrategy(strategy)) {
-                    checkCompatibilityFuture =
-                            checkCompatibilityWithAll(schemaId, schema, strategy, schemaAndMetadataList);
-                } else {
-                    checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
-                }
+            SchemaCompatibilityStrategy strategy) {
+
+        return putSchemaIfAbsent(schemaId, schema, strategy, 0, 0);
+    }
+
+    @NotNull
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
+            SchemaCompatibilityStrategy strategy, long startTime, int retry) {
+
+        //1. read metastore and get SchemaLocator(with version)
+        //2. check if already exists, if  yes, return; if no, do next step
+        //3. build schema entry, create new ledger, write schema entry to ledger
+        //4. update schema locator with new version and new index(added with new schema entry position)
+        //5. update schema locator to metastore
+        //6. if update metastore failed with AlreadyExistException or BadVersionException, retry from step 1
+        return schemaStorage.getLocator(schemaId).thenCompose(locator -> {
+            Optional<T> locatorEntry = locator == null ? Optional.empty() : (Optional<T>) locator;
+            CompletableFuture<List<SchemaAndMetadata>> future;
+            // for compatibility, user-defined SchemaStorage may not support getLocator()
+            if (locator == null) {
+                future = trimDeletedSchemaAndGetList(schemaId);
             } else {
-                checkCompatibilityFuture.complete(null);
+                future = locatorEntry.isPresent()
+                        ? trimDeletedSchemaAndGetList(schemaId, locatorEntry.get())
+                        : CompletableFuture.completedFuture(Collections.emptyList());
             }
-            return checkCompatibilityFuture.thenCompose(v -> {
-                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                        .setType(Functions.convertFromDomainType(schema.getType()))
-                        .setSchema(ByteString.copyFrom(schema.getData()))
-                        .setSchemaId(schemaId)
-                        .setUser(schema.getUser())
-                        .setDeleted(false)
-                        .setTimestamp(clock.millis())
-                        .addAllProps(toPairs(schema.getProps()))
-                        .build();
+            return future.thenCompose(schemaAndMetadataList -> {
+                return getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
+                    if (schemaVersion != null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Schema is already exists", schemaId);
+                        }
+                        return CompletableFuture.completedFuture(schemaVersion);
+                    }
+                    CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
+                    if (schemaAndMetadataList.size() != 0) {
+                        if (isTransitiveStrategy(strategy)) {
+                            checkCompatibilityFuture = checkCompatibilityWithAll(schemaId, schema,
+                                    strategy, schemaAndMetadataList);
+                        } else {
+                            checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId,
+                                    schema, strategy);
+                        }
+                    } else {
+                        checkCompatibilityFuture.complete(null);
+                    }
+                    return checkCompatibilityFuture.thenCompose(v -> {
+                        CompletableFuture<SchemaVersion> persistentFuture = new CompletableFuture<>();
+                        byte[] hashBytes = hashFunction.hashBytes(schema.getData()).asBytes();
+                        SchemaRegistryFormat.SchemaInfo info = buildSchemaInfo(schemaId, schema);
+                        long start = startTime > 0 ? startTime : this.clock.millis();
+                        schemaStorage
+                                .put(schemaId, info.toByteArray(), hashBytes,
+                                        locatorEntry.isEmpty() ? null : locatorEntry.get())
+                                .thenAccept(sv -> {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Schema is successfully added", schemaId);
+                                    }
+                                    this.stats.recordPutLatency(schemaId, this.clock.millis() - start);
+                                    persistentFuture.complete((SchemaVersion) sv);
+                                })
+                                .exceptionally(e -> {
+                                    Throwable ex = (Throwable) e;
+                                    if (ex.getCause() instanceof AlreadyExistsException
+                                            || ex.getCause() instanceof BadVersionException) {
+                                        // retry if put schemaLocator to zk failed caused by race condition
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Put schema failed because of {}, retry {} times",
+                                                    ex.getCause().getMessage(), schemaId, retry + 1);
+                                        }
+                                        putSchemaIfAbsent(schemaId, schema, strategy, start, retry + 1)
+                                                .thenAccept(persistentFuture::complete)
+                                                .exceptionally(ex2 -> {
+                                                    persistentFuture.completeExceptionally(ex2);
+                                                    return null;
+                                                });
 
-                long start = this.clock.millis();
-
-                return schemaStorage
-                        .put(schemaId, info.toByteArray(), context)
-                        .whenComplete((__, t) -> {
-                            if (t != null) {
-                                log.error("[{}] Put schema failed", schemaId);
-                                this.stats.recordPutFailed(schemaId);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Put schema finished", schemaId);
-                                }
-                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start);
-                            }
-                        });
-
+                                    } else {
+                                        log.error("[{}] Put schema failed", schemaId, ex.getCause());
+                                        this.stats.recordPutFailed(schemaId);
+                                        persistentFuture.completeExceptionally(ex);
+                                    }
+                                    return null;
+                                });
+                        return persistentFuture;
+                    });
+                });
             });
+        });
+    }
 
-        }));
+    private SchemaRegistryFormat.SchemaInfo buildSchemaInfo(String schemaId, SchemaData schema) {
+        return SchemaRegistryFormat.SchemaInfo
+                .newBuilder()
+                .setType(Functions.convertFromDomainType(schema.getType()))
+                .setSchema(ByteString.copyFrom(schema.getData()))
+                .setSchemaId(schemaId)
+                .setUser(schema.getUser())
+                .setDeleted(false)
+                .setTimestamp(clock.millis())
+                .addAllProps(toPairs(schema.getProps()))
+                .build();
     }
 
     @Override
@@ -525,15 +584,21 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
+        return trimDeletedSchemaAndGetList(schemaId, null);
+    }
+
+    public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId,
+            T locatorEntry) {
 
         CompletableFuture<List<SchemaAndMetadata>> schemaResult = new CompletableFuture<>();
-        CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList = getAllSchemas(schemaId);
+        CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList =
+                locatorEntry == null ? getAllSchemas(schemaId) : getAllSchemas(schemaId, locatorEntry);
         schemaFutureList.thenCompose(FutureUtils::collect).handle((schemaList, ex) -> {
             List<SchemaAndMetadata> list = ex != null ? new ArrayList<>() : schemaList;
             if (ex != null) {
-                boolean recoverable = ex.getCause() != null && (ex.getCause() instanceof SchemaException)
-                        ? ((SchemaException) ex.getCause()).isRecoverable()
-                        : true;
+                boolean recoverable = ex.getCause() == null
+                        || (!(ex.getCause() instanceof SchemaException))
+                        || ((SchemaException) ex.getCause()).isRecoverable();
                 // if error is recoverable then fail the request.
                 if (recoverable) {
                     schemaResult.completeExceptionally(ex.getCause());

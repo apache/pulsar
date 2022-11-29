@@ -20,13 +20,13 @@ package org.apache.pulsar.broker.service.schema;
 
 import javax.validation.constraints.NotNull;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.LocatorEntry;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 @SuppressWarnings("unused")
 public class BookkeeperSchemaStorageFactory implements SchemaStorageFactory {
     @Override
-    @NotNull
-    public SchemaStorage create(PulsarService pulsar) {
+    public @NotNull SchemaStorage<LocatorEntry> create(PulsarService pulsar) {
         return new BookkeeperSchemaStorage(pulsar);
     }
 }

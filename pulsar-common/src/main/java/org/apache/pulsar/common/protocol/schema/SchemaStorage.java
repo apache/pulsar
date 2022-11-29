@@ -19,18 +19,31 @@
 package org.apache.pulsar.common.protocol.schema;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Schema storage.
  */
-public interface SchemaStorage {
+public interface SchemaStorage<T> {
 
     CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
 
+    default CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash, T locator) {
+        return put(key, value, hash);
+    }
+
     CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
 
+    default CompletableFuture<Optional<T>> getLocator(String key) {
+        return null;
+    }
+
     CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
+
+    default CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key, T locator) {
+        return getAll(key);
+    }
 
     CompletableFuture<SchemaVersion> delete(String key, boolean forcefully);
 

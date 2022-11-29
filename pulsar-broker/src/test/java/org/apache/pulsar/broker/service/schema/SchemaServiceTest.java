@@ -155,9 +155,21 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testConcurrentPutSchema() throws Exception {
+        String schemaId = "tenant/ns/topic_test_concurrent_put_schema" + UUID.randomUUID();
+        CompletableFuture.allOf(
+                putSchema(schemaId, schemaData1),
+                putSchema(schemaId, schemaData1),
+                putSchema(schemaId, schemaData1),
+                putSchema(schemaId, schemaData1))
+                .get();
+        assertEquals(getAllSchemas(schemaId).size(), 1);
+    }
+
+    @Test
     public void findSchemaVersionTest() throws Exception {
         putSchema(schemaId1, schemaData1, version(0));
-        assertEquals(0, schemaRegistryService.findSchemaVersion(schemaId1, schemaData1).get().longValue());
+        assertEquals(0, ((CompletableFuture<Long>)schemaRegistryService.findSchemaVersion(schemaId1, schemaData1)).get().longValue());
     }
 
     @Test
@@ -243,7 +255,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         deleteSchema(schemaId1, version(3));
 
-        SchemaRegistry.SchemaAndMetadata version3 = schemaRegistryService.getSchema(schemaId1, version(3)).get();
+        SchemaRegistry.SchemaAndMetadata version3 = (SchemaAndMetadata) schemaRegistryService.getSchema(schemaId1, version(3)).get();
         assertNull(version3);
 
     }
@@ -279,7 +291,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                 schemaId1, schemaData2, SchemaCompatibilityStrategy.FULL);
         newVersion = put.get();
         list.add(new SchemaAndMetadata(schemaId1, schemaData2, newVersion));
-        List<SchemaAndMetadata> list1 = schemaRegistryService.trimDeletedSchemaAndGetList(schemaId1).get();
+        List<SchemaAndMetadata> list1 = (List<SchemaAndMetadata>) schemaRegistryService.trimDeletedSchemaAndGetList(schemaId1).get();
         assertEquals(list.size(), list1.size());
         HashFunction hashFunction = Hashing.sha256();
         for (int i = 0; i < list.size(); i++) {
@@ -306,9 +318,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schemaData1, version(0), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
         putSchema(schemaId1, schemaData2, version(1), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
 
-        assertTrue(schemaRegistryService.isCompatible(schemaId1, schemaData3,
+        assertTrue((Boolean) schemaRegistryService.isCompatible(schemaId1, schemaData3,
                 SchemaCompatibilityStrategy.BACKWARD).get());
-        assertFalse(schemaRegistryService.isCompatible(schemaId1, schemaData3,
+        assertFalse((Boolean) schemaRegistryService.isCompatible(schemaId1, schemaData3,
                 SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE).get());
         putSchema(schemaId1, schemaData3, version(2), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
     }
@@ -317,6 +329,10 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     public void testSchemaStorageFailed() throws Exception {
         conf.setSchemaRegistryStorageClassName("Unknown class name");
         restartBroker();
+    }
+
+    private CompletableFuture<SchemaVersion> putSchema(String schemaId, SchemaData schema) {
+        return schemaRegistryService.putSchemaIfAbsent(schemaId, schema, SchemaCompatibilityStrategy.FULL);
     }
 
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {
@@ -332,14 +348,14 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private SchemaData getLatestSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
-        SchemaRegistry.SchemaAndMetadata schemaAndVersion = schemaRegistryService.getSchema(schemaId).get();
+        SchemaRegistry.SchemaAndMetadata schemaAndVersion = (SchemaAndMetadata) schemaRegistryService.getSchema(schemaId).get();
         assertEquals(expectedVersion, schemaAndVersion.version);
         assertEquals(schemaId, schemaAndVersion.id);
         return schemaAndVersion.schema;
     }
 
     private SchemaData getSchema(String schemaId, SchemaVersion version) throws Exception {
-        SchemaRegistry.SchemaAndMetadata schemaAndVersion = schemaRegistryService.getSchema(schemaId, version).get();
+        SchemaRegistry.SchemaAndMetadata schemaAndVersion = (SchemaAndMetadata) schemaRegistryService.getSchema(schemaId, version).get();
         assertEquals(version, schemaAndVersion.version);
         assertEquals(schemaId, schemaAndVersion.id);
         return schemaAndVersion.schema;
@@ -348,14 +364,14 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private List<SchemaData> getAllSchemas(String schemaId) throws Exception {
         List<SchemaData> result = new ArrayList<>();
         for (CompletableFuture<SchemaRegistry.SchemaAndMetadata> schema :
-                schemaRegistryService.getAllSchemas(schemaId).get()) {
+                (List<CompletableFuture<SchemaAndMetadata>>)schemaRegistryService.getAllSchemas(schemaId).get()) {
             result.add(schema.get().schema);
         }
         return result;
     }
 
     private void deleteSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
-        SchemaVersion version = schemaRegistryService.deleteSchema(schemaId, userId, false).get();
+        SchemaVersion version = (SchemaVersion) schemaRegistryService.deleteSchema(schemaId, userId, false).get();
         assertEquals(expectedVersion, version);
     }
 
