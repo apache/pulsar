@@ -30,7 +30,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -47,10 +49,12 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 
 @Slf4j
-public class MetaStoreImpl implements MetaStore {
+public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private static final String BASE_NODE = "/managed-ledgers";
     private static final String PREFIX = BASE_NODE + "/";
@@ -62,11 +66,17 @@ public class MetaStoreImpl implements MetaStore {
     private final CompressionType ledgerInfoCompressionType;
     private final CompressionType cursorInfoCompressionType;
 
+    private final Map<String, UpdateCallback<ManagedLedgerInfo>> managedLedgerInfoUpdateCallbackMap;
+
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
         this.executor = executor;
         this.ledgerInfoCompressionType = CompressionType.NONE;
         this.cursorInfoCompressionType = CompressionType.NONE;
+        managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
+        if (store != null) {
+            store.registerListener(this);
+        }
     }
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor, String ledgerInfoCompressionType,
@@ -75,6 +85,10 @@ public class MetaStoreImpl implements MetaStore {
         this.executor = executor;
         this.ledgerInfoCompressionType = parseCompressionType(ledgerInfoCompressionType);
         this.cursorInfoCompressionType = parseCompressionType(cursorInfoCompressionType);
+        managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
+        if (store != null) {
+            store.registerListener(this);
+        }
     }
 
     private CompressionType parseCompressionType(String value) {
@@ -325,6 +339,43 @@ public class MetaStoreImpl implements MetaStore {
     @Override
     public CompletableFuture<Boolean> asyncExists(String path) {
         return store.exists(PREFIX + path);
+    }
+
+    @Override
+    public void watchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback) {
+        managedLedgerInfoUpdateCallbackMap.put(PREFIX + ledgerName, callback);
+    }
+
+    @Override
+    public void unwatchManagedLedgerInfo(String ledgerName) {
+        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName);
+    }
+
+    @Override
+    public void accept(Notification notification) {
+        if (!notification.getPath().startsWith(PREFIX) || notification.getType() != NotificationType.Modified) {
+            return;
+        }
+        UpdateCallback<ManagedLedgerInfo> callback = managedLedgerInfoUpdateCallbackMap.get(notification.getPath());
+        if (callback == null) {
+            return;
+        }
+        String ledgerName = notification.getPath().substring(PREFIX.length());
+        store.get(notification.getPath()).thenAcceptAsync(optResult -> {
+            if (optResult.isPresent()) {
+                ManagedLedgerInfo info;
+                try {
+                    info = parseManagedLedgerInfo(optResult.get().getValue());
+                    info = updateMLInfoTimestamp(info);
+                    callback.onUpdate(info, optResult.get().getStat());
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("[{}] Error when parseManagedLedgerInfo", ledgerName, e);
+                }
+            }
+        }, executor.chooseThread(ledgerName)).exceptionally(ex -> {
+            log.error("[{}] Error when read ManagedLedgerInfo", ledgerName, ex);
+            return null;
+        });
     }
 
     //
