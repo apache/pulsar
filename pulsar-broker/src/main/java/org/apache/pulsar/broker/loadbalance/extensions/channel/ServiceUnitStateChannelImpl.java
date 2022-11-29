@@ -38,30 +38,31 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -69,23 +70,23 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 @Slf4j
 public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
-    public static final String TOPIC =
-            TopicDomain.persistent.value()
-                    + "://"
-                    + NamespaceName.SYSTEM_NAMESPACE
-                    + "/service-unit-state-channel";
+    public static final String TOPIC = TopicName.get(
+            TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE,
+            "loadbalancer-service-unit-state").toString();
+
     // TODO: define StateCompactionStrategy
-    private static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024; // 5mb
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
+
+    private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private final PulsarService pulsar;
     private final Schema<ServiceUnitStateData> schema;
     private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
     // TODO: define BrokerRegistry
-    private final Semaphore outstandingCleanupTombstoneMessages;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
     private final LeaderElectionService leaderElectionService;
     private TableView<ServiceUnitStateData> tableview;
@@ -128,7 +129,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.pulsar = pulsar;
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
-        this.outstandingCleanupTombstoneMessages = new Semaphore(MAX_OUTSTANDING_PUB_MESSAGES);
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
                 CompletableFuture<String>>newBuilder().build();
         this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
@@ -162,6 +162,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
+                    .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
+                    .blockIfQueueFull(true)
                     .topic(TOPIC)
                     .create();
 
@@ -233,48 +235,51 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    public synchronized void scheduleCompaction() throws PulsarServerException {
-        try {
-            Long threshold = pulsar.getAdminClient().topicPolicies()
-                    .getCompactionThreshold(TOPIC);
-            if (threshold == null || threshold == 0) {
-                pulsar.getAdminClient().topicPolicies()
-                        .setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
-                log.info("Scheduled compaction on topic:{}, threshold:{} bytes", TOPIC, COMPACTION_THRESHOLD);
-            } else {
-                log.info("Already set compaction on topic:{}, threshold:{} bytes", TOPIC, COMPACTION_THRESHOLD);
-            }
-        } catch (PulsarAdminException e) {
-            throw new PulsarServerException("Failed to schedule compaction.", e);
-        }
-    }
-
-    public String getChannelOwner() {
+    public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
         validateChannelState(LeaderElectionServiceStarted, true);
-        CompletableFuture<Optional<LeaderBroker>> future = leaderElectionService.readCurrentLeader();
-        if (!future.isDone()) {
-            return null;
-        }
-        Optional<LeaderBroker> leader = future.join();
-        if (leader.isEmpty()) {
-            return null;
-        }
-        //expecting http://broker-xyz:port
-        // TODO: discard this protocol prefix removal by a util func that returns lookupServiceAddress(serviceUrl)
-        String broker = leader.get().getServiceUrl();
-        broker = broker.substring(broker.lastIndexOf('/') + 1);
-        return broker;
+        return leaderElectionService.readCurrentLeader().thenApply(leader -> {
+                    //expecting http://broker-xyz:port
+                    // TODO: discard this protocol prefix removal
+                    //  by a util func that returns lookupServiceAddress(serviceUrl)
+                    if (leader.isPresent()) {
+                        String broker = leader.get().getServiceUrl();
+                        broker = broker.substring(broker.lastIndexOf('/') + 1);
+                        return Optional.of(broker);
+                    } else {
+                        return Optional.empty();
+                    }
+                }
+        );
     }
 
-    public boolean isChannelOwner() {
-        return isTargetBroker(getChannelOwner());
+    public CompletableFuture<Boolean> isChannelOwnerAsync() {
+        return getChannelOwnerAsync().thenApply(owner -> {
+            if (owner.isPresent()) {
+                return isTargetBroker(owner.get());
+            } else {
+                String msg = "There is no channel owner now.";
+                log.error(msg);
+                throw new IllegalStateException(msg);
+            }
+        });
+    }
+
+    private boolean isChannelOwner() {
+        try {
+            return isChannelOwnerAsync().get(
+                    MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            String msg = "Failed to get the channel owner.";
+            log.error(msg, e);
+            throw new RuntimeException(msg, e);
+        }
     }
 
     public CompletableFuture<String> getOwnerAsync(String serviceUnit) {
         validateChannelState(Started, true);
         ServiceUnitStateData data = tableview.get(serviceUnit);
         if (data == null) {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
         switch (data.state()) {
             case Owned, Splitting -> {
@@ -294,7 +299,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
-                        getOwnerRequests.remove(serviceUnit);
+                        getOwnerRequests.remove(serviceUnit, getOwnerRequest);
                         if (!getOwnerRequest.isCompletedExceptionally()) {
                             getOwnerRequest.completeExceptionally(ex);
                         }
@@ -309,18 +314,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTransferCommand(unload)) {
             ServiceUnitStateData next = new ServiceUnitStateData(Assigned,
                     unload.destBroker().get(), unload.sourceBroker());
-            return pubAsync(serviceUnit, next).thenAccept(__ -> {
-            });
+            return pubAsync(serviceUnit, next).thenApply(__ -> null);
         }
-        return tombstoneAsync(serviceUnit).thenAccept(__ -> {
-        });
+        return tombstoneAsync(serviceUnit).thenApply(__ -> null);
     }
 
     public CompletableFuture<Void> publishSplitEventAsync(Split split) {
         String serviceUnit = split.serviceUnit();
         ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
-        return pubAsync(serviceUnit, next).thenAccept(__ -> {
-        });
+        return pubAsync(serviceUnit, next).thenApply(__ -> null);
     }
 
     private void handle(String serviceUnit, ServiceUnitStateData data) {
@@ -466,11 +468,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
         return getOwnerRequests
                 .computeIfAbsent(serviceUnit, k -> {
-                    CompletableFuture future = new CompletableFuture<>();
+                    CompletableFuture<String> future = new CompletableFuture<>();
                     future.orTimeout(inFlightStateWaitingTimeInMillis, TimeUnit.MILLISECONDS)
                             .whenComplete((v, e) -> {
                                         if (e != null) {
-                                            getOwnerRequests.remove(serviceUnit);
+                                            getOwnerRequests.remove(serviceUnit, future);
                                             log.warn("Failed to getOwner for serviceUnit:{}",
                                                     serviceUnit, e);
                                             future.completeExceptionally((Throwable) e);
@@ -490,34 +492,32 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         false,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
                         TimeUnit.MILLISECONDS)
-                .handle((numUnloadedTopics, ex) -> {
-                    if (ex != null) {
-                        // ignore topic-close failure to unload bundle
-                        log.error("Failed to close topics under bundle:{}",
-                                bundle.toString(), ex);
-                    } else {
-                        unloadedTopics.setValue(numUnloadedTopics);
-                    }
-                    // clean up topics that failed to unload from the broker ownership cache
-                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                .thenApply(numUnloadedTopics -> {
+                    unloadedTopics.setValue(numUnloadedTopics);
                     return numUnloadedTopics;
                 })
-                .whenComplete((ignored, ex) -> {
+                .whenComplete((__, ex) -> {
+                    // clean up topics that failed to unload from the broker ownership cache
+                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));
-                    log.info("Unloading bundle:{} with {} topics completed in {} ms",
-                            bundle, unloadedTopics, unloadBundleTime, ex);
+                    if (ex != null) {
+                        log.error("Failed to close topics under bundle:{} in {} ms",
+                                bundle.toString(), unloadBundleTime, ex);
+                    } else {
+                        log.info("Unloading bundle:{} with {} topics completed in {} ms",
+                                bundle, unloadedTopics, unloadBundleTime);
+                    }
                 });
     }
 
     private CompletableFuture<Void> splitServiceUnit(String serviceUnit) {
         // TODO: after the split we need to write the child ownerships to BSC instead of ZK.
-        //  Use the configured NamespaceBundleSplitAlgorithm
         long startTime = System.nanoTime();
         return pulsar.getNamespaceService()
                 .splitAndOwnBundle(getNamespaceBundle(serviceUnit),
                         false,
-                        NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO,
+                        NamespaceBundleSplitAlgorithm.of(pulsar.getConfig().getDefaultNamespaceBundleSplitAlgorithm()),
                         null)
                 .whenComplete((__, ex) -> {
                     double splitBundleTime = TimeUnit.NANOSECONDS
@@ -565,18 +565,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (future != null) {
             future.cancel(false);
             totalCleanupCancelledCnt++;
-            log.info("Successfully cancelled the ownership cleanup for broker:{}. isChannelOwner:{}."
+            log.info("Successfully cancelled the ownership cleanup for broker:{}."
                             + " Active cleanup job count:{}",
-                    broker, isChannelOwner(), cleanupJobs.size());
+                    broker, cleanupJobs.size());
         } else {
-            log.info("Failed to cancel the ownership cleanup for broker:{}. isChannelOwner:{}."
+            log.info("Failed to cancel the ownership cleanup for broker:{}."
                             + " There was no scheduled cleanup job. Active cleanup job count:{}",
-                    broker, isChannelOwner(), cleanupJobs.size());
+                    broker, cleanupJobs.size());
         }
     }
 
     private void handleBrokerDeletionEvent(String broker) {
         if (!isChannelOwner()) {
+            log.warn("This broker is not the leader now. Ignoring BrokerDeletionEvent for broker {}.", broker);
             return;
         }
         MetadataState state = getMetadataState();
@@ -617,16 +618,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit = etr.getKey();
             if (StringUtils.equals(broker, stateData.broker())
                     || StringUtils.equals(broker, stateData.sourceBroker())) {
-                try {
-                    outstandingCleanupTombstoneMessages.acquire();
-                } catch (InterruptedException e) {
-                    log.error("Cleanup run got interrupted. Skipping the ownership: serviceUnit:{}, stateData:{}",
-                            serviceUnit, stateData);
-                    continue;
-                }
                 log.info("Cleaning ownership serviceUnit:{}, stateData:{}.", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                    outstandingCleanupTombstoneMessages.release();
                     if (e == null) {
                         serviceUnitTombstoneCnt.incrementAndGet();
                     } else {
@@ -638,13 +631,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
         }
 
-
-        boolean waitedForOutstandingCleanupTombstoneMessages = true;
         try {
-            outstandingCleanupTombstoneMessages.acquire(MAX_OUTSTANDING_PUB_MESSAGES);
-        } catch (InterruptedException e) {
-            waitedForOutstandingCleanupTombstoneMessages = false;
-            log.error("Failed to wait for outstanding cleanup tombstone messages.");
+            producer.flush();
+        } catch (PulsarClientException e) {
+            log.error("Failed to flush the in-flight messages.", e);
         }
 
         if (serviceUnitTombstoneCnt.get() > 0) {
@@ -655,10 +645,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         if (serviceUnitTombstoneErrorCnt.get() > 0) {
             this.totalServiceUnitCleanupErrorCnt += serviceUnitTombstoneErrorCnt.get();
-        }
-
-        if (waitedForOutstandingCleanupTombstoneMessages) {
-            outstandingCleanupTombstoneMessages.release(MAX_OUTSTANDING_PUB_MESSAGES);
         }
 
         double cleanupTime = TimeUnit.NANOSECONDS
@@ -677,8 +663,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     // TODO: integrate this monitor logic when broker registry is added
     private void monitorOwnerships(List<String> brokers) {
-
         if (!isChannelOwner()) {
+            log.warn("This broker is not the leader now. Skipping ownership monitor");
             return;
         }
         if (brokers == null || brokers.size() == 0) {
@@ -703,15 +689,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
                 log.warn("Found long-running orphan(in-flight) serviceUnit:{}, stateData:{}",
                         serviceUnit, stateData);
-                try {
-                    outstandingCleanupTombstoneMessages.acquire();
-                } catch (InterruptedException e) {
-                    log.error("Monitor run got interrupted. Skipping the ownership: serviceUnit:{}, stateData:{}",
-                            serviceUnit, stateData);
-                    continue;
-                }
+
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                    outstandingCleanupTombstoneMessages.release();
                     if (e == null) {
                         serviceUnitTombstoneCnt.incrementAndGet();
                     } else {
@@ -723,16 +702,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
         }
 
-        boolean waitedForOutstandingCleanupTombstoneMessages = true;
-        try {
-            outstandingCleanupTombstoneMessages.acquire(MAX_OUTSTANDING_PUB_MESSAGES);
-        } catch (InterruptedException e) {
-            waitedForOutstandingCleanupTombstoneMessages = false;
-            log.error("Failed to wait for outstanding cleanup tombstone messages.");
-        }
-
         for (String inactiveBroker : inactiveBrokers) {
             handleBrokerDeletionEvent(inactiveBroker);
+        }
+
+        try {
+            producer.flush();
+        } catch (PulsarClientException e) {
+            log.error("Failed to flush the in-flight messages.", e);
         }
 
         if (serviceUnitTombstoneCnt.get() > 0) {
@@ -753,9 +730,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 serviceUnitTombstoneErrorCnt,
                 printCleanupMetrics());
 
-        if (waitedForOutstandingCleanupTombstoneMessages) {
-            outstandingCleanupTombstoneMessages.release(MAX_OUTSTANDING_PUB_MESSAGES);
-        }
     }
 
     private String printCleanupMetrics() {
