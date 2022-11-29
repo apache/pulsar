@@ -294,7 +294,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final OrderedScheduler scheduledExecutor;
 
     @Getter
-    private final Executor executor;
+    protected final Executor executor;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
