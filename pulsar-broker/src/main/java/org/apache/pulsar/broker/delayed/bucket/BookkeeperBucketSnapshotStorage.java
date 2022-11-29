@@ -235,9 +235,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return future;
     }
 
-    private static BucketSnapshotException bkException(String operation, int rc, long ledgerId) {
+    private static BucketSnapshotPersistenceException bkException(String operation, int rc, long ledgerId) {
         String message = BKException.getMessage(rc)
                 + " -  ledger=" + ledgerId + " - operation=" + operation;
-        return new BucketSnapshotException(message);
+        return new BucketSnapshotPersistenceException(message);
     }
 }
