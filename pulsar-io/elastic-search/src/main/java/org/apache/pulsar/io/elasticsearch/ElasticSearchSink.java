@@ -235,7 +235,6 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 }
             }
 
-            log.info("checking for hashing {}", id);
             final ElasticSearchConfig.IdHashingAlgorithm idHashingAlgorithm =
                     elasticSearchConfig.getIdHashingAlgorithm();
             if (id != null
@@ -262,7 +261,6 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     }
                     hasher.putString(id, StandardCharsets.UTF_8);
                     id = base64Encoder.encodeToString(hasher.hash().asBytes());
-                    log.info("got new id {}", id);
                 }
             }
 
