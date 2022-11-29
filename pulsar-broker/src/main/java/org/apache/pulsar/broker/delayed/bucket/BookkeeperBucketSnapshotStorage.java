@@ -126,7 +126,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         try {
             return SnapshotMetadata.parseFrom(ledgerEntry.getEntry());
         } catch (InvalidProtocolBufferException e) {
-            throw new BucketSnapshotException(e);
+            throw new BucketSnapshotSerializationException(e);
         }
     }
 
@@ -139,7 +139,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
             }
             return snapshotMetadataList;
         } catch (IOException e) {
-            throw new BucketSnapshotException(e);
+            throw new BucketSnapshotSerializationException(e);
         }
     }
 
