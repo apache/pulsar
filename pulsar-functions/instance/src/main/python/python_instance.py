@@ -48,7 +48,6 @@ from function_stats import Stats
 
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
-from google.protobuf import json_format
 
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
@@ -458,6 +457,7 @@ class PythonInstance(object):
   def config_observer_on_modified(self, event):
     # TODO: This function is used for runtime parameters handling logic
     #  when listening to changes in the configuration file (self.config_file)
+    Log.debug("Configuration file %s modified detected" % self.config_file)
     pass
 
   def setup_config_observer(self):
@@ -472,7 +472,7 @@ class PythonInstance(object):
       while True:
         pass
     except Exception as e:
-      Log.error("Uncaught exception in Python instance (config observer): %s" % e);
+      Log.error("Uncaught exception in Python instance (config observer): %s" % e)
       observer.stop()
       observer.join()
 

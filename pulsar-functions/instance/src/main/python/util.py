@@ -26,6 +26,7 @@ import inspect
 import sys
 import importlib
 import configparser
+
 from threading import Timer
 from pulsar.functions import serde
 
@@ -96,7 +97,7 @@ def read_config(config_file):
 
     cfg = configparser.ConfigParser()
     cfg.read(config_file)
-    return cfg.get("DEFAULT", None)
+    return cfg
 
 class FixedTimer():
 

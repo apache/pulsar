@@ -68,34 +68,37 @@ def merge_arguments(args, config_file):
   config = util.read_config(config_file)
   if not config:
     return
-  if not args.client_auth_plugin and config.get("client_auth_plugin", None):
-    args.client_auth_plugin = config.get("client_auth_plugin")
-  if not args.client_auth_params and config.get("client_auth_params", None):
-    args.client_auth_params = config.get("client_auth_params")
-  if not args.use_tls and config.get("use_tls", None):
-    args.use_tls = config.get("use_tls")
-  if not args.tls_allow_insecure_connection and config.get("tls_allow_insecure_connection", None):
-    args.tls_allow_insecure_connection = config.get("tls_allow_insecure_connection")
-  if not args.hostname_verification_enabled and config.get("hostname_verification_enabled", None):
-    args.hostname_verification_enabled = config.get("hostname_verification_enabled")
-  if not args.tls_trust_cert_path and config.get("tls_trust_cert_path", None):
-    args.tls_trust_cert_path = config.get("tls_trust_cert_path")
-  if not args.logging_level and config.get("logging_level", None):
-    args.logging_level = config.get("logging_level")
-  if not args.secrets_provider and config.get("secrets_provider", None):
-    args.secrets_provider = config.get("secrets_provider")
-  if not args.secrets_provider_config and config.get("secrets_provider_config", None):
-    args.secrets_provider_config = config.get("secrets_provider_config")
-  if not args.install_usercode_dependencies and config.get("install_usercode_dependencies", None):
-    args.install_usercode_dependencies = config.get("install_usercode_dependencies")
-  if not args.dependency_repository and config.get("dependency_repository", None):
-    args.dependency_repository = config.get("dependency_repository")
-  if not args.extra_dependency_repository and config.get("extra_dependency_repository", None):
-    args.extra_dependency_repository = config.get("extra_dependency_repository")
-  if not args.state_storage_serviceurl and config.get("state_storage_serviceurl", None):
-    args.state_storage_serviceurl = config.get("state_storage_serviceurl")
-  if not args.enable_live_update and config.get("enable_live_update", None):
-    args.enable_live_update = config.get("enable_live_update")
+  default_config = config["DEFAULT"]
+  if not default_config:
+    return
+  if not args.client_auth_plugin and default_config.get("client_auth_plugin", None):
+    args.client_auth_plugin = default_config.get("client_auth_plugin")
+  if not args.client_auth_params and default_config.get("client_auth_params", None):
+    args.client_auth_params = default_config.get("client_auth_params")
+  if not args.use_tls and default_config.get("use_tls", None):
+    args.use_tls = default_config.get("use_tls")
+  if not args.tls_allow_insecure_connection and default_config.get("tls_allow_insecure_connection", None):
+    args.tls_allow_insecure_connection = default_config.get("tls_allow_insecure_connection")
+  if not args.hostname_verification_enabled and default_config.get("hostname_verification_enabled", None):
+    args.hostname_verification_enabled = default_config.get("hostname_verification_enabled")
+  if not args.tls_trust_cert_path and default_config.get("tls_trust_cert_path", None):
+    args.tls_trust_cert_path = default_config.get("tls_trust_cert_path")
+  if not args.logging_level and default_config.get("logging_level", None):
+    args.logging_level = default_config.get("logging_level")
+  if not args.secrets_provider and default_config.get("secrets_provider", None):
+    args.secrets_provider = default_config.get("secrets_provider")
+  if not args.secrets_provider_config and default_config.get("secrets_provider_config", None):
+    args.secrets_provider_config = default_config.get("secrets_provider_config")
+  if not args.install_usercode_dependencies and default_config.get("install_usercode_dependencies", None):
+    args.install_usercode_dependencies = default_config.get("install_usercode_dependencies")
+  if not args.dependency_repository and default_config.get("dependency_repository", None):
+    args.dependency_repository = default_config.get("dependency_repository")
+  if not args.extra_dependency_repository and default_config.get("extra_dependency_repository", None):
+    args.extra_dependency_repository = default_config.get("extra_dependency_repository")
+  if not args.state_storage_serviceurl and default_config.get("state_storage_serviceurl", None):
+    args.state_storage_serviceurl = default_config.get("state_storage_serviceurl")
+  if not args.enable_live_update and default_config.get("enable_live_update", None):
+    args.enable_live_update = default_config.get("enable_live_update")
 
 def main():
   # Setup signal handlers
