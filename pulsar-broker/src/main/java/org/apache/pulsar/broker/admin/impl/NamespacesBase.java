@@ -455,6 +455,18 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
+        // set the policies to deleted so that somebody else cannot acquire this namespace
+        try {
+            namespaceResources().setPolicies(namespaceName, old -> {
+                old.deleted = true;
+                return old;
+            });
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete namespace on global ZK {}", clientAppId(), namespaceName, e);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> topicFutures = Lists.newArrayList();
         final List<CompletableFuture<Void>> bundleFutures = Lists.newArrayList();
@@ -530,18 +542,6 @@ public abstract class NamespacesBase extends AdminResource {
                 if (topicFutureEx.join() != null) {
                     return;
                 }
-            }
-
-            // set the policies to deleted so that somebody else cannot acquire this namespace
-            try {
-                namespaceResources().setPolicies(namespaceName, old -> {
-                    old.deleted = true;
-                    return old;
-                });
-            } catch (Exception e) {
-                log.error("[{}] Failed to delete namespace on global ZK {}", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return;
             }
 
             // forcefully delete namespace bundles
