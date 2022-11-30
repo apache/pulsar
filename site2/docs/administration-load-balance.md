@@ -140,7 +140,7 @@ There are 11 brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
 The average load is 80% * 10 / 11 = 72.73%, and the threshold to unload is 72.73% + 10% = 82.73%.
 Since 80% < 82.73%, unload will not be triggered, and there is one idle Broker with load of 0%.
 
-So, we add a new option `lowerBoundarySheddingEnabled`.
+To leverage the resources of low-load or idle machines, you can configure the `lowerBoundarySheddingEnabled` parameter on top of `ThresholdShedder`.
 If `lowerBoundarySheddingEnabled=true`, based on the `ThresholdShedder`, a leader will make the lower boundary judgment of the load.
 When `current usage < average usage - threshold` (e.g. 0% < 82.73% - 10%), the broker with the highest load will be triggered to unload.
 
