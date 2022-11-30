@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -47,6 +48,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +61,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -452,18 +455,6 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        // set the policies to deleted so that somebody else cannot acquire this namespace
-        try {
-            namespaceResources().setPolicies(namespaceName, old -> {
-                old.deleted = true;
-                return old;
-            });
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete namespace on global ZK {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(new RestException(e));
-            return;
-        }
-
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> topicFutures = Lists.newArrayList();
         final List<CompletableFuture<Void>> bundleFutures = Lists.newArrayList();
@@ -472,11 +463,17 @@ public abstract class NamespacesBase extends AdminResource {
             if (!topics.isEmpty()) {
                 Set<String> partitionedTopics = new HashSet<>();
                 Set<String> nonPartitionedTopics = new HashSet<>();
+                Set<String> allSystemTopics = new HashSet<>();
+                Set<String> allPartitionedSystemTopics = new HashSet<>();
 
                 for (String topic : topics) {
                     try {
                         TopicName topicName = TopicName.get(topic);
                         if (topicName.isPartitioned()) {
+                            if (pulsar().getBrokerService().isSystemTopic(topicName)) {
+                                allPartitionedSystemTopics.add(topicName.getPartitionedTopicName());
+                                continue;
+                            }
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
                                 // Distinguish partitioned topic to avoid duplicate deletion of the same schema
@@ -485,6 +482,10 @@ public abstract class NamespacesBase extends AdminResource {
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
+                            if (pulsar().getBrokerService().isSystemTopic(topicName)) {
+                                allSystemTopics.add(topic);
+                                continue;
+                            }
                             topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
                                     topic, true, true));
                             nonPartitionedTopics.add(topic);
@@ -508,24 +509,39 @@ public abstract class NamespacesBase extends AdminResource {
                 }
 
                 final CompletableFuture<Throwable> topicFutureEx =
-                        FutureUtil.waitForAll(topicFutures).handle((result, exception) -> {
-                            if (exception != null) {
-                                if (exception.getCause() instanceof PulsarAdminException) {
-                                    asyncResponse
-                                            .resume(new RestException((PulsarAdminException) exception.getCause()));
-                                } else {
-                                    log.error("[{}] Failed to remove forcefully owned namespace {}",
-                                            clientAppId(), namespaceName, exception);
-                                    asyncResponse.resume(new RestException(exception.getCause()));
-                                }
-                                return exception;
-                            }
-
-                            return null;
-                        });
+                        FutureUtil.waitForAll(topicFutures)
+                                .thenCompose((ignore) -> internalDeleteTopicsAsync(allSystemTopics))
+                                .thenCompose((ignore) ->
+                                        internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
+                                .handle((result, exception) -> {
+                                    if (exception != null) {
+                                        if (exception.getCause() instanceof PulsarAdminException) {
+                                            asyncResponse.resume(
+                                                    new RestException((PulsarAdminException) exception.getCause()));
+                                        } else {
+                                            log.error("[{}] Failed to remove forcefully owned namespace {}",
+                                                    clientAppId(), namespaceName, exception);
+                                            asyncResponse.resume(new RestException(exception.getCause()));
+                                        }
+                                        return exception;
+                                    }
+                                    return null;
+                                });
                 if (topicFutureEx.join() != null) {
                     return;
                 }
+            }
+
+            // set the policies to deleted so that somebody else cannot acquire this namespace
+            try {
+                namespaceResources().setPolicies(namespaceName, old -> {
+                    old.deleted = true;
+                    return old;
+                });
+            } catch (Exception e) {
+                log.error("[{}] Failed to delete namespace on global ZK {}", clientAppId(), namespaceName, e);
+                asyncResponse.resume(new RestException(e));
+                return;
             }
 
             // forcefully delete namespace bundles
@@ -562,6 +578,44 @@ public abstract class NamespacesBase extends AdminResource {
             asyncResponse.resume(Response.noContent().build());
             return null;
         });
+    }
+
+    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(Set<String> topicNames) {
+        log.info("internalDeletePartitionedTopicsAsync");
+        if (CollectionUtils.isEmpty(topicNames)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (Exception ex) {
+            log.error("[{}] Get admin client error when preparing to delete topics.", clientAppId(), ex);
+            return FutureUtil.failedFuture(ex);
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (String topicName : topicNames) {
+            TopicName tn = TopicName.get(topicName);
+            futures.add(admin.topics().deletePartitionedTopicAsync(topicName, true, true));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+    private CompletableFuture<Void> internalDeleteTopicsAsync(Set<String> topicNames) {
+        log.info("internalDeleteTopicsAsync");
+        if (CollectionUtils.isEmpty(topicNames)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (Exception ex) {
+            log.error("[{}] Get admin client error when preparing to delete topics.", clientAppId(), ex);
+            return FutureUtil.failedFuture(ex);
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (String topicName : topicNames) {
+            futures.add(admin.topics().deleteAsync(topicName, true, true));
+        }
+        return FutureUtil.waitForAll(futures);
     }
 
     protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative, boolean force) {
