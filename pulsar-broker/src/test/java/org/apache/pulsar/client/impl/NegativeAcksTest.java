@@ -517,7 +517,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
                 .subscribe();
         final MessageId msgId = producer.send("1".getBytes());
-        log.info("msgId : {}", msgId);
+        log.info("produce msgId : {}", msgId);
         final Message<byte[]> message = consumer.receive();
         CountDownLatch latch = new CountDownLatch(1);
         consumer.acknowledgeCumulativeAsync(message).whenComplete((r, e) -> latch.countDown());
