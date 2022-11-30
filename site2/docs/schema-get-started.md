@@ -38,6 +38,7 @@ This example demonstrates how to construct a [bytes schema](schema-understand.md
 <TabItem value="Java">
 
 ```java
+Producer<byte[]> producer = PulsarClient.newProducer(Schema.BYTES)
        .topic("my-topic")
        .create();
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
