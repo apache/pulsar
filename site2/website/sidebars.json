@@ -318,9 +318,10 @@
     },
     {
       "type": "category",
-      "label": "Admin Interfaces",
+      "label": "Admin API",
       "items": [
         "admin-api-overview",
+        "admin-api-get-started",
         "admin-api-clusters",
         "admin-api-tenants",
         "admin-api-brokers",
