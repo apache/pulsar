@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -105,13 +106,16 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                         }
                         closeReader(reader);
                         return CompletableFuture.completedFuture(startReadCursorPosition);
+                    } catch (TimeoutException ex) {
+                        log.warn("[{}] Transaction buffer recover blocked and exceed timeout.", topic.getName(), ex);
+                        closeReader(reader);
+                        return CompletableFuture.completedFuture(startReadCursorPosition);
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
                         closeReader(reader);
                         return FutureUtil.failedFuture(ex);
                     }
-
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                         .getExecutor(this));
     }
