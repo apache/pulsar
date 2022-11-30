@@ -42,7 +42,7 @@ To package a Python function into **one Python file**, complete the following st
    pip install pulsar-client==2.10.0
    ```
    
-   And install protobuf tools to generate proto file:
+   And install protobuf tools to generate the proto files:
 
    ```bash
    pip install 'protobuf==3.20.*'

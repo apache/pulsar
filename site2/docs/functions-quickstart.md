@@ -112,7 +112,7 @@ This hands-on tutorial provides step-by-step instructions and examples on how to
 
 :::note
 
-Before starting functions, you need to [start Pulsar](#start-standalone-pulsar) and [create test namespace](#create-a-namespace-for-test).
+Before starting functions, you need to [start Pulsar](#start-standalone-pulsar) and [create a test namespace](#create-a-namespace-for-test).
 
 :::
 
@@ -286,7 +286,7 @@ The following example provides instructions to validate counter functions.
 
 :::note
 
-Before starting stateful functions, you need to [start Pulsar](#start-standalone-pulsar) and [create test namespace](#create-a-namespace-for-test).
+Before starting stateful functions, you need to [start Pulsar](#start-standalone-pulsar) and [create a test namespace](#create-a-namespace-for-test).
 
 :::
 
@@ -471,7 +471,7 @@ The following example provides instructions to start a window function to calcul
 
 :::note
 
-Before starting window functions, you need to [start Pulsar](#start-standalone-pulsar)  and [create test namespace](#create-a-namespace-for-test).
+Before starting window functions, you need to [start Pulsar](#start-standalone-pulsar)  and [create a test namespace](#create-a-namespace-for-test).
 
 :::
 
