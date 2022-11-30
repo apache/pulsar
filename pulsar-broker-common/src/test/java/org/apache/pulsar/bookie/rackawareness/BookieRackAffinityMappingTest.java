@@ -18,21 +18,38 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.apache.bookkeeper.feature.SettableFeatureProvider.DISABLE_ALL;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.util.HashedWheelTimer;
+import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
+import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
+import org.apache.bookkeeper.discover.BookieServiceInfoUtils;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.bookkeeper.BookieServiceInfoSerde;
+import org.apache.pulsar.metadata.bookkeeper.PulsarRegistrationClient;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -69,17 +86,71 @@ public class BookieRackAffinityMappingTest {
 
         // Case1: ZKCache is given
         BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        Field field = BookieRackAffinityMapping.class.getDeclaredField("racksWithHost");
+        field.setAccessible(true);
+
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
-        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        PulsarRegistrationClient pulsarRegistrationClient = new PulsarRegistrationClient(store, "/ledgers");
+        DefaultBookieAddressResolver defaultBookieAddressResolver = new DefaultBookieAddressResolver(pulsarRegistrationClient);
+
+        mapping.setBookieAddressResolver(defaultBookieAddressResolver);
         mapping.setConf(bkClientConf);
         List<String> racks = mapping
-                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()))
+                .stream().filter(Objects::nonNull).toList();
+        assertEquals(racks.size(), 0);
 
+        HashedWheelTimer timer = new HashedWheelTimer(
+                new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
+                bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
+                bkClientConf.getTimeoutTimerNumTicks());
+
+        RackawareEnsemblePlacementPolicy repp = new RackawareEnsemblePlacementPolicy();
+        repp.initialize(bkClientConf, Optional.of(mapping), timer,
+                DISABLE_ALL, NullStatsLogger.INSTANCE, defaultBookieAddressResolver);
+
+        Set<BookieId> bookieIds = new HashSet<>();
+        bookieIds.add(BOOKIE1.toBookieId());
+
+        Field field1 = BookieServiceInfoSerde.class.getDeclaredField("INSTANCE");
+        field1.setAccessible(true);
+        BookieServiceInfoSerde serviceInfoSerde = (BookieServiceInfoSerde) field1.get(null);
+
+        BookieServiceInfo bookieServiceInfo = BookieServiceInfoUtils.buildLegacyBookieServiceInfo(BOOKIE1.toString());
+        store.put("/ledgers/available/" + BOOKIE1, serviceInfoSerde.serialize("", bookieServiceInfo),
+                Optional.of(-1L)).get();
+
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> ((BookiesRackConfiguration)field.get(mapping)).get("group1").size() == 1);
+        racks = mapping
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()))
+                .stream().filter(Objects::nonNull).toList();
+        assertEquals(racks.size(), 1);
+        assertEquals(racks.get(0), "/rack0");
+
+        bookieServiceInfo = BookieServiceInfoUtils.buildLegacyBookieServiceInfo(BOOKIE2.toString());
+        store.put("/ledgers/available/" + BOOKIE2, serviceInfoSerde.serialize("", bookieServiceInfo),
+                Optional.of(-1L)).get();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> ((BookiesRackConfiguration)field.get(mapping)).get("group1").size() == 2);
+
+        racks = mapping
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()))
+                .stream().filter(Objects::nonNull).toList();
+        assertEquals(racks.size(), 2);
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
-        assertNull(racks.get(2));
+
+        store.put("/ledgers/available/" + BOOKIE3, serviceInfoSerde.serialize("", bookieServiceInfo),
+                Optional.of(-1L)).get();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> ((BookiesRackConfiguration)field.get(mapping)).get("group1").size() == 2);
+
+        racks = mapping
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()))
+                .stream().filter(Objects::nonNull).toList();
+        assertEquals(racks.size(), 2);
+        assertEquals(racks.get(0), "/rack0");
+        assertEquals(racks.get(1), "/rack1");
     }
 
     @Test

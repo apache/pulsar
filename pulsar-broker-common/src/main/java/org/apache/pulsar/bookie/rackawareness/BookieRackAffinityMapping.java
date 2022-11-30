@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
@@ -70,7 +70,6 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
-    private final BookieAddressResolver resolver = new DefaultBookieAddressResolver(new DummyRegistrationClient());
 
     public static MetadataStore createMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -124,6 +123,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
                     .orElseGet(BookiesRackConfiguration::new);
             updateRacksWithHost(racksWithHost);
+            watchAvailableBookies();
             for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
                     bookieAddressListLastTime.add(BookieId.parse(address));
@@ -138,6 +138,28 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
     }
 
+    private void watchAvailableBookies() {
+        BookieAddressResolver bookieAddressResolver = getBookieAddressResolver();
+        if (bookieAddressResolver instanceof DefaultBookieAddressResolver) {
+            try {
+                Field field = DefaultBookieAddressResolver.class.getDeclaredField("registrationClient");
+                field.setAccessible(true);
+                RegistrationClient registrationClient = (RegistrationClient) field.get(bookieAddressResolver);
+                registrationClient.watchWritableBookies(versioned -> {
+                    try {
+                        racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                                .orElseGet(BookiesRackConfiguration::new);
+                        updateRacksWithHost(racksWithHost);
+                    } catch (InterruptedException | ExecutionException e) {
+                        LOG.error("Failed to update rack info. ", e);
+                    }
+                });
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                LOG.error("Failed watch available bookies.", e);
+            }
+        }
+    }
+
     private synchronized void updateRacksWithHost(BookiesRackConfiguration racks) {
         // In config z-node, the bookies are added in the `ip:port` notation, while BK will ask
         // for just the IP/hostname when trying to get the rack for a bookie.
@@ -148,20 +170,25 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieId bookieId = BookieId.parse(addr);
-                        BookieSocketAddress bsa = resolver.resolve(bookieId);
-                        newRacksWithHost.updateBookie(group, bsa.toString(), bi);
-
-                        String hostname = bsa.getSocketAddress().getHostName();
-                        newBookieInfoMap.put(hostname, bi);
-
-                        InetAddress address = bsa.getSocketAddress().getAddress();
-                        if (null != address) {
-                            String hostIp = address.getHostAddress();
-                            if (null != hostIp) {
-                                newBookieInfoMap.put(hostIp, bi);
-                            }
+                        BookieAddressResolver addressResolver = getBookieAddressResolver();
+                        if (addressResolver == null) {
+                            LOG.warn("Bookie address resolver not yet initialized, skipping resolution");
                         } else {
-                            LOG.info("Network address for {} is unresolvable yet.", addr);
+                            BookieSocketAddress bsa = addressResolver.resolve(bookieId);
+                            newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+
+                            String hostname = bsa.getSocketAddress().getHostName();
+                            newBookieInfoMap.put(hostname, bi);
+
+                            InetAddress address = bsa.getSocketAddress().getAddress();
+                            if (null != address) {
+                                String hostIp = address.getHostAddress();
+                                if (null != hostIp) {
+                                    newBookieInfoMap.put(hostIp, bi);
+                                }
+                            } else {
+                                LOG.info("Network address for {} is unresolvable yet.", addr);
+                            }
                         }
                     } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
                         LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
@@ -247,48 +274,4 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public void registerRackChangeListener(ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy) {
         this.rackawarePolicy = rackawarePolicy;
     }
-
-    static class DummyRegistrationClient implements RegistrationClient {
-
-        @Override
-        public void close() {
-
-        }
-
-        @Override
-        public CompletableFuture<Versioned<Set<BookieId>>> getWritableBookies() {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<Versioned<Set<BookieId>>> getAllBookies() {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<Versioned<Set<BookieId>>> getReadOnlyBookies() {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<Void> watchWritableBookies(RegistrationListener registrationListener) {
-            return null;
-        }
-
-        @Override
-        public void unwatchWritableBookies(RegistrationListener registrationListener) {
-
-        }
-
-        @Override
-        public CompletableFuture<Void> watchReadOnlyBookies(RegistrationListener registrationListener) {
-            return null;
-        }
-
-        @Override
-        public void unwatchReadOnlyBookies(RegistrationListener registrationListener) {
-
-        }
-    }
-
 }
