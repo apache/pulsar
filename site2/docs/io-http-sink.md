@@ -15,7 +15,7 @@ Some other HTTP headers are added to the HTTP request:
 * `PulsarEventTime`: the event time of the record
 * `PulsarPublishTime`: the publish time of the record
 * `PulsarMessageId`: the ID of the message contained in the record
-* `PulsarProperties`-*: each record property is passed with the property name prefixed by `PulsarProperties-`
+* `PulsarProperties-*`: each record property is passed with the property name prefixed by `PulsarProperties-`
 
 ## Configuration
 
