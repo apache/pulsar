@@ -132,7 +132,7 @@ This strategy tends to shed the bundles if any broker's usage is above the confi
 
 For example, assume you have three brokers, the average broker usage of broker1 is 40%, the average broker usage of broker2 and broker3 is 10%, then the cluster average usage is 20% ((40% + 10% + 10%) / 3). If you set `loadBalancerBrokerThresholdShedderPercentage` to `10`, then only broker1's certain bundles get unloaded, because the average usage of broker1 is greater than the sum of the cluster average usage (20%) plus `loadBalancerBrokerThresholdShedderPercentage`(10%).
 
-However, in some special cases, the above default strategy may cause low-load machines to be idle forever.
+However, in some special cases, the above default strategy cannot leverage the resources of low-load or idle machines.
 
 For example:
 
