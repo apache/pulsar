@@ -65,13 +65,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     @Override
     synchronized void initialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
         log.info("Opening shadow managed ledger {} with source={}", name, sourceMLName);
-        executor.executeOrdered(name, safeRun(() -> doInitialize(callback, ctx)));
+        executor.execute(safeRun(() -> doInitialize(callback, ctx)));
     }
 
     private void doInitialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
         // Fetch the list of existing ledgers in the source managed ledger
         store.watchManagedLedgerInfo(sourceMLName, (managedLedgerInfo, stat) ->
-                executor.executeOrdered(name, safeRun(() -> processSourceManagedLedgerInfo(managedLedgerInfo, stat)))
+                executor.execute(safeRun(() -> processSourceManagedLedgerInfo(managedLedgerInfo, stat)))
         );
         store.getManagedLedgerInfo(sourceMLName, false, null, new MetaStore.MetaStoreCallback<>() {
             @Override
@@ -105,7 +105,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
                 final long lastLedgerId = ledgers.lastKey();
                 mbean.startDataLedgerOpenOp();
-                AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.executeOrdered(name, safeRun(() -> {
+                AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(safeRun(() -> {
                     mbean.endDataLedgerOpenOp();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Opened source ledger {}", name, lastLedgerId);
@@ -321,7 +321,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             mbean.startDataLedgerOpenOp();
             //open ledger in readonly mode.
             bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
-                    (rc, lh, ctx1) -> executor.executeOrdered(name, safeRun(() -> {
+                    (rc, lh, ctx1) -> executor.execute(safeRun(() -> {
                         mbean.endDataLedgerOpenOp();
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Opened new source ledger {}", name, lastLedgerId);

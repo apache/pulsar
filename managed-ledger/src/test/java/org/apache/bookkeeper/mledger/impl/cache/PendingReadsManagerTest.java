@@ -18,10 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -60,14 +61,14 @@ public class PendingReadsManagerTest  {
     static final Object CTX = "foo";
     static final Object CTX2 = "far";
     static final long ledgerId = 123414L;
-    OrderedExecutor orderedExecutor;
+    ExecutorService orderedExecutor;
 
     PendingReadsManagerTest() {
     }
 
     @BeforeClass(alwaysRun = true)
     void before() {
-        orderedExecutor = OrderedExecutor.newBuilder().build();
+        orderedExecutor = Executors.newSingleThreadExecutor();
     }
 
     @AfterClass(alwaysRun = true)

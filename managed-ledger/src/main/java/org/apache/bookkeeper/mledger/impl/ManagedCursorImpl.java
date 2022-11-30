@@ -1300,7 +1300,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         final PositionImpl newPosition = (PositionImpl) newPos;
 
         // order trim and reset operations on a ledger
-        ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> {
+        ledger.getExecutor().execute(safeRun(() -> {
             PositionImpl actualPosition = newPosition;
 
             if (!ledger.isValidPosition(actualPosition)
@@ -1997,7 +1997,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "is later.", mdEntry.newPosition, persistentMarkDeletePosition);
             }
             // run with executor to prevent deadlock
-            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
+            ledger.getExecutor().execute(safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -2016,7 +2016,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "in progress {} is later.", mdEntry.newPosition, inProgressLatest);
             }
             // run with executor to prevent deadlock
-            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
+            ledger.getExecutor().execute(safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 

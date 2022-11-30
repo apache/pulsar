@@ -56,6 +56,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -78,7 +79,6 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -294,7 +294,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final OrderedScheduler scheduledExecutor;
 
     @Getter
-    protected final OrderedExecutor executor;
+    protected final Executor executor;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
@@ -345,7 +345,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
-        this.executor = bookKeeper.getMainWorkerPool();
+        this.executor = bookKeeper.getMainWorkerPool().chooseThread(name);
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -408,7 +408,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (!ledgers.isEmpty()) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
-                        executor.executeOrdered(name, safeRun(() -> {
+                        executor.execute(safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
@@ -521,7 +521,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            executor.executeOrdered(name, safeRun(() -> {
+            executor.execute(safeRun(() -> {
                 mbean.endDataLedgerCreateOp();
                 if (rc != BKException.Code.OK) {
                     callback.initializeFailed(createManagedLedgerException(rc));
@@ -773,7 +773,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.executeOrdered(name, safeRun(() -> {
+        executor.execute(safeRun(() -> {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, callback, ctx);
             internalAsyncAddEntry(addOperation);
         }));
@@ -789,7 +789,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.executeOrdered(name, safeRun(() -> {
+        executor.execute(safeRun(() -> {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx);
             internalAsyncAddEntry(addOperation);
         }));
@@ -1944,7 +1944,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     promise.complete(res);
                 }
-            }, executor.chooseThread(name));
+            }, executor);
             return promise;
         });
     }
@@ -2397,11 +2397,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
-        executor.executeOrdered(name, safeRun(() -> internalTrimConsumedLedgers(promise)));
+        executor.execute(safeRun(() -> internalTrimConsumedLedgers(promise)));
     }
 
     public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
-        executor.executeOrdered(name, safeRun(() -> internalTrimLedgers(isTruncate, promise)));
+        executor.execute(safeRun(() -> internalTrimLedgers(isTruncate, promise)));
     }
 
     private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
@@ -2421,8 +2421,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final long offloadThresholdInSeconds =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).orElse(-1L);
         if (offloadThresholdInBytes >= 0 || offloadThresholdInSeconds >= 0) {
-            executor.executeOrdered(name,
-                    safeRun(() -> maybeOffload(offloadThresholdInBytes, offloadThresholdInSeconds, promise)));
+            executor.execute(safeRun(() -> maybeOffload(offloadThresholdInBytes, offloadThresholdInSeconds, promise)));
         }
     }
 

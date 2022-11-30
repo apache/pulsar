@@ -156,7 +156,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 cursor.readOperationCompleted();
 
             } finally {
-                cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
+                cursor.ledger.getExecutor().execute(safeRun(() -> {
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));
