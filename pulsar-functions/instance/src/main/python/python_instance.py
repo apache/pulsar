@@ -457,8 +457,7 @@ class PythonInstance(object):
   def config_observer_on_modified(self, event):
     # TODO: This function is used for runtime parameters handling logic
     #  when listening to changes in the configuration file (self.config_file)
-    Log.debug("Configuration file %s modified detected" % self.config_file)
-    pass
+    Log.debug("Configuration file %s modified detected", self.config_file)
 
   def setup_config_observer(self):
     Log.debug("Started Thread for observing the configuration file")
@@ -472,7 +471,7 @@ class PythonInstance(object):
       while True:
         pass
     except Exception as e:
-      Log.error("Uncaught exception in Python instance (config observer): %s" % e)
+      Log.error("Uncaught exception in Python instance (config observer): %s", e)
       observer.stop()
       observer.join()
 
