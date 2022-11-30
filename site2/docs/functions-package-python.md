@@ -21,11 +21,11 @@ To package a Python function into **one Python file**, complete the following st
    # The classic ExclamationFunction that appends an exclamation at the end
    # of the input
    class ExclamationFunction(Function):
-      def __init__(self):
-         pass
+       def __init__(self):
+           pass
       
-      def process(self, input, context):
-         return input + '!'
+       def process(self, input, context):
+           return input + '!'
    ```
 
     In this example, when you write a Python function, you need to inherit the Function class and implement the `process()` method.
@@ -139,7 +139,7 @@ To package a Python function with **PIP**, complete the following steps.
 
 1. Configure the `functions_worker.yml` file.
 
-   ```text
+   ```shell
     #### Kubernetes Runtime ####
     installUserCodeDependencies: true
    ```
@@ -147,18 +147,18 @@ To package a Python function with **PIP**, complete the following steps.
 2. Write your Python Function.
 
    ```python
-    from pulsar import Function
-    import js2xml
-
-    # The classic ExclamationFunction that appends an exclamation at the end
-    # of the input
-    class ExclamationFunction(Function):
-     def __init__(self):
-       pass
-
-     def process(self, input, context):
-      # add your logic
-      return input + '!'
+   from pulsar import Function
+   import js2xml
+   
+   # The classic ExclamationFunction that appends an exclamation at the end
+   # of the input
+   class ExclamationFunction(Function):
+       def __init__(self):
+           pass
+   
+       def process(self, input, context):
+           # add your logic
+           return input + '!'
    ```
 
    You can introduce additional dependencies. When Python functions detect that the file currently used is `whl` and the `installUserCodeDependencies` parameter is specified, the system uses the `pip install` command to install the dependencies required in Python functions.
@@ -166,10 +166,10 @@ To package a Python function with **PIP**, complete the following steps.
 3. Generate the `whl` file.
 
    ```shell
-    cd $PULSAR_HOME/pulsar-functions/scripts/python
-    chmod +x generate.sh
-    ./generate.sh <path of your Python Function> <path of the whl output dir> <the version of whl>
-    # e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0
+   cd $PULSAR_HOME/pulsar-functions/scripts/python
+   chmod +x generate.sh
+   ./generate.sh <path of your Python Function> <path of the whl output dir> <the version of whl>
+   # e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0
    ```
 
    The output is written in `/path/to/python/output`:
