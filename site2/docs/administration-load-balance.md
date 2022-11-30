@@ -136,7 +136,7 @@ However, in some special cases, the above default strategy may cause low-load ma
 
 For example:
 
-There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+There are 11 brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
 The average load is 80% * 10 / 11 = 72.73%, and the threshold to unload is 72.73% + 10% = 82.73%.
 Since 80% < 82.73%, unload will not be trigger, and there is one idle Broker with load of 0%.
 
