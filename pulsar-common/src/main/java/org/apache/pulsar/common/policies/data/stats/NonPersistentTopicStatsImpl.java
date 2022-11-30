@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -154,8 +155,8 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
-
-        stats.getNonPersistentPublishers().forEach(s -> {
+        IntStream.range(0, stats.getNonPersistentPublishers().size()).forEach(index -> {
+            NonPersistentPublisherStats s = stats.getPublishers().get(index);
             if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
@@ -165,18 +166,13 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
                             return newStats;
                         })).add((NonPersistentPublisherStatsImpl) s);
             } else {
-                if (this.nonPersistentPublishers.size() != stats.getNonPersistentPublishers().size()) {
-                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                        NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
-                        newStats.setSupportsPartialProducer(false);
-                        this.nonPersistentPublishers.add(newStats.add((NonPersistentPublisherStatsImpl) s));
-                    }
-                } else {
-                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                        ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(i))
-                                .add((NonPersistentPublisherStatsImpl) s);
-                    }
+                if (index == this.nonPersistentPublishers.size()) {
+                    NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                    newStats.setSupportsPartialProducer(false);
+                    this.nonPersistentPublishers.add(newStats);
                 }
+                ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(index))
+                        .add((NonPersistentPublisherStatsImpl) s);
             }
         });
 
