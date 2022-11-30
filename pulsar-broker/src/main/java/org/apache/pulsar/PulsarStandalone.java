@@ -269,6 +269,11 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean usingNewDefaultsPIP117;
 
     public void start() throws Exception {
+        if (config == null) {
+            log.error("Failed to load configuration");
+            System.exit(1);
+        }
+
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
 
         // Allow forcing to use ZK mode via an env variable. eg:
@@ -282,11 +287,6 @@ public class PulsarStandalone implements AutoCloseable {
         } else {
             // There's no existing ZK data directory, or we're already using RocksDB for metadata
             usingNewDefaultsPIP117 = true;
-        }
-
-        if (config == null) {
-            log.error("Failed to load configuration");
-            System.exit(1);
         }
 
         log.debug("--- setup PulsarStandaloneStarter ---");
