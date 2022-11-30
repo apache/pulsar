@@ -32,7 +32,6 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -155,8 +154,8 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
-        IntStream.range(0, stats.getNonPersistentPublishers().size()).forEach(index -> {
-            NonPersistentPublisherStats s = stats.getPublishers().get(index);
+        for (int index = 0; index < stats.getNonPersistentPublishers().size(); index++) {
+            NonPersistentPublisherStats s = stats.getNonPersistentPublishers().get(index);
             if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
@@ -174,7 +173,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(index))
                         .add((NonPersistentPublisherStatsImpl) s);
             }
-        });
+        }
 
         if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {

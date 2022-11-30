@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -244,7 +243,7 @@ public class TopicStatsImpl implements TopicStats {
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;
 
-        IntStream.range(0, stats.getPublishers().size()).forEach(index -> {
+        for (int index = 0; index < stats.getPublishers().size(); index++) {
            PublisherStats s = stats.getPublishers().get(index);
            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
@@ -262,7 +261,7 @@ public class TopicStatsImpl implements TopicStats {
                this.publishers.get(index)
                        .add((PublisherStatsImpl) s);
            }
-        });
+        }
 
         if (this.subscriptions.size() != stats.subscriptions.size()) {
             for (String subscription : stats.subscriptions.keySet()) {
