@@ -478,8 +478,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Thread.sleep(1000L);
         internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
         // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
-        internalPinnedExecutor.submit(() -> {
-        }).get();
+        internalPinnedExecutor.submit(() -> {}).get();
 
         Set<Integer> receivedMsgs = new HashSet<>();
         for (; ; ) {
