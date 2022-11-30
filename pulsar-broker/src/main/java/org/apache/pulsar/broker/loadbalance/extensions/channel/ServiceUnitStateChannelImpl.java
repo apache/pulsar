@@ -475,7 +475,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                             getOwnerRequests.remove(serviceUnit, future);
                                             log.warn("Failed to getOwner for serviceUnit:{}",
                                                     serviceUnit, e);
-                                            future.completeExceptionally((Throwable) e);
                                         }
                                     }
                             );
