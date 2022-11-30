@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -47,6 +48,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
 
     private volatile long lastSnapshotTimestamps;
+
+    private static long readSnapShotTimeoutInSeconds = 3;
 
     public SingleSnapshotAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
@@ -87,7 +90,9 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                     PositionImpl startReadCursorPosition = null;
                     try {
                         while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshot> message = reader.readNext();
+                            Message<TransactionBufferSnapshot> message =
+                                    reader.readNextAsync().get(readSnapShotTimeoutInSeconds,
+                                            TimeUnit.SECONDS);
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {
