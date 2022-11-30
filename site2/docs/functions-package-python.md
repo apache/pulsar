@@ -17,13 +17,13 @@ To package a Python function into **one Python file**, complete the following st
 
    ```python
    from pulsar import Function #  import the Function module from Pulsar
-   
+
    # The classic ExclamationFunction that appends an exclamation at the end
    # of the input
    class ExclamationFunction(Function):
        def __init__(self):
            pass
-      
+
        def process(self, input, context):
            return input + '!'
    ```
