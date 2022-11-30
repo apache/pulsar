@@ -142,7 +142,7 @@ Since 80% < 82.73%, unload will not be triggered, and there is one idle Broker w
 
 To leverage the resources of low-load or idle machines, you can configure the `lowerBoundarySheddingEnabled` parameter on top of `ThresholdShedder`.
 If `lowerBoundarySheddingEnabled=true`, based on the `ThresholdShedder`, a leader will make the lower boundary judgment of the load.
-When `current usage < average usage - threshold` (e.g. 0% < 82.73% - 10%), the broker with the highest load will be triggered to unload.
+If `current usage` is less than `average usage - lower boundary load`, e.g., 0% < (82.73% - 10%), the broker with the highest load will be triggered to unload.
 
 To use the `ThresholdShedder` strategy, configure brokers with this value.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
