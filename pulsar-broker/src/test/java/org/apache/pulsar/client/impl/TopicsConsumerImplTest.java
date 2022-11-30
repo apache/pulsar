@@ -540,11 +540,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }).get();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testExclusiveSubscribe() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
+        final String topicName = "persistent://tenant1/namespace1/testTopicNameValid";
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
+        admin.tenants().createTenant("tenant1", tenantInfo);
+        admin.namespaces().createNamespace("tenant1/namespace1");
         admin.topics().createPartitionedTopic(topicName, 3);
         List<Integer> partitions = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
@@ -557,19 +558,20 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .topics(realTopics)
                 .subscriptionName("subscriptionName")
                 .subscriptionType(SubscriptionType.Exclusive)
-                .subscribeAsync().get(10, TimeUnit.SECONDS);
-
+                .subscribe();
 
         try {
             Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
                     .topics(realTopics)
                     .subscriptionName("subscriptionName")
                     .subscriptionType(SubscriptionType.Exclusive)
-                    .subscribeAsync().get(10, TimeUnit.SECONDS);
-        } catch (Exception e) {
+                    .subscribe();
+            fail("should fail");
+        } catch (PulsarClientException e) {
             String errorLog = e.getMessage();
-            assertTrue(errorLog != null && errorLog.contains("Exclusive consumer is already connected"));
+            assertTrue(errorLog.contains("Exclusive consumer is already connected"));
         }
+        consumer1.close();
     }
 
     @Test
