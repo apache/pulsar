@@ -442,7 +442,7 @@ public class PulsarAdminToolTest {
         namespaces = new CmdNamespaces(() -> admin);
 
         namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff"));
-        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff");
+        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", null);
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
         verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
