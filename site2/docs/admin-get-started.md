@@ -39,7 +39,7 @@ You can find details for the REST API exposed by Pulsar brokers in this {@inject
 </TabItem>
 <TabItem value="Java">
 
-To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, and specify a URL for a Pulsar broker and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. The following is a minimal example using `localhost`:
+To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, and specify a URL for a Pulsar broker and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. The following is a minimal example using `localhost`.
 
 ```java
 String url = "http://localhost:8080";
@@ -47,34 +47,33 @@ String url = "http://localhost:8080";
 String authPluginClassName = "com.org.MyAuthPluginClass";
 // Pass auth-param if auth-plugin class requires it
 String authParams = "param1=value1";
-boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
 PulsarAdmin admin = PulsarAdmin.builder()
-.authentication(authPluginClassName,authParams)
-.serviceHttpUrl(url)
-.tlsTrustCertsFilePath(tlsTrustCertsFilePath)
-.allowTlsInsecureConnection(tlsAllowInsecureConnection)
-.build();
+    .authentication(authPluginClassName,authParams)
+    .serviceHttpUrl(url)
+    .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
+    .allowTlsInsecureConnection(tlsAllowInsecureConnection)
+    .build();
 ```
 
 If you use multiple brokers, you can use multi-host like Pulsar service. For example,
 
 ```java
 String url = "http://localhost:8080,localhost:8081,localhost:8082";
+// Below are the same to the line 2 - line 13 in the code snippet above
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
 // Pass auth-param if auth-plugin class requires it
 String authParams = "param1=value1";
-boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
 PulsarAdmin admin = PulsarAdmin.builder()
-.authentication(authPluginClassName,authParams)
-.serviceHttpUrl(url)
-.tlsTrustCertsFilePath(tlsTrustCertsFilePath)
-.allowTlsInsecureConnection(tlsAllowInsecureConnection)
-.build();
+    .authentication(authPluginClassName,authParams)
+    .serviceHttpUrl(url)
+    .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
+    .allowTlsInsecureConnection(tlsAllowInsecureConnection)
+    .build();
 ```
 
 </TabItem>
