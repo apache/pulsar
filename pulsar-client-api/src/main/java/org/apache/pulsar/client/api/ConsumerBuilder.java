@@ -89,7 +89,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @return the consumer builder instance
      * @throws PulsarClientException
-     *             if the the subscribe operation fails
+     *             if the subscribe operation fails
      */
     Consumer<T> subscribe() throws PulsarClientException;
 
@@ -110,25 +110,25 @@ public interface ConsumerBuilder<T> extends Cloneable {
     CompletableFuture<Consumer<T>> subscribeAsync();
 
     /**
-     * Specify the topics this consumer subscribes on.
+     * Specify the topics this consumer subscribes to.
      *
-     * @param topicNames a set of topic that the consumer subscribes on
+     * @param topicNames a set of topics that the consumer subscribes to
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topic(String... topicNames);
 
     /**
-     * Specify a list of topics that this consumer subscribes on.
+     * Specify a list of topics that this consumer subscribes to.
      *
-     * @param topicNames a list of topic that the consumer subscribes on
+     * @param topicNames a list of topics that the consumer subscribes to
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topics(List<String> topicNames);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes on.
+     * Specify a pattern for topics that this consumer subscribes to.
      *
-     * <p>The pattern is applied to subscribe to all the topics, within a single namespace, that matches the
+     * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
      *
      * <p>The consumer automatically subscribes to topics created after itself.
@@ -140,12 +140,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> topicsPattern(Pattern topicsPattern);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes on.
+     * Specify a pattern for topics that this consumer subscribes to.
      *
-     * <p>It accepts regular expression that is compiled into a pattern internally. Eg.
+     * <p>Accepts a regular expression that is compiled into a pattern internally. Eg.
      * "persistent://public/default/pattern-topic-.*"
      *
-     * <p>The pattern is applied to subscribe to all the topics, within a single namespace, that matches the
+     * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
      *
      * <p>The consumer automatically subscribes to topics created after itself.
@@ -169,26 +169,26 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Specify the subscription properties for this subscription.
-     * Properties are immutable, and consumers under the same subscription fails to create a subscription
+     * Properties are immutable, and consumers under the same subscription will fail to create a subscription
      * if they use different properties.
-     * @param subscriptionProperties
-     * @return
+     * @param subscriptionProperties the properties of the subscription
+     * @return the consumer builder instance
      */
     ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
 
 
     /**
-     * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
+     * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout must be greater than
      * 1 second.
      *
      * <p>By default, the acknowledge timeout is disabled (set to `0`, which means infinite).
      * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
      * messages that it receives are re-delivered to another consumer.
-     * Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
+     * <p>Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
      * the ack timeout is set to 30 seconds.
      *
-     * <p>When enabling ack timeout, if a message is not acknowledged within the specified timeout
-     * it is re-delivered to the consumer (possibly to a different consumer in case of
+     * <p>When enabling ack timeout, if a message is not acknowledged within the specified timeout,
+     * it is re-delivered to the consumer (possibly to a different consumer, in the case of
      * a shared subscription).
      *
      * @param ackTimeout
@@ -200,7 +200,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Ack returns receipt but does not mean that the message is not resent after get receipt.
+     * Ack returns receipt, but the message is not re-sent after getting receipt.
      *
      * @param isAckReceiptEnabled {@link Boolean} is enable ack for receipt
      * @return the consumer builder instance
@@ -210,9 +210,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Define the granularity of the ack-timeout redelivery.
      *
-     * <p>By default, the tick time is set to 1 second. Using an higher tick time
+     * <p>By default, the tick time is set to 1 second. Using a higher tick time
      * reduces the memory overhead to track messages when the ack-timeout is set to
-     * bigger values (eg: 1hour).
+     * bigger values (eg: 1 hour).
      *
      * @param tickTime
      *            the min precision for the ack timeout messages tracker
@@ -223,7 +223,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit);
 
     /**
-     * Set the delay to wait before re-delivering messages that have failed to be process.
+     * Set the delay to wait before re-delivering messages that have failed to be processed.
      *
      * <p>When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
      * is redelivered after a fixed timeout. The default is 1 min.
@@ -238,7 +238,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit);
 
     /**
-     * Select the subscription type to be used when subscribing to the topic.
+     * Select the subscription type to be used when subscribing to a topic.
      *
      * <p>Options are:
      * <ul>
@@ -254,7 +254,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
 
     /**
-     * Select the subscription mode to be used when subscribing to the topic.
+     * Select the subscription mode to be used when subscribing to a topic.
      *
      * <p>Options are:
      * <ul>
