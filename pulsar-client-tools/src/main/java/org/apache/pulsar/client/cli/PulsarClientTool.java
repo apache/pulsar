@@ -118,7 +118,7 @@ public class PulsarClientTool {
         this.tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
         this.tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
         this.tlsAllowInsecureConnection = Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection",
-                Boolean.toString(StringUtils.isBlank(tlsTrustStorePath))));
+                Boolean.toString(StringUtils.isBlank(rootParams.tlsTrustCertsFilePath))));
 
         initJCommander();
     }
