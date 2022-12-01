@@ -831,6 +831,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     // reconnections
     @Test(timeOut = 100_000, dataProvider = "batch", groups = "quarantine")
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
+
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
         final int receiveTimeoutSeconds = 100;
