@@ -172,16 +172,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     private CompletableFuture<Pair<Optional<LocatorEntry>, List<CompletableFuture<StoredSchema>>>> getAllWithLocator(
             String key) {
-        CompletableFuture<Pair<Optional<LocatorEntry>, List<CompletableFuture<StoredSchema>>>> result =
-                new CompletableFuture<>();
-        getLocator(key).thenAccept(locator -> {
+        return getLocator(key).thenApply(locator -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Get all schemas - locator: {}", key, locator);
             }
 
             if (locator.isEmpty()) {
-                result.complete(Pair.of(locator, Collections.emptyList()));
-                return;
+                return Pair.of(locator, Collections.emptyList());
             }
 
             SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
@@ -194,9 +191,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             )
                     )
             ));
-            result.complete(Pair.of(locator, list));
+            return Pair.of(locator, list);
         });
-        return result;
     }
 
     CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
