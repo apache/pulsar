@@ -275,7 +275,7 @@ public class TenantsBase extends PulsarWebResource {
                     .whenComplete((ignore, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, ex);
-                            asyncResponse.resume(new RestException(ex));
+                            resumeAsyncResponseExceptionally(asyncResponse, ex);
                         } else {
                             log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
                             asyncResponse.resume(Response.noContent().build());
