@@ -644,9 +644,6 @@ public class ResendRequestTest extends BrokerTestBase {
         if ((ackCount1 + ackCount2) == totalMessages) {
             return;
         }
-        // 5. Ask for redeliver
-        log.info(key + ": Sent a Redeliver Message Request");
-        consumer1.redeliverUnacknowledgedMessages();
         consumer1.close();
 
         // 6. Check if Messages redelivered again
