@@ -263,14 +263,14 @@ public class TenantsBase extends PulsarWebResource {
             }
 
             hasActiveNamespace(tenant)
-                    .thenRun(() -> tenantResources().deleteTenantAsync(tenant))
-                    .thenRun(() -> pulsar().getPulsarResources().getTopicResources()
+                    .thenCompose(__ -> tenantResources().deleteTenantAsync(tenant))
+                    .thenCompose(__ -> pulsar().getPulsarResources().getTopicResources()
                             .clearTenantPersistence(tenant))
-                    .thenRun(() -> pulsar().getPulsarResources().getNamespaceResources()
+                    .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
                             .deleteTenantAsync(tenant))
-                    .thenRun(() -> pulsar().getPulsarResources().getNamespaceResources()
+                    .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
                             .getPartitionedTopicResources().clearPartitionedTopicTenantAsync(tenant))
-                    .thenRun(() -> pulsar().getPulsarResources().getLocalPolicies()
+                    .thenCompose(__ -> pulsar().getPulsarResources().getLocalPolicies()
                             .deleteLocalPoliciesTenantAsync(tenant))
                     .whenComplete((ignore, ex) -> {
                         if (ex != null) {
