@@ -298,6 +298,9 @@ The Apache Software License, Version 2.0
     - io.netty-netty-handler-proxy-4.1.77.Final.jar
     - io.netty-netty-resolver-4.1.77.Final.jar
     - io.netty-netty-resolver-dns-4.1.77.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.77.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.77.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.77.Final-osx-x86_64.jar
     - io.netty-netty-transport-4.1.77.Final.jar
     - io.netty-netty-transport-classes-epoll-4.1.77.Final.jar
     - io.netty-netty-transport-native-epoll-4.1.77.Final-linux-x86_64.jar
