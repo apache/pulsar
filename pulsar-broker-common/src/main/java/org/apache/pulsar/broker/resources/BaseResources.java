@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Joiner;
 import lombok.Getter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -151,6 +150,23 @@ public class BaseResources<T> {
 
     public CompletableFuture<Void> deleteAsync(String path) {
         return cache.delete(path);
+    }
+
+    protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteAsync(path).whenComplete((ignore, ex) -> {
+            if (ex != null) {
+                if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    // if not found, this path has been deleted
+                    future.complete(null);
+                } else {
+                    future.completeExceptionally(ex);
+                }
+            } else {
+                future.complete(null);
+            }
+        });
+        return future;
     }
 
     public boolean exists(String path) throws MetadataStoreException {

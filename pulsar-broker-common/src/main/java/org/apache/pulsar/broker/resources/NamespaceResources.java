@@ -49,7 +49,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public CompletableFuture<Void> deletePoliciesAsync(NamespaceName ns){
-        return deleteAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        return deleteIfExistsAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
     public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns) {
         return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
@@ -58,30 +58,13 @@ public class NamespaceResources extends BaseResources<Policies> {
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
-        return deletePath(namespacePath);
+        return deleteIfExistsAsync(namespacePath);
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
     public CompletableFuture<Void> deleteTenantAsync(String tenant) {
         final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
-        return deletePath(tenantPath);
-    }
-
-    private CompletableFuture<Void> deletePath(String path) {
-        CompletableFuture<Void> future = new CompletableFuture<Void>();
-        deleteAsync(path).whenComplete((ignore, ex) -> {
-            if (ex != null) {
-                if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                    // if not found, this path has been deleted
-                    future.complete(null);
-                } else {
-                    future.completeExceptionally(ex);
-                }
-            } else {
-                future.complete(null);
-            }
-        });
-        return future;
+        return deleteIfExistsAsync(tenantPath);
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {

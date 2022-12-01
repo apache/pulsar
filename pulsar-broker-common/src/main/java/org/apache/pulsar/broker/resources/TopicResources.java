@@ -54,20 +54,20 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        return checkExistAndDelete(path);
+        return deleteIfExistsAsync(path);
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        return checkExistAndDelete(path);
+        return deleteIfExistsAsync(path);
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        return checkExistAndDelete(path);
+        return deleteIfExistsAsync(path);
     }
 
-    private CompletableFuture<Void> checkExistAndDelete(String path) {
+    private CompletableFuture<Void> deleteIfExistsAsync(String path) {
         return store.exists(path)
                 .thenCompose(exists -> {
                     if (exists) {

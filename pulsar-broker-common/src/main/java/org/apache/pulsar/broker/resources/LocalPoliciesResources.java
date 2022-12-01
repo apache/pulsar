@@ -32,6 +32,6 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
-        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        return deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 }

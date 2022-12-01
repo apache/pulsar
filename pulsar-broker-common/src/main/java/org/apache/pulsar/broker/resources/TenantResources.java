@@ -40,6 +40,6 @@ public class TenantResources extends BaseResources<TenantInfo> {
                 .thenCompose(clusters -> FutureUtil.waitForAll(clusters.stream()
                         .map(cluster -> getCache().delete(joinPath(BASE_POLICIES_PATH, tenantName, cluster)))
                         .collect(Collectors.toList()))
-                ).thenCompose(__ -> deleteAsync(joinPath(BASE_POLICIES_PATH, tenantName)));
+                ).thenCompose(__ -> deleteIfExistsAsync(joinPath(BASE_POLICIES_PATH, tenantName)));
     }
 }
