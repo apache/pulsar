@@ -102,13 +102,13 @@ To package a Java function as JAR, complete the following steps.
 
    ```bash
     ./bin/pulsar-admin functions localrun \
-    --classname org.example.test.ExclamationFunction \
-    --jar java-function-1.0-SNAPSHOT.jar \
-    --inputs persistent://public/default/my-topic-1 \
-    --output persistent://public/default/test-1 \
-    --tenant public \
-    --namespace default \
-    --name JavaFunction
+       --classname org.example.test.ExclamationFunction \
+       --jar java-function-1.0-SNAPSHOT.jar \
+       --inputs persistent://public/default/my-topic-1 \
+       --output persistent://public/default/test-1 \
+       --tenant public \
+       --namespace default \
+       --name JavaFunction
    ```
 
    The following log indicates that the Java function starts successfully.
@@ -190,12 +190,12 @@ To package a Java function as NAR, complete the following steps.
 
    ```bash
     ./bin/pulsar-admin functions localrun \
-    --jar java-function-1.0-SNAPSHOT.nar \
-    --inputs persistent://public/default/my-topic-1 \
-    --output persistent://public/default/test-1 \
-    --tenant public \
-    --namespace default \
-    --name JavaFunction
+       --jar java-function-1.0-SNAPSHOT.nar \
+       --inputs persistent://public/default/my-topic-1 \
+       --output persistent://public/default/test-1 \
+       --tenant public \
+       --namespace default \
+       --name JavaFunction
    ```
 
    The following log indicates that the Java function starts successfully.

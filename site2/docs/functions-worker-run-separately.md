@@ -197,7 +197,7 @@ Before starting function workers, make sure [function runtime](functions-runtime
 
 :::
 
-* You can start a function worker in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
+* You can start a function worker in the background by using the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
   ```bash
   bin/pulsar-daemon start functions-worker
