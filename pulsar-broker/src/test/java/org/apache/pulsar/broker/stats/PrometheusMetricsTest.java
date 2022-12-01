@@ -365,7 +365,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .subscribe();
 
         final int messages = 5;
-        final int pulsarMessageOverhead = 31; // Number of extra bytes pulsar adds to each message
+        final int pulsarMessageOverhead = 42; // Number of extra bytes pulsar adds to each message
         final int messageSizeBytes = "my-message-n".getBytes().length + pulsarMessageOverhead;
 
         for (int i = 0; i < messages; i++) {
