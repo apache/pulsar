@@ -40,7 +40,6 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
-import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.policies.data.BookieInfo;
