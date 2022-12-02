@@ -21,6 +21,7 @@ package org.apache.pulsar.testclient;
 import com.google.common.collect.Sets;
 import java.net.URL;
 import java.util.concurrent.CountDownLatch;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -100,6 +101,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
                 pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()));
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .enableTransaction(true)
                 .serviceUrl(pulsar.getBrokerServiceUrl())

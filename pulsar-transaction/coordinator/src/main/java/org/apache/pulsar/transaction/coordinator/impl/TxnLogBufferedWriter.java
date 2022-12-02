@@ -26,16 +26,14 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -83,7 +81,7 @@ public class TxnLogBufferedWriter<T> {
     private final Timer timer;
 
     /** All write operation will be executed on single thread. **/
-    private final ExecutorService singleThreadExecutorForWrite;
+    private final Executor singleThreadExecutorForWrite;
 
     /** The serializer for the object which called by {@link #asyncAddData}. **/
     private final DataSerializer<T> dataSerializer;
@@ -140,7 +138,7 @@ public class TxnLogBufferedWriter<T> {
      *                    when disabled.
      * @param timer Used for periodic flush.
      */
-    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, Executor executor, Timer timer,
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
@@ -157,8 +155,7 @@ public class TxnLogBufferedWriter<T> {
         }
         this.batchEnabled = batchEnabled && batchedWriteMaxRecords > 1;
         this.managedLedger = managedLedger;
-        this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
-                managedLedger.getName() == null ? UUID.randomUUID().toString() : managedLedger.getName());
+        this.singleThreadExecutorForWrite = executor;
         this.dataSerializer = dataSerializer;
         this.batchedWriteMaxRecords = batchedWriteMaxRecords;
         this.batchedWriteMaxSize = batchedWriteMaxSize;

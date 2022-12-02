@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
-import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
@@ -44,8 +44,6 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
             AtomicIntegerFieldUpdater
                     .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
-
-    private Random random = new Random(42);
 
     protected AbstractDispatcherMultipleConsumers(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription, serviceConfig);
@@ -157,7 +155,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
             return null;
         }
 
-        return consumerList.get(random.nextInt(consumerList.size()));
+        return consumerList.get(ThreadLocalRandom.current().nextInt(consumerList.size()));
     }
 
 

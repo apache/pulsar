@@ -250,10 +250,12 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Thread.sleep(3 * 1000);
 
         try {
-            Producer<String> producerN = PulsarClient.builder()
+            @Cleanup
+            PulsarClient pulsarClient1 = PulsarClient.builder()
                     .maxBackoffInterval(3, TimeUnit.SECONDS)
                     .operationTimeout(5, TimeUnit.SECONDS)
-                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build()
+                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build();
+            Producer<String> producerN = pulsarClient1
                     .newProducer(Schema.STRING).topic(topic).sendTimeout(3, TimeUnit.SECONDS).create();
             Assert.assertTrue(producerN.isConnected());
             producerN.close();
@@ -270,6 +272,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns, 2);
         admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
 
+        conf.setMaxSameAddressConsumersPerTopic(1);
         admin.namespaces().setMaxConsumersPerTopic(ns, 1);
         admin.topicPolicies().setMaxConsumers(topic, 1);
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
@@ -278,8 +281,9 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
         SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
 
+        conf.setMaxSameAddressProducersPerTopic(1);
+        admin.namespaces().setMaxProducersPerTopic(ns, 1);
         admin.topicPolicies().setMaxProducers(topic, 1);
-
         CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
         CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
         CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);

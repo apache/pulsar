@@ -306,7 +306,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
         if (ledger instanceof ShadowManagedLedgerImpl) {
-            shadowSourceTopic = ((ShadowManagedLedgerImpl) ledger).getShadowSource();
+            shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
             shadowSourceTopic = null;
         }
@@ -1765,6 +1765,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public int getNumberOfSameAddressConsumers(final String clientAddress) {
         return getNumberOfSameAddressConsumers(clientAddress, subscriptions.values());
+    }
+
+    @Override
+    protected String getSchemaId() {
+        if (shadowSourceTopic == null) {
+            return super.getSchemaId();
+        } else {
+            //reuse schema from shadow source.
+            String base = shadowSourceTopic.getPartitionedTopicName();
+            return TopicName.get(base).getSchemaName();
+        }
     }
 
     @Override
