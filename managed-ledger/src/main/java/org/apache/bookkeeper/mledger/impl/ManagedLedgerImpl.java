@@ -974,6 +974,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         } else if (!cursor.isDurable()) {
             cursors.removeCursor(consumerName);
+            cursor.setInactive();
             callback.deleteCursorComplete(ctx);
             return;
         }
@@ -984,6 +985,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationComplete(Void result, Stat stat) {
                 cursor.asyncDeleteCursorLedger();
+                cursor.setInactive();
                 cursors.removeCursor(consumerName);
 
                 // Redo invalidation of entries in cache
