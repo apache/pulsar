@@ -349,12 +349,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * them. Neither {@link Consumer#receive(int, TimeUnit)} nor Partitioned Topics can be used if the consumer queue
      * size is zero. {@link Consumer#receive()} function call should not be interrupted when the consumer queue size is
      * zero.</li>
-     * <li>Doesn't support Batch-Message. If consumer receives a batch-message, it closes consumer connection with
-     * broker and {@link Consumer#receive()} calls remains blocked while {@link Consumer#receiveAsync()} receives
-     * exception in callback. <b> Consumer is not able to receive any further messages unless batch-message in pipeline
+     * <li>Doesn't support Batch-Message. If a consumer receives a batch-message, it closes the consumer connection with
+     * the broker and {@link Consumer#receive()} calls remain blocked while {@link Consumer#receiveAsync()} receives
+     * exception in callback. <b> The consumer is not able to receive any further messages unless batch-message in pipeline
      * is removed</b></li>
      * </ul>
-     * Default value is {@code 1000} messages and should be adequate for most use cases.
+     * The default value is {@code 1000} messages and should be adequate for most use cases.
      *
      * @param receiverQueueSize
      *            the new receiver queue size value
@@ -484,7 +484,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * consumers if they have permits, otherwise the broker considers next priority level consumers.
      *
      * <p>If a subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1,
-     * then broker dispatches messages to only consumer-A until it is drained, and then broker will
+     * then the broker dispatches messages to only consumer-A until it is drained, and then the broker will
      * start dispatching messages to Consumer-B.
      *
      * <p><pre>
@@ -498,7 +498,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * </pre>
      *
      * <p><b>Failover subscription</b>
-     * Broker selects active consumer for a failover subscription based on consumer's priority-level and
+     * The broker selects the active consumer for a failover subscription based on consumer's priority-level and
      * lexicographical sorting of consumer name.
      * eg:
      * <pre>
@@ -657,7 +657,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> startMessageIdInclusive();
 
     /**
-     * Set {@link BatchReceivePolicy} for consumer.
+     * Set {@link BatchReceivePolicy} for the consumer.
      * By default, consumer uses {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
      *
      * <p>Example:
@@ -672,7 +672,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
 
     /**
-     * If enabled, the consumer auto-retries message.
+     * If enabled, the consumer auto-retries messages.
      * Default: disabled.
      *
      * @param retryEnable
@@ -736,8 +736,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
-     * guarded by providing this @maxPendingChunkedMessage threshold. Once consumer reaches this threshold, it drops
-     * the outstanding unchunked-messages by silently acking if autoAckOldestChunkedMessageOnQueueFull is true, else it
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once the consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acknowledging if autoAckOldestChunkedMessageOnQueueFull is true, otherwise it
      * marks them for redelivery.
      *
      * @default false
@@ -748,8 +748,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull);
 
     /**
-     * If producer fails to publish all the chunks of a message, then consumer can expire incomplete chunks if consumer
-     * won't be able to receive all chunks in expire time duration (default 1 minute).
+     * If the producer fails to publish all the chunks of a message, then the consumer can expire incomplete chunks if the consumer
+     * doesn't receive all chunks during the expire time duration (default 1 minute).
      *
      * @param duration
      * @param unit
