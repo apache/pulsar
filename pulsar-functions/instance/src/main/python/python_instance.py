@@ -348,6 +348,9 @@ class PythonInstance(object):
                                            self.instance_config.function_details.sink.typeClassName,
                                            self.instance_config.function_details.sink.schemaProperties)
       crypto_key_reader = self.get_crypto_reader(self.instance_config.function_details.sink.producerSpec.cryptoSpec)
+      encryption_key = None
+      if crypto_key_reader is not None:
+        encryption_key = self.instance_config.function_details.sink.producerSpec.cryptoSpec.producerEncryptionKeyName[0]
 
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
@@ -361,7 +364,7 @@ class PythonInstance(object):
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
         # python client only supports one key for encryption
-        encryption_key=self.instance_config.function_details.sink.producerSpec.cryptoSpec.producerEncryptionKeyName[0],
+        encryption_key=encryption_key,
         crypto_key_reader=crypto_key_reader,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
                         self.instance_config.function_details.tenant,
