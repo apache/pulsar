@@ -540,9 +540,12 @@ class PythonInstance(object):
   def get_crypto_reader(self, crypto_spec):
     crypto_key_reader = None
     if crypto_spec is not None:
-      crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig)
-      if crypto_spec.cryptoKeyReaderClassName == "" or crypto_spec.cryptoKeyReaderClassName is None:
-        crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
-      else:
-        crypto_key_reader = util.import_class(os.path.dirname(self.user_code), crypto_spec.cryptoKeyReaderClassName)(**crypto_config)
+      try:
+        crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig)
+        if crypto_spec.cryptoKeyReaderClassName == "" or crypto_spec.cryptoKeyReaderClassName is None:
+          crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
+        else:
+          crypto_key_reader = util.import_class(os.path.dirname(self.user_code), crypto_spec.cryptoKeyReaderClassName)(**crypto_config)
+      except:
+        pass
     return crypto_key_reader
