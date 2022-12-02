@@ -178,16 +178,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
 
     /**
-     * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout must be greater than
-     * 1 second.
+     * Sets the timeout for unacknowledged messages, truncated to the nearest millisecond. The timeout must be
+     * greater than 1 second.
      *
-     * <p>By default, the acknowledge timeout is disabled (set to `0`, which means infinite).
+     * <p>By default, the acknowledgment timeout is disabled (set to `0`, which means infinite).
      * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
      * messages that it receives are re-delivered to another consumer.
      * <p>Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
-     * the ack timeout is set to 30 seconds.
+     * the acknowledgment timeout is set to 30 seconds.
      *
-     * <p>When enabling ack timeout, if a message is not acknowledged within the specified timeout,
+     * <p>When enabling acknowledgment timeout, if a message is not acknowledged within the specified timeout,
      * it is re-delivered to the consumer (possibly to a different consumer, in the case of
      * a shared subscription).
      *
@@ -200,9 +200,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Ack returns receipt, but the message is not re-sent after getting receipt.
+     * Acknowledgement returns receipt, but the message is not re-sent after getting receipt.
      *
-     * @param isAckReceiptEnabled {@link Boolean} is enable ack for receipt
+     * Configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after
+     * ackTimeout, or to execute a timer task to check the acknowledgement timeout messages during every
+     * ackTimeoutTickTime period.
+     *
+     * @param isAckReceiptEnabled {@link Boolean} enables acknowledgement for receipt
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
@@ -215,7 +219,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * bigger values (eg: 1 hour).
      *
      * @param tickTime
-     *            the min precision for the ack timeout messages tracker
+     *            the min precision for the acknowledgment timeout messages tracker
      * @param timeUnit
      *            unit in which the timeout is provided.
      * @return the consumer builder instance
@@ -223,7 +227,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit);
 
     /**
-     * Set the delay to wait before re-delivering messages that have failed to be processed.
+     * Sets the delay to wait before re-delivering messages that have failed to be processed.
      *
      * <p>When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
      * is redelivered after a fixed timeout. The default is 1 min.
@@ -254,7 +258,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
 
     /**
-     * Select the subscription mode to be used when subscribing to a topic.
+     * Selects the subscription mode to be used when subscribing to a topic.
      *
      * <p>Options are:
      * <ul>
@@ -271,8 +275,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Sets a {@link MessageListener} for the consumer.
      *
-     * <p>When a {@link MessageListener} is set, the application receives messages through it and calls to
-     * {@link Consumer#receive()} are not allowed.
+     * <p>The application receives messages through the message listener,
+     * and calls to {@link Consumer#receive()} are not allowed.
      *
      * @param messageListener
      *            the listener object
@@ -363,11 +367,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
-     * Group consumer acknowledgments for the specified amount of time.
+     * Sets amount of time for group consumer acknowledgments.
      *
      * <p>By default, the consumer uses a 100 ms grouping time to send out acknowledgments to the broker.
      *
-     * <p>Setting a group time of 0 sends out acknowledgments immediately. A longer ack group time
+     * <p>Setting a group time of 0 sends out acknowledgments immediately. A longer acknowledgment group time
      * is more efficient, but at the expense of a slight increase in message re-deliveries after a failure.
      *
      * @param delay
@@ -379,7 +383,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit);
 
     /**
-     * Group consumer acknowledgments for the max size.
+     * Sets number of messages for group consumer acknowledgments.
      *
      * <p>By default, the consumer uses at most 1000 messages to send out acknowledgments to the broker.
      *
@@ -396,7 +400,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState);
 
     /**
-     * Set the max total receiver queue size across partitions.
+     * Sets the max total receiver queue size across partitions.
      *
      * <p>This setting is used to reduce the receiver queue size for individual partitions
      * {@link #receiverQueueSize(int)} if the total exceeds this value (default: 50000).
@@ -411,7 +415,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
 
     /**
-     * Set the consumer name.
+     * Sets the consumer name.
      *
      * <p>Consumer names are informative, and can be used to identify a particular consumer
      * instance from the topic stats.
@@ -450,7 +454,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> readCompacted(boolean readCompacted);
 
     /**
-     * Set topic's auto-discovery period when using a pattern for topics consumer.
+     * Sets topic's auto-discovery period when using a pattern for topics consumer.
      * The period is in minutes, and the default and minimum values are 1 minute.
      *
      * @param periodInMinutes
@@ -462,7 +466,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
 
     /**
-     * Set topic's auto-discovery period when using a pattern for topics consumer.
+     * Sets topic's auto-discovery period when using a pattern for topics consumer.
      *
      * @param interval
      *            the amount of delay between checks for
@@ -522,7 +526,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> priorityLevel(int priorityLevel);
 
     /**
-     * Set a name/value property with this consumer.
+     * Sets a name/value property with this consumer.
      *
      * <p>Properties are application-defined metadata that can be attached to the consumer.
      * When getting topic stats, this metadata is associated with the consumer stats for easier identification.
@@ -547,7 +551,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> properties(Map<String, String> properties);
 
     /**
-     * Set the {@link SubscriptionInitialPosition} for the consumer.
+     * Sets the {@link SubscriptionInitialPosition} for the consumer.
      *
      * @param subscriptionInitialPosition
      *            the position where to initialize a newly created subscription
@@ -572,7 +576,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
     /**
-     * Set dead letter policy for a consumer.
+     * Sets dead letter policy for a consumer.
      *
      * <p>By default, messages are redelivered as many times as possible until they are acknowledged.
      * If you enable a dead letter mechanism, messages will have a maxRedeliverCount. When a message exceeds the maximum
@@ -597,7 +601,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *          .subscribe();
      * </pre>
      * When a dead letter policy is specified, and no ackTimeoutMillis is specified,
-     * then the ack timeout is set to 30000 milliseconds.
+     * then the acknowledgment timeout is set to 30000 milliseconds.
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 
@@ -611,7 +615,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 
     /**
-     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * Sets the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
      * enabled.
      *
      * @param interval
@@ -623,7 +627,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
 
     /**
-     * Set KeyShared subscription policy for consumer.
+     * Sets KeyShared subscription policy for consumer.
      *
      * <p>By default, KeyShared subscriptions use auto split hash ranges to maintain consumers. If you want to
      * set a different KeyShared policy, set a policy by one of the following examples:
@@ -649,7 +653,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
 
     /**
-     * Set the consumer to include the given position of any reset operation like {@link Consumer#seek(long)} or
+     * Sets the consumer to include the given position of any reset operation like {@link Consumer#seek(long)} or
      * {@link Consumer#seek(MessageId)}}.
      *
      * @return the consumer builder instance
@@ -657,7 +661,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> startMessageIdInclusive();
 
     /**
-     * Set {@link BatchReceivePolicy} for the consumer.
+     * Sets {@link BatchReceivePolicy} for the consumer.
      * By default, consumer uses {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
      *
      * <p>Example:
