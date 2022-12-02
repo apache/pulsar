@@ -46,22 +46,24 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.functions.utils.Exceptions;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Test for consuming transaction messages.
+ * Test for consuming transaction messages with user without system topics permissions.
  */
 @Slf4j
 @Test(groups = "broker")
 public class AuthenticatedTransactionProducerConsumerTest extends TransactionTestBase {
 
-    private static final String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
+    private static final String CONSUME_TOPIC = NAMESPACE1 + "/consume-produce-auth";
 
     private final String ADMIN_TOKEN;
     private final String CLIENT_TOKEN;
@@ -102,31 +104,21 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
-
-        // Set provider domain name
         Properties properties = new Properties();
         properties.setProperty("tokenPublicKey", TOKEN_PUBLIC_KEY);
 
         conf.setProperties(properties);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
-        setBrokerCount(1);
-        super.internalSetupAndInitCluster();
+        setUpBase(1, 1, CONSUME_TOPIC, 1);
 
-
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace("public/txn", 10);
-        admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
-
-        admin.namespaces().grantPermissionOnNamespace("public/txn", "client",
+        admin.namespaces().grantPermissionOnNamespace(NAMESPACE1, "client",
                 EnumSet.allOf(AuthAction.class));
     }
 
     @Override
     protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
         return clientBuilder
-                .enableTransaction(true)
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
                 .build();
     }
@@ -174,5 +166,19 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         producer.newMessage(transaction).value("message2").send();
         transaction.commit();
         Assert.assertEquals(consumer.receive(5, TimeUnit.SECONDS).getValue(), "message2");
+    }
+
+    @Test
+    public void testNoAuth() throws Exception {
+        try {
+            @Cleanup final PulsarClient pulsarClient = PulsarClient.builder()
+                    .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                    .enableTransaction(true)
+                    .build();
+            Assert.fail("should have failed");
+        } catch (Exception t) {
+            Assert.assertTrue(Exceptions.areExceptionsPresentInChain(t,
+                    PulsarClientException.AuthenticationException.class));
+        }
     }
 }

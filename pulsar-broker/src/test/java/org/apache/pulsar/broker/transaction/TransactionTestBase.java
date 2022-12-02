@@ -95,14 +95,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     protected ServiceConfiguration conf = new ServiceConfiguration();
 
     public void internalSetup() throws Exception {
-        internalSetup(false);
-    }
-
-    public void internalSetupAndInitCluster() throws Exception {
-        internalSetup(true);
-    }
-
-    private void internalSetup(boolean initializeCluster) throws Exception {
         incrementSetupNumber();
         init();
 
@@ -111,17 +103,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         }
         admin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
                 .serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress())));
-
-        if (initializeCluster) {
-            String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-            String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
-            admin.clusters().createCluster(CLUSTER_NAME,
-                    ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-            admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-            admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
-        }
 
         if (pulsarClient != null) {
             pulsarClient.shutdown();
@@ -137,7 +118,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     protected PulsarAdmin createNewPulsarAdmin(PulsarAdminBuilder builder) throws PulsarClientException {
         return builder.build();
     }
-
 
     private void init() throws Exception {
         mockZooKeeper = createMockZooKeeper();
@@ -175,11 +155,10 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
-        pulsarClient = PulsarClient.builder()
+        pulsarClient = createNewPulsarClient(PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
+                .enableTransaction(true));
     }
 
     protected void createTransactionCoordinatorAssign(int numPartitionsOfTC) throws MetadataStoreException {
