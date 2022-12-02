@@ -258,7 +258,7 @@ public class LocalBrokerData implements LoadManagerReport {
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
-    private static double max(double... args) {
+    public static double max(double... args) {
         double max = Double.NEGATIVE_INFINITY;
 
         for (double d : args) {
