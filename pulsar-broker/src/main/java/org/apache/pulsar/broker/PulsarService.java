@@ -1513,7 +1513,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         conf.setTlsTrustCertsFilePath(
                                 isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
                                         ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
-                                        : this.getConfiguration().getTlsCertificateFilePath());
+                                        : this.getConfiguration().getTlsTrustCertsFilePath());
                         conf.setTlsKeyFilePath(this.getConfiguration().getBrokerClientKeyFilePath());
                         conf.setTlsCertificateFilePath(this.getConfiguration().getBrokerClientCertificateFilePath());
                     }
