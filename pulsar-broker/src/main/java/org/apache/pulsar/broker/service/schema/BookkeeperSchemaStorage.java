@@ -149,7 +149,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
                             put(key, fn, promise);
                         } else {
-                            promise.completeExceptionally(cause);
+                            promise.completeExceptionally(ex);
                         }
                     }
         });
