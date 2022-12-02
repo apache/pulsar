@@ -1423,7 +1423,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             this.getConfiguration().getBrokerClientAuthenticationParameters()));
                 }
 
-                conf.setStatsIntervalSeconds(0);
                 this.client = createClientImpl(conf);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
