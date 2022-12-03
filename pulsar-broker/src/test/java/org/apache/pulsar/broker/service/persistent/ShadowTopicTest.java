@@ -130,9 +130,7 @@ public class ShadowTopicTest extends BrokerTestBase {
                     (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get().get();
             ShadowReplicator
                     replicator = (ShadowReplicator) sourcePersistentTopic.getShadowReplicators().get(shadowTopic);
-            if (replicator == null) {
-                return;
-            }
+            Assert.assertNotNull(replicator);
             Assert.assertEquals(String.valueOf(replicator.getState()), "Started");
         });
     }
