@@ -32,7 +32,19 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
-        return deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        CompletableFuture<Void> completableFuture = deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        // in order to delete the cluster for namespace v1
+        if (ns.getCluster() != null) {
+            String clusterPath = joinPath(LOCAL_POLICIES_ROOT, ns.getTenant(), ns.getCluster());
+            return getChildrenAsync(clusterPath).thenCompose(nss -> {
+                if (nss.isEmpty()) {
+                    return deleteIfExistsAsync(clusterPath);
+                }
+                return completableFuture;
+            });
+        } else {
+            return completableFuture;
+        }
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
