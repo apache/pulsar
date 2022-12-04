@@ -152,14 +152,14 @@ public class PulsarBrokerStarter {
             jcommander.parse(args);
             if (starterArguments.help) {
                 jcommander.usage();
-                System.exit(-1);
+                System.exit(0);
             }
 
             if (starterArguments.generateDocs) {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
                 cmd.addCommand("broker", starterArguments);
                 cmd.run(null);
-                System.exit(-1);
+                System.exit(0);
             }
 
             // init broker config
