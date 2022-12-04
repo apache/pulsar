@@ -113,14 +113,14 @@ public class CompactorTool {
         jcommander.parse(args);
         if (arguments.help) {
             jcommander.usage();
-            System.exit(-1);
+            System.exit(0);
         }
 
         if (arguments.generateDocs) {
             CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
             cmd.addCommand("compact-topic", arguments);
             cmd.run(null);
-            System.exit(-1);
+            System.exit(0);
         }
 
         // init broker config
