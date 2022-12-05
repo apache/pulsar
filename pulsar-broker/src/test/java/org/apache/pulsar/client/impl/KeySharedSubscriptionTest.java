@@ -156,6 +156,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
         Awaitility.await()
                 .pollDelay(5, TimeUnit.SECONDS)
+                .pollInterval()
                 .until(() ->
                         (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
 
