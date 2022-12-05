@@ -266,17 +266,20 @@ All the topic metrics are labeled with the following labels:
 
 ### Replication metrics
 
-If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
+If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics are labeled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are also labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_replication_rate_in | Gauge | The total message rate of the topic replicating from remote cluster (message per second). |
-| pulsar_replication_rate_out | Gauge | The total message rate of the topic replicating to remote cluster (message per second). |
-| pulsar_replication_throughput_in | Gauge | The total throughput of the topic replicating from remote cluster (byte per second). |
-| pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (byte per second). |
-| pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
+| pulsar_replication_rate_in | Gauge | The total message rate of the namespace replicating from remote cluster (messages/second). |
+| pulsar_replication_rate_out | Gauge | The total message rate of the namespace replicating to remote cluster (messages/second). |
+| pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (bytes/second). |
+| pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (bytes/second). |
+| pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
+| pulsar_replication_rate_expired | Gauge | Total rate of messages expired (messages/second). |
+| pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
+| pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
 
 ### Topic lookup metrics
 

@@ -78,15 +78,16 @@ All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}
 
 The following metrics are available for broker:
 
-- [Broker metrics](#broker-metrics)
 - [Namespace metrics](#namespace-metrics)
-- [Replication metrics](#replication-metrics)
 - [Topic metrics](#topic-metrics)
-- [Replication metrics](#replication-metrics-1)
+- [Replication metrics](#replication-metrics)
+- [Topic lookup metrics](#topic-lookup-metrics)
 - [ManagedLedger metrics](#managedledger-metrics)
+- [Managed cursor acknowledgment state](#managed-cursor-acknowledgment-state)
 - [LoadBalancing metrics](#loadbalancing-metrics)
 - [BundleUnloading metrics](#bundleunloading-metrics)
 - [BundleSplit metrics](#bundlesplit-metrics)
+- [Bundle metrics](#bundle-metrics)
 - [Subscription metrics](#subscription-metrics)
 - [Consumer metrics](#consumer-metrics)
 - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
@@ -94,10 +95,7 @@ The following metrics are available for broker:
 - [Authentication metrics](#authentication-metrics)
 - [Connection metrics](#connection-metrics)
 - [Jetty metrics](#jetty-metrics)
-- [Schema metrics](#schema-metrics)
-- [Offload metrics](#offload-metrics)
-- [Web service executor metrics](#web-service-executor-metrics)
-- [Metadata store metrics](#metadata-store-metrics)
+
 
 ### Namespace metrics
 
@@ -127,20 +125,6 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
-
-#### Replication metrics
-
-If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
-
-All the replication metrics are also labelled with `remoteCluster=${pulsar_remote_cluster}`.
-
-| Name | Type | Description |
-|---|---|---|
-| pulsar_replication_rate_in | Gauge | The total message rate of the namespace replicating from remote cluster (messages/second). |
-| pulsar_replication_rate_out | Gauge | The total message rate of the namespace replicating to remote cluster (messages/second). |
-| pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (bytes/second). |
-| pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (bytes/second). |
-| pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
 
 ### Topic metrics
 
@@ -185,19 +169,19 @@ All the topic metrics are labelled with the following labels:
 | pulsar_compaction_compacted_entries_count | Gauge | The compacted entries count.<br />**Note:** This metric is only available in 2.8.1 and later versions. |
 | pulsar_compaction_compacted_entries_size |Gauge  | The compacted entries size.<br />**Note:** This metric is only available in 2.8.1 and later versions. |
 
-#### Replication metrics
+### Replication metrics
 
-If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
+If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics are labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are also labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_replication_rate_in | Gauge | The total message rate of the topic replicating from remote cluster (messages/second). |
-| pulsar_replication_rate_out | Gauge | The total message rate of the topic replicating to remote cluster (messages/second). |
-| pulsar_replication_throughput_in | Gauge | The total throughput of the topic replicating from remote cluster (bytes/second). |
-| pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (bytes/second). |
-| pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
+| pulsar_replication_rate_in | Gauge | The total message rate of the namespace replicating from remote cluster (messages/second). |
+| pulsar_replication_rate_out | Gauge | The total message rate of the namespace replicating to remote cluster (messages/second). |
+| pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (bytes/second). |
+| pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (bytes/second). |
+| pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
 
 ### ManagedLedgerCache metrics
 All the ManagedLedgerCache metrics are labelled with the following labels:
@@ -286,7 +270,7 @@ All the loadbalancing metrics are labelled with the following labels:
 | pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage (in percent). |
 | pulsar_lb_memory_usage | Gauge | The broker process memory usage (in percent). |
 
-#### BundleUnloading metrics
+### BundleUnloading metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
@@ -296,7 +280,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 | pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
 | pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
 
-#### BundleSplit metrics
+### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
