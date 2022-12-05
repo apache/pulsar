@@ -25,7 +25,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +53,7 @@ public class CompactorTool {
 
     private static class Arguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
-        private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
+        private String brokerConfigFile = "conf/broker.conf";
 
         @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
@@ -124,24 +124,24 @@ public class CompactorTool {
         }
 
         // init broker config
-        ServiceConfiguration brokerConfig;
         if (isBlank(arguments.brokerConfigFile)) {
             jcommander.usage();
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
-        } else {
-            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
-            brokerConfig = PulsarConfigurationLoader.create(
-                    arguments.brokerConfigFile, ServiceConfiguration.class);
         }
+
+        final String filepath = Path.of(arguments.brokerConfigFile).toAbsolutePath().normalize().toString();
+        log.info(String.format("read configuration file %s", filepath));
+        final ServiceConfiguration brokerConfig =
+                PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
 
 
         if (isBlank(brokerConfig.getMetadataStoreUrl())) {
-            throw new IllegalArgumentException(
-                    String.format("Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file \n"
-                                    + "or specify configuration file path from command line.\n"
-                                    + "now configuration file path is=[%s]\n",
-                            arguments.brokerConfigFile)
-            );
+            final String message = String.format("""
+                    Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file
+                    or specify configuration file path from command line.
+                    now configuration file path is=[%s]
+                    """, filepath);
+            throw new IllegalArgumentException(message);
         }
 
         @Cleanup(value = "shutdownNow")
