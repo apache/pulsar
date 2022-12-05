@@ -120,14 +120,17 @@ All the metrics exposed by a broker are labeled with `cluster=${pulsar_cluster}`
 The following metrics are available for broker:
 
 - [Broker metrics](#broker-metrics)
+- [BookKeeper client metrics](#bookkeeper-client-metrics)
 - [Namespace metrics](#namespace-metrics)
-- [Replication metrics](#replication-metrics)
 - [Topic metrics](#topic-metrics)
-- [Replication metrics](#replication-metrics-1)
+- [Replication metrics](#replication-metrics)
+- [Topic lookup metrics](#topic-lookup-metrics)
 - [ManagedLedger metrics](#managedledger-metrics)
+- [Managed cursor acknowledgment state](#managed-cursor-acknowledgment-state)
 - [LoadBalancing metrics](#loadbalancing-metrics)
 - [BundleUnloading metrics](#bundleunloading-metrics)
 - [BundleSplit metrics](#bundlesplit-metrics)
+- [Bundle metrics](#bundle-metrics)
 - [Subscription metrics](#subscription-metrics)
 - [Consumer metrics](#consumer-metrics)
 - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
@@ -212,24 +215,6 @@ All the namespace metrics are labeled with the following labels:
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
 | pulsar_delayed_message_index_size_bytes | Gauge | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the namespace owned by this broker (in bytes). | 
 
-#### Replication metrics
-
-If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
-
-All the replication metrics are also labeled with `remoteCluster=${pulsar_remote_cluster}`.
-
-| Name | Type | Description |
-|---|---|---|
-| pulsar_replication_rate_in | Gauge | The total message rate of the namespace replicating from remote cluster (message per second). |
-| pulsar_replication_rate_out | Gauge | The total message rate of the namespace replicating to remote cluster (message per second). |
-| pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (byte per second). |
-| pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (byte per second). |
-| pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
-| pulsar_replication_rate_expired | Gauge | Total rate of messages expired (message per second). |
-| pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
-| pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
-
-
 ### Topic metrics
 
 > Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
@@ -279,7 +264,7 @@ All the topic metrics are labeled with the following labels:
 | pulsar_txn_tb_aborted_total | Counter | The number of aborted transactions on the topic. |
 | pulsar_txn_tb_committed_total | Counter | The number of committed transactions on the topic. |
 
-#### Replication metrics
+### Replication metrics
 
 If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
@@ -293,7 +278,7 @@ All the replication metrics are labeled with `remoteCluster=${pulsar_remote_clus
 | pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (byte per second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
 
-#### Topic lookup metrics
+### Topic lookup metrics
 
 | Name | Type | Description |
 |---|---|---|
@@ -390,7 +375,7 @@ All the bundleUnloading metrics are labeled with the following labels:
 |-------------------------------|---------|------------------------------------------------------------|
 | pulsar_lb_bundles_split_total | Counter | The total count of bundle split in this leader broker |
 
-#### Bundle metrics
+### Bundle metrics
 All the bundle metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
@@ -504,6 +489,24 @@ All the authentication metrics are labeled with the following labels:
 |---|---|---|
 | pulsar_authentication_success_total| Counter | The number of successful authentication operations. |
 | pulsar_authentication_failures_total | Counter | The number of failing authentication operations. |
+
+### Connection metrics
+
+All the connection metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *broker*: `broker=${advertised_address}`. `${advertised_address}` is the advertised address of the broker.
+- *metric*: `metric=${metric}`. `${metric}` is the connection metric collective name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_active_connections| Gauge | The number of active connections. |
+| pulsar_connection_created_total_count | Gauge | The total number of connections. |
+| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
+| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
+| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
+| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
+| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
 ### Jetty metrics
 
