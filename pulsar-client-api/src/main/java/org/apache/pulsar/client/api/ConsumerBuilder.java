@@ -355,8 +355,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * zero.</li>
      * <li>Doesn't support Batch-Message. If a consumer receives a batch-message, it closes the consumer connection with
      * the broker and {@link Consumer#receive()} calls remain blocked while {@link Consumer#receiveAsync()} receives
-     * exception in callback. <b> The consumer is not able to receive any further messages unless batch-message in pipeline
-     * is removed</b></li>
+     * exception in callback.
+     *
+     * <b> The consumer is not able to receive any further messages unless batch-message in pipeline
+     * is removed.</b></li>
      * </ul>
      * The default value is {@code 1000} messages and should be adequate for most use cases.
      *
@@ -741,8 +743,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
      * guarded by providing this @maxPendingChunkedMessage threshold. Once the consumer reaches this threshold, it drops
-     * the outstanding unchunked-messages by silently acknowledging if autoAckOldestChunkedMessageOnQueueFull is true, otherwise it
-     * marks them for redelivery.
+     * the outstanding unchunked-messages by silently acknowledging if autoAckOldestChunkedMessageOnQueueFull is true,
+     * otherwise it marks them for redelivery.
      *
      * @default false
      *
@@ -752,8 +754,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull);
 
     /**
-     * If the producer fails to publish all the chunks of a message, then the consumer can expire incomplete chunks if the consumer
-     * doesn't receive all chunks during the expire time duration (default 1 minute).
+     * If the producer fails to publish all the chunks of a message, then the consumer can expire incomplete chunks if
+     * the consumer doesn't receive all chunks during the expire time duration (default 1 minute).
      *
      * @param duration
      * @param unit
