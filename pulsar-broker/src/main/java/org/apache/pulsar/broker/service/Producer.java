@@ -210,10 +210,18 @@ public class Producer {
 
     public boolean checkAndStartPublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
                                         Position position) {
-        if (isShadowTopic && position == null || !isShadowTopic && position != null) {
+        if (!isShadowTopic && position != null) {
             cnx.execute(() -> {
                 cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.NotAllowedError,
                         "Only shadow topic supports sending messages with messageId");
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            });
+            return false;
+        }
+        if (isShadowTopic && position == null) {
+            cnx.execute(() -> {
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.NotAllowedError,
+                        "Cannot send messages to a shadow topic");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return false;
