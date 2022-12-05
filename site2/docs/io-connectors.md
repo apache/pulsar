@@ -178,6 +178,12 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hdfs3/src/main/java/org/apache/pulsar/io/hdfs3/AbstractHdfsConnector.java)
 
+### HTTP
+
+* [Configuration](io-http-sink.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/http/src/main/java/org/apache/pulsar/io/http/HttpSink.java)
+
 ### InfluxDB
 
 * [Configuration](io-influxdb-sink.md#configuration)
