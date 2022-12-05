@@ -142,7 +142,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Specify a pattern for topics that this consumer subscribes to.
      *
-     * <p>Accepts a regular expression that is compiled into a pattern internally. Eg.
+     * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
      * "persistent://public/default/pattern-topic-.*"
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
@@ -216,7 +216,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * <p>By default, the tick time is set to 1 second. Using a higher tick time
      * reduces the memory overhead to track messages when the ack-timeout is set to
-     * bigger values (eg: 1 hour).
+     * bigger values (e.g., 1 hour).
      *
      * @param tickTime
      *            the min precision for the acknowledgment timeout messages tracker
@@ -385,7 +385,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit);
 
     /**
-     * Sets number of messages for group consumer acknowledgments.
+     * Set the number of messages for group consumer acknowledgments.
      *
      * <p>By default, the consumer uses at most 1000 messages to send out acknowledgments to the broker.
      *
@@ -632,7 +632,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Sets KeyShared subscription policy for consumer.
      *
      * <p>By default, KeyShared subscriptions use auto split hash ranges to maintain consumers. If you want to
-     * set a different KeyShared policy, set a policy by one of the following examples:
+     * set a different KeyShared policy, set a policy by using one of the following examples:
      *
      * <p><b>Sticky hash range policy</b></p>
      * <pre>
