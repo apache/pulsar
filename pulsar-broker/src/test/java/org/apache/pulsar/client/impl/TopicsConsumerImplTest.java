@@ -547,22 +547,17 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.tenants().createTenant("tenant1", tenantInfo);
         admin.namespaces().createNamespace("tenant1/namespace1");
         admin.topics().createPartitionedTopic(topicName, 3);
-        List<Integer> partitions = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            partitions.add(i);
-        }
-        List<String> realTopics = partitions.stream()
-                .map(idx -> topicName + "-partition-" + idx)
-                .collect(Collectors.toList());
+
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topics(realTopics)
+                .topic(topicName)
                 .subscriptionName("subscriptionName")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscribe();
 
         try {
-            Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                    .topics(realTopics)
+            pulsarClient.newConsumer()
+                    .topics(IntStream.range(0, 3).mapToObj(i -> topicName + "-partition-" + i)
+                    .collect(Collectors.toList()))
                     .subscriptionName("subscriptionName")
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscribe();
