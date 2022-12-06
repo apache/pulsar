@@ -554,6 +554,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How often to check for topics that have reached the quota."
             + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
@@ -616,6 +617,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         dynamic = true,
         doc = "How often to check for inactive topics"
     )
@@ -665,6 +667,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How frequently to proactively check and purge expired messages"
     )
     private int messageExpiryCheckIntervalInMinutes = 5;
@@ -768,6 +771,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "Time of inactivity after which the broker will discard the deduplication information"
             + " relative to a disconnected producer. Default is 6 hours.")
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
@@ -2706,6 +2710,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposePublisherStats = true;
     @FieldContext(
         category = CATEGORY_METRICS,
+        minValue = 1,
         doc = "Stats update frequency in seconds"
     )
     private int statsUpdateFrequencyInSecs = 60;

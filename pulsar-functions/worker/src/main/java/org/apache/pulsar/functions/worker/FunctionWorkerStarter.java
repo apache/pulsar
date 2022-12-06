@@ -54,7 +54,6 @@ public class FunctionWorkerStarter {
 
         if (workerArguments.help) {
             commander.usage();
-            System.exit(1);
             return;
         }
 
