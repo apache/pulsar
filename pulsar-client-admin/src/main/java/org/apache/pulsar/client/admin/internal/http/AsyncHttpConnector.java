@@ -241,6 +241,9 @@ public class AsyncHttpConnector implements Connector {
 
                     @Override
                     public String getReasonPhrase() {
+                        if (response.hasResponseBody()) {
+                            return response.getResponseBody();
+                        }
                         return response.getStatusText();
                     }
                 });
