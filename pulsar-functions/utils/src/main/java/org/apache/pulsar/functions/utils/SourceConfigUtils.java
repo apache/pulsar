@@ -295,10 +295,7 @@ public class SourceConfigUtils {
         if (isEmpty(sourceConfig.getName())) {
             throw new IllegalArgumentException("Source name cannot be null");
         }
-        if (isEmpty(sourceConfig.getTopicName())) {
-            throw new IllegalArgumentException("Topic name cannot be null");
-        }
-        if (!TopicName.isValid(sourceConfig.getTopicName())) {
+        if (!isEmpty(sourceConfig.getTopicName()) && !TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
