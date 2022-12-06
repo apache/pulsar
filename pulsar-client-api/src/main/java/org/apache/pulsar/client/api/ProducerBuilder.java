@@ -102,7 +102,7 @@ public interface ProducerBuilder<T> extends Cloneable {
     /**
      * Specify the topic this producer will be publishing on.
      *
-     * <p>This argument is required when constructing the produce.
+     * <p>This argument is required when constructing the producer.
      *
      * @param topicName the name of the topic
      * @return the producer builder instance
@@ -130,13 +130,13 @@ public interface ProducerBuilder<T> extends Cloneable {
      *
      * <p>Possible values are:
      * <ul>
-     * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic
+     * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic.
      * <li>{@link ProducerAccessMode#Exclusive}: Require exclusive access for producer. Fail immediately if there's
      * already a producer connected.
      * <li>{@link ProducerAccessMode#ExclusiveWithFencing}: Require exclusive access for the producer.
      * Any existing producer will be removed and invalidated immediately.
      * <li>{@link ProducerAccessMode#WaitForExclusive}: Producer creation is pending until it can acquire exclusive
-     * access
+     * access.
      * </ul>
      *
      * @see ProducerAccessMode
@@ -151,8 +151,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      *
      * <p>If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
      *
-     * <p>Setting the timeout to zero, for example {@code setTimeout(0, TimeUnit.SECONDS)} will set the timeout
-     * to infinity, which can be useful when using Pulsar's message deduplication feature, since the client
+     * <p>Setting the timeout to zero with {@code setTimeout(0, TimeUnit.SECONDS)} will set the timeout
+     * to infinity. This can be useful when using Pulsar's message deduplication feature, since the client
      * library will retry forever to publish a message. No errors will be propagated back to the application.
      *
      * @param sendTimeout
@@ -164,37 +164,37 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> sendTimeout(int sendTimeout, TimeUnit unit);
 
     /**
-     * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
+     * Set the max size of the messages pending queue to receive an acknowledgment from the broker.
      *
      * <p>When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync}
      * will fail unless {@code blockIfQueueFull=true}. Use {@link #blockIfQueueFull(boolean)}
      * to change the blocking behavior.
      *
      * <p>The producer queue size also determines the max amount of memory that will be required by
-     * the client application. Until, the producer gets a successful acknowledgment back from the broker,
+     * the client application. Until the producer gets a successful acknowledgment back from the broker,
      * it will keep in memory (direct memory pool) all the messages in the pending queue.
      *
-     * <p>Default is 0, disable the pending messages check.
+     * <p>Default is 0, which disables the pending messages check.
      *
      * @param maxPendingMessages
-     *            the max size of the pending messages queue for the producer
+     *            the max size of the messages pending queue for the producer
      * @return the producer builder instance
      */
     ProducerBuilder<T> maxPendingMessages(int maxPendingMessages);
 
     /**
-     * Set the number of max pending messages across all the partitions.
+     * Set the number of max pending messages across all partitions.
      *
      * <p>This setting will be used to lower the max pending messages for each partition
      * ({@link #maxPendingMessages(int)}), if the total exceeds the configured value.
      * The purpose of this setting is to have an upper-limit on the number
      * of pending messages when publishing on a partitioned topic.
      *
-     * <p>Default is 0, disable the pending messages across partitions check.
+     * <p>Default is 0, which disables the pending messages across partitions check.
      *
-     * <p>If publishing at high rate over a topic with many partitions (especially when publishing messages without a
+     * <p>If publishing at a high rate over a topic with many partitions (especially when publishing messages without a
      * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
-     * individual partitions producers.
+     * individual partitions' producers.
      *
      * @param maxPendingMessagesAcrossPartitions
      *            max pending messages across all the partitions
