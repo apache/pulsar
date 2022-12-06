@@ -138,7 +138,9 @@ public class SourceConfigUtils {
             sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
         }
 
-        sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
+        if (!isEmpty(sourceConfig.getTopicName())) {
+            sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
+        }
 
         if (sourceDetails.getTypeArg() != null) {
             sinkSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
