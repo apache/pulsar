@@ -18,9 +18,10 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -31,41 +32,65 @@ import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class OffloadReadHandleTest {
 
-    @Test
-    public void test() throws Exception {
+    @DataProvider(name = "flowPermits")
+    public Object[][] permits() {
+        return new Object[][]{
+                {-1L},
+                {0L},
+                {100L},
+                {10000L}
+        };
+    }
+
+    @Test(dataProvider = "flowPermits")
+    public void testFlowPermits(long flowPermits) throws Exception {
         ByteBuf buf = ByteBufAllocator.DEFAULT.buffer(100);
         for (int a = 0; a < 100; a++) {
             buf.writeByte(0);
         }
         LedgerEntry entry = LedgerEntryImpl.create(1, 1, buf.readableBytes(), buf);
-        LedgerEntries entries = LedgerEntriesImpl.create(Collections.singletonList(entry));
+        List<LedgerEntry> entryList = Lists.newArrayList(entry);
+        OffloadReadHandle h = null;
+        try (LedgerEntries entries = LedgerEntriesImpl.create(entryList)) {
+            ReadHandle handle = Mockito.mock(ReadHandle.class);
+            Mockito.doAnswer(inv -> CompletableFuture.completedFuture(entries)).when(handle).readAsync(1, 1);
 
-        ReadHandle handle = Mockito.mock(ReadHandle.class);
-        Mockito.doAnswer(inv -> CompletableFuture.completedFuture(entries)).when(handle).readAsync(1, 1);
+            long start = System.currentTimeMillis();
+            ManagedLedgerConfig config = new ManagedLedgerConfig();
+            config.setManagedLedgerOffloadFlowPermitsPerSecond(flowPermits);
 
-        long start = System.currentTimeMillis();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setManagedLedgerOffloadFlowPermitsPerSecond(100L);
+            CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, config,
+                    OrderedScheduler.newSchedulerBuilder().numThreads(2).build());
+            h = (OffloadReadHandle) future.get();
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
+            h.read(1, 1);
 
-        CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, config,
-                OrderedScheduler.newSchedulerBuilder().numThreads(2).build());
-        ReadHandle h = future.get();
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-        h.readAsync(1, 1);
-
-        Assert.assertTrue(System.currentTimeMillis() - start > TimeUnit.SECONDS.toMillis(8));
+            long actualDuration = System.currentTimeMillis() - start;
+            if (flowPermits <= 0L) {
+                Assert.assertEquals(actualDuration, 1000D, 1000D);
+            } else if (flowPermits == 100L) {
+                long expectDuration = TimeUnit.SECONDS.toMillis(8);
+                Assert.assertEquals(actualDuration, expectDuration, expectDuration * 0.2D);
+            } else if (flowPermits == 10000L) {
+                Assert.assertEquals(actualDuration, 1000D, 1000D);
+            }
+        } finally {
+            if (null != h) {
+                h.reset();
+            }
+        }
     }
-
 }
