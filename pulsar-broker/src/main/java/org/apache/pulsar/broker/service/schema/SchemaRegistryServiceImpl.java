@@ -44,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
@@ -126,49 +127,84 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
-        return schemaStorage.getAll(schemaId).thenApply(schemas ->
-                schemas.stream().map(future -> future.thenCompose(stored ->
-                    Functions.bytesToSchemaInfo(stored.data)
-                        .thenApply(Functions::schemaInfoToSchema)
-                        .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
-        )).collect(Collectors.toList()));
+        return schemaStorage.getAll(schemaId)
+                .thenCompose(schemas -> convertToSchemaAndMetadata(schemaId, schemas));
+    }
+
+    private CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> convertToSchemaAndMetadata(String schemaId,
+             List<CompletableFuture<StoredSchema>> schemas) {
+        List<CompletableFuture<SchemaAndMetadata>> list = schemas.stream()
+                .map(future -> future.thenCompose(stored ->
+                        Functions.bytesToSchemaInfo(stored.data)
+                                .thenApply(Functions::schemaInfoToSchema)
+                                .thenApply(schema ->
+                                        new SchemaAndMetadata(schemaId, schema, stored.version)
+                                )
+                ))
+                .collect(Collectors.toList());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] {} schemas is found", schemaId, list.size());
+        }
+        return CompletableFuture.completedFuture(list);
     }
 
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
-        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
-                getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
-            if (schemaVersion != null) {
-                return CompletableFuture.completedFuture(schemaVersion);
-            }
-            CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
-            if (schemaAndMetadataList.size() != 0) {
-                if (isTransitiveStrategy(strategy)) {
-                    checkCompatibilityFuture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
-                } else {
-                    checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
-                }
-            } else {
-                checkCompatibilityFuture.complete(null);
-            }
-            return checkCompatibilityFuture.thenCompose(v -> {
-                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                        .setType(Functions.convertFromDomainType(schema.getType()))
-                        .setSchema(ByteString.copyFrom(schema.getData()))
-                        .setSchemaId(schemaId)
-                        .setUser(schema.getUser())
-                        .setDeleted(false)
-                        .setTimestamp(clock.millis())
-                        .addAllProps(toPairs(schema.getProps()))
-                        .build();
-                return schemaStorage.put(schemaId, info.toByteArray(), context);
-
+        CompletableFuture<SchemaVersion> promise = new CompletableFuture<>();
+        schemaStorage.put(schemaId,
+            schemasFuture -> schemasFuture
+                .thenCompose(schemaFutureList -> trimDeletedSchemaAndGetList(schemaId,
+                        convertToSchemaAndMetadata(schemaId, schemaFutureList)))
+                .thenCompose(schemaAndMetadataList -> getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
+                    .thenCompose(schemaVersion -> {
+                        if (schemaVersion != null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Schema is already exists", schemaId);
+                            }
+                            promise.complete(schemaVersion);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
+                        if (schemaAndMetadataList.size() != 0) {
+                            if (isTransitiveStrategy(strategy)) {
+                                checkCompatibilityFuture = checkCompatibilityWithAll(schema, strategy,
+                                        schemaAndMetadataList);
+                            } else {
+                                checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
+                            }
+                        } else {
+                            checkCompatibilityFuture.complete(null);
+                        }
+                        return checkCompatibilityFuture.thenCompose(v -> {
+                            byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                            SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                                    .setType(Functions.convertFromDomainType(schema.getType()))
+                                    .setSchema(ByteString.copyFrom(schema.getData()))
+                                    .setSchemaId(schemaId)
+                                    .setUser(schema.getUser())
+                                    .setDeleted(false)
+                                    .setTimestamp(clock.millis())
+                                    .addAllProps(toPairs(schema.getProps()))
+                                    .build();
+                            return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
+                        });
+                }))).whenComplete((v, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Put schema failed", schemaId, ex);
+                        promise.completeExceptionally(ex);
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Put schema finished", schemaId);
+                        }
+                        // The schema storage will return null schema version if no schema is persisted to the storage
+                        if (v != null) {
+                            promise.complete(v);
+                        }
+                    }
             });
-
-        }));
+        return promise;
     }
 
     @Override
@@ -409,9 +445,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
-
-        CompletableFuture<List<SchemaAndMetadata>> schemaResult = new CompletableFuture<>();
         CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList = getAllSchemas(schemaId);
+        return trimDeletedSchemaAndGetList(schemaId, schemaFutureList);
+    }
+
+    private CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId,
+                CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList) {
+        CompletableFuture<List<SchemaAndMetadata>> schemaResult = new CompletableFuture<>();
         schemaFutureList.thenCompose(FutureUtils::collect).handle((schemaList, ex) -> {
             List<SchemaAndMetadata> list = ex != null ? new ArrayList<>() : schemaList;
             if (ex != null) {
