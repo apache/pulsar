@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.BatchMessageContainer;
-import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
-
 import java.io.IOException;
 import java.util.List;
+import org.apache.pulsar.client.api.BatchMessageContainer;
+import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 
 public interface BatchMessageContainerBase extends BatchMessageContainer {
 
@@ -75,4 +74,12 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      * @throws IOException
      */
     OpSendMsg createOpSendMsg() throws IOException;
+
+    /**
+     * Check whether the added message belong to the same txn with batch message container.
+     *
+     * @param msg added message
+     * @return belong to the same txn or not
+     */
+    boolean hasSameTxn(MessageImpl<?> msg);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,16 +22,15 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import org.apache.pulsar.broker.admin.impl.BrokerStatsBase;
-import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-
+import java.util.Collection;
+import java.util.Map;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import java.util.Collection;
-import java.util.Map;
+import org.apache.pulsar.broker.admin.impl.BrokerStatsBase;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 
 @Path("/broker-stats")
 @Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats", hidden = true)

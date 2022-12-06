@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker.rest;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
@@ -64,7 +63,8 @@ public final class Resources {
         return new HashSet<>(
                 Arrays.asList(
                         ConfigurationResource.class,
-                        FunctionsMetricsResource.class
+                        FunctionsMetricsResource.class,
+                        WorkerReadinessResource.class
                 ));
     }
 }

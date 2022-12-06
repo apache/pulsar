@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,11 @@
 package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
-
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorTableLayoutHandle;
-import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorTableLayoutHandle;
+import io.trino.spi.predicate.TupleDomain;
 import java.util.Objects;
 
 /**

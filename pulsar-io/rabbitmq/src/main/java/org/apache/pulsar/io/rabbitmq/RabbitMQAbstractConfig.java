@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.rabbitmq;
 
 import com.google.common.base.Preconditions;
 import com.rabbitmq.client.ConnectionFactory;
+import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import java.io.Serializable;
 
 /**
  * Configuration object for all RabbitMQ components.
@@ -75,9 +73,9 @@ public class RabbitMQAbstractConfig implements Serializable {
     private String password = "guest";
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The RabbitMQ queue name from which messages should be read from or written to")
+            required = false,
+            defaultValue = "",
+            help = "The RabbitMQ queue name from which messages should be read from or written to")
     private String queueName;
 
     @FieldDoc(
@@ -115,7 +113,6 @@ public class RabbitMQAbstractConfig implements Serializable {
         Preconditions.checkNotNull(port, "port property not set.");
         Preconditions.checkNotNull(virtualHost, "virtualHost property not set.");
         Preconditions.checkNotNull(connectionName, "connectionName property not set.");
-        Preconditions.checkNotNull(queueName, "queueName property not set.");
     }
 
     public ConnectionFactory createConnectionFactory() {

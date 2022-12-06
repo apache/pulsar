@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.authentication.utils;
 
-import com.google.common.io.ByteStreams;
-
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
-
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -37,11 +36,10 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Date;
 import java.util.Optional;
-
 import javax.crypto.SecretKey;
-
 import lombok.experimental.UtilityClass;
-
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.url.URL;
 
 @UtilityClass
@@ -96,9 +94,7 @@ public class AuthTokenUtils {
                 .setSubject(subject)
                 .signWith(signingKey);
 
-        if (expiryTime.isPresent()) {
-            builder.setExpiration(expiryTime.get());
-        }
+        expiryTime.ifPresent(builder::setExpiration);
 
         return builder.compact();
     }
@@ -106,13 +102,29 @@ public class AuthTokenUtils {
     public static byte[] readKeyFromUrl(String keyConfUrl) throws IOException {
         if (keyConfUrl.startsWith("data:") || keyConfUrl.startsWith("file:")) {
             try {
-                return ByteStreams.toByteArray((InputStream) new URL(keyConfUrl).getContent());
+                if (keyConfUrl.startsWith("file:")) {
+                    keyConfUrl = keyConfUrl.trim();
+                }
+                return IOUtils.toByteArray(URL.createURL(keyConfUrl));
+            } catch (IOException e) {
+                throw e;
             } catch (Exception e) {
                 throw new IOException(e);
             }
-        } else {
+        } else if (Files.exists(Paths.get(keyConfUrl))) {
+            // Assume the key content was passed in a valid file path
+            return Files.readAllBytes(Paths.get(keyConfUrl));
+        } else if (Base64.isBase64(keyConfUrl.getBytes())) {
             // Assume the key content was passed in base64
-            return Decoders.BASE64.decode(keyConfUrl);
+            try {
+                return Decoders.BASE64.decode(keyConfUrl);
+            } catch (DecodingException e) {
+                String msg = "Illegal base64 character or Key file " + keyConfUrl + " doesn't exist";
+                throw new IOException(msg, e);
+            }
+        } else {
+            String msg = "Secret/Public Key file " + keyConfUrl + " doesn't exist";
+            throw new IllegalArgumentException(msg);
         }
     }
 }

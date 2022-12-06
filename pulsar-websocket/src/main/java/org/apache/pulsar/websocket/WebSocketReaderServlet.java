@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,12 @@ import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
 public class WebSocketReaderServlet extends WebSocketServlet {
-    private static final long serialVersionUID = 1L;
+    private static final transient long serialVersionUID = 1L;
 
     public static final String SERVLET_PATH = "/ws/reader";
     public static final String SERVLET_PATH_V2 = "/ws/v2/reader";
 
-    WebSocketService service;
+    private final transient WebSocketService service;
 
     public WebSocketReaderServlet(WebSocketService service) {
         super();
@@ -36,7 +36,7 @@ public class WebSocketReaderServlet extends WebSocketServlet {
 
     @Override
     public void configure(WebSocketServletFactory factory) {
-        factory.getPolicy().setMaxTextMessageSize(WebSocketService.MaxTextFrameSize);
+        factory.getPolicy().setMaxTextMessageSize(service.getConfig().getWebSocketMaxTextFrameSize());
         if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
             factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
         }

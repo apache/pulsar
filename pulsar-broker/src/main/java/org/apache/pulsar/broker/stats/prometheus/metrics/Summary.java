@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 import io.prometheus.client.Collector;
 import io.prometheus.client.SimpleCollector;
 import io.prometheus.client.SummaryMetricFamily;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -126,6 +125,6 @@ public class Summary extends SimpleCollector<Summary.Child> implements Collector
 
     @Override
     public List<MetricFamilySamples> describe() {
-        return Collections.<MetricFamilySamples> singletonList(new SummaryMetricFamily(fullname, help, labelNames));
+        return Collections.singletonList(new SummaryMetricFamily(fullname, help, labelNames));
     }
 }

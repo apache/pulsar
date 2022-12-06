@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
 import javax.naming.AuthenticationException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
 
@@ -93,7 +91,7 @@ public class SaslRoleTokenSigner {
      */
     protected String computeSignature(String str) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA");
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
 
             md.update(str.getBytes());
 

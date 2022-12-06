@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,14 +28,17 @@ fi
 NEW_VERSION=$1
 
 # Go to top level project directory
-pushd $(dirname "$0")/..
+SRC_DIR=$(dirname "$0")
+ROOT_DIR=`cd ${SRC_DIR}/..; pwd`
+TERRAFORM_DIR=${ROOT_DIR}/deployment/terraform-ansible
+pushd ${ROOT_DIR}
+
+# Get the current version
+OLD_VERSION=`python3 ${ROOT_DIR}/src/get-project-version.py`
 
 mvn versions:set -DnewVersion=$NEW_VERSION
 mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools
-mvn versions:set -DnewVersion=$NEW_VERSION -pl pulsar-sql/presto-distribution
-# install the new version of root pom local, so `update-parent` can update the right parent version
-mvn -am -pl . clean install -DskipTests
-mvn versions:update-parent -DallowSnapshots=true -DparentVersion=$NEW_VERSION -f protobuf-shaded/pom.xml
-mvn versions:set -DnewVersion=$NEW_VERSION -f protobuf-shaded/pom.xml
+# Set terraform ansible deployment pulsar version
+sed -i -e "s/${OLD_VERSION}/${NEW_VERSION}/g" ${TERRAFORM_DIR}/deploy-pulsar.yaml
 
 popd

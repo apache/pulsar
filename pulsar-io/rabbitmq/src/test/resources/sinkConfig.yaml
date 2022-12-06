@@ -19,11 +19,10 @@
 
 {
 "host": "localhost",
-"port": "5672",
+"port": "5673",
 "virtualHost": "/",
 "username": "guest",
 "password": "guest",
-"queueName": "test-queue",
 "connectionName": "test-connection",
 "requestedChannelMax": "0",
 "requestedFrameMax": "0",
@@ -31,6 +30,5 @@
 "handshakeTimeout": "10000",
 "requestedHeartbeat": "60",
 "exchangeName": "test-exchange",
-"routingKey": "test-key"
-
+"exchangeType": "test-exchange-type"
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
@@ -33,6 +32,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.util.HashedWheelTimer;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -43,20 +43,24 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
+@Test(groups = "broker")
 public class TopicTerminationTest extends BrokerTestBase {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -86,7 +90,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testCreateProducerOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -106,6 +110,30 @@ public class TopicTerminationTest extends BrokerTestBase {
         } catch (PulsarClientException.TopicTerminatedException e) {
             // Expected
         }
+    }
+
+    public void testCreatingProducerTasksCleanupWhenOnTerminatedTopic() throws Exception {
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        producer.send("msg-1".getBytes());
+        producer.send("msg-2".getBytes());
+        MessageId msgId3 = producer.send("msg-3".getBytes());
+
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
+        assertEquals(lastMessageId, msgId3);
+        producer.close();
+
+        try {
+            pulsarClient.newProducer().topic(topicName).create();
+            fail("Should have thrown exception");
+        } catch (PulsarClientException.TopicTerminatedException e) {
+            // Expected
+        }
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
     @Test(timeOut = 20000)
@@ -156,7 +184,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testDoubleTerminate() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -175,7 +203,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertEquals(lastMessageId, msgId3);
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testTerminatePartitionedTopic() throws Exception {
         admin.topics().createPartitionedTopic(topicName, 4);
 
@@ -221,8 +249,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Message<byte[]> msg4 = consumer.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg4);
 
-        Thread.sleep(100);
-        assertTrue(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 
     @Test(timeOut = 20000)
@@ -255,8 +282,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
         consumer.acknowledgeCumulative(msgId3);
 
-        Thread.sleep(100);
-        assertFalse(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.hasReachedEndOfTopic()));
 
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
@@ -293,8 +319,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Message<byte[]> msg4 = reader.readNext(100, TimeUnit.MILLISECONDS);
         assertNull(msg4);
 
-        Thread.sleep(100);
-        assertTrue(reader.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(reader.hasReachedEndOfTopic()));
     }
 
     @Test(timeOut = 20000)
@@ -324,8 +349,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         /* MessageId msgId2 = */ producer.send("test-msg-2".getBytes());
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
-        Thread.sleep(100);
-        assertFalse(reader.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertFalse(reader.hasReachedEndOfTopic()));
 
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
@@ -349,8 +373,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
-        Thread.sleep(200);
-        assertTrue(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 
     @Test(timeOut = 20000)
@@ -364,7 +387,6 @@ public class TopicTerminationTest extends BrokerTestBase {
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
-        Thread.sleep(200);
-        assertTrue(consumer.hasReachedEndOfTopic());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 }

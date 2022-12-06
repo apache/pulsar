@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.Maps;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.testng.annotations.Test;
@@ -73,7 +73,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId2.compareTo(batchMessageId3) > 0, "Expected to be greater than");
         assertTrue(batchMessageId2.compareTo(batchMessageId4) > 0, "Expected to be greater than");
         assertTrue(batchMessageId2.compareTo(batchMessageId5) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId4) > 0, "Expected to be greater than");
+        assertTrue(batchMessageId4.compareTo(batchMessageId3) > 0, "Expected to be greater than");
         assertTrue(batchMessageId3.compareTo(batchMessageId5) > 0, "Expected to be greater than");
         assertTrue(batchMessageId4.compareTo(batchMessageId5) > 0, "Expected to be greater than");
     }
@@ -105,7 +105,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId3.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertTrue(batchMessageId4.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId3) < 0, "Expected to be less than");
+        assertTrue(batchMessageId3.compareTo(batchMessageId4) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId3) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId4) < 0, "Expected to be less than");
     }
@@ -117,11 +117,30 @@ public class MessageIdCompareToTest  {
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(123L, 345L, 567, 789);
         BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(messageIdImpl);
         assertTrue(messageIdImpl.compareTo(batchMessageId1) > 0, "Expected to be greater than");
-        assertEquals(messageIdImpl.compareTo(batchMessageId2), 0, "Expected to be equal");
+        assertTrue(messageIdImpl.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertEquals(messageIdImpl.compareTo(batchMessageId3), 0, "Expected to be equal");
         assertTrue(batchMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
         assertTrue(batchMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
         assertEquals(batchMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
+    }
+
+    @Test
+    public void compareToSymmetricTest() {
+        MessageIdImpl simpleMessageId = new MessageIdImpl(123L, 345L, 567);
+        // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
+        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(123L, 345L, 567, -1);
+        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(123L, 345L, 567, 1);
+        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(123L, 345L, 566, 1);
+        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(123L, 345L, 566, -1);
+
+        assertEquals(simpleMessageId.compareTo(batchMessageId1), 0, "Expected to be equal");
+        assertEquals(batchMessageId1.compareTo(simpleMessageId), 0, "Expected to be equal");
+        assertTrue(batchMessageId2.compareTo(simpleMessageId) > 0, "Expected to be greater than");
+        assertTrue(simpleMessageId.compareTo(batchMessageId2) < 0, "Expected to be less than");
+        assertTrue(simpleMessageId.compareTo(batchMessageId3) > 0, "Expected to be greater than");
+        assertTrue(batchMessageId3.compareTo(simpleMessageId) < 0, "Expected to be less than");
+        assertTrue(simpleMessageId.compareTo(batchMessageId4) > 0, "Expected to be greater than");
+        assertTrue(batchMessageId4.compareTo(simpleMessageId) < 0, "Expected to be less than");
     }
 
     @Test
@@ -140,7 +159,7 @@ public class MessageIdCompareToTest  {
             "test-topic",
             new BatchMessageIdImpl(messageIdImpl));
         assertTrue(messageIdImpl.compareTo(topicMessageId1) > 0, "Expected to be greater than");
-        assertEquals(messageIdImpl.compareTo(topicMessageId2), 0, "Expected to be equal");
+        assertTrue(messageIdImpl.compareTo(topicMessageId2) < 0, "Expected to be less than");
         assertEquals(messageIdImpl.compareTo(topicMessageId3), 0, "Expected to be equal");
         assertTrue(topicMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
@@ -165,9 +184,9 @@ public class MessageIdCompareToTest  {
         assertTrue(messageIdImpl2.compareTo(topicMessageId2) > 0, "Expected to be greater than");
         assertEquals(messageIdImpl3.compareTo(topicMessageId2), 0, "Expected to be equal");
         assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertEquals(topicMessageId2.compareTo(messageIdImpl1), 0, "Expected to be equal");
-        assertEquals(topicMessageId2.compareTo(messageIdImpl2), 0, "Expected to be equal");
-        assertEquals(topicMessageId2.compareTo(messageIdImpl2), 0, "Expected to be equal");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl1) < 0, "Expected to be less than");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
     }
 
     @Test
@@ -216,8 +235,8 @@ public class MessageIdCompareToTest  {
         assertNotEquals(item4, item3);
 
         // 2 items
-        Map<String, MessageId> map1 = Maps.newHashMap();
-        Map<String, MessageId> map2 = Maps.newHashMap();
+        Map<String, MessageId> map1 = new HashMap<>();
+        Map<String, MessageId> map2 = new HashMap<>();
         map1.put(topic1, messageIdImpl1);
         map1.put(topic2, messageIdImpl2);
         map2.put(topic2, messageIdImpl2);
@@ -322,8 +341,8 @@ public class MessageIdCompareToTest  {
         }
 
         // 2 items
-        Map<String, MessageId> map1 = Maps.newHashMap();
-        Map<String, MessageId> map2 = Maps.newHashMap();
+        Map<String, MessageId> map1 = new HashMap<>();
+        Map<String, MessageId> map2 = new HashMap<>();
         map1.put(topic1, messageIdImpl1);
         map1.put(topic2, messageIdImpl2);
         map2.put(topic2, messageIdImpl2);
@@ -375,7 +394,7 @@ public class MessageIdCompareToTest  {
         assertTrue(item7.compareTo(item5) > 0);
         assertTrue(item5.compareTo(item7) < 0);
 
-        Map<String, MessageId> map3 = Maps.newHashMap();
+        Map<String, MessageId> map3 = new HashMap<>();
         map3.put(topic1, messageIdImpl3);
         map3.put(topic2, messageIdImpl3);
         MultiMessageIdImpl item8 = new MultiMessageIdImpl(map3);

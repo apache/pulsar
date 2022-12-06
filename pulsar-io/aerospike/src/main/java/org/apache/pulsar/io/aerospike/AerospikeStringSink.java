@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.aerospike;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 
@@ -29,7 +29,7 @@ import org.apache.pulsar.io.core.KeyValue;
 public class AerospikeStringSink extends AerospikeAbstractSink<String, String> {
     @Override
     public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        String key = record.getKey().orElseGet(() -> new String(record.getValue()));
-        return new KeyValue<>(key, new String(record.getValue()));
+        String key = record.getKey().orElseGet(() -> new String(record.getValue(), StandardCharsets.UTF_8));
+        return new KeyValue<>(key, new String(record.getValue(), StandardCharsets.UTF_8));
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,9 @@
 package org.apache.pulsar.functions.runtime.process;
 
 import lombok.Data;
-import lombok.ToString;
 import org.apache.pulsar.common.configuration.FieldContext;
 
 @Data
-@ToString
 public class ProcessRuntimeFactoryConfig {
     @FieldContext(
         doc = "The path to the java instance. Change the jar location only when you put"

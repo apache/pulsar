@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,19 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 
 /**
  * Pulsar Admin API client.
- *
  *
  */
 public class BrokerStatsImpl extends BaseResource implements BrokerStats {
@@ -47,63 +43,71 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
         adminBrokerStats = target.path("/admin/broker-stats");
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
-    
+
     @Override
-    public JsonArray getMetrics() throws PulsarAdminException {
-        try {
-            String json = request(adminV2BrokerStats.path("/metrics")).get(String.class);
-            return new Gson().fromJson(json, JsonArray.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+    public String getMetrics() throws PulsarAdminException {
+        return sync(this::getMetricsAsync);
+    }
+
+    @Override
+    public CompletableFuture<String> getMetricsAsync() {
+        WebTarget path = adminV2BrokerStats.path("/metrics");
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException {
-        try {
-            return request(adminV2BrokerStats.path("/allocator-stats").path(allocatorName)).get(AllocatorStats.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getAllocatorStatsAsync(allocatorName));
     }
 
     @Override
-    public JsonArray getMBeans() throws PulsarAdminException {
-        try {
-            String json = request(adminV2BrokerStats.path("/mbeans")).get(String.class);
-            return new Gson().fromJson(json, JsonArray.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+    public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
+        WebTarget path = adminV2BrokerStats.path("/allocator-stats").path(allocatorName);
+        return asyncGetRequest(path, new FutureCallback<AllocatorStats>(){});
     }
 
     @Override
-    public JsonObject getTopics() throws PulsarAdminException {
-        try {
-            String json = request(adminV2BrokerStats.path("/topics")).get(String.class);
-            return new Gson().fromJson(json, JsonObject.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+    public String getMBeans() throws PulsarAdminException {
+        return sync(this::getMBeansAsync);
+    }
+
+    @Override
+    public CompletableFuture<String> getMBeansAsync() {
+        WebTarget path = adminV2BrokerStats.path("/mbeans");
+        return asyncGetRequest(path, new FutureCallback<String>(){});
+    }
+
+    @Override
+    public String getTopics() throws PulsarAdminException {
+        return sync(this::getTopicsAsync);
+    }
+
+    @Override
+    public CompletableFuture<String> getTopicsAsync() {
+        WebTarget path = adminV2BrokerStats.path("/topics");
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
-        try {
-            return request(adminV2BrokerStats.path("/load-report")).get(LocalBrokerData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(this::getLoadReportAsync);
     }
 
     @Override
-    public JsonObject getPendingBookieOpsStats() throws PulsarAdminException {
-        try {
-            String json = request(adminV2BrokerStats.path("/bookieops")).get(String.class);
-            return new Gson().fromJson(json, JsonObject.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+    public CompletableFuture<LoadManagerReport> getLoadReportAsync() {
+        WebTarget path = adminV2BrokerStats.path("/load-report");
+        return asyncGetRequest(path, new FutureCallback<LoadManagerReport>(){});
+    }
+
+    @Override
+    public String getPendingBookieOpsStats() throws PulsarAdminException {
+        return sync(this::getPendingBookieOpsStatsAsync);
+    }
+
+    @Override
+    public CompletableFuture<String> getPendingBookieOpsStatsAsync() {
+        WebTarget path = adminV2BrokerStats.path("/bookieops");
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {

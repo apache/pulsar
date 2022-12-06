@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,26 +26,27 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.buffer.ByteBuf;
-
 public class RawReaderImpl implements RawReader {
 
-    final static int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
+    static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
     private final ConsumerConfigurationData<byte[]> consumerConfiguration;
     private RawConsumerImpl consumer;
 
@@ -56,6 +58,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
         consumerConfiguration.setReadCompacted(true);
+        consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
 
         consumer = new RawConsumerImpl(client, consumerConfiguration,
                                        consumerFuture);
@@ -65,6 +68,11 @@ public class RawReaderImpl implements RawReader {
     public String getTopic() {
         return consumerConfiguration.getTopicNames().stream()
             .findFirst().orElse(null);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return consumer.hasMessageAvailableAsync();
     }
 
     @Override
@@ -78,7 +86,7 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties) {
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String, Long> properties) {
         return consumer.doAcknowledgeWithTxn(messageId, AckType.Cumulative, properties, null);
     }
 
@@ -104,17 +112,17 @@ public class RawReaderImpl implements RawReader {
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
                 CompletableFuture<Consumer<byte[]>> consumerFuture) {
             super(client,
-                conf.getSingleTopic(),
-                conf,
-                client.externalExecutorProvider().getExecutor(),
-                TopicName.getPartitionIndex(conf.getSingleTopic()),
-                false,
-                consumerFuture,
-                SubscriptionMode.Durable,
-                MessageId.earliest,
-                0 /* startMessageRollbackDurationInSec */,
-                Schema.BYTES, null,
-                true
+                    conf.getSingleTopic(),
+                    conf,
+                    client.externalExecutorProvider(),
+                    TopicName.getPartitionIndex(conf.getSingleTopic()),
+                    false,
+                    false,
+                    consumerFuture,
+                    MessageId.earliest,
+                    0 /* startMessageRollbackDurationInSec */,
+                    Schema.BYTES, null,
+                    true
             );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
@@ -134,14 +142,26 @@ public class RawReaderImpl implements RawReader {
             if (future == null) {
                 assert(messageAndCnx == null);
             } else {
+                int numMsg;
+                try {
+                    MessageMetadata msgMetadata =
+                            Commands.parseMessageMetadata(messageAndCnx.msg.getHeadersAndPayload());
+                    numMsg = msgMetadata.getNumMessagesInBatch();
+                } catch (Throwable t) {
+                    // TODO message validation
+                    numMsg = 1;
+                }
                 if (!future.complete(messageAndCnx.msg)) {
                     messageAndCnx.msg.close();
                     closeAsync();
                 }
+                MessageIdData messageId = messageAndCnx.msg.getMessageIdData();
+                lastDequeuedMessageId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                    messageId.getPartition(), numMsg - 1);
 
                 ClientCnx currentCnx = cnx();
                 if (currentCnx == messageAndCnx.cnx) {
-                    increaseAvailablePermits(currentCnx);
+                    increaseAvailablePermits(currentCnx, numMsg);
                 }
             }
         }
@@ -188,14 +208,16 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
-        void messageReceived(MessageIdData messageId, int redeliveryCount, ByteBuf headersAndPayload, ClientCnx cnx) {
+        void messageReceived(CommandMessage commandMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
+            MessageIdData messageId = commandMessage.getMessageId();
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
-                          messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
+                        messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
             }
+
             incomingRawMessages.add(
-                    new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
-            tryCompletePending();
+                new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
+            internalPinnedExecutor.execute(this::tryCompletePending);
         }
     }
 

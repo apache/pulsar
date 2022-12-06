@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,34 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
  */
 public class BatchMessageIdImpl extends MessageIdImpl {
-    private final static int NO_BATCH = -1;
+
+    private static final long serialVersionUID = 1L;
+    static final int NO_BATCH = -1;
     private final int batchIndex;
+    private final int batchSize;
 
-    private final BatchMessageAcker acker;
+    private final transient BatchMessageAcker acker;
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
-        this(ledgerId, entryId, partitionIndex, batchIndex, BatchMessageAckerDisabled.INSTANCE);
+    // Private constructor used only for json deserialization
+    @SuppressWarnings("unused")
+    private BatchMessageIdImpl() {
+        this(-1, -1, -1, -1);
     }
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, BatchMessageAcker acker) {
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
+        this(ledgerId, entryId, partitionIndex, batchIndex, 0, BatchMessageAckerDisabled.INSTANCE);
+    }
+
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize,
+                              BatchMessageAcker acker) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
+        this.batchSize = batchSize;
         this.acker = acker;
     }
 
@@ -44,9 +54,11 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         if (other instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl otherId = (BatchMessageIdImpl) other;
             this.batchIndex = otherId.batchIndex;
+            this.batchSize = otherId.batchSize;
             this.acker = otherId.acker;
         } else {
             this.batchIndex = NO_BATCH;
+            this.batchSize = 0;
             this.acker = BatchMessageAckerDisabled.INSTANCE;
         }
     }
@@ -57,57 +69,57 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     @Override
     public int compareTo(MessageId o) {
-        if (o instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl other = (BatchMessageIdImpl) o;
-            return ComparisonChain.start()
-                .compare(this.ledgerId, other.ledgerId)
-                .compare(this.entryId, other.entryId)
-                .compare(this.batchIndex, other.batchIndex)
-                .compare(this.getPartitionIndex(), other.getPartitionIndex())
-                .result();
-        } else if (o instanceof MessageIdImpl) {
-            int res = super.compareTo(o);
-            if (res == 0 && batchIndex > NO_BATCH) {
-                return 1;
-            } else {
-                return res;
-            }
+        if (o instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) o;
+            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
+            return messageIdCompare(
+                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
+                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            );
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
-            throw new IllegalArgumentException(
-                    "expected BatchMessageIdImpl object. Got instance of " + o.getClass().getName());
+            throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
         }
     }
 
     @Override
     public int hashCode() {
-        return (int) (31 * (ledgerId + 31 * entryId) + (31 * partitionIndex) + batchIndex);
+        return messageIdHashCode(ledgerId, entryId, partitionIndex, batchIndex);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
-                    && batchIndex == other.batchIndex;
-        } else if (obj instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
-                    && batchIndex == NO_BATCH;
+    public boolean equals(Object o) {
+        if (o instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) o;
+            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
+            return messageIdEquals(
+                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
+                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            );
+        } else if (o instanceof TopicMessageIdImpl) {
+            return equals(((TopicMessageIdImpl) o).getInnerMessageId());
         }
         return false;
     }
 
     @Override
     public String toString() {
-        return String.format("%d:%d:%d:%d", ledgerId, entryId, partitionIndex, batchIndex);
+        return new StringBuilder()
+          .append(ledgerId)
+          .append(':')
+          .append(entryId)
+          .append(':')
+          .append(partitionIndex)
+          .append(':')
+          .append(batchIndex)
+          .toString();
     }
 
     // Serialization
     @Override
     public byte[] toByteArray() {
-        return toByteArray(batchIndex);
+        return toByteArray(batchIndex, batchSize);
     }
 
     public boolean ackIndividual() {
@@ -126,9 +138,19 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return acker.getBatchSize();
     }
 
+    public int getOriginalBatchSize() {
+        return this.batchSize;
+    }
+
     public MessageIdImpl prevBatchMessageId() {
         return new MessageIdImpl(
             ledgerId, entryId - 1, partitionIndex);
+    }
+
+    // MessageIdImpl is widely used as the key of a hash map, in this case, we should convert the batch message id to
+    // have the correct hash code.
+    public MessageIdImpl toMessageIdImpl() {
+        return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 
     public BatchMessageAcker getAcker() {

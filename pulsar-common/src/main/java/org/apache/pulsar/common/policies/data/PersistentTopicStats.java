@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,6 @@ package org.apache.pulsar.common.policies.data;
 /**
  * Maintain compatibility with previous class name.
  */
-public class PersistentTopicStats extends TopicStats {
+public interface PersistentTopicStats extends TopicStats {
 
 }

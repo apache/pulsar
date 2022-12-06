@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,25 +19,29 @@
 package org.apache.bookkeeper.mledger.offload.filesystem;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.Properties;
+import java.util.concurrent.Executors;
 
-public class FileStoreTestBase {
+public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
+    protected LedgerOffloaderStats offloaderStats;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         File baseDir = Files.createTempDirectory(basePath).toFile().getAbsoluteFile();
         Configuration conf = new Configuration();
@@ -47,12 +51,13 @@ public class FileStoreTestBase {
 
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
+        this.offloaderStats = LedgerOffloaderStats.create(true, true, Executors.newScheduledThreadPool(1), 60);
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
-                FileSystemConfigurationData.create(properties),
-                scheduler, hdfsURI, basePath);
+                OffloadPoliciesImpl.create(properties),
+                scheduler, hdfsURI, basePath, offloaderStats);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         hdfsCluster.shutdown(true, true);
         hdfsCluster.close();

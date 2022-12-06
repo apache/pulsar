@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -98,16 +98,21 @@ def deleteLedgerIdsFromManagedLedgerInfo(zk, mlPath, deletLedgerIds):
         
         ledgerInfoList = mlInfo.ledgerInfo
         
-        for ledgerInfo in ledgerInfoList:
+        i = 0
+        while i < len(ledgerInfoList):
+            ledgerInfo = ledgerInfoList[i]
             if ledgerInfo.ledgerId in deletLedgerIds:
                 ledgerInfoList.remove(ledgerInfo)
-                updatedMlInfo = None
-                if isTextFormat:
-                    updatedMlInfo = MessageToString(mlInfo, True)
-                else:
-                    updatedMlInfo = mlInfo.SerializeToString(); 
-                zk.set(mlPath, updatedMlInfo, version=mlStat.version)
-                print('Updated {} with value\n{}'.format(mlPath, str(mlInfo)))
+            else:
+                i += 1
+        
+        updatedMlInfo = None
+        if isTextFormat:
+            updatedMlInfo = MessageToString(mlInfo, True)
+        else:
+            updatedMlInfo = mlInfo.SerializeToString(); 
+        zk.set(mlPath, updatedMlInfo, version=mlStat.version)
+        print('Updated {} with value\n{}'.format(mlPath, str(mlInfo)))
         
     except Exception as e:
             traceback.print_exc()
@@ -190,7 +195,7 @@ mlPath : str
     managed-ledger path
     
 eg: 
-print-managed-ledger --zkServer localhost:2181 --managedLedgerPath sample/standalone/ns1/persistent/test
+print-managed-ledger --zkServer localhost:2181 --managedLedgerPath public/default/persistent/test
 ''' 
 def printManagedLedgerCommand(zk, mlPath):
     print(getManagedLedgerInfo(zk, mlPath))
@@ -208,7 +213,7 @@ cursorName : str
     managed-cursor path
 
 eg:
-print-cursor --zkServer localhost:2181 --managedLedgerPath sample/standalone/ns1/persistent/test --cursorName s1
+print-cursor --zkServer localhost:2181 --managedLedgerPath public/default/persistent/test --cursorName s1
 '''
 def printManagedCursorCommand(zk, mlPath, cursorName):
     try:
@@ -231,7 +236,7 @@ mlPath : str
 deleteLedgerIds : str
     comma separated deleting ledger-ids (eg: 123,124)
 eg:
-delete-managed-ledger-ids --zkServer localhost:2181 --managedLedgerPath sample/standalone/ns1/persistent/test --ledgerIds 3
+delete-managed-ledger-ids --zkServer localhost:2181 --managedLedgerPath public/default/persistent/test --ledgerIds 3
 '''    
 def deleteMLLedgerIdsCommand(zk, mlPath, deleteLedgerIds):
     try:
@@ -239,7 +244,7 @@ def deleteMLLedgerIdsCommand(zk, mlPath, deleteLedgerIds):
             deletLedgerIds = set(deleteLedgerIds.split(","))
             deletLedgerIdSet = set()
             for id in deletLedgerIds:
-                deletLedgerIdSet.add(long(id))
+                deletLedgerIdSet.add(int(id))
             deleteLedgerIdsFromManagedLedgerInfo(zk, mlPath, deletLedgerIdSet)
         else:
             print('Usage: --command {} [--ledgerIds]'.format(deleteMlLedgerIds))
@@ -261,7 +266,7 @@ markDeletePosition: str
     markDeletePosition combination of <ledgerId>:<entryId> (eg. 123:1)
 
 eg:
-update-mark-delete-cursor --zkServer localhost:2181 --managedLedgerPath sample/standalone/ns1/persistent/test --cursorName s1 --cursorMarkDelete 0:1 
+update-mark-delete-cursor --zkServer localhost:2181 --managedLedgerPath public/default/persistent/test --cursorName s1 --cursorMarkDelete 0:1 
 '''    
 def updateMarkDeleteOfCursorCommand(zk, mlPath, cursorName, markDeletePosition):
     try:
@@ -269,7 +274,7 @@ def updateMarkDeleteOfCursorCommand(zk, mlPath, cursorName, markDeletePosition):
             if markDeletePosition:
                 positionPair = markDeletePosition.split(":")
                 if len(positionPair) == 2:
-                    updateCursorMarkDelete(zk, mlPath + "/" + cursorName, (long(positionPair[0])), long(positionPair[1]))
+                    updateCursorMarkDelete(zk, mlPath + "/" + cursorName, (int(positionPair[0])), int(positionPair[1]))
                 else:
                     print("markDeletePosition must be in format <ledger_id>:<entry_id>")
             else:

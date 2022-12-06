@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.api.examples;
 
 import java.util.Collection;
+
 
 /**
  * This functions collects the timestamp during the window operation.

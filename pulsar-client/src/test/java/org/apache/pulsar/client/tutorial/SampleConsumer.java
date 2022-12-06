@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,8 @@
  * under the License.
  */
 package org.apache.pulsar.client.tutorial;
+
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -41,7 +43,12 @@ public class SampleConsumer {
         }
 
         // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
+        try {
+            consumer.acknowledgeCumulative(msg);
+        } catch (Exception e) {
+            consumer.reconsumeLater(msg, 10, TimeUnit.SECONDS);
+        }
+       
         pulsarClient.close();
     }
 }

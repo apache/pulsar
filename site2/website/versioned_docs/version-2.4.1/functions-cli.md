@@ -1,5 +1,5 @@
 ---
-id: version-2.4.1-functions-cli
+id: functions-cli
 title: Pulsar Functions command line tool
 sidebar_label: "Reference: CLI"
 original_id: functions-cli
@@ -21,7 +21,7 @@ client-auth-plugin | Client authentication plugin using which function-process c
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -41,7 +41,7 @@ processing-guarantees | The processing guarantees (delivery semantics) applied t
 py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. | | 
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string> 
+schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | | 
 sliding-interval-count | The number of messages after which the window slides. |  |
 sliding-interval-duration-ms | The time duration after which the window slides. |  |
 subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
@@ -67,7 +67,7 @@ classname | The class name of a Pulsar Function. |  |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -85,7 +85,7 @@ processing-guarantees | The processing guarantees (delivery semantics) applied t
 py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. |  |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string> 
+schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | | 
 sliding-interval-count | The number of messages after which the window slides. |  |
 sliding-interval-duration-ms | The time duration after which the window slides. |  |
 subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
@@ -118,7 +118,7 @@ classname | The class name of a Pulsar Function. | |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime). | |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -136,7 +136,7 @@ processing-guarantees | The processing guarantees (delivery semantics) applied t
 py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. |  |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string> 
+schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | | 
 sliding-interval-count | The number of messages after which the window slides. |  |
 sliding-interval-duration-ms | The time duration after which the window slides. |  |
 subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |

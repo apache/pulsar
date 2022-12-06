@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,7 +45,7 @@ public class RedisSinkTest {
         embeddedRedisUtils.setUp();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         embeddedRedisUtils.tearDown();
     }
@@ -80,10 +80,6 @@ public class RedisSinkTest {
     private Record<byte[]> build(String topic, String key, String value) {
         // prepare a SinkRecord
         SinkRecord<byte[]> record = new SinkRecord<>(new Record<byte[]>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.empty();
-            }
 
             @Override
             public byte[] getValue() {

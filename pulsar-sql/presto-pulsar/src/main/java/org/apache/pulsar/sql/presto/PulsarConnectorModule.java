@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
 import static java.util.Objects.requireNonNull;
-
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.TypeManager;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.trino.decoder.DecoderModule;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeId;
+import io.trino.spi.type.TypeManager;
 import javax.inject.Inject;
 
 /**
@@ -55,9 +55,16 @@ public class PulsarConnectorModule implements Module {
         binder.bind(PulsarMetadata.class).in(Scopes.SINGLETON);
         binder.bind(PulsarSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(PulsarRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(PulsarAuth.class).in(Scopes.SINGLETON);
+
+        binder.bind(PulsarDispatchingRowDecoderFactory.class).in(Scopes.SINGLETON);
+
         configBinder(binder).bindConfig(PulsarConnectorConfig.class);
 
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
+
+        binder.install(new DecoderModule());
+
     }
 
     /**
@@ -77,7 +84,7 @@ public class PulsarConnectorModule implements Module {
 
         @Override
         protected Type _deserialize(String value, DeserializationContext context) {
-            return typeManager.getType(parseTypeSignature(value));
+            return typeManager.getType(TypeId.of(value));
         }
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -70,11 +70,20 @@ public class PulsarVersion {
     public static String getGitSha() {
         String commit = "${git.commit.id}";
         String dirtyString = "${git.dirty}";
+        if (commit.contains("git.commit.id")){
+            // this case may happen if you are building the sources
+            // out of the git repository
+            commit = "";
+        }
         if (dirtyString == null || Boolean.valueOf(dirtyString)) {
             return commit + "(dirty)";
         } else {
             return commit;
         }
+    }
+
+    public static String getGitBranch() {
+        return "${git.branch}";
     }
 
     public static String getBuildUser() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,25 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
-
 import io.netty.buffer.ByteBuf;
-
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 @Slf4j
 public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
@@ -45,22 +44,39 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private final Lock zeroQueueLock = new ReentrantLock();
 
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
+    private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors,
-            boolean createTopicIfDoesNotExist) {
-        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
-                subscriptionMode, startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+             ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+             CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
+             ConsumerInterceptors<T> interceptors,
+             boolean createTopicIfDoesNotExist) {
+        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false, subscribeFuture,
+                startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
+    }
+
+    @Override
+    public int minReceiverQueueSize() {
+        return 0;
+    }
+
+    @Override
+    public void initReceiverQueueSize() {
+        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            throw new NotImplementedException("AutoScaledReceiverQueueSize is not supported in ZeroQueueConsumerImpl");
+        } else {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, 0);
+        }
     }
 
     @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         zeroQueueLock.lock();
         try {
-            return beforeConsume(fetchSingleMessageFromBroker());
+            Message<T> msg = fetchSingleMessageFromBroker();
+            trackMessage(msg);
+            return beforeConsume(msg);
         } finally {
             zeroQueueLock.unlock();
         }
@@ -71,7 +87,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         CompletableFuture<Message<T>> future = super.internalReceiveAsync();
         if (!future.isDone()) {
             // We expect the message to be not in the queue yet
-            sendFlowPermitsToBroker(cnx(), 1);
+            increaseAvailablePermits(cnx());
         }
 
         return future;
@@ -81,6 +97,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
+            incomingMessages.forEach(Message::release);
             incomingMessages.clear();
         }
 
@@ -90,12 +107,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             waitingOnReceiveForZeroQueueSize = true;
             synchronized (this) {
                 if (isConnected()) {
-                    sendFlowPermitsToBroker(cnx(), 1);
+                    increaseAvailablePermits(cnx());
                 }
             }
             do {
                 message = incomingMessages.take();
-                lastDequeuedMessage = message.getMessageId();
+                lastDequeuedMessageId = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (this) {
@@ -129,8 +146,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // or queue was not empty: send a flow command
         if (waitingOnReceiveForZeroQueueSize
                 || currentQueueSize > 0
-                || listener != null) {
-            sendFlowPermitsToBroker(cnx, 1);
+                || (listener != null && !waitingOnListenerForZeroQueueSize)) {
+            increaseAvailablePermits(cnx);
         }
     }
 
@@ -145,33 +162,37 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     private void triggerZeroQueueSizeListener(final Message<T> message) {
-        checkNotNull(listener, "listener can't be null");
-        checkNotNull(message, "unqueued message can't be null");
+        Objects.requireNonNull(listener, "listener can't be null");
+        Objects.requireNonNull(message, "unqueued message can't be null");
 
-        listenerExecutor.execute(() -> {
+        externalPinnedExecutor.execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
                             message.getMessageId());
                 }
+                waitingOnListenerForZeroQueueSize = true;
+                trackMessage(message);
                 listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
                         message.getMessageId(), t);
             }
             increaseAvailablePermits(cnx());
+            waitingOnListenerForZeroQueueSize = false;
         });
     }
 
     @Override
-    protected void triggerListener(int numMessages) {
+    protected void tryTriggerListener() {
         // Ignore since it was already triggered in the triggerZeroQueueSizeListener() call
     }
 
     @Override
-    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount,
-            ByteBuf uncompressedPayload, MessageIdData messageId, ClientCnx cnx) {
+    void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
+                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            MessageIdData messageId, ClientCnx cnx, long consumerEpoch) {
         log.warn(
                 "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
                 subscription, consumerName);
@@ -184,5 +205,11 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                     subscription, consumerName)));
             return null;
         });
+    }
+
+    @Override
+    protected void setCurrentReceiverQueueSize(int newSize) {
+        //receiver queue size is fixed as 0.
+        throw new NotImplementedException("Receiver queue size can't be changed in ZeroQueueConsumerImpl");
     }
 }

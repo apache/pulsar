@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,10 +23,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 
 /**
  * A class represents the metadata of a transaction stored in
@@ -36,12 +38,15 @@ class TxnMetaImpl implements TxnMeta {
 
     private final TxnID txnID;
     private final Set<String> producedPartitions = new HashSet<>();
-    private final Set<String> ackedPartitions = new HashSet<>();
-    private TxnStatus txnStatus;
+    private final Set<TransactionSubscription> ackedPartitions = new HashSet<>();
+    private volatile TxnStatus txnStatus = TxnStatus.OPEN;
+    private final long openTimestamp;
+    private final long timeoutAt;
 
-    TxnMetaImpl(TxnID txnID) {
+    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt) {
         this.txnID = txnID;
-        this.txnStatus = TxnStatus.OPEN;
+        this.openTimestamp = openTimestamp;
+        this.timeoutAt = timeoutAt;
     }
 
     @Override
@@ -71,8 +76,8 @@ class TxnMetaImpl implements TxnMeta {
     }
 
     @Override
-    public List<String> ackedPartitions() {
-        List<String> returnedPartitions;
+    public List<TransactionSubscription> ackedPartitions() {
+        List<TransactionSubscription> returnedPartitions;
         synchronized (this) {
             returnedPartitions = new ArrayList<>(ackedPartitions.size());
             returnedPartitions.addAll(ackedPartitions);
@@ -117,9 +122,9 @@ class TxnMetaImpl implements TxnMeta {
      * @throws InvalidTxnStatusException
      */
     @Override
-    public synchronized TxnMetaImpl addAckedPartitions(List<String> partitions) throws InvalidTxnStatusException {
+    public synchronized TxnMetaImpl addAckedPartitions(List<TransactionSubscription> partitions)
+            throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
-
         this.ackedPartitions.addAll(partitions);
         return this;
     }
@@ -138,12 +143,22 @@ class TxnMetaImpl implements TxnMeta {
                                                     TxnStatus expectedStatus)
         throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
-        if (!txnStatus.canTransitionTo(newStatus)) {
+        if (!TransactionUtil.canTransitionTo(txnStatus, newStatus)) {
             throw new InvalidTxnStatusException(
                 "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }
         this.txnStatus = newStatus;
         return this;
+    }
+
+    @Override
+    public long getOpenTimestamp() {
+        return this.openTimestamp;
+    }
+
+    @Override
+    public long getTimeoutAt() {
+        return this.timeoutAt;
     }
 
 }

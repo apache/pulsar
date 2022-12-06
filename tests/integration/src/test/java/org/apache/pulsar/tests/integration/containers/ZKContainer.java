@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,10 +61,10 @@ public class ZKContainer<SelfT extends PulsarContainer<SelfT>> extends PulsarCon
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId && dumpZkDataBeforeStop) {
+        if (null != getContainerId() && dumpZkDataBeforeStop) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                 getDockerClient(),
-                containerId,
+                getContainerId(),
                 "/pulsar/data/zookeeper"
             );
         }

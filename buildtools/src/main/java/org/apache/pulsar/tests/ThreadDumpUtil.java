@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,28 +25,24 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import javax.management.JMException;
+import javax.management.ObjectName;
 
 /**
- * Adapted from Hadoop TimedOutTestsListener
+ * Adapted from Hadoop TimedOutTestsListener.
  *
  * https://raw.githubusercontent.com/apache/hadoop/master/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/test/TimedOutTestsListener.java
  */
 public class ThreadDumpUtil {
-    static final String TEST_TIMED_OUT_PREFIX = "test timed out after";
-
-    private static String INDENT = "    ";
+    private static final String INDENT = "    ";
 
     public static String buildThreadDiagnosticString() {
         StringWriter sw = new StringWriter();
         PrintWriter output = new PrintWriter(sw);
 
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
-        output.println(String.format("Timestamp: %s", dateFormat.format(new Date())));
-        output.println();
         output.println(buildThreadDump());
 
         String deadlocksInfo = buildDeadlockInfo();
@@ -60,7 +56,18 @@ public class ThreadDumpUtil {
     }
 
     static String buildThreadDump() {
+        try {
+            // first attempt to use jcmd to do the thread dump, similar output to jstack
+            return callDiagnosticCommand("threadPrint", "-l");
+        } catch (Exception ignore) {
+        }
+
+        // fallback to using JMX for creating the thread dump
         StringBuilder dump = new StringBuilder();
+
+        dump.append(String.format("Timestamp: %s", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDateTime.now())));
+        dump.append("\n\n");
+
         Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
         for (Map.Entry<Thread, StackTraceElement[]> e : stackTraces.entrySet()) {
             Thread thread = e.getKey();
@@ -79,9 +86,23 @@ public class ThreadDumpUtil {
         return dump.toString();
     }
 
+    /**
+     * Calls a diagnostic commands.
+     * The available operations are similar to what the jcmd commandline tool has,
+     * however the naming of the operations are different. The "help" operation can be used
+     * to find out the available operations. For example, the jcmd command "Thread.print" maps
+     * to "threadPrint" operation name.
+     */
+    static String callDiagnosticCommand(String operationName, String... args)
+            throws JMException {
+        return (String) ManagementFactory.getPlatformMBeanServer()
+                .invoke(new ObjectName("com.sun.management:type=DiagnosticCommand"),
+                        operationName, new Object[]{args}, new String[]{String[].class.getName()});
+    }
+
     static String buildDeadlockInfo() {
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-        long[] threadIds = threadBean.findMonitorDeadlockedThreads();
+        long[] threadIds = threadBean.findDeadlockedThreads();
         if (threadIds != null && threadIds.length > 0) {
             StringWriter stringWriter = new StringWriter();
             PrintWriter out = new PrintWriter(stringWriter);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
 /**
  * Function that appends the host name to the payload message.

@@ -27,6 +27,8 @@
 #
 # Requirements:
 #  * protoc and protoc-gen-go are installed. See: https://github.com/golang/protobuf
+#  * protoc       : v3.17.3
+#  * protoc-gen-go: v1.25.0
 #  * The Pulsar project is checked out somewhere on the file system
 #    in order to source the .proto files
 echo "generate pulsar go function protobuf code..."
@@ -54,7 +56,7 @@ fi
 protoFiles="${protoDefinitions}/*.proto"
 
 protoc \
-	--go_out=import_path=${pkg}:. \
+	--go_out=import_path=${pkg},plugins=grpc:. \
 	--proto_path="${protoDefinitions}" ${protoFiles}
 
 pulsarGitRev=$(git -C ${pulsarSrc} rev-parse HEAD)

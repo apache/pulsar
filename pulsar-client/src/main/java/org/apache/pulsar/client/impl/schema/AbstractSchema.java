@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,11 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 
-abstract class AbstractSchema<T> implements Schema<T> {
+public abstract class AbstractSchema<T> implements Schema<T> {
 
     /**
      * Check if the message read able length length is a valid object for this schema.
@@ -42,12 +43,13 @@ abstract class AbstractSchema<T> implements Schema<T> {
 
     /**
      * Decode a byteBuf into an object using the schema definition and deserializer implementation
+     * <p>Do not modify reader/writer index of ByteBuf so, it can be reused to access correct data.
      *
      * @param byteBuf
      *            the byte buffer to decode
      * @return the deserialized object
      */
-    abstract T decode(ByteBuf byteBuf);
+    public abstract T decode(ByteBuf byteBuf);
     /**
      * Decode a byteBuf into an object using a given version.
      *
@@ -57,8 +59,28 @@ abstract class AbstractSchema<T> implements Schema<T> {
      *            the schema version to decode the object. null indicates using latest version.
      * @return the deserialized object
      */
-    T decode(ByteBuf byteBuf, byte[] schemaVersion) {
+    public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(byteBuf);
+    }
+
+    @Override
+    public Schema<T> clone() {
+        return this;
+    }
+
+    /**
+     * Return an instance of this schema at the given version.
+     * @param schemaVersion the version
+     * @return the schema at that specific version
+     * @throws SchemaSerializationException in case of unknown schema version
+     * @throws NullPointerException in case of null schemaVersion and supportSchemaVersioning is true
+     */
+    public Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        if (!supportSchemaVersioning()) {
+            return this;
+        }
+        Objects.requireNonNull(schemaVersion);
+        throw new SchemaSerializationException("Not implemented for " + this.getClass());
     }
 }

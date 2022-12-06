@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
-import com.google.common.collect.Maps;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.LedgerMetadataBuilder;
-import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -31,22 +36,12 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-
-import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.proto.DataFormats;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private static final Logger log = LoggerFactory.getLogger(FileStoreBackedReadHandleImpl.class);
@@ -54,17 +49,26 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final MapFile.Reader reader;
     private final long ledgerId;
     private final LedgerMetadata ledgerMetadata;
+    private final LedgerOffloaderStats offloaderStats;
+    private final String managedLedgerName;
 
-    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
+    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                          LedgerOffloaderStats offloaderStats,
+                                          String managedLedgerName) throws IOException {
         this.ledgerId = ledgerId;
         this.executor = executor;
         this.reader = reader;
+        this.offloaderStats = offloaderStats;
+        this.managedLedgerName = managedLedgerName;
         LongWritable key = new LongWritable();
         BytesWritable value = new BytesWritable();
         try {
             key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
+            long startReadIndexTime = System.nanoTime();
             reader.get(key, value);
-            this.ledgerMetadata = parseLedgerMetadata(value.copyBytes());
+            offloaderStats.recordReadOffloadIndexLatency(managedLedgerName,
+                    System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
+            this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
         } catch (IOException e) {
             log.error("Fail to read LedgerMetadata for ledgerId {}",
                     ledgerId);
@@ -86,9 +90,10 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
                 try {
                     reader.close();
+                    promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
                 }
@@ -102,7 +107,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
             if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
@@ -118,7 +123,10 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 key.set(nextExpectedId - 1);
                 reader.seek(key);
                 while (entriesToRead > 0) {
+                    long startReadTime = System.nanoTime();
                     reader.next(key, value);
+                    this.offloaderStats.recordReadOffloadDataLatency(managedLedgerName,
+                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {
@@ -127,6 +135,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
                         nextExpectedId++;
+                        this.offloaderStats.recordReadOffloadBytes(managedLedgerName, length);
                     } else if (entryId > lastEntry) {
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                 nextExpectedId, entryId, lastEntry);
@@ -135,6 +144,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
+                this.offloaderStats.recordReadOffloadError(managedLedgerName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
@@ -181,59 +191,8 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         return promise;
     }
 
-    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
-            return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId);
+    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                  LedgerOffloaderStats offloaderStats, String managedLedgerName) throws IOException {
+        return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId, offloaderStats, managedLedgerName);
     }
-
-    private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
-        LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
-                .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
-                .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
-                .withClosedState()
-                .withMetadataFormatVersion(2)
-                .withLength(ledgerMetadataFormat.getLength())
-                .withAckQuorumSize(ledgerMetadataFormat.getAckQuorumSize())
-                .withCreationTime(ledgerMetadataFormat.getCtime())
-                .withWriteQuorumSize(ledgerMetadataFormat.getQuorumSize())
-                .withEnsembleSize(ledgerMetadataFormat.getEnsembleSize());
-        ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-            ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<>();
-            segment.getEnsembleMemberList().forEach(address -> {
-                try {
-                    addressArrayList.add(new BookieSocketAddress(address));
-                } catch (IOException e) {
-                    log.error("Exception when create BookieSocketAddress. ", e);
-                }
-            });
-            builder.newEnsembleEntry(segment.getFirstEntryId(), addressArrayList);
-        });
-
-        if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-            Map<String, byte[]> customMetadata = Maps.newHashMap();
-            ledgerMetadataFormat.getCustomMetadataList().forEach(
-                    entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
-            builder.withCustomMetadata(customMetadata);
-        }
-
-        switch (ledgerMetadataFormat.getDigestType()) {
-            case HMAC:
-                builder.withDigestType(DigestType.MAC);
-                break;
-            case CRC32:
-                builder.withDigestType(DigestType.CRC32);
-                break;
-            case CRC32C:
-                builder.withDigestType(DigestType.CRC32C);
-                break;
-            case DUMMY:
-                builder.withDigestType(DigestType.DUMMY);
-                break;
-            default:
-                throw new IllegalArgumentException("Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
-        }
-
-        return builder.build();
-    }
-
 }

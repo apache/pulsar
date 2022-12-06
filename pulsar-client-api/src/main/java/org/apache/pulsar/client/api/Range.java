@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.Objects;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Int range.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class Range {
 
     private final int start;
@@ -48,13 +54,30 @@ public class Range {
     }
 
     public Range intersect(Range range) {
-        int start = range.getStart() > this.getStart() ? range.getStart() : this.getStart();
-        int end = range.getEnd() < this.getEnd() ? range.getEnd() : this.getEnd();
+        int start = Math.max(range.getStart(), this.getStart());
+        int end = Math.min(range.getEnd(), this.getEnd());
         if (end >= start) {
             return Range.of(start, end);
         } else {
             return null;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Range range = (Range) o;
+        return start == range.start && end == range.end;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(start, end);
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,18 +19,17 @@
 package org.apache.pulsar.broker.protocol;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
@@ -49,8 +48,12 @@ class ProtocolHandlerUtils {
      * @return the protocol handler definition
      * @throws IOException when fail to load the protocol handler or get the definition
      */
-    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath, String narExtractionDirectory)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .extractionDirectory(narExtractionDirectory)
+                .build()) {
             return getProtocolHandlerDefinition(ncl);
         }
     }
@@ -70,7 +73,8 @@ class ProtocolHandlerUtils {
      * @return a collection of protocol handlers
      * @throws IOException when fail to load the available protocol handlers from the provided directory.
      */
-    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory) throws IOException {
+    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory,
+                                                               String narExtractionDirectory) throws IOException {
         Path path = Paths.get(handlersDirectory).toAbsolutePath();
         log.info("Searching for protocol handlers in {}", path);
 
@@ -84,7 +88,7 @@ class ProtocolHandlerUtils {
             for (Path archive : stream) {
                 try {
                     ProtocolHandlerDefinition phDef =
-                        ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString());
+                        ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found protocol handler from {} : {}", archive, phDef);
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
@@ -113,11 +117,14 @@ class ProtocolHandlerUtils {
      * @param metadata the protocol handler definition.
      * @return
      */
-    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata) throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
-            metadata.getArchivePath().toAbsolutePath().toFile(),
-            Collections.emptySet(),
-            ProtocolHandler.class.getClassLoader());
+    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
+                                               String narExtractionDirectory) throws IOException {
+        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(narFile)
+                .parentClassLoader(ProtocolHandler.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
 
         ProtocolHandlerDefinition phDef = getProtocolHandlerDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {
@@ -127,7 +134,7 @@ class ProtocolHandlerUtils {
 
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
-            Object handler = handlerClass.newInstance();
+            Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof ProtocolHandler)) {
                 throw new IOException("Class " + phDef.getHandlerClass()
                     + " does not implement protocol handler interface");

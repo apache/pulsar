@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,9 @@ package org.apache.pulsar.broker.web;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -34,15 +32,15 @@ import org.apache.pulsar.common.policies.data.ErrorData;
  */
 @SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
+    private Throwable cause = null;
     static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
         if (t != null) {
             writer.append("Message: ").append(t.getMessage()).append("\n\n");
+            writer.append("Stacktrace:\n\n");
+            t.printStackTrace(new PrintWriter(writer));
         }
-        writer.append("Stacktrace:\n\n");
-
-        t.printStackTrace(new PrintWriter(writer));
         return writer.toString();
     }
 
@@ -51,11 +49,25 @@ public class RestException extends WebApplicationException {
     }
 
     public RestException(int code, String message) {
-        super(message, Response.status(code).entity(new ErrorData(message)).type(MediaType.APPLICATION_JSON).build());
+        super(message, Response
+                .status(code, message)
+                .entity(new ErrorData(message))
+                .type(MediaType.APPLICATION_JSON)
+                .build());
     }
 
     public RestException(Throwable t) {
         super(getResponse(t));
+    }
+
+    public RestException(Response.Status status, Throwable t) {
+        this(status.getStatusCode(), t.getMessage());
+        this.cause = t;
+    }
+
+    @Override
+    public Throwable getCause() {
+        return cause;
     }
 
     public RestException(PulsarAdminException cae) {
@@ -68,9 +80,9 @@ public class RestException extends WebApplicationException {
             return e.getResponse();
         } else {
             return Response
-                .status(Status.INTERNAL_SERVER_ERROR)
-                .entity(getExceptionData(t))
-                .type(MediaType.TEXT_PLAIN)
+                .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
+                .entity(new ErrorData(getExceptionData(t)))
+                .type(MediaType.APPLICATION_JSON)
                 .build();
         }
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.security.Security;
 import java.util.Map;
-
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
-
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  *
@@ -38,23 +38,32 @@ import com.google.common.annotations.VisibleForTesting;
  *
  */
 public class AuthenticationTls implements Authentication, EncodedAuthenticationParameterSupport {
-
+    static final String AUTH_METHOD_NAME = "tls";
     private static final long serialVersionUID = 1L;
 
     private String certFilePath;
     private String keyFilePath;
+    @SuppressFBWarnings(value = "SE_BAD_FIELD", justification = "Using custom serializer which Findbugs can't detect")
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
-    // Load Bouncy Castle
-    static {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-    
     public AuthenticationTls() {
     }
-    
+
     public AuthenticationTls(String certFilePath, String keyFilePath) {
         this.certFilePath = certFilePath;
         this.keyFilePath = keyFilePath;
+    }
+
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider) {
+        this(certStreamProvider, keyStreamProvider, null);
+    }
+
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider) {
+        this.certStreamProvider = certStreamProvider;
+        this.keyStreamProvider = keyStreamProvider;
+        this.trustStoreStreamProvider = trustStoreStreamProvider;
     }
 
     @Override
@@ -64,16 +73,21 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     @Override
     public String getAuthMethodName() {
-        return "tls";
+        return AUTH_METHOD_NAME;
     }
 
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         try {
-            return new AuthenticationDataTls(certFilePath, keyFilePath);
+            if (certFilePath != null && keyFilePath != null) {
+                return new AuthenticationDataTls(certFilePath, keyFilePath);
+            } else if (certStreamProvider != null && keyStreamProvider != null) {
+                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider, trustStoreStreamProvider);
+            }
         } catch (Exception e) {
             throw new PulsarClientException(e);
         }
+        throw new IllegalArgumentException("cert/key file path or cert/key stream must be present");
     }
 
     @Override
@@ -105,7 +119,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         certFilePath = authParams.get("tlsCertFile");
         keyFilePath = authParams.get("tlsKeyFile");
     }
-    
+
     @VisibleForTesting
     public String getCertFilePath() {
         return certFilePath;
@@ -116,4 +130,18 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         return keyFilePath;
     }
 
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getCertStreamProvider() {
+        return certStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getKeyStreamProvider() {
+        return keyStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getTrustStoreStreamProvider() {
+        return trustStoreStreamProvider;
+    }
 }

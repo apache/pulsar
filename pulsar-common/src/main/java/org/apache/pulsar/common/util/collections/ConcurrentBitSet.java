@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,20 @@ package org.apache.pulsar.common.util.collections;
 
 import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
+import lombok.EqualsAndHashCode;
 
 /**
  * Safe multithreaded version of {@code BitSet}.
  */
+@EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSet extends BitSet {
 
     private static final long serialVersionUID = 1L;
     private final StampedLock rwLock = new StampedLock();
+
+    public ConcurrentBitSet() {
+        super();
+    }
 
     /**
      * Creates a bit set whose initial size is large enough to explicitly represent bits with indices in the range

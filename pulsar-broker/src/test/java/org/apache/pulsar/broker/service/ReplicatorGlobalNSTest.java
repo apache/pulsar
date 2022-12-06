@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -35,6 +36,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-impl")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -46,14 +48,14 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    @AfterClass(alwaysRun = true, timeOut = 300000)
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     /**
@@ -72,8 +74,10 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         final String topicName = "persistent://" + namespace + "/topic";
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -87,15 +91,13 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r3"));
 
         MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
+                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
         Assert.assertFalse(producer1.isConnected());
         Assert.assertFalse(consumer1.isConnected());
         Assert.assertTrue(consumer2.isConnected());
 
-        client1.close();
-        client2.close();
     }
 
     @Test
@@ -108,6 +110,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         final String topicName = "persistent://" + namespace + "/topic";
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -118,11 +121,9 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         admin1.topics().delete(topicName, true);
 
         MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
+                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
-
-        client1.close();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorGlobalNSTest.class);

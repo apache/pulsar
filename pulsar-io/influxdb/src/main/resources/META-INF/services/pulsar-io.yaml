@@ -20,3 +20,4 @@
 name: influxdb
 description: Writes data into InfluxDB database
 sinkClass: org.apache.pulsar.io.influxdb.InfluxDBGenericRecordSink
+sinkConfigClass: org.apache.pulsar.io.influxdb.v2.InfluxDBSinkConfig

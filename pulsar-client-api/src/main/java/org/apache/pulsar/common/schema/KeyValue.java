@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,14 @@ package org.apache.pulsar.common.schema;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A simple KeyValue class.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class KeyValue<K, V> {
     private final K key;
     private final V value;
@@ -52,7 +56,7 @@ public class KeyValue<K, V> {
         if (!(obj instanceof KeyValue)) {
             return false;
         }
-        KeyValue<K, V> another = (KeyValue<K, V>) obj;
+        @SuppressWarnings("unchecked") KeyValue<K, V> another = (KeyValue<K, V>) obj;
         return Objects.equals(key, another.key)
             && Objects.equals(value, another.value);
     }
@@ -96,10 +100,25 @@ public class KeyValue<K, V> {
      */
     public static <K, V> byte[] encode(K key, Schema<K> keyWriter,
                                        V value, Schema<V> valueWriter) {
-        byte [] keyBytes = keyWriter.encode(key);
-        byte [] valueBytes = valueWriter.encode(value);
+        byte [] keyBytes;
+        if (key == null) {
+            keyBytes = new byte[0];
+        } else {
+            keyBytes = keyWriter.encode(key);
+        }
+
+        byte [] valueBytes;
+        if (value == null) {
+            valueBytes = new byte[0];
+        } else {
+            valueBytes = valueWriter.encode(value);
+        }
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
-        byteBuffer.putInt(keyBytes.length).put(keyBytes).putInt(valueBytes.length).put(valueBytes);
+        byteBuffer
+            .putInt(key == null ? -1 : keyBytes.length)
+            .put(keyBytes)
+            .putInt(value == null ? -1 : valueBytes.length)
+            .put(valueBytes);
         return byteBuffer.array();
     }
 
@@ -113,12 +132,16 @@ public class KeyValue<K, V> {
     public static <K, V> KeyValue<K, V> decode(byte[] data, KeyValueDecoder<K, V> decoder) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
         int keyLength = byteBuffer.getInt();
-        byte[] keyBytes = new byte[keyLength];
-        byteBuffer.get(keyBytes);
+        byte[] keyBytes = keyLength == -1 ? null : new byte[keyLength];
+        if (keyBytes != null) {
+            byteBuffer.get(keyBytes);
+        }
 
         int valueLength = byteBuffer.getInt();
-        byte[] valueBytes = new byte[valueLength];
-        byteBuffer.get(valueBytes);
+        byte[] valueBytes = valueLength == -1 ? null : new byte[valueLength];
+        if (valueBytes != null) {
+            byteBuffer.get(valueBytes);
+        }
 
         return decoder.decode(keyBytes, valueBytes);
     }

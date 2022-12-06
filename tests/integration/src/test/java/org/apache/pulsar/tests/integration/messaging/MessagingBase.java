@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,7 +44,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }
@@ -96,7 +96,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
                         "Received duplicate message " + currentReceived.getValue());
             }
         }
-        assertEquals(messagesReceived.size(), messagesToReceive);
+        assertEquals(messagesToReceive, messagesReceived.size());
     }
 
     protected <T> void receiveMessagesCheckDuplicate

@@ -20,3 +20,4 @@
 name: solr
 description: Writes data into solr collection
 sinkClass: org.apache.pulsar.io.solr.SolrGenericRecordSink
+sinkConfigClass: org.apache.pulsar.io.solr.SolrSinkConfig

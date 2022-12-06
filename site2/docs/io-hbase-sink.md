@@ -1,11 +1,10 @@
 ---
 id: io-hbase-sink
 title: HBase sink connector
-sidebar_label: HBase sink connector
+sidebar_label: "HBase sink connector"
 ---
 
-The HBase sink connector pulls the messages from Pulsar topics 
-and persists the messages to HBase tables
+The HBase sink connector pulls the messages from Pulsar topics and persists the messages to HBase tables
 
 ## Configuration
 
@@ -14,7 +13,7 @@ The configuration of the HBase sink connector has the following properties.
 ### Property
 
 | Name | Type|Default | Required | Description |
-|------|---------|----------|-------------|
+|------|---------|----------|-------------|---
 | `hbaseConfigResources` | String|None | false | HBase system configuration `hbase-site.xml` file. |
 | `zookeeperQuorum` | String|None | true | HBase system configuration about `hbase.zookeeper.quorum` value. |
 | `zookeeperClientPort` | String|2181 | false | HBase system configuration about `hbase.zookeeper.property.clientPort` value. |
@@ -32,8 +31,9 @@ Before using the HBase sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-    {
+  ```json
+  {
+     "configs": {
         "hbaseConfigResources": "hbase-site.xml",
         "zookeeperQuorum": "localhost",
         "zookeeperClientPort": "2181",
@@ -42,22 +42,22 @@ Before using the HBase sink connector, you need to create a configuration file t
         "rowKeyName": "rowKey",
         "familyName": "info",
         "qualifierNames": [ 'name', 'address', 'age']
-    }
-    ```
-
+     }
+  }
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        hbaseConfigResources: "hbase-site.xml"
-        zookeeperQuorum: "localhost"
-        zookeeperClientPort: "2181"
-        zookeeperZnodeParent: "/hbase"
-        tableName: "pulsar_hbase"
-        rowKeyName: "rowKey"
-        familyName: "info"
-        qualifierNames: [ 'name', 'address', 'age']
-    ```
+  ```yaml
+  configs:
+      hbaseConfigResources: "hbase-site.xml"
+      zookeeperQuorum: "localhost"
+      zookeeperClientPort: "2181"
+      zookeeperZnodeParent: "/hbase"
+      tableName: "pulsar_hbase"
+      rowKeyName: "rowKey"
+      familyName: "info"
+      qualifierNames: [ 'name', 'address', 'age']
+  ```
 
-    
+  

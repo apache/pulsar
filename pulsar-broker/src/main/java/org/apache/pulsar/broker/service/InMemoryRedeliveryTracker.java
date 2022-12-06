@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
@@ -39,10 +38,9 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     }
 
     @Override
-    public int getRedeliveryCount(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
-        return (int) (count!=null ? count.first : 0);
+    public int getRedeliveryCount(long ledgerId, long entryId) {
+        LongPair count = trackerCache.get(ledgerId, entryId);
+        return (int) (count != null ? count.first : 0);
     }
 
     @Override
@@ -61,17 +59,5 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     @Override
     public void clear() {
         trackerCache.clear();
-    }
-
-    @Override
-    public boolean contains(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        return trackerCache.containsKey(positionImpl.getLedgerId(), positionImpl.getEntryId());
-    }
-
-    @Override
-    public void addIfAbsent(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        trackerCache.putIfAbsent(positionImpl.getLedgerId(), positionImpl.getEntryId(), 0, 0L);
     }
 }

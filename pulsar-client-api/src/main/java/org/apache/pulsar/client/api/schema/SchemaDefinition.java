@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,16 @@
 package org.apache.pulsar.client.api.schema;
 
 import java.util.Map;
+import java.util.Optional;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface for schema definition.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaDefinition<T> {
 
     /**
@@ -32,7 +37,7 @@ public interface SchemaDefinition<T> {
      * @return the {@link SchemaDefinition}
      */
     static <T> SchemaDefinitionBuilder<T> builder() {
-        return DefaultImplementation.newSchemaDefinitionBuilder();
+        return DefaultImplementation.getDefaultImplementation().newSchemaDefinitionBuilder();
     }
 
     /**
@@ -41,6 +46,13 @@ public interface SchemaDefinition<T> {
      * @return schema always null or not
      */
     boolean getAlwaysAllowNull();
+
+    /**
+     * Get JSR310 conversion enabled.
+     *
+     * @return return true if enable JSR310 conversion. false means use Joda time conversion.
+     */
+    boolean isJsr310ConversionEnabled();
 
     /**
      * Get schema class.
@@ -64,9 +76,30 @@ public interface SchemaDefinition<T> {
     Class<T> getPojo();
 
     /**
+     * Get pojo classLoader.
+     *
+     * @return pojo schema
+     */
+    ClassLoader getClassLoader();
+
+    /**
      * Get supportSchemaVersioning schema definition.
      *
      * @return the flag of supportSchemaVersioning
      */
     boolean getSupportSchemaVersioning();
+
+    /**
+     * Get a configured schema reader.
+     *
+     * @return optional containing configured schema reader or empty optional if none is configure
+     */
+    Optional<SchemaReader<T>> getSchemaReaderOpt();
+
+    /**
+     * Get a configured schema writer.
+     *
+     * @return optional containing configured schema writer or empty optional if none is configure
+     */
+    Optional<SchemaWriter<T>> getSchemaWriterOpt();
 }

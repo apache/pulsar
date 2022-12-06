@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,20 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.asynchttpclient.RequestBuilder;
 
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-
-import javax.ws.rs.client.WebTarget;
-
+/**
+ * Abstract base class for component resources.
+ */
 public class ComponentResource extends BaseResource {
 
     protected ComponentResource(Authentication auth, long readTimeoutMs) {

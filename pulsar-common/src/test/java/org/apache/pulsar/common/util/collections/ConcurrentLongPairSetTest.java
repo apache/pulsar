@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.testng.annotations.Test;
 
@@ -44,21 +45,29 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void testConstructor() {
         try {
-            new ConcurrentLongPairSet(0);
+            ConcurrentLongPairSet.newBuilder()
+                    .expectedItems(0)
+                    .build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
         }
 
         try {
-            new ConcurrentLongPairSet(16, 0);
+            ConcurrentLongPairSet.newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(0)
+                    .build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
         }
 
         try {
-            new ConcurrentLongPairSet(4, 8);
+            ConcurrentLongPairSet.newBuilder()
+                    .expectedItems(4)
+                    .concurrencyLevel(8)
+                    .build();
             fail("should have thrown exception");
         } catch (IllegalArgumentException e) {
             // ok
@@ -66,8 +75,29 @@ public class ConcurrentLongPairSetTest {
     }
 
     @Test
+    public void testReduceUnnecessaryExpansions() {
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .build();
+        assertTrue(set.add(1, 1));
+        assertTrue(set.add(2, 2));
+        assertTrue(set.add(3, 3));
+        assertTrue(set.add(4, 4));
+
+        assertTrue(set.remove(1, 1));
+        assertTrue(set.remove(2, 2));
+        assertTrue(set.remove(3, 3));
+        assertTrue(set.remove(4, 4));
+
+        assertEquals(0, set.getUsedBucketCount());
+    }
+
+    @Test
     public void simpleInsertions() {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet(16);
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(16)
+                .build();
 
         assertTrue(set.isEmpty());
         assertTrue(set.add(1, 1));
@@ -94,8 +124,97 @@ public class ConcurrentLongPairSetTest {
     }
 
     @Test
+    public void testClear() {
+        ConcurrentLongPairSet map = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.add(1, 1));
+        assertTrue(map.add(2, 2));
+        assertTrue(map.add(3, 3));
+
+        assertTrue(map.capacity() == 8);
+        map.clear();
+        assertTrue(map.capacity() == 4);
+    }
+
+    @Test
+    public void testExpandAndShrink() {
+        ConcurrentLongPairSet map = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.add(1, 1));
+        assertTrue(map.add(2, 2));
+        assertTrue(map.add(3, 3));
+
+        // expand hashmap
+        assertTrue(map.capacity() == 8);
+
+        assertTrue(map.remove(1, 1));
+        // not shrink
+        assertTrue(map.capacity() == 8);
+        assertTrue(map.remove(2, 2));
+        // shrink hashmap
+        assertTrue(map.capacity() == 4);
+
+        // expand hashmap
+        assertTrue(map.add(4, 4));
+        assertTrue(map.add(5, 5));
+        assertTrue(map.capacity() == 8);
+
+        //verify that the map does not keep shrinking at every remove() operation
+        assertTrue(map.add(6, 6));
+        assertTrue(map.remove(6, 6));
+        assertTrue(map.capacity() == 8);
+    }
+
+    @Test
+    public void testExpandShrinkAndClear() {
+        ConcurrentLongPairSet map = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        final long initCapacity = map.capacity();
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.add(1, 1));
+        assertTrue(map.add(2, 2));
+        assertTrue(map.add(3, 3));
+
+        // expand hashmap
+        assertTrue(map.capacity() == 8);
+
+        assertTrue(map.remove(1, 1));
+        // not shrink
+        assertTrue(map.capacity() == 8);
+        assertTrue(map.remove(2, 2));
+        // shrink hashmap
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.remove(3, 3));
+        // Will not shrink the hashmap again because shrink capacity is less than initCapacity
+        // current capacity is equal than the initial capacity
+        assertTrue(map.capacity() == initCapacity);
+        map.clear();
+        // after clear, because current capacity is equal than the initial capacity, so not shrinkToInitCapacity
+        assertTrue(map.capacity() == initCapacity);
+    }
+
+
+    @Test
     public void testRemove() {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         assertTrue(set.isEmpty());
         assertTrue(set.add(1, 1));
@@ -110,7 +229,10 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void testRehashing() {
         int n = 16;
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet(n / 2, 1);
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(n / 2)
+                .concurrencyLevel(1)
+                .build();
         assertEquals(set.capacity(), n);
         assertEquals(set.size(), 0);
 
@@ -125,7 +247,10 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void testRehashingRemoval() {
         int n = 16;
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet(n / 2, 1);
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(n / 2)
+                .concurrencyLevel(1)
+                .build();
         assertEquals(set.capacity(), n);
         assertEquals(set.size(), 0);
 
@@ -151,7 +276,10 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void testRehashingWithDeletes() {
         int n = 16;
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet(n / 2, 1);
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(n / 2)
+                .concurrencyLevel(1)
+                .build();
         assertEquals(set.capacity(), n);
         assertEquals(set.size(), 0);
 
@@ -176,7 +304,8 @@ public class ConcurrentLongPairSetTest {
 
     @Test
     public void concurrentInsertions() throws Throwable {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -204,13 +333,12 @@ public class ConcurrentLongPairSetTest {
         }
 
         assertEquals(set.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
-        ConcurrentLongPairSet map = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet map = ConcurrentLongPairSet.newBuilder().build();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -238,13 +366,11 @@ public class ConcurrentLongPairSetTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void testIteration() {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         assertEquals(set.items(), Collections.emptyList());
 
@@ -270,7 +396,7 @@ public class ConcurrentLongPairSetTest {
 
     @Test
     public void testRemoval() {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         set.add(0, 0);
         set.add(1, 1);
@@ -296,7 +422,7 @@ public class ConcurrentLongPairSetTest {
 
     @Test
     public void testIfRemoval() {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         set.add(0, 0);
         set.add(1, 1);
@@ -320,7 +446,7 @@ public class ConcurrentLongPairSetTest {
 
     @Test
     public void testItems() {
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         int n = 100;
         int limit = 10;
@@ -341,7 +467,10 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void testHashConflictWithDeletion() {
         final int Buckets = 16;
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet(Buckets, 1);
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(Buckets)
+                .concurrencyLevel(1)
+                .build();
 
         // Pick 2 keys that fall into the same bucket
         long key1 = 1;
@@ -376,7 +505,7 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void testEqualsObjects() {
 
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         long t1 = 1;
         long t2 = 2;
@@ -394,11 +523,11 @@ public class ConcurrentLongPairSetTest {
         assertFalse(set.contains(t1, t1));
         assertFalse(set.contains(t1_b, t1_b));
     }
-    
+
     @Test
     public void testToString() {
 
-        ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder().build();
 
         set.add(0, 0);
         set.add(1, 1);

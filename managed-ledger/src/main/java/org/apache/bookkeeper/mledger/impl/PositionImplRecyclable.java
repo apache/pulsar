@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,32 +18,32 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.bookkeeper.mledger.Position;
-
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import org.apache.bookkeeper.mledger.Position;
 
 public class PositionImplRecyclable extends PositionImpl implements Position {
 
     private final Handle<PositionImplRecyclable> recyclerHandle;
-    
+
     private static final Recycler<PositionImplRecyclable> RECYCLER = new Recycler<PositionImplRecyclable>() {
+        @Override
         protected PositionImplRecyclable newObject(Recycler.Handle<PositionImplRecyclable> recyclerHandle) {
             return new PositionImplRecyclable(recyclerHandle);
         }
     };
 
     private PositionImplRecyclable(Handle<PositionImplRecyclable> recyclerHandle) {
-        super(PositionImpl.earliest);
+        super(PositionImpl.EARLIEST);
         this.recyclerHandle = recyclerHandle;
     }
 
     public static PositionImplRecyclable create() {
-        PositionImplRecyclable position = RECYCLER.get();
-        return position;
+        return RECYCLER.get();
     }
 
     public void recycle() {
+        ackSet = null;
         recyclerHandle.recycle(this);
     }
 

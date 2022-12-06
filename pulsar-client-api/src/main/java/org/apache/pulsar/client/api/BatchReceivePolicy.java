@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Configuration for message batch receive {@link Consumer#batchReceive()} {@link Consumer#batchReceiveAsync()}.
@@ -41,12 +44,16 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2.4.1
  */
-public class BatchReceivePolicy {
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public class BatchReceivePolicy implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /**
      * Default batch receive policy.
      *
-     * <p>Max number of messages: 100
+     * <p>Max number of messages: no limit
      * Max number of bytes: 10MB
      * Timeout: 100ms<p/>
      */
@@ -94,7 +101,7 @@ public class BatchReceivePolicy {
         return maxNumMessages;
     }
 
-    public long getMaxNumBytes() {
+    public int getMaxNumBytes() {
         return maxNumBytes;
     }
 

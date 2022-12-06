@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,31 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.process;
 
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import com.google.common.annotations.VisibleForTesting;
+import java.nio.file.Paths;
+import java.util.Optional;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-
-import java.nio.file.Paths;
-import java.util.Optional;
-
-import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
  * Thread based function container factory implementation.
@@ -51,6 +48,7 @@ import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuth
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private String pulsarServiceUrl;
+    private String pulsarWebServiceUrl;
     private String stateStorageServiceUrl;
     private boolean authenticationEnabled;
     private AuthenticationConfig authConfig;
@@ -58,6 +56,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private String pythonInstanceFile;
     private String logDirectory;
     private String extraDependenciesDir;
+    private String narExtractionDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -72,37 +71,43 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
+                                 String pulsarWebServiceUrl,
                                  String stateStorageServiceUrl,
                                  AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
                                  String logDirectory,
                                  String extraDependenciesDir,
+                                 String narExtractionDirectory,
                                  SecretsProviderConfigurator secretsProviderConfigurator,
                                  boolean authenticationEnabled,
                                  Optional<FunctionAuthProvider> functionAuthProvider,
                                  Optional<RuntimeCustomizer> runtimeCustomizer) {
 
-        initialize(pulsarServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
-                pythonInstanceFile, logDirectory, extraDependenciesDir,
+        initialize(pulsarServiceUrl, pulsarWebServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
+                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,
                 secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
     }
 
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
+                           ConnectorsManager connectorsManager,
+                           FunctionsManager functionsManager,
                            Optional<FunctionAuthProvider> authProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
         ProcessRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ProcessRuntimeFactoryConfig.class);
 
         initialize(workerConfig.getPulsarServiceUrl(),
+                workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getStateStorageServiceUrl(),
                 authenticationConfig,
                 factoryConfig.getJavaInstanceJarLocation(),
                 factoryConfig.getPythonInstanceLocation(),
                 factoryConfig.getLogDirectory(),
                 factoryConfig.getExtraFunctionDependenciesDir(),
+                workerConfig.getNarExtractionDirectory(),
                 secretsProviderConfigurator,
                 workerConfig.isAuthenticationEnabled(),
                 authProvider,
@@ -110,23 +115,27 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     private void initialize(String pulsarServiceUrl,
+                            String pulsarWebServiceUrl,
                             String stateStorageServiceUrl,
                             AuthenticationConfig authConfig,
                             String javaInstanceJarFile,
                             String pythonInstanceFile,
                             String logDirectory,
                             String extraDependenciesDir,
+                            String narExtractionDirectory,
                             SecretsProviderConfigurator secretsProviderConfigurator,
                             boolean authenticationEnabled,
                             Optional<FunctionAuthProvider> functionAuthProvider,
                             Optional<RuntimeCustomizer> runtimeCustomizer) {
         this.pulsarServiceUrl = pulsarServiceUrl;
+        this.pulsarWebServiceUrl = pulsarWebServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.extraDependenciesDir = extraDependenciesDir;
+        this.narExtractionDirectory = narExtractionDirectory;
         this.logDirectory = logDirectory;
         this.authenticationEnabled = authenticationEnabled;
 
@@ -184,6 +193,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @Override
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
                                           String originalCodeFileName,
+                                          String transformFunctionFile,
+                                          String originalTransformFunctionFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
@@ -201,21 +212,26 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
         // configure auth if necessary
         if (authenticationEnabled) {
-            authProvider.ifPresent(functionAuthProvider -> functionAuthProvider.configureAuthenticationConfig(authConfig,
-                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
+            authProvider
+                    .ifPresent(functionAuthProvider -> functionAuthProvider.configureAuthenticationConfig(authConfig,
+                            Optional.ofNullable(getFunctionAuthData(
+                                    Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
         return new ProcessRuntime(
             instanceConfig,
             instanceFile,
             extraDependenciesDir,
+            narExtractionDirectory,
             logDirectory,
             codeFile,
+            transformFunctionFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,
             secretsProviderConfigurator,
-            expectedHealthCheckInterval);
+            expectedHealthCheckInterval,
+            pulsarWebServiceUrl);
     }
 
     @Override

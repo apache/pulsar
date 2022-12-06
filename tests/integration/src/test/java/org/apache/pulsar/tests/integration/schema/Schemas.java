@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,11 +34,7 @@ package org.apache.pulsar.tests.integration.schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 
 import org.apache.avro.reflect.AvroDefault;
 
@@ -56,10 +52,6 @@ public final class Schemas {
      * A Person Struct.
      */
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class Person {
 
         private String name;
@@ -71,10 +63,6 @@ public final class Schemas {
      * A Person Struct.
      */
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class PersonConsumeSchema {
 
         private String name;
@@ -88,10 +76,6 @@ public final class Schemas {
      * A Student Struct.
      */
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class Student {
 
         private String name;
@@ -102,12 +86,8 @@ public final class Schemas {
     }
 
     @Data
-    @Getter
-    @Setter
-    @ToString
     @NoArgsConstructor
     @AllArgsConstructor
-    @EqualsAndHashCode
     @Builder
     public static class AvroLogicalType{
         @org.apache.avro.reflect.AvroSchema("{\n" +
@@ -132,10 +112,6 @@ public final class Schemas {
     private Schemas() {}
 
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PersonOne{
@@ -143,10 +119,6 @@ public final class Schemas {
     }
 
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PersonTwo{
@@ -157,10 +129,6 @@ public final class Schemas {
     }
 
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class PersonThree{
         int id;
 
@@ -168,10 +136,6 @@ public final class Schemas {
     }
 
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class PersonFour{
         int id;
 

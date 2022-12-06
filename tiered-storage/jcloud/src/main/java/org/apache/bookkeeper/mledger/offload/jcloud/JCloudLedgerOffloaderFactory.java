@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,13 @@ package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 
 /**
  * A jcloud based offloader factory.
@@ -38,14 +41,16 @@ public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<Blob
 
     @Override
     public boolean isDriverSupported(String driverName) {
-        return BlobStoreManagedLedgerOffloader.driverSupported(driverName);
+        return JCloudBlobStoreProvider.driverSupported(driverName);
     }
 
     @Override
-    public BlobStoreManagedLedgerOffloader create(Properties properties,
-                                                  Map<String, String> userMetadata,
-                                                  OrderedScheduler scheduler) throws IOException  {
-        TieredStorageConfigurationData data = TieredStorageConfigurationData.create(properties);
-        return BlobStoreManagedLedgerOffloader.create(data, userMetadata, scheduler);
+    public BlobStoreManagedLedgerOffloader create(OffloadPoliciesImpl offloadPolicies, Map<String, String> userMetadata,
+                                                  OrderedScheduler scheduler,
+                                                  LedgerOffloaderStats offloaderStats) throws IOException {
+
+        TieredStorageConfiguration config =
+                TieredStorageConfiguration.create(offloadPolicies.toProperties());
+        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler, offloaderStats);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
 import java.io.IOException;
@@ -46,6 +45,18 @@ public class Exceptions {
         PrintWriter pw = new PrintWriter(sw);
         ex.printStackTrace(pw);
         return sw.toString();
+    }
+
+    public static boolean areExceptionsPresentInChain(Throwable error, Class ... types) {
+        while (error != null) {
+            for (Class type : types) {
+                if (type.isInstance(error)) {
+                    return true;
+                }
+            }
+            error = error.getCause();
+        }
+        return false;
     }
 
 }

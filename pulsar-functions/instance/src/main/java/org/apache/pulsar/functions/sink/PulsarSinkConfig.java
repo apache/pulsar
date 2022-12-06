@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 
 @Getter
 @Setter
@@ -31,5 +33,8 @@ public class PulsarSinkConfig {
     private String topic;
     private String serdeClassName;
     private String schemaType;
+    private Map<String, String> schemaProperties;
     private String typeClassName;
+    private boolean forwardSourceMessageProperty;
+    private ProducerConfig producerConfig;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,46 +19,64 @@
 package org.apache.pulsar.client.impl.schema;
 
 
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 
 /**
  * A json schema definition
  * {@link org.apache.pulsar.client.api.schema.SchemaDefinition} for the json schema definition.
  */
-public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
+public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     /**
-     * the schema definition class
+     * the schema definition class.
      */
-    private  Class<T> pojo;
+    private Class<T> pojo;
     /**
-     * The flag of schema type always allow null
+     * The flag of schema type always allow null.
      *
      * If it's true, will make all of the pojo field generate schema
      * define default can be null,false default can't be null, but it's
      * false you can define the field by yourself by the annotation@Nullable
      *
      */
-    private boolean alwaysAllowNull;
+    private final boolean alwaysAllowNull;
 
-    private Map<String, String> properties;
+    private final Map<String, String> properties;
 
-    private String jsonDef;
+    private final String jsonDef;
 
-    private boolean supportSchemaVersioning;
+    private final ClassLoader classLoader;
 
-    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, boolean alwaysAllowNull, Map<String,String> properties, boolean supportSchemaVersioning) {
+    private final boolean supportSchemaVersioning;
+
+    private final boolean jsr310ConversionEnabled;
+
+    private final SchemaReader<T> reader;
+
+    private final SchemaWriter<T> writer;
+
+    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, ClassLoader classLoader,
+                                boolean alwaysAllowNull, Map<String, String> properties,
+                                boolean supportSchemaVersioning, boolean jsr310ConversionEnabled,
+                                SchemaReader<T> reader, SchemaWriter<T> writer) {
         this.alwaysAllowNull = alwaysAllowNull;
         this.properties = properties;
         this.jsonDef = jsonDef;
         this.pojo = pojo;
+        this.classLoader = classLoader;
         this.supportSchemaVersioning = supportSchemaVersioning;
+        this.jsr310ConversionEnabled = jsr310ConversionEnabled;
+        this.reader = reader;
+        this.writer = writer;
     }
+
     /**
-     * get schema whether always allow null or not
+     * get schema whether always allow null or not.
      *
      * @return schema always null or not
      */
@@ -66,16 +84,22 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
         return alwaysAllowNull;
     }
 
+    @Override
+    public boolean isJsr310ConversionEnabled() {
+        return jsr310ConversionEnabled;
+    }
+
     /**
-     * Get json schema definition
+     * Get json schema definition.
      *
      * @return schema class
      */
     public String getJsonDef() {
         return jsonDef;
     }
+
     /**
-     * Get pojo schema definition
+     * Get pojo schema definition.
      *
      * @return pojo class
      */
@@ -85,12 +109,27 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T>{
     }
 
     @Override
+    public ClassLoader getClassLoader() {
+        return this.classLoader;
+    }
+
+    @Override
     public boolean getSupportSchemaVersioning() {
         return supportSchemaVersioning;
     }
 
+    @Override
+    public Optional<SchemaReader<T>> getSchemaReaderOpt() {
+        return Optional.ofNullable(reader);
+    }
+
+    @Override
+    public Optional<SchemaWriter<T>> getSchemaWriterOpt() {
+        return Optional.ofNullable(writer);
+    }
+
     /**
-     * Get schema class
+     * Get schema class.
      *
      * @return schema class
      */

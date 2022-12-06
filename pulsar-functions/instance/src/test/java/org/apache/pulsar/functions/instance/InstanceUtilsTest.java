@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
 
 public class InstanceUtilsTest {
 
@@ -49,7 +48,9 @@ public class InstanceUtilsTest {
     public void testCalculateSubjectTypeForFunction() {
         FunctionDetails.Builder builder = FunctionDetails.newBuilder();
         // an input but no sink classname is a function
-        builder.setSource(Function.SourceSpec.newBuilder().putInputSpecs("topic", Function.ConsumerSpec.newBuilder().build()).build());
+        builder.setSource(
+                Function.SourceSpec.newBuilder().putInputSpecs("topic", Function.ConsumerSpec.newBuilder().build())
+                        .build());
         assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.FUNCTION);
         // make sure that if the componenttype is set, that gets precedence.
         builder.setComponentType(FunctionDetails.ComponentType.SOURCE);
@@ -65,7 +66,9 @@ public class InstanceUtilsTest {
     public void testCalculateSubjectTypeForSink() {
         FunctionDetails.Builder builder = FunctionDetails.newBuilder();
         // an input and a sink classname is a sink
-        builder.setSource(Function.SourceSpec.newBuilder().putInputSpecs("topic", Function.ConsumerSpec.newBuilder().build()).build());
+        builder.setSource(
+                Function.SourceSpec.newBuilder().putInputSpecs("topic", Function.ConsumerSpec.newBuilder().build())
+                        .build());
         builder.setSink(Function.SinkSpec.newBuilder().setClassName("something").build());
         assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SINK);
         // make sure that if the componenttype is set, that gets precedence.

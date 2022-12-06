@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,47 +19,78 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.io.core.BatchSourceTriggerer;
+import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 /**
- * Unit test of {@link Reflections}.
+ * Unit test of {@link SourceConfigUtilsTest}.
  */
 public class SourceConfigUtilsTest {
 
+    @Data
+    @Accessors(chain = true)
+    @NoArgsConstructor
+    public static class TestSourceConfig {
+        @ConfigValidationAnnotations.NotNull
+        private String configParameter;
+    }
+
+    class TestTriggerer implements BatchSourceTriggerer {
+
+        @Override
+        public void init(Map<String, Object> config, SourceContext sourceContext) throws Exception {
+
+        }
+
+        @Override
+        public void start(Consumer<String> trigger) {
+
+        }
+
+        @Override
+        public void stop() {
+
+        }
+    }
+
     @Test
-    public void testConvertBackFidelity() throws IOException  {
-        SourceConfig sourceConfig = new SourceConfig();
-        sourceConfig.setTenant("test-tenant");
-        sourceConfig.setNamespace("test-namespace");
-        sourceConfig.setName("test-source");
-        sourceConfig.setArchive("builtin://jdbc");
-        sourceConfig.setTopicName("test-output");
-        sourceConfig.setSerdeClassName("test-serde");
-        sourceConfig.setParallelism(1);
-        sourceConfig.setRuntimeFlags("-DKerberos");
-        sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+    public void testConvertBackFidelity() {
+        SourceConfig sourceConfig = createSourceConfig();
+        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
-        Map<String, String> consumerConfigs = new HashMap<>();
-        consumerConfigs.put("security.protocal", "SASL_PLAINTEXT");
-        Map<String, Object> configs = new HashMap<>();
-        configs.put("topic", "kafka");
-        configs.put("bootstrapServers", "server-1,server-2");
-        configs.put("consumerConfigProperties", consumerConfigs);
+        // add default resources
+        sourceConfig.setResources(Resources.getDefaultResources());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(convertedConfig)
+        );
+    }
 
-        sourceConfig.setConfigs(configs);
+    @Test
+    public void testConvertBackFidelityWithBatch() {
+        SourceConfig sourceConfig = createSourceConfigWithBatch();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
@@ -75,6 +106,17 @@ public class SourceConfigUtilsTest {
     public void testMergeEqual() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createSourceConfig();
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testBatchConfigMergeEqual() {
+        SourceConfig sourceConfig = createSourceConfigWithBatch();
+        SourceConfig newSourceConfig = createSourceConfigWithBatch();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
                 new Gson().toJson(sourceConfig),
@@ -119,7 +161,7 @@ public class SourceConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("processingGuarantees", EFFECTIVELY_ONCE);
@@ -169,7 +211,7 @@ public class SourceConfigUtilsTest {
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
                 mergedConfig.getParallelism(),
-                new Integer(101)
+                Integer.valueOf(101)
         );
         mergedConfig.setParallelism(sourceConfig.getParallelism());
         assertEquals(
@@ -183,8 +225,8 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         Resources resources = new Resources();
         resources.setCpu(0.3);
-        resources.setRam(1232l);
-        resources.setDisk(123456l);
+        resources.setRam(1232L);
+        resources.setDisk(123456L);
         SourceConfig newSourceConfig = createUpdatedSourceConfig("resources", resources);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
@@ -213,17 +255,124 @@ public class SourceConfigUtilsTest {
         );
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "DiscoverTriggerer class cannot be updated for batchsources")
+    public void testMergeDifferentBatchTriggerer() {
+        SourceConfig sourceConfig = createSourceConfigWithBatch();
+        BatchSourceConfig batchSourceConfig = createBatchSourceConfig();
+        batchSourceConfig.setDiscoveryTriggererClassName("SomeOtherClassName");
+        SourceConfig newSourceConfig = createUpdatedSourceConfig("batchSourceConfig", batchSourceConfig);
+        SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
+    }
+
+    @Test
+    public void testMergeDifferentBatchSourceConfig() {
+        SourceConfig sourceConfig = createSourceConfigWithBatch();
+        BatchSourceConfig batchSourceConfig = createBatchSourceConfig();
+        Map<String, Object> newConfig = new HashMap<>();
+        newConfig.put("something", "different");
+        batchSourceConfig.setDiscoveryTriggererConfig(newConfig);
+        SourceConfig newSourceConfig = createUpdatedSourceConfig("batchSourceConfig", batchSourceConfig);
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
+        assertEquals(
+                mergedConfig.getBatchSourceConfig().getDiscoveryTriggererConfig().get("something"),
+                "different"
+        );
+        mergedConfig.getBatchSourceConfig().setDiscoveryTriggererConfig(sourceConfig.getBatchSourceConfig().getDiscoveryTriggererConfig());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testValidateConfig() {
+        SourceConfig sourceConfig = createSourceConfig();
+
+        // Good config
+        sourceConfig.getConfigs().put("configParameter", "Test");
+        SourceConfigUtils.validateSourceConfig(sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class);
+
+        // Bad config
+        sourceConfig.getConfigs().put("configParameter", null);
+        Exception e = expectThrows(IllegalArgumentException.class,
+                () -> SourceConfigUtils.validateSourceConfig(sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class));
+        assertTrue(e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
+    }
+
+    @Test
+    public void testSupportsBatchBuilderWhenProducerConfigIsNull() {
+        SourceConfig sourceConfig = createSourceConfig();
+        sourceConfig.setProducerConfig(null);
+        sourceConfig.setBatchBuilder("KEY_BASED");
+        Function.FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
+    }
+
+    @Test
+    public void testSupportsBatchBuilderWhenProducerConfigExists() {
+        SourceConfig sourceConfig = createSourceConfig();
+        sourceConfig.setBatchBuilder("KEY_BASED");
+        sourceConfig.getProducerConfig().setMaxPendingMessages(123456);
+        Function.FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
+        assertEquals(functionDetails.getSink().getProducerSpec().getMaxPendingMessages(), 123456);
+    }
+
+    @Test
+    public void testSupportsBatchBuilderDefinedInProducerConfigWhenTopLevelBatchBuilderIsUndefined() {
+        SourceConfig sourceConfig = createSourceConfig();
+        sourceConfig.setBatchBuilder(null);
+        sourceConfig.getProducerConfig().setBatchBuilder("KEY_BASED");
+        Function.FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
+    }
+
+    private SourceConfig createSourceConfigWithBatch() {
+        SourceConfig sourceConfig = createSourceConfig();
+        BatchSourceConfig batchSourceConfig = createBatchSourceConfig();
+        sourceConfig.setBatchSourceConfig(batchSourceConfig);
+        return sourceConfig;
+    }
+
+    private BatchSourceConfig createBatchSourceConfig() {
+        BatchSourceConfig batchSourceConfig = new BatchSourceConfig();
+        batchSourceConfig.setDiscoveryTriggererClassName(TestTriggerer.class.getName());
+        Map<String, Object> batchConfig = new HashMap<>();
+        batchConfig.put("foo", "bar");
+        batchSourceConfig.setDiscoveryTriggererConfig(batchConfig);
+        return batchSourceConfig;
+    }
+
     private SourceConfig createSourceConfig() {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant("test-tenant");
         sourceConfig.setNamespace("test-namespace");
         sourceConfig.setName("test-source");
-        sourceConfig.setParallelism(1);
-        sourceConfig.setClassName(IdentityFunction.class.getName());
+        sourceConfig.setArchive("builtin://jdbc");
         sourceConfig.setTopicName("test-output");
         sourceConfig.setSerdeClassName("test-serde");
+        sourceConfig.setParallelism(1);
+        sourceConfig.setRuntimeFlags("-DKerberos");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sourceConfig.setConfigs(new HashMap<>());
+
+        Map<String, String> consumerConfigs = new HashMap<>();
+        consumerConfigs.put("security.protocal", "SASL_PLAINTEXT");
+        Map<String, Object> configs = new HashMap<>();
+        configs.put("topic", "kafka");
+        configs.put("bootstrapServers", "server-1,server-2");
+        configs.put("consumerConfigProperties", consumerConfigs);
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
+        sourceConfig.setProducerConfig(producerConfig);
+
+        sourceConfig.setConfigs(configs);
         return sourceConfig;
     }
 

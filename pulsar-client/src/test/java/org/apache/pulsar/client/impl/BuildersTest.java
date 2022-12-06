@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,16 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import com.google.common.collect.ImmutableSet;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.testng.annotations.Test;
 
@@ -79,11 +83,12 @@ public class BuildersTest {
 
     @Test
     public void readerBuilderLoadConfTest() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         String topicName = "test_src";
         MessageId messageId = new MessageIdImpl(1, 2, 3);
         Map<String, Object> config = new HashMap<>();
-        config.put("topicName", topicName);
+        config.put("topicNames", ImmutableSet.of(topicName));
         config.put("receiverQueueSize", 2000);
         ReaderBuilderImpl<byte[]> builder = (ReaderBuilderImpl<byte[]>) client.newReader()
             .startMessageId(messageId)
@@ -96,5 +101,26 @@ public class BuildersTest {
         assertTrue(obj instanceof ReaderConfigurationData);
         assertEquals(((ReaderConfigurationData) obj).getTopicName(), topicName);
         assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    public void shouldNotSetTwoOptAtTheSameTime() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        try (Reader reader = client.newReader().topic("abc").startMessageId(MessageId.earliest)
+                .startMessageFromRollbackDuration(10, TimeUnit.HOURS).create()) {
+            // no-op
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    public void shouldSetOneStartOpt() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        try (Reader reader = client.newReader().topic("abc").create()) {
+            // no-op
+        } finally {
+            client.close();
+        }
     }
 }

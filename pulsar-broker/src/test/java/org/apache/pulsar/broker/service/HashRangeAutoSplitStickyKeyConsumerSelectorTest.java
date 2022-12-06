@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,138 +18,67 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
-import static org.mockito.Mockito.mock;
-
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.client.api.Range;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+@Test(groups = "broker")
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
-    public void testConsumerSelect() throws ConsumerAssignException {
-
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-        String key1 = "anyKey";
-        Assert.assertNull(selector.select(key1.getBytes()));
-
-        Consumer consumer1 = mock(Consumer.class);
-        selector.addConsumer(consumer1);
-        int consumer1Slot = DEFAULT_RANGE_SIZE;
-        Assert.assertEquals(selector.select(key1.getBytes()), consumer1);
-        Assert.assertEquals(selector.getConsumerRange().size(), 1);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
-
-        Consumer consumer2 = mock(Consumer.class);
-        selector.addConsumer(consumer2);
-        Assert.assertEquals(selector.getConsumerRange().size(), 2);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
-        int consumer2Slot = consumer1Slot >> 1;
-
-        for (int i = 0; i < 100; i++) {
-            String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer1);
-            }
+    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
+        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
+        List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
+        List<Consumer> consumers = new ArrayList<>();
+        for (String s : consumerName) {
+            Consumer consumer = mock(Consumer.class);
+            when(consumer.consumerName()).thenReturn(s);
+            selector.addConsumer(consumer);
+            consumers.add(consumer);
         }
 
-        Consumer consumer3 = mock(Consumer.class);
-        selector.addConsumer(consumer3);
-        Assert.assertEquals(selector.getConsumerRange().size(), 3);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 3);
-        int consumer3Slot = consumer2Slot >> 1;
-
-        for (int i = 0; i < 100; i++) {
-            String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer1);
-            }
+        Map<Consumer, List<Range>> expectedResult = new HashMap<>();
+        expectedResult.put(consumers.get(0), Collections.singletonList(Range.of(49, 64)));
+        expectedResult.put(consumers.get(3), Collections.singletonList(Range.of(33, 48)));
+        expectedResult.put(consumers.get(1), Collections.singletonList(Range.of(17, 32)));
+        expectedResult.put(consumers.get(2), Collections.singletonList(Range.of(0, 16)));
+        for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+            Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
+            expectedResult.remove(entry.getKey());
         }
-
-        Consumer consumer4 = mock(Consumer.class);
-        selector.addConsumer(consumer4);
-        Assert.assertEquals(selector.getConsumerRange().size(), 4);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 4);
-        int consumer4Slot = consumer1Slot - ((consumer1Slot - consumer2Slot) >> 1);
-
-        for (int i = 0; i < 100; i++) {
-            String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else if (slot < consumer4Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer1);
-            }
-        }
-
-        selector.removeConsumer(consumer1);
-        Assert.assertEquals(selector.getConsumerRange().size(), 3);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 3);
-        for (int i = 0; i < 100; i++) {
-            String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-            }
-        }
-
-        selector.removeConsumer(consumer2);
-        Assert.assertEquals(selector.getConsumerRange().size(), 2);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
-        for (int i = 0; i < 100; i++) {
-            String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-            }
-        }
-
-        selector.removeConsumer(consumer3);
-        Assert.assertEquals(selector.getConsumerRange().size(), 1);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
-        for (int i = 0; i < 100; i++) {
-            String key = UUID.randomUUID().toString();
-            Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-        }
+        Assert.assertEquals(expectedResult.size(), 0);
     }
 
-    @Test(expectedExceptions = ConsumerAssignException.class)
-    public void testSplitExceed() throws ConsumerAssignException {
-        StickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(16);
-        for (int i = 0; i <= 16; i++) {
-            selector.addConsumer(mock(Consumer.class));
+    @Test
+    public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
+        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
+        final String consumerName = "My-consumer";
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Consumer consumer = mock(Consumer.class);
+            when(consumer.consumerName()).thenReturn(consumerName);
+            selector.addConsumer(consumer);
+            consumers.add(consumer);
         }
-    }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testRangeSizeLessThan2() {
-        new HashRangeAutoSplitStickyKeyConsumerSelector(1);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testRangeSizePower2() {
-        new HashRangeAutoSplitStickyKeyConsumerSelector(6);
+        List<Range> prev = null;
+        for (Consumer consumer : consumers) {
+            List<Range> ranges = selector.getConsumerKeyHashRanges().get(consumer);
+            Assert.assertEquals(ranges.size(), 1);
+            if (prev != null) {
+                Assert.assertNotEquals(prev, ranges);
+            }
+            prev = ranges;
+        }
     }
 }

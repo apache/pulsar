@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,31 +39,29 @@ public class RabbitMQSinkConfigTest {
         String path = yamlFile.getAbsolutePath();
         RabbitMQSinkConfig config = RabbitMQSinkConfig.load(path);
         assertNotNull(config);
-        assertEquals("localhost", config.getHost());
-        assertEquals(Integer.parseInt("5672"), config.getPort());
-        assertEquals("/", config.getVirtualHost());
-        assertEquals("guest", config.getUsername());
-        assertEquals("guest", config.getPassword());
-        assertEquals("test-queue", config.getQueueName());
-        assertEquals("test-connection", config.getConnectionName());
-        assertEquals(Integer.parseInt("0"), config.getRequestedChannelMax());
-        assertEquals(Integer.parseInt("0"), config.getRequestedFrameMax());
-        assertEquals(Integer.parseInt("60000"), config.getConnectionTimeout());
-        assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
-        assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
-        assertEquals("test-exchange", config.getExchangeName());
-        assertEquals("test-key", config.getRoutingKey());
+        assertEquals(config.getHost(), "localhost");
+        assertEquals(config.getPort(), Integer.parseInt("5673"));
+        assertEquals(config.getVirtualHost(), "/");
+        assertEquals(config.getUsername(), "guest");
+        assertEquals(config.getPassword(), "guest");
+        assertEquals(config.getConnectionName(), "test-connection");
+        assertEquals(config.getRequestedChannelMax(), Integer.parseInt("0"));
+        assertEquals(config.getRequestedFrameMax(), Integer.parseInt("0"));
+        assertEquals(config.getConnectionTimeout(), Integer.parseInt("60000"));
+        assertEquals(config.getHandshakeTimeout(), Integer.parseInt("10000"));
+        assertEquals(config.getRequestedHeartbeat(), Integer.parseInt("60"));
+        assertEquals(config.getExchangeName(), "test-exchange");
+        assertEquals(config.getExchangeType(), "test-exchange-type");
     }
 
     @Test
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
-        map.put("port", "5672");
+        map.put("port", "5673");
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
-        map.put("queueName", "test-queue");
         map.put("connectionName", "test-connection");
         map.put("requestedChannelMax", "0");
         map.put("requestedFrameMax", "0");
@@ -71,35 +69,33 @@ public class RabbitMQSinkConfigTest {
         map.put("handshakeTimeout", "10000");
         map.put("requestedHeartbeat", "60");
         map.put("exchangeName", "test-exchange");
-        map.put("routingKey", "test-key");
+        map.put("exchangeType", "test-exchange-type");
 
         RabbitMQSinkConfig config = RabbitMQSinkConfig.load(map);
         assertNotNull(config);
-        assertEquals("localhost", config.getHost());
-        assertEquals(Integer.parseInt("5672"), config.getPort());
-        assertEquals("/", config.getVirtualHost());
-        assertEquals("guest", config.getUsername());
-        assertEquals("guest", config.getPassword());
-        assertEquals("test-queue", config.getQueueName());
-        assertEquals("test-connection", config.getConnectionName());
-        assertEquals(Integer.parseInt("0"), config.getRequestedChannelMax());
-        assertEquals(Integer.parseInt("0"), config.getRequestedFrameMax());
-        assertEquals(Integer.parseInt("60000"), config.getConnectionTimeout());
-        assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
-        assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
-        assertEquals("test-exchange", config.getExchangeName());
-        assertEquals("test-key", config.getRoutingKey());
+        assertEquals(config.getHost(), "localhost");
+        assertEquals(config.getPort(), Integer.parseInt("5673"));
+        assertEquals(config.getVirtualHost(), "/");
+        assertEquals(config.getUsername(), "guest");
+        assertEquals(config.getPassword(), "guest");
+        assertEquals(config.getConnectionName(), "test-connection");
+        assertEquals(config.getRequestedChannelMax(), Integer.parseInt("0"));
+        assertEquals(config.getRequestedFrameMax(), Integer.parseInt("0"));
+        assertEquals(config.getConnectionTimeout(), Integer.parseInt("60000"));
+        assertEquals(config.getHandshakeTimeout(), Integer.parseInt("10000"));
+        assertEquals(config.getRequestedHeartbeat(), Integer.parseInt("60"));
+        assertEquals(config.getExchangeName(), "test-exchange");
+        assertEquals(config.getExchangeType(), "test-exchange-type");
     }
 
     @Test
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
-        map.put("port", "5672");
+        map.put("port", "5673");
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
-        map.put("queueName", "test-queue");
         map.put("connectionName", "test-connection");
         map.put("requestedChannelMax", "0");
         map.put("requestedFrameMax", "0");
@@ -107,7 +103,7 @@ public class RabbitMQSinkConfigTest {
         map.put("handshakeTimeout", "10000");
         map.put("requestedHeartbeat", "60");
         map.put("exchangeName", "test-exchange");
-        map.put("routingKey", "test-key");
+        map.put("exchangeType", "test-exchange-type");
 
         RabbitMQSinkConfig config = RabbitMQSinkConfig.load(map);
         config.validate();
@@ -118,18 +114,17 @@ public class RabbitMQSinkConfigTest {
     public final void missingExchangeValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
-        map.put("port", "5672");
+        map.put("port", "5673");
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
-        map.put("queueName", "test-queue");
         map.put("connectionName", "test-connection");
         map.put("requestedChannelMax", "0");
         map.put("requestedFrameMax", "0");
         map.put("connectionTimeout", "60000");
         map.put("handshakeTimeout", "10000");
         map.put("requestedHeartbeat", "60");
-        map.put("routingKey", "test-key");
+        map.put("exchangeType", "test-exchange-type");
 
         RabbitMQSinkConfig config = RabbitMQSinkConfig.load(map);
         config.validate();

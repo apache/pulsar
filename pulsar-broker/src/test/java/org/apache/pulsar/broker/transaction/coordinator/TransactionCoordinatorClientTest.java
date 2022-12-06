@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,47 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
-import com.google.common.collect.Lists;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.State;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
+
+    @Override
+    protected void afterSetup() throws Exception {
+        for (PulsarService pulsarService : pulsarServices) {
+            TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
+            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+
+            TransactionMetadataStoreService metadataStoreService = pulsarService.getTransactionMetadataStoreService();
+            Class<TransactionMetadataStoreService> clazz = TransactionMetadataStoreService.class;
+            Field field = clazz.getDeclaredField("tbClient");
+            field.setAccessible(true);
+            field.set(metadataStoreService, tbClient);
+        }
+    }
 
     @Test
     public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
@@ -51,13 +83,28 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     @Test
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
-        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, Lists.newArrayList("persistent://public/default/testCommitAndAbort"));
+        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, List.of("persistent://public/default/testCommitAndAbort"));
         transactionCoordinatorClient.commit(txnID);
         try {
             transactionCoordinatorClient.abort(txnID);
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
-        } catch (TransactionCoordinatorClientException.InvalidTxnStatusException ignore) {
+        } catch (TransactionCoordinatorClientException ignore) {
            // Ok here
+        }
+    }
+
+    @Test
+    public void testTransactionCoordinatorExceptionUnwrap() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(new TransactionCoordinatorClientException
+                .InvalidTxnStatusException("test"));
+        try {
+            completableFuture.get();
+            Assert.fail();
+        } catch (InterruptedException | ExecutionException exception) {
+            Assert.assertTrue(exception instanceof ExecutionException);
+            Assert.assertTrue(TransactionCoordinatorClientException.unwrap(exception)
+                    instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,14 +27,13 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SampleCryptoProducer {
 
-    public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
+    public static void main(String[] args) throws InterruptedException, IOException {
 
         class RawFileKeyReader implements CryptoKeyReader {
 

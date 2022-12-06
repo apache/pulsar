@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,18 +21,16 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
-import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.impl.BrokerVersionFilter;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.zafarkhaja.semver.Version;
 
-
+@Test(groups = "broker")
 public class BrokerVersionFilterTest {
 
     @Test

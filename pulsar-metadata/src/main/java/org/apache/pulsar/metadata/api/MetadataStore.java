@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.metadata.api;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
+import java.util.function.Consumer;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 
 /**
  * Metadata store client interface.
@@ -55,7 +56,7 @@ public interface MetadataStore extends AutoCloseable {
      * If the path itself does not exist, it will return an empty list.
      *
      * @param path
-     *            webSocketProxyEnabled
+     *            the path of the key to get from the store
      * @return a future to track the async request
      */
     CompletableFuture<List<String>> getChildren(String path);
@@ -108,4 +109,105 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+
+    /**
+     * Delete a key-value pair and all the children nodes.
+     *
+     * Note: the operation might not be carried in an atomic fashion. If the operation fails, the deletion of the
+     *       tree might be only partial.
+     *
+     * @param path
+     *            the path of the key to delete from the store
+     * @return a future to track the async request
+     */
+    CompletableFuture<Void> deleteRecursive(String path);
+
+    /**
+     * Register a listener that will be called on changes in the underlying store.
+     *
+     * @param listener
+     *            a consumer of notifications
+     */
+    void registerListener(Consumer<Notification> listener);
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param clazz
+     *            the class type to be used for serialization/deserialization
+     * @param cacheConfig
+     *          the cache configuration to be used
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig);
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param clazz
+     *            the class type to be used for serialization/deserialization
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(Class<T> clazz) {
+        return getMetadataCache(clazz, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param typeRef
+     *            the type ref description to be used for serialization/deserialization
+     * @param cacheConfig
+     *          the cache configuration to be used
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig);
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param typeRef
+     *            the type ref description to be used for serialization/deserialization
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef) {
+        return getMetadataCache(typeRef, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @param cacheConfig
+     *          the cache configuration to be used
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig);
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
+        return getMetadataCache(serde, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Returns the default metadata cache config.
+     *
+     * @return default metadata cache config
+     */
+    default MetadataCacheConfig getDefaultMetadataCacheConfig() {
+        return MetadataCacheConfig.builder().build();
+    }
 }

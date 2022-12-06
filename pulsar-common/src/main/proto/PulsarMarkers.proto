@@ -32,8 +32,9 @@ enum MarkerType {
     REPLICATED_SUBSCRIPTION_UPDATE            = 13;
 
     // Next markers start at 20
-    TXN_COMMIT = 20;
-    TXN_ABORT = 21;
+    TXN_COMMITTING = 20;
+    TXN_COMMIT = 21;
+    TXN_ABORT = 22;
 }
 
 /// --- Replicated subscriptions ---
@@ -57,7 +58,7 @@ message ReplicatedSubscriptionsSnapshotResponse {
 // clusters
 message ReplicatedSubscriptionsSnapshot {
     required string snapshot_id = 1;
-    optional MessageIdData local_message_id = 2;
+    optional MarkersMessageIdData local_message_id = 2;
     repeated ClusterMessageId clusters = 3;
 }
 
@@ -73,16 +74,10 @@ message ReplicatedSubscriptionsUpdate {
 // The message id is local to that particular cluster
 message ClusterMessageId {
     required string cluster = 1;
-    required MessageIdData message_id = 2;
+    required MarkersMessageIdData message_id = 2;
 }
 
-message MessageIdData {
-	required uint64 ledger_id = 1;
-	required uint64 entry_id  = 2;
-}
-
-
-/// --- Transaction marker ---
-message TxnCommitMarker {
-    required MessageIdData message_id = 1;
+message MarkersMessageIdData {
+    required uint64 ledger_id = 1;
+    required uint64 entry_id = 2;
 }

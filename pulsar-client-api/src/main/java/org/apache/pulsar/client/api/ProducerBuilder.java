@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ProducerBuilder} is used to configure and create instances of {@link Producer}.
@@ -29,6 +31,8 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullErr
  * @see PulsarClient#newProducer()
  * @see PulsarClient#newProducer(Schema)
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ProducerBuilder<T> extends Cloneable {
 
     /**
@@ -122,6 +126,27 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> producerName(String producerName);
 
     /**
+     * Configure the type of access mode that the producer requires on the topic.
+     *
+     * <p>Possible values are:
+     * <ul>
+     * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic
+     * <li>{@link ProducerAccessMode#Exclusive}: Require exclusive access for producer. Fail immediately if there's
+     * already a producer connected.
+     * <li>{@link ProducerAccessMode#ExclusiveWithFencing}: Require exclusive access for the producer.
+     * Any existing producer will be removed and invalidated immediately.
+     * <li>{@link ProducerAccessMode#WaitForExclusive}: Producer creation is pending until it can acquire exclusive
+     * access
+     * </ul>
+     *
+     * @see ProducerAccessMode
+     * @param accessMode
+     *            The type of access to the topic that the producer requires
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> accessMode(ProducerAccessMode accessMode);
+
+    /**
      * Set the send timeout <i>(default: 30 seconds)</i>.
      *
      * <p>If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
@@ -149,7 +174,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * the client application. Until, the producer gets a successful acknowledgment back from the broker,
      * it will keep in memory (direct memory pool) all the messages in the pending queue.
      *
-     * <p>Default is 1000.
+     * <p>Default is 0, disable the pending messages check.
      *
      * @param maxPendingMessages
      *            the max size of the pending messages queue for the producer
@@ -165,7 +190,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * The purpose of this setting is to have an upper-limit on the number
      * of pending messages when publishing on a partitioned topic.
      *
-     * <p>Default is 50000.
+     * <p>Default is 0, disable the pending messages across partitions check.
      *
      * <p>If publishing at high rate over a topic with many partitions (especially when publishing messages without a
      * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
@@ -175,6 +200,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            max pending messages across all the partitions
      * @return the producer builder instance
      */
+    @Deprecated
     ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
     /**
@@ -293,6 +319,43 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> enableBatching(boolean enableBatching);
 
     /**
+     * If message size is higher than allowed max publish-payload size by broker then enableChunking helps producer to
+     * split message into multiple chunks and publish them to broker separately and in order. So, it allows client to
+     * successfully publish large size of messages in pulsar.
+     *
+     * <p>This feature allows publisher to publish large size of message by splitting it to multiple chunks and let
+     * consumer stitch them together to form a original large published message. Therefore, it's necessary to configure
+     * recommended configuration at pulsar producer and consumer. Recommendation to use this feature:
+     *
+     * <pre>
+     * 1. This feature is right now only supported by non-shared subscription and persistent-topic.
+     * 2. Disable batching to use chunking feature
+     * 3. Pulsar-client keeps published messages into buffer until it receives ack from broker.
+     * So, it's better to reduce "maxPendingMessages" size to avoid producer occupying large amount
+     *  of memory by buffered messages.
+     * 4. Set message-ttl on the namespace to cleanup incomplete chunked messages.
+     * (sometime due to broker-restart or publish time, producer might fail to publish entire large message
+     * so, consumer will not be able to consume and ack those messages. So, those messages can
+     * be only discared by msg ttl) Or configure
+     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage}
+     * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
+     * </pre>
+     * @param enableChunking
+     * @return
+     */
+    ProducerBuilder<T> enableChunking(boolean enableChunking);
+
+    /**
+     * Max chunk message size in bytes. Producer chunks the message if chunking is enabled and message size is larger
+     * than max chunk-message size. By default chunkMaxMessageSize value is -1 and in that case, producer chunks based
+     * on max-message size configured at broker.
+     *
+     * @param chunkMaxMessageSize
+     * @return
+     */
+    ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize);
+
+    /**
      * Sets a {@link CryptoKeyReader}.
      *
      * <p>Configure the key reader to be used to encrypt the message payloads.
@@ -302,6 +365,30 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKey
+     *            the public key that is always used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(String publicKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKeys
+     *            the map of public key names and their URIs used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(Map<String, String> publicKeys);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.
@@ -477,6 +564,18 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 
     /**
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * enabled.
+     *
+     * @param interval
+     *            the interval of updating partitions
+     * @param unit
+     *            the time unit of the interval.
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+    /**
      * Control whether enable the multiple schema mode for producer.
      * If enabled, producer can send a message with different schema from that specified just when it is created,
      * otherwise a invalid message exception would be threw
@@ -490,4 +589,23 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @since 2.5.0
      */
     ProducerBuilder<T> enableMultiSchema(boolean multiSchema);
+
+    /**
+     * This config affects Shared mode producers of partitioned topics only. It controls whether
+     * producers register and connect immediately to the owner broker of each partition
+     * or start lazily on demand. The internal producer of one partition is always
+     * started eagerly, chosen by the routing policy, but the internal producers of
+     * any additional partitions are started on demand, upon receiving their first
+     * message.
+     * Using this mode can reduce the strain on brokers for topics with large numbers of
+     * partitions and when the SinglePartition or some custom partial partition routing policy
+     * like PartialRoundRobinMessageRouterImpl is used without keyed messages.
+     * Because producer connection can be on demand, this can produce extra send latency
+     * for the first messages of a given partition.
+     *
+     * @param lazyStartPartitionedProducers
+     *            true/false as to whether to start partition producers lazily
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers);
 }

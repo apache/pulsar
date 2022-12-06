@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,20 +21,19 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
+import java.util.List;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class OverloadShedderTest {
 
     private final OverloadShedder os = new OverloadShedder();
@@ -147,7 +146,7 @@ public class OverloadShedderTest {
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-10", "bundle-9"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-10", "bundle-9"));
     }
 
     @Test
@@ -186,6 +185,20 @@ public class OverloadShedderTest {
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-8", "bundle-7"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-8", "bundle-7"));
+    }
+
+    @Test
+    public void testPrintResourceUsage() {
+        LocalBrokerData data = new LocalBrokerData();
+
+        data.setCpu(new ResourceUsage(10, 100));
+        data.setMemory(new ResourceUsage(50, 100));
+        data.setDirectMemory(new ResourceUsage(90, 100));
+        data.setBandwidthIn(new ResourceUsage(30, 100));
+        data.setBandwidthOut(new ResourceUsage(20, 100));
+
+        assertEquals(data.printResourceUsage(),
+                "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
     }
 }

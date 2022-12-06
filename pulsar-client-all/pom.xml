@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.11.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -33,6 +33,11 @@
   <name>Pulsar Client All</name>
 
   <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
@@ -43,27 +48,31 @@
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
 
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.1.1</version>
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>generate-sources</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
@@ -71,9 +80,37 @@
                   <includes>**/ProtobufSchema.class</includes>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
+                <artifactItem>
+                  <groupId>org.asynchttpclient</groupId>
+                  <artifactId>async-http-client</artifactId>
+                  <version>${asynchttpclient.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
               </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
-
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>shade-ahc-properties</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                <replace token= "org.asynchttpclient."
+                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+              </target>
             </configuration>
           </execution>
         </executions>
@@ -85,7 +122,7 @@
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
+            <phase>${shadePluginPhase}</phase>
             <goals>
               <goal>shade</goal>
             </goals>
@@ -108,7 +145,11 @@
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
                   <include>com.google.protobuf:protobuf-java</include>
-                  <include>com.google.guava:guava</include>
+                  <include>com.google.guava:*</include>
+                  <include>org.checkerframework:*</include>
+                  <include>com.google.code.findbugs:*</include>
+                  <include>com.google.errorprone:*</include>
+                  <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>com.fasterxml.jackson.module</include>
@@ -120,22 +161,25 @@
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>
+                  <include>io.swagger:*</include>
+                  <include>io.airlift:*</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
-                  <include>org.apache.bookkeeper:circe-checksum</include>
+                  <include>org.apache.bookkeeper:*</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
-                  <include>javax.annotation:*</include>
+                  <include>jakarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
-                  <include>org.apache.httpcomponents:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.google.auth:*</include>
                   <include>org.jvnet.mimepull:*</include>
@@ -144,13 +188,11 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
-                  <include>org.codehaus.jackson:jackson-core-asl</include>
-                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
-                  <include>org.xerial.snappy:snappy-java</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
-                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
+                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -159,12 +201,10 @@
                   <includes>
                     <include>**</include>
                   </includes>
-                </filter>
-                <filter>
-                   <artifact>commons-logging:commons-logging</artifact>
-                   <includes>
-                       <include>**</include>
-                   </includes>
+                  <excludes>
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
                 </filter>
               </filters>
               <relocations>
@@ -206,10 +246,6 @@
                 <relocation>
                   <pattern>com.yahoo</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.http</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.eclipse.jetty</pattern>
@@ -276,10 +312,6 @@
                     <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
                 </relocation>
                 <relocation>
-                    <pattern>org.apache.http</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.objenesis</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
                 </relocation>
@@ -313,12 +345,20 @@
                   <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.xerial.snappy</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.commons</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.airlift</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.airlift</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.checkerframework</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.annotation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.tukaani</pattern>
@@ -357,6 +397,36 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven-enforcer-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>enforce-bytecode-version</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <enforceBytecodeVersion>
+                  <maxJdkVersion>${pulsar.client.compiler.release}</maxJdkVersion>
+                  <ignoredScopes>
+                    <ignoreScope>test</ignoreScope>
+                  </ignoredScopes>
+                </enforceBytecodeVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>extra-enforcer-rules</artifactId>
+            <version>${extra-enforcer-rules.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.ClientSslContextRefresher;
-import org.apache.pulsar.common.util.NettySslContextBuilder;
-
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
+import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
+import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 
 /**
  * Initialize service channel handlers.
@@ -39,54 +40,80 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     public static final String TLS_HANDLER = "tls";
     private final ProxyService proxyService;
-    private final NettySslContextBuilder serverSslCtxRefresher;
-    private final ClientSslContextRefresher clientSslCtxRefresher;
     private final boolean enableTls;
+    private final boolean tlsEnabledWithKeyStore;
+    private final int brokerProxyReadTimeoutMs;
+    private final int maxMessageSize;
+
+    private SslContextAutoRefreshBuilder<SslContext> serverSslCtxRefresher;
+    private NettySSLContextAutoRefreshBuilder serverSSLContextAutoRefreshBuilder;
 
     public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTls)
             throws Exception {
         super();
         this.proxyService = proxyService;
         this.enableTls = enableTls;
+        this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
+        this.brokerProxyReadTimeoutMs = serviceConfig.getBrokerProxyReadTimeoutMs();
+        this.maxMessageSize = serviceConfig.getMaxMessageSize();
 
         if (enableTls) {
-            serverSslCtxRefresher = new NettySslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
-                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
-                    serviceConfig.getTlsCertRefreshCheckDurationSec());
+            if (tlsEnabledWithKeyStore) {
+                serverSSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
+                        serviceConfig.getTlsProvider(),
+                        serviceConfig.getTlsKeyStoreType(),
+                        serviceConfig.getTlsKeyStore(),
+                        serviceConfig.getTlsKeyStorePassword(),
+                        serviceConfig.isTlsAllowInsecureConnection(),
+                        serviceConfig.getTlsTrustStoreType(),
+                        serviceConfig.getTlsTrustStore(),
+                        serviceConfig.getTlsTrustStorePassword(),
+                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                        serviceConfig.getTlsCiphers(),
+                        serviceConfig.getTlsProtocols(),
+                        serviceConfig.getTlsCertRefreshCheckDurationSec());
+            } else {
+                SslProvider sslProvider = null;
+                if (serviceConfig.getTlsProvider() != null) {
+                    sslProvider = SslProvider.valueOf(serviceConfig.getTlsProvider());
+                }
+                serverSslCtxRefresher = new NettyServerSslContextBuilder(
+                        sslProvider,
+                        serviceConfig.isTlsAllowInsecureConnection(),
+                        serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                        serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(),
+                        serviceConfig.getTlsProtocols(),
+                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                        serviceConfig.getTlsCertRefreshCheckDurationSec());
+            }
         } else {
             this.serverSslCtxRefresher = null;
-        }
-
-        if (serviceConfig.isTlsEnabledWithBroker()) {
-            AuthenticationDataProvider authData = null;
-
-            if (!isEmpty(serviceConfig.getBrokerClientAuthenticationPlugin())) {
-                authData = AuthenticationFactory.create(serviceConfig.getBrokerClientAuthenticationPlugin(),
-                        serviceConfig.getBrokerClientAuthenticationParameters()).getAuthData();
-            }
-
-            clientSslCtxRefresher = new ClientSslContextRefresher(serviceConfig.isTlsAllowInsecureConnection(),
-                    serviceConfig.getBrokerClientTrustCertsFilePath(), authData);
-
-        } else {
-            this.clientSslCtxRefresher = null;
         }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+        ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024,
+                true));
         if (serverSslCtxRefresher != null && this.enableTls) {
             SslContext sslContext = serverSslCtxRefresher.get();
             if (sslContext != null) {
                 ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
             }
+        } else if (this.tlsEnabledWithKeyStore && serverSSLContextAutoRefreshBuilder != null) {
+            ch.pipeline().addLast(TLS_HANDLER,
+                    new SslHandler(serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
         }
-
+        if (brokerProxyReadTimeoutMs > 0) {
+            ch.pipeline().addLast("readTimeoutHandler",
+                    new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+        }
+        if (proxyService.getConfiguration().isHaProxyProtocolEnabled()) {
+            ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
+        }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-            Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler",
-                new ProxyConnection(proxyService, clientSslCtxRefresher == null ? null : clientSslCtxRefresher.get()));
+                this.maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+
+        ch.pipeline().addLast("handler", new ProxyConnection(proxyService, proxyService.getDnsAddressResolverGroup()));
     }
 }

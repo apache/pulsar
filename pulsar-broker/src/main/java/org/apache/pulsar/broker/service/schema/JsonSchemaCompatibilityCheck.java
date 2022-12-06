@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
@@ -42,14 +41,15 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     }
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
+            throws IncompatibleSchemaException {
         if (isAvroSchema(from)) {
             if (isAvroSchema(to)) {
                 // if both producer and broker have the schema in avro format
                 super.checkCompatible(from, to, strategy);
             } else if (isJsonSchema(to)) {
                 // if broker have the schema in avro format but producer sent a schema in the old json format
-                // allow old schema format for backwards compatiblity
+                // allow old schema format for backwards compatibility
             } else {
                 // unknown schema format
                 throw new IncompatibleSchemaException("Unknown schema format");

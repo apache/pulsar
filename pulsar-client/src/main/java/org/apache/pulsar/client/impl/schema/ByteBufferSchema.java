@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
-
 import java.nio.ByteBuffer;
-
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -34,10 +32,10 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
-            .setName("ByteBuffer")
-            .setType(SchemaType.BYTES)
-            .setSchema(new byte[0]);
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("ByteBuffer")
+            .type(SchemaType.BYTES)
+            .schema(new byte[0]).build();
         INSTANCE = new ByteBufferSchema();
     }
 
@@ -76,15 +74,20 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
     }
 
     @Override
-    public ByteBuffer decode(ByteBuf byteBuf) {
-        if (null == byteBuf) {
+    public ByteBuffer decode(ByteBuf byteBuffer) {
+        if (null == byteBuffer) {
             return null;
         } else {
-            int size = byteBuf.readableBytes();
+            int size = byteBuffer.readableBytes();
             byte[] bytes = new byte[size];
-            byteBuf.readBytes(bytes);
+            byteBuffer.readBytes(bytes);
             return ByteBuffer.wrap(bytes);
         }
+    }
+
+    @Override
+    public ByteBuffer decode(ByteBuffer byteBuffer, byte[] schemaVersion) {
+        return byteBuffer;
     }
 
     @Override

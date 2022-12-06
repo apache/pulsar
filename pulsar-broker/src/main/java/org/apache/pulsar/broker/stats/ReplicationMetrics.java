@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import com.google.common.collect.Maps;
-
 import io.netty.util.Recycler;
-import java.util.Map;
-
-import org.apache.pulsar.common.stats.Metrics;
-
 import io.netty.util.Recycler.Handle;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.common.stats.Metrics;
 
 /**
  */
@@ -33,6 +30,7 @@ public class ReplicationMetrics {
     public double msgRateOut;
     public double msgThroughputOut;
     public double msgReplBacklog;
+    public double maxMsgReplDelayInSeconds;
     public int connected;
 
     public void reset() {
@@ -40,6 +38,7 @@ public class ReplicationMetrics {
         msgThroughputOut = 0;
         msgReplBacklog = 0;
         connected = 0;
+        maxMsgReplDelayInSeconds = 0;
     }
 
     public static ReplicationMetrics get() {
@@ -71,7 +70,7 @@ public class ReplicationMetrics {
 
     public Metrics add(String namespace, String local, String remote) {
 
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("namespace", namespace);
         dimensionMap.put("from_cluster", local);
         dimensionMap.put("to_cluster", remote);
@@ -81,6 +80,7 @@ public class ReplicationMetrics {
         dMetrics.put("brk_repl_out_tp_rate", msgThroughputOut);
         dMetrics.put("brk_replication_backlog", msgReplBacklog);
         dMetrics.put("brk_repl_is_connected", connected);
+        dMetrics.put("brk_max_replication_delay_second", maxMsgReplDelayInSeconds);
 
         return dMetrics;
 

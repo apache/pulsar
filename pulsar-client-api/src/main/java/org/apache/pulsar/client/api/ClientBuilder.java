@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,24 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
+import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
  * @since 2.0.0
  */
-public interface ClientBuilder extends Cloneable {
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Construct the final {@link PulsarClient} instance.
@@ -110,6 +117,20 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
+
+    /**
+     * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
+     *
+     * @param name the listener name
+     * @return the client builder instance
+     */
+    ClientBuilder listenerName(String name);
+
+    /**
+     * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * @return the client builder instance
+     */
+    ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
@@ -204,6 +225,24 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit);
 
     /**
+     * Set lookup timeout <i>(default: matches operation timeout)</i>
+     *
+     * Lookup operations have a different load pattern to other operations. They can be handled by any broker, are not
+     * proportional to throughput, and are harmless to retry. Given this, it makes sense to allow them to retry longer
+     * than normal operation, especially if they experience a timeout.
+     *
+     * By default this is set to match operation timeout. This is to maintain legacy behaviour. However, in practice
+     * it should be set to 5-10x the operation timeout.
+     *
+     * @param lookupTimeout
+     *            lookup timeout
+     * @param unit
+     *            time unit for {@code lookupTimeout}
+     * @return the client builder instance
+     */
+    ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit);
+
+    /**
      * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
      *
      * @param numIoThreads the number of IO threads
@@ -230,7 +269,7 @@ public interface ClientBuilder extends Cloneable {
      * Increasing this parameter may improve throughput when using many producers over a high latency connection.
      *
      * @param connectionsPerBroker
-     *            max number of connections per broker (needs to be greater than 0)
+     *            max number of connections per broker (needs to be greater than or equal to 0)
      * @return the client builder instance
      */
     ClientBuilder connectionsPerBroker(int connectionsPerBroker);
@@ -262,6 +301,22 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder enableTls(boolean enableTls);
 
     /**
+     * Set the path to the TLS key file.
+     *
+     * @param tlsKeyFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyFilePath(String tlsKeyFilePath);
+
+    /**
+     * Set the path to the TLS certificate file.
+     *
+     * @param tlsCertificateFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath);
+
+    /**
      * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
@@ -288,6 +343,108 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
+
+    /**
+     * If Tls is enabled, whether use KeyStore type as tls configuration parameter.
+     * False means use default pem type configuration.
+     *
+     * @param useKeyStoreTls
+     * @return the client builder instance
+     */
+    ClientBuilder useKeyStoreTls(boolean useKeyStoreTls);
+
+    /**
+     * The name of the security provider used for SSL connections.
+     * Default value is the default security provider of the JVM.
+     *
+     * @param sslProvider
+     * @return the client builder instance
+     */
+    ClientBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the key store file.
+     *
+     * @param tlsKeyStoreType
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStoreType(String tlsKeyStoreType);
+
+    /**
+     * The location of the key store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsKeyStorePassword
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword);
+
+    /**
+     * The file format of the trust store file.
+     *
+     * @param tlsTrustStoreType
+     * @return the client builder instance
+     */
+    ClientBuilder tlsTrustStoreType(String tlsTrustStoreType);
+
+    /**
+     * The location of the trust store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsTrustStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsTrustStorePassword
+     * @return the client builder instance
+     */
+    ClientBuilder tlsTrustStorePassword(String tlsTrustStorePassword);
+
+    /**
+     * A list of cipher suites.
+     * This is a named combination of authentication, encryption, MAC and key exchange algorithm
+     * used to negotiate the security settings for a network connection using TLS or SSL network protocol.
+     * By default all the available cipher suites are supported.
+     *
+     * @param tlsCiphers
+     * @return the client builder instance
+     */
+    ClientBuilder tlsCiphers(Set<String> tlsCiphers);
+
+    /**
+     * The SSL protocol used to generate the SSLContext.
+     * Default setting is TLS, which is fine for most cases.
+     * Allowed values in recent JVMs are TLS, TLSv1.3, TLSv1.2 and TLSv1.1.
+     *
+     * @param tlsProtocols
+     * @return the client builder instance
+     */
+    ClientBuilder tlsProtocols(Set<String> tlsProtocols);
+
+    /**
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
+     * <p>
+     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * <p>
+     * Setting this to 0 will disable the limit.
+     *
+     * @param memoryLimit
+     *            the limit
+     * @param unit
+     *            the memory limit size unit
+     * @return the client builder instance
+     */
+    ClientBuilder memoryLimit(long memoryLimit, SizeUnit unit);
 
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
@@ -323,7 +480,16 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxLookupRequests(int maxLookupRequests);
 
     /**
-     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+     * Set the maximum number of times a lookup-request to a broker will be redirected.
+     *
+     * @since 2.6.0
+     * @param maxLookupRedirects the maximum number of redirects
+     * @return the client builder instance
+     */
+    ClientBuilder maxLookupRedirects(int maxLookupRedirects);
+
+    /**
+     * Set max number of broker-rejected requests in a certain time-frame (60 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>.
      *
@@ -373,6 +539,18 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxBackoffInterval(long duration, TimeUnit unit);
 
     /**
+     * Option to enable busy-wait settings. Default is false.
+     *
+     * <b>WARNING</b>: This option will enable spin-waiting on executors and IO threads in order to reduce latency
+     * during context switches. The spinning will consume 100% CPU even when the broker is not doing any work. It
+     * is recommended to reduce the number of IO threads and BK client threads to only have few CPU cores busy.
+     *
+     * @param enableBusyWait whether to enable busy wait
+     * @return the client builder instance
+     */
+    ClientBuilder enableBusyWait(boolean enableBusyWait);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -387,4 +565,51 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder clock(Clock clock);
+
+    /**
+     * Proxy-service url when client would like to connect to broker via proxy. Client can choose type of proxy-routing
+     * using {@link ProxyProtocol}.
+     *
+     * @param proxyServiceUrl proxy service url
+     * @param proxyProtocol   protocol to decide type of proxy routing eg: SNI-routing
+     * @return
+     */
+    ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
+
+    /**
+     * If enable transaction, start the transactionCoordinatorClient with pulsar client.
+     *
+     * @param enableTransaction whether enable transaction feature
+     * @return
+     */
+    ClientBuilder enableTransaction(boolean enableTransaction);
+
+    /**
+     * Set dns lookup bind address and port.
+     * @param address dnsBindAddress
+     * @param port dnsBindPort
+     * @return
+     */
+    ClientBuilder dnsLookupBind(String address, int port);
+
+    /**
+     *  Set socks5 proxy address.
+     * @param socks5ProxyAddress
+     * @return
+     */
+    ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress);
+
+    /**
+     *  Set socks5 proxy username.
+     * @param socks5ProxyUsername
+     * @return
+     */
+    ClientBuilder socks5ProxyUsername(String socks5ProxyUsername);
+
+    /**
+     *  Set socks5 proxy password.
+     * @param socks5ProxyPassword
+     * @return
+     */
+    ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
 }

@@ -20,3 +20,4 @@
 name: hbase
 description: Writes data into hbase table
 sinkClass: org.apache.pulsar.io.hbase.sink.HbaseGenericRecordSink
+sinkConfigClass: org.apache.pulsar.io.hbase.sink.HbaseSinkConfig

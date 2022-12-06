@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,25 +21,27 @@ package org.apache.pulsar.broker.zookeeper;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.zookeeper.KeeperException.Code;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.apache.zookeeper.MockZooKeeper;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
+@Test(groups = "broker")
 public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -50,21 +52,24 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
      */
     @Test
     public void testSessionExpired() throws Exception {
-        admin.clusters().createCluster("my-cluster", new ClusterData("test-url"));
+        admin.clusters().createCluster("my-cluster", ClusterData.builder().serviceUrl("test-url").build());
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
-        mockZookKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.CREATE
+                    && path.equals("/admin/clusters/my-cluster-2");
+            });
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         try {
-            admin.clusters().createCluster("my-cluster-2", new ClusterData("test-url"));
+            admin.clusters().createCluster("my-cluster-2", ClusterData.builder().serviceUrl("test-url").build());
             fail("Should have failed, because global zk is down");
         } catch (PulsarAdminException e) {
             // Ok
         }
 
-        admin.clusters().createCluster("cluster-2", new ClusterData("test-url"));
+        admin.clusters().createCluster("cluster-2", ClusterData.builder().serviceUrl("test-url").build());
     }
 }

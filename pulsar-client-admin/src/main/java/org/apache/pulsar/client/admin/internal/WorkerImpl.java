@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,21 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
-
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.Response;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import org.apache.pulsar.common.stats.Metrics;
 
 @Slf4j
 public class WorkerImpl extends BaseResource implements Worker {
@@ -47,70 +48,68 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException {
-        try {
-            Response response = request(workerStats.path("functionsmetrics")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
-            }
-            List<WorkerFunctionInstanceStats> metricsList
-                    = response.readEntity(new GenericType<List<WorkerFunctionInstanceStats>>() {});
-            return metricsList;
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getFunctionsStatsAsync());
     }
 
     @Override
-    public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException {
-        try {
-            Response response = request(workerStats.path("metrics")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
-            }
-            return response.readEntity(new GenericType<List<org.apache.pulsar.common.stats.Metrics>>() {});
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+    public CompletableFuture<List<WorkerFunctionInstanceStats>> getFunctionsStatsAsync() {
+        WebTarget path = workerStats.path("functionsmetrics");
+        return asyncGetRequest(path, new GenericType<List<WorkerFunctionInstanceStats>>() {});
+    }
+
+    @Override
+    public Collection<Metrics> getMetrics() throws PulsarAdminException {
+        return sync(() -> getMetricsAsync());
+    }
+
+    @Override
+    public CompletableFuture<Collection<Metrics>> getMetricsAsync() {
+        WebTarget path = workerStats.path("metrics");
+        return asyncGetRequest(path, new GenericType<List<Metrics>>() {})
+                .thenApply(list -> list);
     }
 
     @Override
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
-        try {
-            Response response = request(worker.path("cluster")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
-            }
-            return response.readEntity(new GenericType<List<WorkerInfo>>() {});
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getClusterAsync());
+    }
+
+    @Override
+    public CompletableFuture<List<WorkerInfo>> getClusterAsync() {
+        WebTarget path = worker.path("cluster");
+        return asyncGetRequest(path, new GenericType<List<WorkerInfo>>() {});
     }
 
     @Override
     public WorkerInfo getClusterLeader() throws PulsarAdminException {
-        try {
-            Response response = request(worker.path("cluster").path("leader")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
-            }
-            return response.readEntity(new GenericType<WorkerInfo>(){});
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getClusterLeaderAsync());
+    }
+
+    @Override
+    public CompletableFuture<WorkerInfo> getClusterLeaderAsync() {
+        WebTarget path = worker.path("cluster").path("leader");
+        return asyncGetRequest(path, new GenericType<WorkerInfo>(){});
     }
 
     @Override
     public Map<String, Collection<String>> getAssignments() throws PulsarAdminException {
-        try {
-            Response response = request(worker.path("assignments")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
-            }
-            Map<String, Collection<String>> assignments
-                    = response.readEntity(new GenericType<Map<String, Collection<String>>>() {});
-            return assignments;
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getAssignmentsAsync());
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Collection<String>>> getAssignmentsAsync() {
+        WebTarget path = worker.path("assignments");
+        return asyncGetRequest(path, new GenericType<Map<String, Collection<String>>>() {});
+    }
+
+    @Override
+    public void rebalance() throws PulsarAdminException {
+        sync(this::rebalanceAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> rebalanceAsync() {
+        final WebTarget path = worker.path("rebalance");
+        return asyncPutRequest(path,  Entity.entity("", MediaType.APPLICATION_JSON));
     }
 }

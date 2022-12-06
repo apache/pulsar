@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance.go;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.functions.proto.Function;
 
 @Setter
 @Getter
@@ -32,6 +33,7 @@ public class GoInstanceConfig {
     private int port;
     private String clusterName = "";
     private int killAfterIdleMs;
+    private int expectedHealthCheckInterval;
 
     private String tenant = "";
     private String nameSpace = "";
@@ -40,6 +42,7 @@ public class GoInstanceConfig {
     private String logTopic = "";
     private int processingGuarantees;
     private String secretsMap = "";
+    private String userConfig = "";
     private int runtime;
     private boolean autoAck;
     private int parallelism;
@@ -48,6 +51,7 @@ public class GoInstanceConfig {
     private long timeoutMs;
     private String subscriptionName = "";
     private boolean cleanupSubscription;
+    private int subscriptionPosition = Function.SubscriptionPosition.LATEST.getNumber();
 
     private String sourceSpecsTopic = "";
     private String sourceSchemaType = "";
@@ -63,4 +67,6 @@ public class GoInstanceConfig {
 
     private int maxMessageRetries;
     private String deadLetterTopic = "";
+
+    private int metricsPort;
 }

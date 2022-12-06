@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -32,8 +32,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -68,12 +66,12 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
-        if (leastLoadedBroker.isPresent()) {
-            return Optional.of(new SimpleResourceUnit(getBrokerWebServiceUrl(leastLoadedBroker.get()),
-                    new PulsarResourceDescription()));
-        } else {
-            return Optional.empty();
-        }
+        return leastLoadedBroker.map(s -> {
+            String webServiceUrl = getBrokerWebServiceUrl(s);
+            String brokerZnodeName = getBrokerZnodeName(s, webServiceUrl);
+            return new SimpleResourceUnit(webServiceUrl,
+                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+        });
     }
 
     private String getBrokerWebServiceUrl(String broker) {
@@ -84,10 +82,15 @@ public class ModularLoadManagerWrapper implements LoadManager {
         }
         return String.format("http://%s", broker);
     }
-    
+
+    private String getBrokerZnodeName(String broker, String webServiceUrl) {
+        String scheme = webServiceUrl.substring(0, webServiceUrl.indexOf("://"));
+        return String.format("%s://%s", scheme, broker);
+    }
+
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
-        return Collections.emptyList();
+        return loadManager.getLoadBalancingMetrics();
     }
 
     @Override
@@ -121,13 +124,13 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
-    public void writeResourceQuotasToZooKeeper() {
-        loadManager.writeBundleDataOnZooKeeper();
+    public void writeLoadReportOnZookeeper(boolean force) {
+        loadManager.writeBrokerDataOnZooKeeper(force);
     }
 
     @Override
-    public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
-        return loadManager.getLoadReportDeserializer();
+    public void writeResourceQuotasToZooKeeper() {
+        loadManager.writeBundleDataOnZooKeeper();
     }
 
     public ModularLoadManager getLoadManager() {
@@ -137,5 +140,10 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
         return loadManager.getAvailableBrokers();
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        return loadManager.getAvailableBrokersAsync();
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -37,7 +38,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -102,11 +103,10 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
         do {
             Message<byte[]> message = consumer.receive();
-            message.getProperties();
             final int redeliveryCount = message.getRedeliveryCount();
             if (redeliveryCount > 2) {
                 consumer.acknowledge(message);
-                Assert.assertEquals(3, redeliveryCount);
+                Assert.assertEquals(redeliveryCount, 3);
                 break;
             }
         } while (true);
@@ -118,7 +118,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException, InterruptedException {
+    public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException {
 
         String topic = "persistent://my-property/my-ns/testRedeliveryCountWhenConsumerDisconnected";
 
@@ -164,14 +164,15 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
                 receivedMessagesForConsumer1.add(msg);
             } else {
                 break;
-            }        }
+            }
+        }
 
         Assert.assertEquals(receivedMessagesForConsumer0.size() + receivedMessagesForConsumer1.size(), messages);
 
         consumer0.close();
 
         for (int i = 0; i < receivedMessagesForConsumer0.size(); i++) {
-            Assert.assertEquals(consumer1.receive().getRedeliveryCount(), 1);
+            Assert.assertEquals(consumer1.receive().getRedeliveryCount(), 0);
         }
 
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,58 +18,106 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class LookupImpl extends BaseResource implements Lookup {
 
     private final WebTarget v2lookup;
     private final boolean useTls;
+    private final Topics topics;
 
-    public LookupImpl(WebTarget web, Authentication auth, boolean useTls, long readTimeoutMs) {
+    public LookupImpl(WebTarget web, Authentication auth, boolean useTls, long readTimeoutMs, Topics topics) {
         super(auth, readTimeoutMs);
         this.useTls = useTls;
         v2lookup = web.path("/lookup/v2");
+        this.topics = topics;
     }
 
     @Override
     public String lookupTopic(String topic) throws PulsarAdminException {
+        return sync(() -> lookupTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<String> lookupTopicAsync(String topic) {
         TopicName topicName = TopicName.get(topic);
         String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName());
+        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
 
-        try {
-            return doTopicLookup(target);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return asyncGetRequest(path, new FutureCallback<LookupData>() {})
+                .thenApply(lookupData -> useTls ? lookupData.getBrokerUrlTls() : lookupData.getBrokerUrl());
+    }
+
+    @Override
+    public Map<String, String> lookupPartitionedTopic(String topic) throws PulsarAdminException {
+        return sync(() -> lookupPartitionedTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> lookupPartitionedTopicAsync(String topic) {
+        CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        topics.getPartitionedTopicMetadataAsync(topic).thenAccept(partitionedTopicMetadata -> {
+            int partitions = partitionedTopicMetadata.partitions;
+            if (partitions <= 0) {
+               future.completeExceptionally(
+                        new PulsarAdminException("Topic " + topic + " is not a partitioned topic"));
+               return;
+            }
+
+            Map<String, CompletableFuture<String>> lookupResult = new LinkedHashMap<>(partitions);
+            for (int i = 0; i < partitions; i++) {
+                String partitionTopicName = topic + "-partition-" + i;
+                lookupResult.put(partitionTopicName, lookupTopicAsync(partitionTopicName));
+            }
+
+            FutureUtil.waitForAll(new ArrayList<>(lookupResult.values())).whenComplete((url, throwable) ->{
+               if (throwable != null) {
+                   future.completeExceptionally(getApiException(throwable.getCause()));
+                   return;
+               }
+               Map<String, String> result = new LinkedHashMap<>();
+               for (Map.Entry<String, CompletableFuture<String>> entry : lookupResult.entrySet()) {
+                   try {
+                       result.put(entry.getKey(), entry.getValue().get());
+                   } catch (InterruptedException | ExecutionException e) {
+                       future.completeExceptionally(e);
+                       return;
+                   }
+               }
+               future.complete(result);
+            });
+
+        }).exceptionally(throwable -> {
+            future.completeExceptionally(getApiException(throwable.getCause()));
+            return null;
+        });
+
+        return future;
     }
 
     @Override
     public String getBundleRange(String topic) throws PulsarAdminException {
-        TopicName topicName = TopicName.get(topic);
-        String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
-
-        try {
-            return request(target).get(String.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        return sync(() -> getBundleRangeAsync(topic));
     }
 
-    private String doTopicLookup(WebTarget lookupResource) throws PulsarAdminException {
-        LookupData lookupData = request(lookupResource).get(LookupData.class);
-        if (useTls) {
-            return lookupData.getBrokerUrlTls();
-        } else {
-            return lookupData.getBrokerUrl();
-        }
+    @Override
+    public CompletableFuture<String> getBundleRangeAsync(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        String prefix = topicName.isV2() ? "/topic" : "/destination";
+        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
 }

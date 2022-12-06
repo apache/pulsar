@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,11 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
-
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class AuthenticationDataCommand implements AuthenticationDataSource {
     protected final String authData;
     protected final SocketAddress remoteAddress;
@@ -79,10 +80,10 @@ public class AuthenticationDataCommand implements AuthenticationDataSource {
     @Override
     public Certificate[] getTlsCertificates() {
         try {
-            return (Certificate[]) sslSession.getPeerCertificates();
+            return sslSession.getPeerCertificates();
         } catch (SSLPeerUnverifiedException e) {
+            log.error("Failed to verify the peer's identity", e);
             return null;
         }
     }
-
 }

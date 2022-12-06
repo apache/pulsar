@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,6 @@ import java.util.Collections;
 import java.util.Map;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -42,6 +40,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
 
     @Override
@@ -63,8 +62,6 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Foo {
         private String field1;
         private String field2;
@@ -73,8 +70,6 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Bar {
         private boolean field1;
     }
@@ -123,12 +118,18 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
             JsonSchema schema = schemaGen.generateSchema(pojo);
 
-            SchemaInfo info = new SchemaInfo();
-            info.setName("");
-            info.setProperties(properties);
-            info.setType(SchemaType.JSON);
-            info.setSchema(mapper.writeValueAsBytes(schema));
+            SchemaInfo info = SchemaInfo.builder()
+                    .name("")
+                    .properties(properties)
+                    .type(SchemaType.JSON)
+                    .schema(mapper.writeValueAsBytes(schema))
+                    .build();
             return new OldJSONSchema<>(info, pojo, mapper);
+        }
+
+        @Override
+        public Schema<T> clone() {
+            return this;
         }
     }
 }

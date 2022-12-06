@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,10 +41,10 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId) {
+        if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                     getDockerClient(),
-                    containerId,
+                    getContainerId(),
                     "/pulsar/logs/functions"
             );
         }
