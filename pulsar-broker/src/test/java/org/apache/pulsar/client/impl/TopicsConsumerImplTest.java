@@ -69,6 +69,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
@@ -537,6 +538,35 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Already subscribed to " + topicName);
             return null;
         }).get();
+    }
+
+    @Test(timeOut = 30000)
+    public void testExclusiveSubscribe() throws Exception {
+        final String topicName = "persistent://tenant1/namespace1/testTopicNameValid";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("tenant1", tenantInfo);
+        admin.namespaces().createNamespace("tenant1/namespace1");
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("subscriptionName")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        try {
+            pulsarClient.newConsumer()
+                    .topics(IntStream.range(0, 3).mapToObj(i -> topicName + "-partition-" + i)
+                    .collect(Collectors.toList()))
+                    .subscriptionName("subscriptionName")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            String errorLog = e.getMessage();
+            assertTrue(errorLog.contains("Exclusive consumer is already connected"));
+        }
+        consumer1.close();
     }
 
     @Test
