@@ -490,18 +490,16 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         // Update schema 100 times.
         for (int i = 0; i < 100; i++){
             Schema schema = Schema.JSON(SchemaDefinition.builder()
-                    .withJsonDef(String.format("""
-                            {
-                            	"type": "record",
-                            	"name": "Test_Pojo",
-                            	"namespace": "org.apache.pulsar.schema.compatibility",
-                            	"fields": [{
-                            		"name": "prop_%s",
-                            		"type": ["null", "string"],
-                            		"default": null
-                            	}]
-                            }
-                            """, i))
+                    .withJsonDef(String.format("{\n"
+                            + "    \"type\": \"record\",\n"
+                            + "    \"name\": \"Test_Pojo\",\n"
+                            + "    \"namespace\": \"org.apache.pulsar.schema.compatibility\",\n"
+                            + "    \"fields\": [{\n"
+                            + "        \"name\": \"prop_%s\",\n"
+                            + "        \"type\": [\"null\", \"string\"],\n"
+                            + "        \"default\": null\n"
+                            + "    }]\n"
+                            + "}", i))
                     .build());
             Producer producer = pulsarClient
                     .newProducer(schema)
