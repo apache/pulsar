@@ -359,7 +359,7 @@ All the loadbalancing metrics are labeled with the following labels:
 | pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage (in percent). | 
 | pulsar_lb_memory_usage | Gauge | The broker process memory usage (in percent). |
 
-#### BundleUnloading metrics
+### BundleUnloading metrics
 All the bundleUnloading metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
@@ -369,7 +369,7 @@ All the bundleUnloading metrics are labeled with the following labels:
 | pulsar_lb_unload_broker_total | Counter | Unload broker count in this bundle unloading |
 | pulsar_lb_unload_bundle_total | Counter | Bundle unload count in this bundle unloading |
 
-#### BundleSplit metrics
+### BundleSplit metrics
 All the bundleUnloading metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
