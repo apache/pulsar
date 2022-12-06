@@ -85,7 +85,7 @@ public class ManagedLedgerConfig {
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
-    private Long managedLedgerOffloadFlowPermitsPerSecond;
+    private long managedLedgerOffloadFlowPermitsPerSecond = -1;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;

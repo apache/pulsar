@@ -33,7 +33,7 @@ import org.apache.bookkeeper.mledger.util.WindowWrap;
 
 public class OffloadReadHandle implements ReadHandle {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
-    private static volatile Long flowPermits;
+    private static volatile long flowPermits = -1L;
     private static volatile TimeWindow<AtomicLong> window;
 
     private final ReadHandle delegator;
