@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -251,8 +252,7 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean noFunctionsWorker = false;
 
     @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
-    private String fnWorkerConfigFile =
-            Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+    private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
     @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
     private boolean noStreamStorage = false;
@@ -269,6 +269,11 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean usingNewDefaultsPIP117;
 
     public void start() throws Exception {
+        if (config == null) {
+            log.error("Failed to load configuration");
+            System.exit(1);
+        }
+
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
 
         // Allow forcing to use ZK mode via an env variable. eg:
@@ -282,11 +287,6 @@ public class PulsarStandalone implements AutoCloseable {
         } else {
             // There's no existing ZK data directory, or we're already using RocksDB for metadata
             usingNewDefaultsPIP117 = true;
-        }
-
-        if (config == null) {
-            log.error("Failed to load configuration");
-            System.exit(1);
         }
 
         log.debug("--- setup PulsarStandaloneStarter ---");
@@ -305,8 +305,8 @@ public class PulsarStandalone implements AutoCloseable {
 
         // initialize the functions worker
         if (!this.isNoFunctionsWorker()) {
-            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
-                config, this.getFnWorkerConfigFile());
+            final String filepath = Path.of(getFnWorkerConfigFile()).toAbsolutePath().normalize().toString();
+            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, filepath);
             if (usingNewDefaultsPIP117) {
                 workerConfig.setStateStorageProviderImplementation(
                         PulsarMetadataStateStoreProviderImpl.class.getName());

@@ -11,13 +11,11 @@ You can use the `localrun` command to run a single instance of a function. To ru
 The following is an example of how to use the `localrun` command.
 
 ```bash
-
 bin/pulsar-admin functions localrun \
   --py myfunc.py \
   --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
-
 ```
 
 :::note
