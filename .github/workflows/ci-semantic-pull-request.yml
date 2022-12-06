@@ -34,7 +34,7 @@ jobs:
     name: Check pull request title
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v4
+      - uses: amannn/action-semantic-pull-request@v5.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -49,15 +49,19 @@ jobs:
             revert
           # Scope abbreviation comments:
           # cli     -> command line interface
-          # fn      -> Pulasr Functions
+          # fn      -> Pulsar Functions
           # io      -> Pulsar Connectors
           # offload -> tiered storage
           # sec     -> security
           # sql     -> Pulsar Trino Plugin
           # txn     -> transaction
           # ws      -> websocket
+          # ml      -> managed ledger
+          # zk      -> zookeeper
+          # bk      -> bookkeeper
           scopes: |
             admin
+            bk
             broker
             build
             ci
@@ -68,6 +72,7 @@ jobs:
             io
             meta
             misc
+            ml
             monitor
             offload
             proxy
@@ -79,12 +84,13 @@ jobs:
             test
             txn
             ws
-          # The pull request's title should be fulfill the following pattern:
+            zk
+          # The pull request's title should be fulfilled the following pattern:
           #
           #     [<type>][<optional scope>] <description>
           #
           # ... where valid types and scopes can be found above; for example:
           #
           #     [fix][test] flaky test V1_ProxyAuthenticationTest.anonymousSocketTest
-          headerPattern: '^\[(\w*)\](?:\[(.*)\])? (.*)$'
+          headerPattern: '^\[(\w*?)\](?:\[(.*?)\])?(?:\s*)(.*)$'
           headerPatternCorrespondence: type, scope, subject

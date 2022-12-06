@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -218,6 +218,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Maximum duration for completing a request."
     )
     private int requestTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "readTimeoutMs",
+            value = "Maximum read time of a request."
+    )
+    private int readTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
 
     @ApiModelProperty(
             name = "initialBackoffIntervalNanos",

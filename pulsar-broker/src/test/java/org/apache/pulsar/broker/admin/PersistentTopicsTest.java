@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -92,6 +92,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.internal.util.MockUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -99,7 +100,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker-admin")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -191,6 +192,17 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(errorCaptor.getValue().getMessage(),
                 "Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has "
                         + "zero partitions");
+
+        // Confirm that the namespace does not exist
+        String notExistNamespace = "not-exist-namespace";
+        response = mock(AsyncResponse.class);
+        persistentTopics.getSubscriptions(response, testTenant, notExistNamespace, testLocalTopicName,
+                true);
+        errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Namespace not found");
 
         // 3) Create the partitioned topic
         response = mock(AsyncResponse.class);
@@ -1501,6 +1513,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
+        MockUtil.resetMock(brokerService);
+
         CompletableFuture<Void> deleteTopicFuture2 = new CompletableFuture<>();
         ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
         deleteTopicFuture2.completeExceptionally(new MetadataStoreException("test exception"));
@@ -1510,6 +1524,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
                 Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
+
+        MockUtil.resetMock(brokerService);
 
         CompletableFuture<Void> deleteTopicFuture3 = new CompletableFuture<>();
         response = mock(AsyncResponse.class);

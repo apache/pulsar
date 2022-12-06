@@ -25,6 +25,8 @@ set -o pipefail
 set -o errexit
 
 JAVA_MAJOR_VERSION="$(java -version 2>&1 |grep " version " | awk -F\" '{ print $2 }' | awk -F. '{ if ($1=="1") { print $2 } else { print $1 } }')"
+# Used to shade run test on Java 8, because the latest TestNG requires Java 11 or higher.
+TESTNG_VERSION="7.3.0"
 
 # lists all active maven modules with given parameters
 # parses the modules from the "mvn initialize" output
@@ -95,6 +97,11 @@ test_group_shade_run() {
   if [[ $JAVA_MAJOR_VERSION -gt 8 && $JAVA_MAJOR_VERSION -lt 17 ]]; then
     additional_args="-Dmaven.compiler.source=$JAVA_MAJOR_VERSION -Dmaven.compiler.target=$JAVA_MAJOR_VERSION"
   fi
+
+  if [[ $JAVA_MAJOR_VERSION -ge 8 && $JAVA_MAJOR_VERSION -lt 11 ]]; then
+      additional_args="$additional_args -Dtestng.version=$TESTNG_VERSION"
+  fi
+
   mvn_run_integration_test --skip-build-deps --clean "$@" -Denforcer.skip=true -DShadeTests -DtestForkCount=1 -DtestReuseFork=false $additional_args
 }
 
@@ -122,6 +129,8 @@ test_group_messaging() {
   mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests
   # run integration WebSocket tests
   mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-websocket.xml -DintegrationTests
+  # run integration TLS tests
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-tls.xml -DintegrationTests
 }
 
 test_group_plugin() {

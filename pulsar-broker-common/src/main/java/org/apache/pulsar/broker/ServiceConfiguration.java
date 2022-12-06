@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
  */
 @Getter
 @Setter
+@ToString
 public class ServiceConfiguration implements PulsarConfiguration {
 
     @Category
@@ -553,6 +554,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How often to check for topics that have reached the quota."
             + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
@@ -615,6 +617,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         dynamic = true,
         doc = "How often to check for inactive topics"
     )
@@ -643,12 +646,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
     )
     private boolean forceDeleteTenantAllowed = false;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of namespaces. Default is false."
     )
     private boolean forceDeleteNamespaceAllowed = false;
@@ -662,6 +667,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How frequently to proactively check and purge expired messages"
     )
     private int messageExpiryCheckIntervalInMinutes = 5;
@@ -765,12 +771,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "Time of inactivity after which the broker will discard the deduplication information"
             + " relative to a disconnected producer. Default is 6 hours.")
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
@@ -1861,6 +1869,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for bytes read from storage."
+            + " This is the memory retained by data read from storage (or cache) until it has been delivered to the"
+            + " Consumer Netty channel. Use O to disable")
+    private long managedLedgerMaxReadsInFlightSizeInMB = 0;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -1960,6 +1974,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The number of bytes before triggering automatic offload to long term storage"
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The threshold to triggering automatic offload to long term storage"
+    )
+    private long managedLedgerOffloadThresholdInSeconds = -1L;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
@@ -2515,6 +2534,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
+                + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
+    )
+    private int clusterMigrationCheckDurationSeconds = 0;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
@@ -2651,6 +2677,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
     @FieldContext(
+            dynamic = true,
             category = CATEGORY_METRICS,
             doc = "Enable expose the broker bundles metrics."
     )
@@ -2683,6 +2710,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposePublisherStats = true;
     @FieldContext(
         category = CATEGORY_METRICS,
+        minValue = 1,
         doc = "Stats update frequency in seconds"
     )
     private int statsUpdateFrequencyInSecs = 60;

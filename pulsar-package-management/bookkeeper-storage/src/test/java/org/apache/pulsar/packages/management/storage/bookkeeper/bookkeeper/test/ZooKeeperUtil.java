@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.packages.management.storage.bookkeeper.bookkeeper.test;
 
+import static org.testng.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.test.ZooKeeperCluster;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -34,7 +33,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.test.ClientBase;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,7 +134,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         if (this.serverFactory != null) {
             this.serverFactory.shutdown();
-            Assert.assertTrue("waiting for server down", ClientBase.waitForServerDown(this.getZooKeeperConnectString(), (long)ClientBase.CONNECTION_TIMEOUT));
+            assertTrue(ClientBase.waitForServerDown(this.getZooKeeperConnectString(), (long)ClientBase.CONNECTION_TIMEOUT),"waiting for server down");
         }
 
         if (this.zks != null) {

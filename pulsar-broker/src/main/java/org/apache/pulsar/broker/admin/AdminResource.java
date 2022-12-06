@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,10 +61,12 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -295,6 +297,14 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected WorkerService validateAndGetWorkerService() {
+        try {
+            return pulsar().getWorkerService();
+        } catch (UnsupportedOperationException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        }
+    }
+
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
             Policies policies = namespaceResources().getPolicies(namespaceName)
@@ -426,6 +436,13 @@ public abstract class AdminResource extends PulsarWebResource {
                 pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
                 pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
         );
+    }
+
+    protected AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride() {
+        boolean allowAutoSubscriptionCreation = pulsar().getConfiguration().isAllowAutoSubscriptionCreation();
+        return AutoSubscriptionCreationOverrideImpl.builder()
+                .allowAutoSubscriptionCreation(allowAutoSubscriptionCreation)
+                .build();
     }
 
     public static ObjectMapper jsonMapper() {
@@ -742,38 +759,38 @@ public abstract class AdminResource extends PulsarWebResource {
         return validateTopicPolicyOperationAsync(topicName,
                 PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ)
-                .thenCompose((__) -> {
-                    CompletableFuture<SchemaCompatibilityStrategy> future;
-                    if (config().isTopicLevelPoliciesEnabled()) {
-                        future = getTopicPoliciesAsyncWithRetry(topicName)
-                                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
-                    } else {
-                        future = CompletableFuture.completedFuture(null);
-                    }
-
-                    return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
-                        if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
-                            return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
-                        }
-                        return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
-                            SchemaCompatibilityStrategy schemaCompatibilityStrategy =
-                                    policies.schema_compatibility_strategy;
-                            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                                        policies.schema_auto_update_compatibility_strategy);
-                                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                                    schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-                                }
-                            }
-                            return schemaCompatibilityStrategy;
-                        });
-                    });
-                }).whenComplete((__, ex) -> {
+                .thenCompose((__) -> getSchemaCompatibilityStrategyAsyncWithoutAuth()).whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
                                 clientAppId(), topicName, ex);
                     }
                 });
+    }
+
+    protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
+        CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
+        if (config().isTopicLevelPoliciesEnabled()) {
+            future = getTopicPoliciesAsyncWithRetry(topicName)
+                    .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
+        }
+
+        return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
+            if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
+                return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
+            }
+            return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+                        policies.schema_compatibility_strategy;
+                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                    schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                            policies.schema_auto_update_compatibility_strategy);
+                    if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                        schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+                    }
+                }
+                return schemaCompatibilityStrategy;
+            });
+        });
     }
 
     @CanIgnoreReturnValue

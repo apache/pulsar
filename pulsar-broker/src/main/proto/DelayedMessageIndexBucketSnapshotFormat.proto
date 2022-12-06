@@ -24,8 +24,8 @@ option optimize_for = SPEED;
 
 message DelayedIndex {
     required uint64 timestamp = 1;
-    required int64 ledger_id = 2;
-    required int64 entry_id = 3;
+    required uint64 ledger_id = 2;
+    required uint64 entry_id = 3;
 }
 
 message SnapshotSegmentMetadata {

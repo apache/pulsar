@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -881,6 +882,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Unload a namespace bundle")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void unloadNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -907,6 +909,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Split a namespace bundle")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void splitNamespaceBundle(
             @Suspended final AsyncResponse asyncResponse,
@@ -916,10 +919,14 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
-            @QueryParam("splitBoundaries") @DefaultValue("") List<Long> splitBoundaries) {
+            @QueryParam("splitAlgorithmName") String splitAlgorithmName,
+            @ApiParam("splitBoundaries") List<Long> splitBoundaries) {
         validateNamespaceName(property, cluster, namespace);
+        if (StringUtils.isEmpty(splitAlgorithmName)) {
+            splitAlgorithmName = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME;
+        }
         internalSplitNamespaceBundleAsync(bundleRange,
-                authoritative, unload, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME, splitBoundaries)
+                authoritative, unload, splitAlgorithmName, splitBoundaries)
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully split namespace bundle {}", clientAppId(), bundleRange);
                     asyncResponse.resume(Response.noContent().build());

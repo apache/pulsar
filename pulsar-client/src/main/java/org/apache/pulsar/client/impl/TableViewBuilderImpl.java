@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -75,5 +74,12 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
        checkArgument(unit.toSeconds(interval) >= 1, "minimum is 1 second");
        conf.setAutoUpdatePartitionsSeconds(unit.toSeconds(interval));
        return this;
+    }
+
+    @Override
+    public TableViewBuilder<T> subscriptionName(String subscriptionName) {
+        checkArgument(StringUtils.isNotBlank(subscriptionName), "subscription name cannot be blank");
+        conf.setSubscriptionName(StringUtils.trim(subscriptionName));
+        return this;
     }
 }

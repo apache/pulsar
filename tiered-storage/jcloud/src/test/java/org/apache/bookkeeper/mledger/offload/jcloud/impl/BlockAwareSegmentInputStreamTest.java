@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -797,5 +798,19 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(inputStream.getEndEntryId(), expectedEntryCount - 1);
 
         inputStream.close();
+    }
+
+    @Test
+    public void testCloseReleaseResources() throws Exception {
+        ReadHandle readHandle = new MockReadHandle(1, 10, 10);
+
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, 1024);
+        inputStream.read();
+        Field field = BlockAwareSegmentInputStreamImpl.class.getDeclaredField("paddingBuf");
+        field.setAccessible(true);
+        ByteBuf paddingBuf = (ByteBuf) field.get(inputStream);
+        assertEquals(1, paddingBuf.refCnt());
+        inputStream.close();
+        assertEquals(0, paddingBuf.refCnt());
     }
 }

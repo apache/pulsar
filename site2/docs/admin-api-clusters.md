@@ -53,8 +53,8 @@ You can provision a new cluster using the [`create`](/tools/pulsar-admin/) subco
 
 ```shell
 pulsar-admin clusters create cluster-1 \
---url http://my-cluster.org.com:8080 \
---broker-url pulsar://my-cluster.org.com:6650
+    --url http://my-cluster.org.com:8080 \
+    --broker-url pulsar://my-cluster.org.com:6650
 ```
 
 </TabItem>
@@ -96,8 +96,8 @@ You must initialize cluster metadata *before* starting up any [brokers](admin-ap
 >
 > Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API
 > or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly.
-> Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular
-> the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
+> Instead, you can use the [`pulsar`](reference-cli-tools.md) CLI tool, in particular
+> the [`initialize-cluster-metadata`](reference-cli-tools.md) command.
 
 Here's an example cluster metadata initialization command:
 
@@ -128,6 +128,10 @@ Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the clu
 
 ```shell
 pulsar-admin clusters get cluster-1
+```
+Output:
+
+```json
 {
     "serviceUrl": "http://my-cluster.org.com:8080/",
     "serviceUrlTls": null,
@@ -168,8 +172,8 @@ Use the [`update`](/tools/pulsar-admin/) subcommand and specify new configuratio
 
 ```shell
 pulsar-admin clusters update cluster-1 \
---url http://my-cluster.org.com:4081 \
---broker-url pulsar://my-cluster.org.com:3350
+    --url http://my-cluster.org.com:4081 \
+    --broker-url pulsar://my-cluster.org.com:3350
 ```
 
 </TabItem>
@@ -242,10 +246,14 @@ Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 pulsar-admin clusters list
+```
+
+Output:
+
+```
 cluster-1
 cluster-2
 ```
-
 </TabItem>
 <TabItem value="REST API">
 
@@ -275,7 +283,7 @@ Peer clusters can be configured for a given cluster in a Pulsar [instance](refer
 
 Use the [`update-peer-clusters`](/tools/pulsar-admin/) subcommand and specify the list of peer-cluster names.
 
-```
+```shell
 pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 ```
 

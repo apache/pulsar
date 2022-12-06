@@ -84,7 +84,7 @@ The instructions for Java, Python, and C++ clients are different.
   values={[{"label":"Java clients","value":"Java clients"},{"label":"Python clients","value":"Python clients"},{"label":"C++ clients","value":"C++ clients"}]}>
 <TabItem value="Java clients">
 
-To ensure the guarantee order on a [Java producer](client-libraries-java.md#producers) sending to a topic with message deduplication enabled, set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
+To ensure the guarantee order on a [Java producer](client-libraries-java.md#producer) sending to a topic with message deduplication enabled, set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
 
 ```java
 import org.apache.pulsar.client.api.Producer;
@@ -104,7 +104,7 @@ Producer producer = pulsarClient.newProducer()
 </TabItem>
 <TabItem value="Python clients">
 
-Not to break the guarantee order on a [Python producer](client-libraries-python.md#producers) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
+Not to break the guarantee order on a [Python producer](client-libraries-python.md) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```python
 import pulsar
@@ -118,7 +118,7 @@ producer = client.create_producer(
 
 </TabItem>
 <TabItem value="C++ clients">
-Not to break the guarantee order on a [C++ producer](client-libraries-cpp.md#producer) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
+Not to break the guarantee order on a [C++ producer](client-libraries-cpp.md#create-a-producer) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```cpp
 #include <pulsar/Client.h>

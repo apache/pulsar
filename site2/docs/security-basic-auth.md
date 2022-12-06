@@ -55,9 +55,9 @@ cat path/to/.htpasswd
 superuser:$apr1$GBIYZYFZ$MzLcPrvoUky16mLcK6UtX/
 ```
 
-## Enable basic authentication on brokers
+## Enable basic authentication on brokers/proxies
 
-To configure brokers to authenticate clients, add the following parameters to the `conf/broker.conf` file. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file:
+To configure brokers/proxies to authenticate clients using basic, add the following parameters to the `conf/broker.conf` and the `conf/proxy.conf` file. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file:
 
 ```conf
 # Configuration to enable Basic authentication
@@ -70,43 +70,9 @@ basicAuthConf=file:///path/to/.htpasswd
 # basicAuthConf=data:;base64,YOUR-BASE64
 # basicAuthConf=YOUR-BASE64
 
-# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, or when the proxy connects to brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationBasic
 brokerClientAuthenticationParameters={"userId":"superuser","password":"admin"}
-
-# If this flag is set then the broker authenticates the original Auth data
-# else it just accepts the originalPrincipal and authorizes it (if required).
-authenticateOriginalAuthData=true
-```
-
-:::note
-
-You can also set an environment variable named `PULSAR_EXTRA_OPTS` and the value is `-Dpulsar.auth.basic.conf=/path/to/.htpasswd`. Pulsar reads this environment variable to implement HTTP basic authentication.
-
-:::
-
-## Enable basic authentication on proxies
-
-To configure proxies to authenticate clients, add the following parameters to the `conf/proxy.conf` file:
-
-```conf
-# For clients connecting to the proxy
-authenticationEnabled=true
-authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderBasic
-
-basicAuthConf=file:///path/to/.htpasswd
-# basicAuthConf=/path/to/.htpasswd
-# When use the base64 format, you need to encode the .htpaswd content to bas64
-# basicAuthConf=data:;base64,YOUR-BASE64
-# basicAuthConf=YOUR-BASE64
-
-# For the proxy to connect to brokers
-brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationBasic
-brokerClientAuthenticationParameters={"userId":"superuser","password":"admin"}
-
-# Whether client authorization credentials are forwarded to the broker for re-authorization.
-# Authentication must be enabled via authenticationEnabled=true for this to take effect.
-forwardAuthorizationCredentials=true
 ```
 
 :::note

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,14 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -59,14 +61,14 @@ public class PendingReadsManagerTest  {
     static final Object CTX = "foo";
     static final Object CTX2 = "far";
     static final long ledgerId = 123414L;
-    OrderedExecutor orderedExecutor;
+    ExecutorService orderedExecutor;
 
     PendingReadsManagerTest() {
     }
 
     @BeforeClass(alwaysRun = true)
     void before() {
-        orderedExecutor = OrderedExecutor.newBuilder().build();
+        orderedExecutor = Executors.newSingleThreadExecutor();
     }
 
     @AfterClass(alwaysRun = true)
@@ -80,12 +82,19 @@ public class PendingReadsManagerTest  {
 
     RangeEntryCacheImpl rangeEntryCache;
     PendingReadsManager pendingReadsManager;
+    InflightReadsLimiter inflighReadsLimiter;
     ReadHandle lh;
     ManagedLedgerImpl ml;
 
     @BeforeMethod(alwaysRun = true)
     void setupMocks() {
         rangeEntryCache = mock(RangeEntryCacheImpl.class);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setReadEntryTimeoutSeconds(10000);
+        when(rangeEntryCache.getName()).thenReturn("my-topic");
+        when(rangeEntryCache.getManagedLedgerConfig()).thenReturn(config);
+        inflighReadsLimiter = new InflightReadsLimiter(0);
+        when(rangeEntryCache.getPendingReadsLimiter()).thenReturn(inflighReadsLimiter);
         pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         doAnswer(new Answer() {
             @Override

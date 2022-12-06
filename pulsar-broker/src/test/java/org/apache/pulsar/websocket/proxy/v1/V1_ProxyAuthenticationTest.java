@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.websocket.proxy.v1;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -26,16 +25,13 @@ import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Sets;
 import java.net.URI;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.Cleanup;
 import org.apache.pulsar.client.api.v1.V1_ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -94,20 +90,12 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = newFixedThreadPool(1);
         try {
-            executor.submit(() -> {
-                try {
-                    consumeClient.stop();
-                    produceClient.stop();
-                    log.info("proxy clients are stopped successfully");
-                } catch (Exception e) {
-                    log.error(e.getMessage());
-                }
-            }).get(2, TimeUnit.SECONDS);
+            consumeClient.stop();
+            produceClient.stop();
+            log.info("proxy clients are stopped successfully");
         } catch (Exception e) {
-            log.error("failed to close clients ", e);
+            log.error(e.getMessage());
         }
 
         super.internalCleanup();
@@ -197,14 +185,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             Assert.assertTrue(producerFuture.get().isOpen());
 
-            int retry = 0;
-            int maxRetry = 500;
-            while (consumeSocket.getReceivedMessagesCount() < 3) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumeSocket.getReceivedMessagesCount() >= 3));
 
             service.getProxyStats().generate();
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.AllArgsConstructor;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -37,6 +38,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 /**
  * PendingReadsManager tries to prevent sending duplicate reads to BK.
  */
+@Slf4j
 public class PendingReadsManager {
 
     private static final Counter COUNT_ENTRIES_READ_FROM_BK = Counter
@@ -290,8 +292,7 @@ public class PendingReadsManager {
                         }
                     }
                 }
-            }, rangeEntryCache.getManagedLedger().getExecutor()
-                    .chooseThread(rangeEntryCache.getManagedLedger().getName())).exceptionally(exception -> {
+            }, rangeEntryCache.getManagedLedger().getExecutor()).exceptionally(exception -> {
                 synchronized (PendingRead.this) {
                     for (ReadEntriesCallbackWithContext callback : callbacks) {
                         ManagedLedgerException mlException = createManagedLedgerException(exception);
@@ -315,8 +316,6 @@ public class PendingReadsManager {
 
     void readEntries(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
                      final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-
-
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
         Map<PendingReadKey, PendingRead> pendingReadsForLedger =
@@ -441,6 +440,7 @@ public class PendingReadsManager {
             }
         }
     }
+
 
     void clear() {
         cachedPendingReads.clear();
