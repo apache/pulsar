@@ -655,7 +655,7 @@ public class PulsarRecordCursor implements RecordCursor {
             return schemaInfo;
         }
         try {
-            if (this.currentMessage.getSchemaVersion() == null) {
+            if (this.currentMessage.getSchemaVersion() == null || this.currentMessage.getSchemaVersion().length == 0) {
                 schemaInfo = pulsarSplit.getSchemaInfo();
             } else {
                 schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();
