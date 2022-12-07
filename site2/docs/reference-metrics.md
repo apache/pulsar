@@ -118,8 +118,6 @@ in the `broker.conf` configuration file.
 
 All the metrics exposed by a broker are labeled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
 
-The following metrics are available for broker:
-
 ### Broker metrics
 All the broker metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
