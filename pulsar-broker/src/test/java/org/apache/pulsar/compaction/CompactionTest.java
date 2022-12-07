@@ -426,19 +426,37 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "messagesToSend")
     public void testRaceConditionByCompactionAndGetLastMessageId(List<Pair<String,String>> messagesToSend)
             throws Exception {
-        doTestRaceConditionByCompactionAndGetLastMessageId(false, messagesToSend, 1);
+        doTestRaceConditionByCompactionAndGetLastMessageId(false, messagesToSend, 1, false);
     }
 
     @Test(dataProvider = "messagesToSend")
     public void testRaceConditionByCompactionAndGetLastBatchMessageId(List<Pair<String,String>> messagesToSend)
             throws Exception {
-        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 1);
+        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 1, false);
     }
 
     @Test(dataProvider = "messagesToSend")
     public void testRaceConditionByCompactionAndGetLastBatchMessageId2(List<Pair<String,String>> messagesToSend)
             throws Exception {
-        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 3);
+        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 3, false);
+    }
+
+    @Test(dataProvider = "messagesToSend")
+    public void testReadMessageAfterCompaction(List<Pair<String,String>> messagesToSend)
+            throws Exception {
+        doTestRaceConditionByCompactionAndGetLastMessageId(false, messagesToSend, 1, true);
+    }
+
+    @Test(dataProvider = "messagesToSend")
+    public void testReadMessageAfterCompactionWithBatchFuture(List<Pair<String,String>> messagesToSend)
+            throws Exception {
+        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 1, true);
+    }
+
+    @Test(dataProvider = "messagesToSend")
+    public void testReadMessageAfterCompactionWithBatchFuture2(List<Pair<String,String>> messagesToSend)
+            throws Exception {
+        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 3, true);
     }
 
     /**
@@ -453,7 +471,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
      */
     private void doTestRaceConditionByCompactionAndGetLastMessageId(boolean enabledBatch,
                                                                  List<Pair<String,String>> messagesToSend,
-                                                                 int sendMessagesLoopCount)
+                                                                 int sendMessagesLoopCount,
+                                                                 boolean compactionBeforeGetLastMessageId)
                                                                  throws Exception {
         cleanup();
         // Disable the scheduled task: compaction.
@@ -492,10 +511,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         FutureUtil.waitForAll(sendFutures).join();
 
         // Trigger race condition of "compaction" and "getLastMessageId".
-        reader.hasMessageAvailable();
+        if (!compactionBeforeGetLastMessageId) {
+            reader.hasMessageAvailable();
+        }
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
         persistentTopic.triggerCompaction();
+        if (compactionBeforeGetLastMessageId) {
+            reader.hasMessageAvailable();
+        }
 
         Awaitility.await().untilAsserted(() -> {
             PositionImpl lastConfirmPos = (PositionImpl) persistentTopic.getManagedLedger().getLastConfirmedEntry();

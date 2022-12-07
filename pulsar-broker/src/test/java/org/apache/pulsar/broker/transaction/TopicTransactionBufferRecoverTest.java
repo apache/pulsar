@@ -369,7 +369,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @Test
-    private void testTrimLedgerWillKeepsAtLeastOneLedgerWithData() throws Exception {
+    private void testLastNonEmptyLedgerWillNotBeDeleteByTrimLedgers() throws Exception {
         String topicName = String.format("persistent://%s/%s", NAMESPACE1,
                 "tx_recover_" + UUID.randomUUID().toString().replaceAll("-", "_"));
         String subName = "sub";
@@ -401,8 +401,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // Verify the last ledger will not be deleted.
         Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = getLedgers(transactionBufferTopicName);
         long lastLedgerHasData = -1;
-        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledger : ledgers.values()){
-            if (ledger.getEntries() > 0){
+        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledger : ledgers.values()) {
+            if (ledger.getEntries() > 0) {
                 lastLedgerHasData = Math.max(lastLedgerHasData, ledger.getLedgerId());
             }
         }
