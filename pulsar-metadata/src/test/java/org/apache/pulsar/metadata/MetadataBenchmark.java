@@ -108,7 +108,8 @@ public class MetadataBenchmark extends MetadataStoreTest {
     @Test(dataProvider = "impl", enabled = false)
     public void testPut(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         final int N_KEYS = 10_000;
         final int N_PUTS = 100_000;

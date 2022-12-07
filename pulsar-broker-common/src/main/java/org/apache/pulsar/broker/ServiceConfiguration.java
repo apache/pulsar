@@ -514,6 +514,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether we should enable fsync for local metadata store. It's supported by RocksdbMetadataStore "
+                    + "for now."
+    )
+    private boolean metadataFsyncEnabled = true;
+
+
+    @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
             doc = "Event topic to sync metadata between separate pulsar "
