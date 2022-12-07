@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -51,8 +52,10 @@ import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +109,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
+        try {
+            final Optional<Policies> namespacePolicies = pulsarService.getPulsarResources().getNamespaceResources()
+                    .getPolicies(topicName.getNamespaceObject());
+            if (namespacePolicies.isPresent() && namespacePolicies.get().deleted) {
+                log.debug("[{}] skip sending topic policy event since the namespace is deleted", topicName);
+                result.complete(null);
+                return result;
+            }
+        } catch (MetadataStoreException e) {
+            result.completeExceptionally(e);
+            return result;
+        }
+
         try {
             createSystemTopicFactoryIfNeeded();
         } catch (PulsarServerException e) {
