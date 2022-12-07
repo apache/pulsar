@@ -33,6 +33,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.CloseWaitForJobPolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -566,6 +567,14 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
                                                  java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer) {
         builderConsumer.accept(topicConfiguration(topicsPattern));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> closeWaitForJob(CloseWaitForJobPolicy closeWaitForJobPolicy) {
+        checkArgument(closeWaitForJobPolicy != null, "closeWaitForJobPolicy must not be null.");
+        closeWaitForJobPolicy.verify();
+        conf.setCloseWaitForJobPolicy(closeWaitForJobPolicy);
         return this;
     }
 }

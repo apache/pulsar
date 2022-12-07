@@ -24,25 +24,30 @@ import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.CloseWaitForJobPolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -111,6 +116,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Getter
     protected volatile long consumerEpoch;
 
+    // Only work when closeWaitForJob is true
+    protected List<MessageId> receiveMessageIdList;
+    protected Lock closeWaitForJobLock;
+    protected Condition closeWaitForJobCondition;
+    protected AtomicBoolean closeWaitForJobFlag;
+    protected boolean closeWaitForJob;
+    protected long closeWaitForJobTimeoutMillis = 0;
+
     protected final AtomicBoolean scaleReceiverQueueHint = new AtomicBoolean(false);
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
@@ -136,6 +149,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
+        if (conf.getCloseWaitForJobPolicy() != null && conf.getCloseWaitForJobPolicy().isCloseWaitForJob()) {
+            CloseWaitForJobPolicy waitForJobPolicy = conf.getCloseWaitForJobPolicy();
+            if (waitForJobPolicy.getTimeout() > 0) {
+                this.closeWaitForJobTimeoutMillis =
+                        waitForJobPolicy.getTimeoutUnit().toMillis(waitForJobPolicy.getTimeout());
+            }
+            this.closeWaitForJob = waitForJobPolicy.isCloseWaitForJob();
+            receiveMessageIdList = new CopyOnWriteArrayList<>();
+            closeWaitForJobLock = new ReentrantLock();
+            closeWaitForJobCondition = closeWaitForJobLock.newCondition();
+            closeWaitForJobFlag = new AtomicBoolean(false);
+        }
         if (conf.getBatchReceivePolicy() != null) {
             BatchReceivePolicy userBatchReceivePolicy = conf.getBatchReceivePolicy();
             if (userBatchReceivePolicy.getMaxNumMessages() > this.maxReceiverQueueSize) {
@@ -222,7 +247,38 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     "Cannot use receive() when a listener has been set");
         }
         verifyConsumerState();
-        return internalReceive();
+        Message<T> receive = internalReceive();
+        verifyCloseConsumer(Arrays.asList(receive));
+        return receive;
+    }
+
+    private void verifyCloseConsumer(List<Message<T>> messageList) {
+        if (!closeWaitForJob) {
+            return;
+        }
+        messageList.stream().filter(Objects::nonNull)
+                .forEach(messages -> receiveMessageIdList.add(messages.getMessageId()));
+        closeWaitForJobFlag.set(false);
+
+    }
+
+    private void verifyCloseConsumer(CompletableFuture<Message<T>> future) {
+        if (!closeWaitForJob) {
+            return;
+        }
+        future.thenAccept(r -> verifyCloseConsumer(Arrays.asList(r)));
+
+    }
+
+    protected void verifyCloseConsumerWithMessages(CompletableFuture<Messages<T>> future) {
+        if (!closeWaitForJob) {
+            return;
+        }
+        future.thenAccept(r -> {
+            List<Message<T>> messageList = new ArrayList<>();
+            r.forEach(messageList::add);
+            verifyCloseConsumer(messageList);
+        });
     }
 
     @Override
@@ -236,7 +292,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (PulsarClientException e) {
             return FutureUtil.failedFuture(e);
         }
-        return internalReceiveAsync();
+        CompletableFuture<Message<T>> future = internalReceiveAsync();
+        verifyCloseConsumer(future);
+        return future;
     }
 
     protected abstract Message<T> internalReceive() throws PulsarClientException;
@@ -255,7 +313,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
 
         verifyConsumerState();
-        return internalReceive(timeout, unit);
+        Message<T> message = internalReceive(timeout, unit);
+        verifyCloseConsumer(Arrays.asList(message));
+        return message;
     }
 
     protected abstract Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException;
@@ -627,6 +687,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void negativeAcknowledge(Message<?> message) {
         negativeAcknowledge(message.getMessageId());
+        doCloseConsumerNotify(Arrays.asList(message.getMessageId()), AckType.Individual);
     }
 
     protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
@@ -640,6 +701,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             txn.registerAckOp(ackFuture);
         } else {
             ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+            doCloseConsumerNotify(messageIdList, ackType);
         }
         return ackFuture;
     }
@@ -656,8 +718,33 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return ackFuture;
         } else {
             ackFuture = doAcknowledge(messageId, ackType, properties, txn);
+            doCloseConsumerNotify(Arrays.asList(messageId), ackType);
         }
         return ackFuture;
+    }
+
+    protected void doCloseConsumerNotify(List<MessageId> messageIdList, AckType ackType) {
+        if (!closeWaitForJob) {
+            return;
+        }
+        boolean notify = false;
+        if (AckType.Individual.equals(ackType)) {
+            boolean remove = receiveMessageIdList.removeAll(messageIdList);
+            if (remove && receiveMessageIdList.size() == 0) {
+                notify = true;
+            }
+        } else if (AckType.Cumulative.equals(ackType)) {
+            notify = true;
+        }
+        if (notify) {
+            try {
+                closeWaitForJobLock.lock();
+                closeWaitForJobCondition.signal();
+                closeWaitForJobFlag.set(true);
+            } finally {
+                closeWaitForJobLock.unlock();
+            }
+        }
     }
 
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
@@ -709,6 +796,31 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public abstract CompletableFuture<Void> closeAsync();
 
+    protected void doCloseConsumerWait() {
+        if (!closeWaitForJob) {
+            return;
+        }
+        try {
+            closeWaitForJobLock.lock();
+            while (!closeWaitForJobFlag.get()) {
+                if (closeWaitForJobTimeoutMillis > 0) {
+                    boolean await = closeWaitForJobCondition.await(closeWaitForJobTimeoutMillis, TimeUnit.MILLISECONDS);
+                    if (!await) {
+                        log.warn("Closing the consumer exceeds the waiting time: {} milliseconds",
+                                closeWaitForJobTimeoutMillis);
+                    }
+                    break;
+                } else {
+                    closeWaitForJobCondition.await();
+                }
+            }
+        } catch (Exception e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            closeWaitForJobLock.unlock();
+        }
+
+    }
 
     @Override
     public MessageId getLastMessageId() throws PulsarClientException {

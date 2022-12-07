@@ -35,6 +35,7 @@ import io.netty.util.Timeout;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -533,6 +534,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
             }
         });
+        verifyCloseConsumerWithMessages(result);
         return result;
     }
 
@@ -767,6 +769,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
         unAckedMessageTracker.remove(message.getMessageId());
+
+        doCloseConsumerNotify(Arrays.asList(message.getMessageId()), AckType.Individual);
     }
 
     @Override
@@ -1029,6 +1033,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
             return closeFuture;
         }
+
+        doCloseConsumerWait();
 
         stats.getStatTimeout().ifPresent(Timeout::cancel);
 

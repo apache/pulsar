@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -422,6 +423,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             resumeReceivingFromPausedConsumersIfNeeded();
         });
+        verifyCloseConsumerWithMessages(result);
         return result;
     }
 
@@ -554,6 +556,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
         consumer.negativeAcknowledge(message);
+        doCloseConsumerNotify(Arrays.asList(messageId), AckType.Individual);
     }
 
     @Override
@@ -599,6 +602,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             return CompletableFuture.completedFuture(null);
         }
+
+        doCloseConsumerWait();
+
         setState(State.Closing);
 
         if (partitionsAutoUpdateTimeout != null) {
@@ -1104,11 +1110,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .timeout(1, TimeUnit.MILLISECONDS)
                 .build();
         configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
-        return ConsumerImpl.newConsumerImpl(client, partitionName,
+        ConsumerImpl<T> consumerImpl = ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, interceptors,
                 createIfDoesNotExist, startMessageRollbackDurationInSec);
+        consumerImpl.closeWaitForJob = false;
+        return consumerImpl;
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions

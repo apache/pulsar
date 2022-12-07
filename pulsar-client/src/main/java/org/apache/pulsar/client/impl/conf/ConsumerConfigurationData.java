@@ -36,6 +36,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.CloseWaitForJobPolicy;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -358,6 +359,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private transient DeadLetterPolicy deadLetterPolicy;
 
     private boolean retryEnable = false;
+
+    @ApiModelProperty(
+            name = "closeWaitForJobPolicy",
+            value = "close policy for consumers."
+    )
+    private CloseWaitForJobPolicy closeWaitForJobPolicy;
 
     @JsonIgnore
     private BatchReceivePolicy batchReceivePolicy;

@@ -867,4 +867,20 @@ public interface ConsumerBuilder<T> extends Cloneable {
      */
     ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
                                           java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
+
+    /**
+     * set close policy {@link CloseWaitForJobPolicy} for consumer.
+     * By default, this is off.
+     *
+     * <p>Example:
+     * <pre>
+     * pulsarClient.newConsumer(Schema.STRING)
+     *                 .closeWaitForJob(CloseWaitForJobPolicy.builder()
+     *                         .closeWaitForJob(true)
+     *                         .timeout(5, TimeUnit.SECONDS)
+     *                         .build())
+     *                 .subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> closeWaitForJob(CloseWaitForJobPolicy closeWaitForJobPolicy);
 }
