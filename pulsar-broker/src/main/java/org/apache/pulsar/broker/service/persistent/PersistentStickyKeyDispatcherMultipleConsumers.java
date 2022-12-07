@@ -236,8 +236,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = current.getKey();
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
-            if (consumer != null && consumer.getMaxUnackedMessages() > 0) {
+            int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
+            if (consumer.getMaxUnackedMessages() > 0) {
                 int remainUnAckedMessages =
                         // Avoid negative number
                         Math.max(consumer.getMaxUnackedMessages() - consumer.getUnackedMessages(), 0);
@@ -248,7 +248,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     readType, consumerStickyKeyHashesMap.get(consumer));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer == null ? "null" : consumer.consumerName(), messagesForC, readType);
+                        name, consumer.consumerName(), messagesForC, readType);
             }
 
             if (messagesForC < entriesWithSameKeyCount) {
