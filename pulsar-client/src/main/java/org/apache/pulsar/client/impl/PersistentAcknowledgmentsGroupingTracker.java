@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -38,13 +39,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.protocol.Commands;
@@ -79,8 +81,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * This is a set of all the individual acks that the application has issued and that were not already sent to
      * broker.
      */
-    private final ConcurrentSkipListSet<MessageIdImpl> pendingIndividualAcks;
-    private final ConcurrentHashMap<MessageIdImpl, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
+    private final ConcurrentSkipListSet<PulsarApiMessageId> pendingIndividualAcks;
+    private final ConcurrentHashMap<PulsarApiMessageId, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
 
     private final ScheduledFuture<?> scheduledTask;
     private final boolean batchIndexAckEnabled;
@@ -113,18 +115,16 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      */
     @Override
     public boolean isDuplicate(MessageId messageId) {
-        if (!(messageId instanceof MessageIdImpl)) {
+        if (!(messageId instanceof PulsarApiMessageId)) {
             throw new IllegalArgumentException("isDuplicated cannot accept "
                     + messageId.getClass().getName() + ": " + messageId);
         }
-        if (lastCumulativeAck.compareTo(messageId) >= 0) {
+        final PulsarApiMessageId messageIdData = (PulsarApiMessageId) messageId;
+        if (lastCumulativeAck.compareTo(messageIdData) >= 0) {
             // Already included in a cumulative ack
             return true;
         } else {
-            final MessageIdImpl messageIdImpl = (messageId instanceof BatchMessageIdImpl)
-                    ? ((BatchMessageIdImpl) messageId).toMessageIdImpl()
-                    : (MessageIdImpl) messageId;
-            return pendingIndividualAcks.contains(messageIdImpl);
+            return pendingIndividualAcks.contains(MessageIdImpl.from(messageIdData));
         }
     }
 
@@ -134,11 +134,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (AckType.Cumulative.equals(ackType)) {
             if (consumer.isAckReceiptEnabled()) {
                 Set<CompletableFuture<Void>> completableFutureSet = new HashSet<>();
-                messageIds.forEach(messageId ->
-                        completableFutureSet.add(addAcknowledgment((MessageIdImpl) messageId, ackType, properties)));
+                messageIds.forEach(messageId -> completableFutureSet.add(
+                        addAcknowledgment((PulsarApiMessageId) messageId, ackType, properties)));
                 return FutureUtil.waitForAll(new ArrayList<>(completableFutureSet));
             } else {
-                messageIds.forEach(messageId -> addAcknowledgment((MessageIdImpl) messageId, ackType, properties));
+                messageIds.forEach(messageId ->
+                        addAcknowledgment((PulsarApiMessageId) messageId, ackType, properties));
                 return CompletableFuture.completedFuture(null);
             }
         } else {
@@ -162,15 +163,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private void addListAcknowledgment(List<MessageId> messageIds) {
         for (MessageId messageId : messageIds) {
-            if (messageId instanceof BatchMessageIdImpl) {
-                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-                addIndividualAcknowledgment(batchMessageId.toMessageIdImpl(),
-                        batchMessageId,
-                        this::doIndividualAckAsync,
-                        this::doIndividualBatchAckAsync);
-            } else if (messageId instanceof MessageIdImpl) {
-                addIndividualAcknowledgment((MessageIdImpl) messageId,
-                        null,
+            if (messageId instanceof PulsarApiMessageId) {
+                PulsarApiMessageId messageIdData = (PulsarApiMessageId) messageId;
+                addIndividualAcknowledgment(MessageIdImpl.from(messageIdData),
+                        messageIdData,
                         this::doIndividualAckAsync,
                         this::doIndividualBatchAckAsync);
             } else {
@@ -181,35 +177,26 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
-    public CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId, AckType ackType,
+    public CompletableFuture<Void> addAcknowledgment(PulsarApiMessageId msgId, AckType ackType,
                                                      Map<String, Long> properties) {
-        if (msgId instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
-            return addAcknowledgment(batchMessageId.toMessageIdImpl(), ackType, properties, batchMessageId);
-        } else {
-            return addAcknowledgment(msgId, ackType, properties, null);
-        }
+        return addAcknowledgment(MessageIdImpl.from(msgId), ackType, properties, msgId);
     }
 
     private CompletableFuture<Void> addIndividualAcknowledgment(
             MessageIdImpl msgId,
-            @Nullable BatchMessageIdImpl batchMessageId,
-            Function<MessageIdImpl, CompletableFuture<Void>> individualAckFunction,
-            Function<BatchMessageIdImpl, CompletableFuture<Void>> batchAckFunction) {
-        if (batchMessageId != null) {
-            consumer.onAcknowledge(batchMessageId, null);
-        } else {
-            consumer.onAcknowledge(msgId, null);
-        }
-        if (batchMessageId == null || batchMessageId.ackIndividual()) {
-            consumer.getStats().incrementNumAcksSent((batchMessageId != null) ? batchMessageId.getBatchSize() : 1);
+            PulsarApiMessageId msgIdData,
+            Function<PulsarApiMessageId, CompletableFuture<Void>> individualAckFunction,
+            Function<PulsarApiMessageId, CompletableFuture<Void>> batchAckFunction) {
+        consumer.onAcknowledge(msgIdData, null);
+        if (MessageIdUtils.acknowledge(msgIdData, true)) {
+            consumer.getStats().incrementNumAcksSent(msgIdData.isBatch() ? msgIdData.getBatchSize() : 1);
             consumer.getUnAckedMessageTracker().remove(msgId);
             if (consumer.getPossibleSendToDeadLetterTopicMessages() != null) {
                 consumer.getPossibleSendToDeadLetterTopicMessages().remove(msgId);
             }
-            return individualAckFunction.apply(msgId);
+            return individualAckFunction.apply(msgIdData);
         } else if (batchIndexAckEnabled) {
-            return batchAckFunction.apply(batchMessageId);
+            return batchAckFunction.apply(msgIdData);
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -218,27 +205,22 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private CompletableFuture<Void> addAcknowledgment(MessageIdImpl msgId,
                                                       AckType ackType,
                                                       Map<String, Long> properties,
-                                                      @Nullable BatchMessageIdImpl batchMessageId) {
+                                                      PulsarApiMessageId msgIdData) {
         switch (ackType) {
             case Individual:
                 return addIndividualAcknowledgment(msgId,
-                        batchMessageId,
+                        msgIdData,
                         __ -> doIndividualAck(__, properties),
-                        __ -> doIndividualBatchAck(__, properties));
+                        msgIdData2 -> doIndividualBatchAck(msgIdData2, properties));
             case Cumulative:
-                if (batchMessageId != null) {
-                    consumer.onAcknowledgeCumulative(batchMessageId, null);
-                } else {
-                    consumer.onAcknowledgeCumulative(msgId, null);
-                }
-                if (batchMessageId == null || batchMessageId.ackCumulative()) {
+                consumer.onAcknowledgeCumulative(msgIdData, null);
+                if (MessageIdUtils.acknowledge(msgIdData, false)) {
                     return doCumulativeAck(msgId, properties, null);
                 } else if (batchIndexAckEnabled) {
-                    return doCumulativeBatchIndexAck(batchMessageId, properties);
+                    return doCumulativeBatchIndexAck(msgIdData, properties);
                 } else {
-                    if (!batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
-                        doCumulativeAck(batchMessageId.prevBatchMessageId(), properties, null);
-                        batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
+                    if (((PreviousMessageAcknowledger) msgIdData).canAckPreviousMessage()) {
+                        doCumulativeAck(MessageIdImpl.prevMessageId(msgIdData), properties, null);
                     }
                     return CompletableFuture.completedFuture(null);
                 }
@@ -247,7 +229,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doIndividualAck(MessageIdImpl messageId, Map<String, Long> properties) {
+    private CompletableFuture<Void> doIndividualAck(PulsarApiMessageId messageId, Map<String, Long> properties) {
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
@@ -267,26 +249,27 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
 
-    private CompletableFuture<Void> doIndividualAckAsync(MessageIdImpl messageId) {
-        pendingIndividualAcks.add(messageId);
-        pendingIndividualBatchIndexAcks.remove(messageId);
+    private CompletableFuture<Void> doIndividualAckAsync(PulsarApiMessageId messageId) {
+        MessageIdImpl messageIdImpl = MessageIdImpl.from(messageId);
+        pendingIndividualAcks.add(messageIdImpl);
+        pendingIndividualBatchIndexAcks.remove(messageIdImpl);
         return CompletableFuture.completedFuture(null);
     }
 
-    private CompletableFuture<Void> doIndividualBatchAck(BatchMessageIdImpl batchMessageId,
+    private CompletableFuture<Void> doIndividualBatchAck(PulsarApiMessageId msgIdData,
                                                          Map<String, Long> properties) {
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
-            return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
-                    batchMessageId.getBatchSize(), AckType.Individual, properties);
+            return doImmediateBatchIndexAck(msgIdData, msgIdData.getBatchIndex(),
+                    msgIdData.getBatchSize(), AckType.Individual, properties);
         } else {
-            return doIndividualBatchAck(batchMessageId);
+            return doIndividualBatchAck(msgIdData);
         }
     }
 
-    private CompletableFuture<Void> doIndividualBatchAck(BatchMessageIdImpl batchMessageId) {
+    private CompletableFuture<Void> doIndividualBatchAck(PulsarApiMessageId msgIdData) {
         Optional<Lock> readLock = acquireReadLock();
         try {
-            doIndividualBatchAckAsync(batchMessageId);
+            doIndividualBatchAckAsync(msgIdData);
             return readLock.map(__ -> currentIndividualAckFuture).orElse(CompletableFuture.completedFuture(null));
         } finally {
             readLock.ifPresent(Lock::unlock);
@@ -296,7 +279,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doCumulativeAck(MessageIdImpl messageId, Map<String, Long> properties,
+    private CompletableFuture<Void> doCumulativeAck(PulsarApiMessageId messageId, Map<String, Long> properties,
                                                     BitSetRecyclable bitSet) {
         consumer.getStats().incrementNumAcksSent(consumer.getUnAckedMessageTracker().removeMessagesTill(messageId));
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
@@ -314,43 +297,43 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doIndividualBatchAckAsync(BatchMessageIdImpl batchMessageId) {
+    private CompletableFuture<Void> doIndividualBatchAckAsync(PulsarApiMessageId msgIdData) {
         ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
-                batchMessageId.toMessageIdImpl(), __ -> {
+                MessageIdImpl.from(msgIdData), __ -> {
+                    BitSet ackSet = msgIdData.getAckSet();
                     ConcurrentBitSetRecyclable value;
-                    if (batchMessageId.getAcker() != null
-                            && !(batchMessageId.getAcker() instanceof BatchMessageAckerDisabled)) {
-                        value = ConcurrentBitSetRecyclable.create(batchMessageId.getAcker().getBitSet());
+                    if (ackSet != null) {
+                        value = ConcurrentBitSetRecyclable.create(ackSet);
                     } else {
                         value = ConcurrentBitSetRecyclable.create();
-                        value.set(0, batchMessageId.getOriginalBatchSize());
+                        value.set(0, msgIdData.getBatchSize());
                     }
                     return value;
                 });
-        bitSet.clear(batchMessageId.getBatchIndex());
+        bitSet.clear(msgIdData.getBatchIndex());
         return CompletableFuture.completedFuture(null);
     }
 
-    private void doCumulativeAckAsync(MessageIdImpl msgId, BitSetRecyclable bitSet) {
+    private void doCumulativeAckAsync(PulsarApiMessageId msgId, BitSetRecyclable bitSet) {
         // Handle concurrent updates from different threads
         lastCumulativeAck.update(msgId, bitSet);
     }
 
-    private CompletableFuture<Void> doCumulativeBatchIndexAck(BatchMessageIdImpl batchMessageId,
+    private CompletableFuture<Void> doCumulativeBatchIndexAck(PulsarApiMessageId msgIdData,
                                                               Map<String, Long> properties) {
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
-            return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
-                    batchMessageId.getBatchSize(), AckType.Cumulative, properties);
+            return doImmediateBatchIndexAck(msgIdData, msgIdData.getBatchIndex(),
+                    msgIdData.getBatchSize(), AckType.Cumulative, properties);
         } else {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
-            bitSet.set(0, batchMessageId.getBatchSize());
-            bitSet.clear(0, batchMessageId.getBatchIndex() + 1);
-            return doCumulativeAck(batchMessageId, null, bitSet);
+            bitSet.set(0, msgIdData.getBatchSize());
+            bitSet.clear(0, msgIdData.getBatchIndex() + 1);
+            return doCumulativeAck(msgIdData, null, bitSet);
         }
     }
 
-    private CompletableFuture<Void> doImmediateAck(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
-                                                   BitSetRecyclable bitSet) {
+    private CompletableFuture<Void> doImmediateAck(PulsarApiMessageId msgId, AckType ackType,
+                                                   Map<String, Long> properties, BitSetRecyclable bitSet) {
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
@@ -360,7 +343,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         return newImmediateAckAndFlush(consumer.consumerId, msgId, bitSet, ackType, properties, cnx);
     }
 
-    private CompletableFuture<Void> doImmediateBatchIndexAck(BatchMessageIdImpl msgId, int batchIndex, int batchSize,
+    private CompletableFuture<Void> doImmediateBatchIndexAck(PulsarApiMessageId msgIdData, int batchIndex,
+                                                             int batchSize,
                                                              AckType ackType, Map<String, Long> properties) {
         ClientCnx cnx = consumer.getClientCnx();
 
@@ -369,8 +353,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     .ConnectException("Consumer connect fail! consumer state:" + consumer.getState()));
         }
         BitSetRecyclable bitSet;
-        if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
-            bitSet = BitSetRecyclable.valueOf(msgId.getAcker().getBitSet().toLongArray());
+        if (msgIdData.getAckSet() != null) {
+            bitSet = BitSetRecyclable.valueOf(msgIdData.getAckSet().toLongArray());
         } else {
             bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchSize);
@@ -382,7 +366,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         CompletableFuture<Void> completableFuture = newMessageAckCommandAndWrite(cnx, consumer.consumerId,
-                msgId.ledgerId, msgId.entryId, bitSet, ackType, properties, true, null, null);
+                msgIdData.getLedgerId(), msgIdData.getEntryId(),
+                bitSet, ackType, properties, true, null, null);
         bitSet.recycle();
         return completableFuture;
     }
@@ -414,7 +399,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         boolean shouldFlush = false;
         if (lastCumulativeAckToFlush != null) {
             shouldFlush = true;
-            final MessageIdImpl messageId = lastCumulativeAckToFlush.getMessageId();
+            final PulsarApiMessageId messageId = lastCumulativeAckToFlush.getMessageId();
             newMessageAckCommandAndWrite(cnx, consumer.consumerId, messageId.getLedgerId(), messageId.getEntryId(),
                     lastCumulativeAckToFlush.getBitSetRecyclable(), AckType.Cumulative,
                     Collections.emptyMap(), false,
@@ -429,7 +414,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
                 // We can send 1 single protobuf command with all individual acks
                 while (true) {
-                    MessageIdImpl msgId = pendingIndividualAcks.pollFirst();
+                    PulsarApiMessageId msgId = pendingIndividualAcks.pollFirst();
                     if (msgId == null) {
                         break;
                     }
@@ -452,7 +437,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             } else {
                 // When talking to older brokers, send the acknowledgements individually
                 while (true) {
-                    MessageIdImpl msgId = pendingIndividualAcks.pollFirst();
+                    PulsarApiMessageId msgId = pendingIndividualAcks.pollFirst();
                     if (msgId == null) {
                         break;
                     }
@@ -465,12 +450,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         if (!pendingIndividualBatchIndexAcks.isEmpty()) {
-            Iterator<Map.Entry<MessageIdImpl, ConcurrentBitSetRecyclable>> iterator =
+            Iterator<Map.Entry<PulsarApiMessageId, ConcurrentBitSetRecyclable>> iterator =
                     pendingIndividualBatchIndexAcks.entrySet().iterator();
 
             while (iterator.hasNext()) {
-                Map.Entry<MessageIdImpl, ConcurrentBitSetRecyclable> entry = iterator.next();
-                entriesToAck.add(Triple.of(entry.getKey().ledgerId, entry.getKey().entryId, entry.getValue()));
+                Map.Entry<PulsarApiMessageId, ConcurrentBitSetRecyclable> entry = iterator.next();
+                entriesToAck.add(Triple.of(
+                        entry.getKey().getLedgerId(), entry.getKey().getEntryId(), entry.getValue()));
                 iterator.remove();
             }
         }
@@ -509,7 +495,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> newImmediateAckAndFlush(long consumerId, MessageIdImpl msgId,
+    private CompletableFuture<Void> newImmediateAckAndFlush(long consumerId, PulsarApiMessageId msgId,
                                                             BitSetRecyclable bitSet, AckType ackType,
                                                             Map<String, Long> map, ClientCnx cnx) {
         MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunkedMessageIdSequenceMap.remove(msgId);
@@ -535,7 +521,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 completableFuture = CompletableFuture.completedFuture(null);
             }
         } else {
-            completableFuture = newMessageAckCommandAndWrite(cnx, consumerId, msgId.ledgerId, msgId.getEntryId(),
+            completableFuture = newMessageAckCommandAndWrite(cnx, consumerId,
+                    msgId.getLedgerId(), msgId.getEntryId(),
                     bitSet, ackType, map, true, null, null);
         }
         return completableFuture;
@@ -623,11 +610,11 @@ class LastCumulativeAck {
             };
     public static final MessageIdImpl DEFAULT_MESSAGE_ID = (MessageIdImpl) MessageIdImpl.earliest;
 
-    private volatile MessageIdImpl messageId = DEFAULT_MESSAGE_ID;
+    private volatile PulsarApiMessageId messageId = DEFAULT_MESSAGE_ID;
     private BitSetRecyclable bitSetRecyclable = null;
     private boolean flushRequired = false;
 
-    public synchronized void update(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
+    public synchronized void update(final PulsarApiMessageId messageId, final BitSetRecyclable bitSetRecyclable) {
         if (compareTo(messageId) < 0) {
             if (this.bitSetRecyclable != null && this.bitSetRecyclable != bitSetRecyclable) {
                 this.bitSetRecyclable.recycle();
@@ -662,25 +649,11 @@ class LastCumulativeAck {
         flushRequired = false;
     }
 
-    public synchronized int compareTo(MessageId messageId) {
-        if (this.messageId instanceof BatchMessageIdImpl && (!(messageId instanceof BatchMessageIdImpl))) {
-            final BatchMessageIdImpl lhs = (BatchMessageIdImpl) this.messageId;
-            final MessageIdImpl rhs = (MessageIdImpl) messageId;
-            return MessageIdImpl.messageIdCompare(
-                    lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), lhs.getBatchIndex(),
-                    rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), Integer.MAX_VALUE);
-        } else if (messageId instanceof BatchMessageIdImpl && (!(this.messageId instanceof BatchMessageIdImpl))){
-            final MessageIdImpl lhs = this.messageId;
-            final BatchMessageIdImpl rhs = (BatchMessageIdImpl) messageId;
-            return MessageIdImpl.messageIdCompare(
-                    lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), Integer.MAX_VALUE,
-                    rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), rhs.getBatchIndex());
-        } else {
-            return this.messageId.compareTo(messageId);
-        }
+    public synchronized int compareTo(PulsarApiMessageId messageId) {
+        return PulsarApiMessageId.compare(this.messageId, messageId);
     }
 
-    private synchronized void set(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
+    private synchronized void set(final PulsarApiMessageId messageId, final BitSetRecyclable bitSetRecyclable) {
         this.messageId = messageId;
         this.bitSetRecyclable = bitSetRecyclable;
     }

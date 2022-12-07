@@ -30,9 +30,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
@@ -291,7 +291,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .negativeAckRedeliveryDelay(100, TimeUnit.SECONDS)
                 .subscribe();
 
-        MessageId messageId = new MessageIdImpl(3, 1, 0);
+        PulsarApiMessageId messageId = new MessageIdImpl(3, 1, 0);
         TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("topic-1", "topic-1", messageId);
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(3, 1, 0, 0);
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(3, 1, 0, 1);

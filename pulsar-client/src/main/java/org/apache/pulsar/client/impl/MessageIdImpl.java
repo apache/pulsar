@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.apache.pulsar.client.impl.BatchMessageIdImpl.NO_BATCH;
-import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 
-public class MessageIdImpl implements MessageId {
+public class MessageIdImpl implements PulsarApiMessageId {
     protected final long ledgerId;
     protected final long entryId;
     protected final int partitionIndex;
@@ -55,20 +55,27 @@ public class MessageIdImpl implements MessageId {
         return entryId;
     }
 
+    public int getPartition() {
+        return partitionIndex;
+    }
+
+    @Deprecated
     public int getPartitionIndex() {
         return partitionIndex;
     }
 
     @Override
     public int hashCode() {
-        return messageIdHashCode(ledgerId, entryId, partitionIndex, NO_BATCH);
+        return PulsarApiMessageId.hashCode(this);
     }
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof MessageId)
-                && !(o instanceof MultiMessageIdImpl)
-                && (compareTo((MessageId) o) == 0);
+        if (o instanceof PulsarApiMessageId) {
+            return PulsarApiMessageId.equals(this, (PulsarApiMessageId) o);
+        } else {
+            return false;
+        }
     }
 
     @Override
@@ -97,8 +104,10 @@ public class MessageIdImpl implements MessageId {
         MessageIdImpl messageId;
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
+                BitSet ackSet = new BitSet(idData.getBatchSize());
+                ackSet.set(0, idData.getBatchSize());
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
+                    idData.getBatchIndex(), idData.getBatchSize(), ackSet);
             } else {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                     idData.getBatchIndex());
@@ -116,6 +125,7 @@ public class MessageIdImpl implements MessageId {
         return messageId;
     }
 
+    @Deprecated
     public static MessageIdImpl convertToMessageIdImpl(MessageId messageId) {
         if (messageId instanceof BatchMessageIdImpl) {
             return (BatchMessageIdImpl) messageId;
@@ -140,15 +150,16 @@ public class MessageIdImpl implements MessageId {
             throw new IOException(e);
         }
 
-        MessageId messageId;
+        PulsarApiMessageId messageId;
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
+                BitSet ackSet = new BitSet(idData.getBatchSize());
+                ackSet.set(0, idData.getBatchSize());
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                        idData.getBatchIndex(), idData.getBatchSize(),
-                        BatchMessageAcker.newAcker(idData.getBatchSize()));
+                        idData.getBatchIndex(), idData.getBatchSize(), ackSet);
             } else {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                        idData.getBatchIndex(), 0, BatchMessageAckerDisabled.INSTANCE);
+                        idData.getBatchIndex(), 0, (BitSet) null);
             }
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
@@ -203,33 +214,18 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public int compareTo(@Nonnull MessageId o) {
-        if (o instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) o;
-            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
-            return messageIdCompare(
-                this.ledgerId, this.entryId, this.partitionIndex, NO_BATCH,
-                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
-            );
-        } else if (o instanceof TopicMessageIdImpl) {
-            return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
+        return PulsarApiMessageId.legacyCompare(this, (PulsarApiMessageId) o);
+    }
+
+    public static MessageIdImpl from(PulsarApiMessageId msgId) {
+        if (msgId.getClass() == MessageIdImpl.class) {
+            return (MessageIdImpl) msgId;
         } else {
-            throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
+            return new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartition());
         }
     }
 
-    static int messageIdHashCode(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
-        return (int) (31 * (ledgerId + 31 * entryId) + (31 * (long) partitionIndex) + batchIndex);
-    }
-
-    static int messageIdCompare(
-        long ledgerId1, long entryId1, int partitionIndex1, int batchIndex1,
-        long ledgerId2, long entryId2, int partitionIndex2, int batchIndex2
-    ) {
-        return ComparisonChain.start()
-            .compare(ledgerId1, ledgerId2)
-            .compare(entryId1, entryId2)
-            .compare(partitionIndex1, partitionIndex2)
-            .compare(batchIndex1, batchIndex2)
-            .result();
+    public static MessageIdImpl prevMessageId(PulsarApiMessageId msgId) {
+        return new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId() - 1, msgId.getPartition());
     }
 }

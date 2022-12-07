@@ -68,6 +68,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
@@ -837,11 +838,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages,
                                       MessageId messageId, MessageMetadata msgMetadata,
                                       ByteBuf compressedPayload) {
-        if (messageId instanceof MessageIdImpl) {
+        if (messageId instanceof PulsarApiMessageId) {
+            PulsarApiMessageId msgId = (PulsarApiMessageId) messageId;
             return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(),
-                    ((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId(),
-                    msgMetadata, compressedPayload);
+                    msgId.getLedgerId(), msgId.getEntryId(), msgMetadata, compressedPayload);
         } else {
+            // NOTE: The message id could be set in the replicator, in this case, messageId is not a PulsarApiMessageId
             return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), -1, -1, msgMetadata,
                     compressedPayload);
         }

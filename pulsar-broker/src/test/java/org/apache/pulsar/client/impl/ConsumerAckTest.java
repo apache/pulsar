@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
@@ -176,10 +177,10 @@ public class ConsumerAckTest extends ProducerConsumerBase {
             messageIds.add(message.getMessageId());
         }
         MessageId firstEntryMessageId = messageIds.get(0);
-        MessageId secondEntryMessageId = ((BatchMessageIdImpl) messageIds.get(1)).toMessageIdImpl();
+        MessageId secondEntryMessageId = MessageIdImpl.from((PulsarApiMessageId) messageIds.get(1));
         // Verify messages 2 to N must be in the same entry
         for (int i = 2; i < messageIds.size(); i++) {
-            assertEquals(((BatchMessageIdImpl) messageIds.get(i)).toMessageIdImpl(), secondEntryMessageId);
+            assertEquals(MessageIdImpl.from((PulsarApiMessageId) messageIds.get(i)), secondEntryMessageId);
         }
 
         assertTrue(interceptor.individualAckedMessageIdList.isEmpty());

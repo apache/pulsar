@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.util.BitSet;
 
+@Deprecated
 public class BatchMessageAcker {
 
     private BatchMessageAcker() {

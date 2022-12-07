@@ -22,6 +22,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 
 @Data
 @NoArgsConstructor
@@ -67,20 +68,14 @@ public class ResetCursorData {
     }
 
     public ResetCursorData(MessageId messageId) {
-        if (messageId instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            this.ledgerId = batchMessageId.getLedgerId();
-            this.entryId = batchMessageId.getEntryId();
-            this.batchIndex = batchMessageId.getBatchIndex();
-            this.partitionIndex = batchMessageId.partitionIndex;
-        } else if (messageId instanceof MessageIdImpl) {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            this.ledgerId = messageIdImpl.getLedgerId();
-            this.entryId = messageIdImpl.getEntryId();
-            this.partitionIndex = messageIdImpl.partitionIndex;
-        }  else if (messageId instanceof TopicMessageIdImpl) {
+        PulsarApiMessageId msgIdData = (PulsarApiMessageId) messageId;
+        if (messageId instanceof TopicMessageIdImpl) {
             throw new IllegalArgumentException("Not supported operation on partitioned-topic");
         }
+        this.ledgerId = msgIdData.getLedgerId();
+        this.entryId = msgIdData.getEntryId();
+        this.partitionIndex = msgIdData.getPartition();
+        this.batchIndex = msgIdData.getBatchIndex();
     }
 
 }

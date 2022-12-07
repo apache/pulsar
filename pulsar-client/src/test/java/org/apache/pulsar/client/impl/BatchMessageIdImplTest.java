@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -133,10 +132,8 @@ public class BatchMessageIdImplTest {
 
         try {
             writer.writeValueAsString(batchMsgId);
-            fail("Shouldn't be deserialized");
         } catch (JsonProcessingException e) {
-            // expected
-            assertTrue(e.getCause() instanceof NullPointerException);
+            fail("Should be successful");
         }
 
         // use the default BatchMessageAckerDisabled

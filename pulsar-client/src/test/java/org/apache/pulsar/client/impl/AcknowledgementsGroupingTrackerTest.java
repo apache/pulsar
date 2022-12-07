@@ -37,6 +37,8 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -61,7 +63,7 @@ public class AcknowledgementsGroupingTrackerTest {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
         consumer.unAckedChunkedMessageIdSequenceMap =
-                ConcurrentOpenHashMap.<MessageIdImpl, MessageIdImpl[]>newBuilder().build();
+                ConcurrentOpenHashMap.<PulsarApiMessageId, MessageIdImpl[]>newBuilder().build();
         cnx = spy(new ClientCnxTest(new ClientConfigurationData(), eventLoopGroup));
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         doReturn(client).when(consumer).getClient();
@@ -391,14 +393,14 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testDoIndividualBatchAckAsync() throws Exception{
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         AcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        MessageId messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, BatchMessageAckerDisabled.INSTANCE);
+        MessageId messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, (BitSet) null);
         BitSet bitSet = new BitSet(20);
         for(int i = 0; i < 20; i ++) {
             bitSet.set(i, true);
         }
-        MessageId messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, BatchMessageAcker.newAcker(bitSet));
+        MessageId messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
         Method doIndividualBatchAckAsync = PersistentAcknowledgmentsGroupingTracker.class
-                .getDeclaredMethod("doIndividualBatchAckAsync", BatchMessageIdImpl.class);
+                .getDeclaredMethod("doIndividualBatchAckAsync", PulsarApiMessageId.class);
         doIndividualBatchAckAsync.setAccessible(true);
         doIndividualBatchAckAsync.invoke(tracker, messageId1);
         doIndividualBatchAckAsync.invoke(tracker, messageId2);

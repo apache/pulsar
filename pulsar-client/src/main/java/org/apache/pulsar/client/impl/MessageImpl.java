@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
@@ -714,10 +715,10 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public Optional<Long> getIndex() {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-            if (msgMetadata.hasNumMessagesInBatch() && messageId instanceof BatchMessageIdImpl) {
-                int batchSize = ((BatchMessageIdImpl) messageId).getBatchSize();
-                int batchIndex = ((BatchMessageIdImpl) messageId).getBatchIndex();
-                return Optional.of(brokerEntryMetadata.getIndex() - batchSize + batchIndex + 1);
+            final PulsarApiMessageId msgIdData = (PulsarApiMessageId) messageId;
+            if (msgMetadata.hasNumMessagesInBatch() && msgIdData.isBatch()) {
+                return Optional.of(brokerEntryMetadata.getIndex()
+                        - msgIdData.getBatchSize() + msgIdData.getBatchIndex() + 1);
             }
             return Optional.of(brokerEntryMetadata.getIndex());
         }

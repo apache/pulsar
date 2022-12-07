@@ -18,10 +18,27 @@
  */
 package org.apache.pulsar.client.util;
 
+import java.util.BitSet;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 public class MessageIdUtils {
+
+    public static boolean acknowledge(PulsarApiMessageId msgId, boolean individual) {
+        BitSet ackSet = msgId.getAckSet();
+        int batchIndex = msgId.getBatchIndex();
+        if (ackSet == null || batchIndex < 0) {
+            return true;
+        }
+        if (individual) {
+            ackSet.clear(batchIndex);
+        } else {
+            ackSet.clear(0, batchIndex + 1);
+        }
+        return ackSet.isEmpty();
+    }
+
     public static final long getOffset(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
         long ledgerId = msgId.getLedgerId();

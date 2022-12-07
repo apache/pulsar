@@ -55,6 +55,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.cli.NoSplitter;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -1192,12 +1193,11 @@ public class CmdTopics extends CmdBase {
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }
+                PulsarApiMessageId msgId = (PulsarApiMessageId) msg.getMessageId();
                 if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
                     System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
                             + msgId.getBatchIndex());
                 } else {
-                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
 
@@ -1251,12 +1251,11 @@ public class CmdTopics extends CmdBase {
             MessageImpl message =
                     (MessageImpl) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
 
-            if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+            PulsarApiMessageId msgId = (PulsarApiMessageId) message.getMessageId();
+            if (msgId.isBatch()) {
                 System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
                         + msgId.getBatchIndex());
             } else {
-                MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
                 System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
             }
 
@@ -1310,12 +1309,11 @@ public class CmdTopics extends CmdBase {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
             } else {
-                if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                PulsarApiMessageId msgId = (PulsarApiMessageId) message.getMessageId();
+                if (msgId.isBatch()) {
                     System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
                             + msgId.getBatchIndex());
                 } else {
-                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
 

@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.BitSet;
+import javax.annotation.Nullable;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarApiMessageId;
 
-public class TopicMessageIdImpl implements MessageId {
+public class TopicMessageIdImpl implements PulsarApiMessageId, PreviousMessageAcknowledger {
 
     /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
     private final String topicPartitionName;
     private final String topicName;
-    private final MessageId messageId;
+    private final PulsarApiMessageId messageId;
 
-    public TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
+    public TopicMessageIdImpl(String topicPartitionName, String topicName, PulsarApiMessageId messageId) {
         this.messageId = messageId;
         this.topicPartitionName = topicPartitionName;
         this.topicName = topicName;
@@ -49,6 +52,7 @@ public class TopicMessageIdImpl implements MessageId {
         return this.topicPartitionName;
     }
 
+    @Deprecated
     public MessageId getInnerMessageId() {
         return messageId;
     }
@@ -76,5 +80,46 @@ public class TopicMessageIdImpl implements MessageId {
     @Override
     public int compareTo(MessageId o) {
         return messageId.compareTo(o);
+    }
+
+    @Override
+    public long getLedgerId() {
+        return messageId.getLedgerId();
+    }
+
+    @Override
+    public long getEntryId() {
+        return messageId.getEntryId();
+    }
+
+    @Override
+    public int getPartition() {
+        return messageId.getPartition();
+    }
+
+    @Override
+    public int getBatchIndex() {
+        return messageId.getBatchIndex();
+    }
+
+    @Override
+    public BitSet getAckSet() {
+        return messageId.getAckSet();
+    }
+
+    @Override
+    public int getBatchSize() {
+        return messageId.getBatchSize();
+    }
+
+    @Nullable
+    @Override
+    public PulsarApiMessageId getFirstChunkMessageId() {
+        return messageId.getFirstChunkMessageId();
+    }
+
+    @Override
+    public boolean canAckPreviousMessage() {
+        return ((PreviousMessageAcknowledger) messageId).canAckPreviousMessage();
     }
 }
