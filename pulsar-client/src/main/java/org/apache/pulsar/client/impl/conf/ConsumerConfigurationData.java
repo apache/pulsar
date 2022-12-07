@@ -364,7 +364,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             name = "closeWaitForJobPolicy",
             value = "close policy for consumers."
     )
-    private CloseWaitForJobPolicy closeWaitForJobPolicy;
+    private transient CloseWaitForJobPolicy closeWaitForJobPolicy;
 
     @JsonIgnore
     private BatchReceivePolicy batchReceivePolicy;
