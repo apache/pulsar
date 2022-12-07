@@ -55,11 +55,11 @@ public class CloseWaitForJobPolicy {
 
     @Override
     public String toString() {
-        return "CloseWaitForJobPolicy{" +
-                "closeWaitForJob=" + closeWaitForJob +
-                ", timeout=" + timeout +
-                ", timeoutUnit=" + timeoutUnit +
-                '}';
+        return "CloseWaitForJobPolicy{"
+                + "closeWaitForJob=" + closeWaitForJob
+                + ", timeout=" + timeout
+                + ", timeoutUnit=" + timeoutUnit
+                + '}';
     }
 
     /**
