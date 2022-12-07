@@ -185,7 +185,7 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
-     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics.
 
      :::
 
@@ -327,7 +327,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
-     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics.
 
      :::
 
@@ -487,7 +487,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
-     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics.
 
      :::
 
