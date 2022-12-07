@@ -34,6 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -72,6 +75,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -319,6 +323,203 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content3".getBytes());
         }
+    }
+
+    @DataProvider(name = "messagesToSend")
+    public Object[][] messagesToSend() {
+        return new Object[][]{
+            // no message.
+            {Collections.emptyList()},
+            // message without key.
+            {    Arrays.asList(
+                    Pair.of(null, "v"),
+                    Pair.of(null, "v")
+                )
+            },
+            // last message without key.
+            {    Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of(null, "v")
+                 )
+            },
+            // two messages.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k2", "v2")
+                )
+            },
+            // end with delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k1", "v2"),
+                    Pair.of("k1", null)
+                )
+            },
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k2", "v2"),
+                    Pair.of("k2", null)
+                )
+            },
+            // the second scenario of end with delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k2", "v2"),
+                    Pair.of("k2", null),
+                    Pair.of("k3", "v3"),
+                    Pair.of("k3", null)
+                )
+            },
+            // the third scenario of end with delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k2", "v2"),
+                    Pair.of("k3", "v3"),
+                    Pair.of("k2", null),
+                    Pair.of("k3", null)
+                )
+            },
+            // all message delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k2", "v2"),
+                    Pair.of("k3", "v3"),
+                    Pair.of("k1", null),
+                    Pair.of("k2", null),
+                    Pair.of("k3", null)
+                )
+            },
+            // the second scenario of all message delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k1", null),
+                    Pair.of("k2", "v2"),
+                    Pair.of("k2", null),
+                    Pair.of("k3", "v3"),
+                    Pair.of("k3", null)
+                )
+            },
+            // the third scenario of all message delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", null),
+                    Pair.of("k2", null)
+                )
+            },
+            // the fourth scenario of all message delete by compaction.
+            {
+                Arrays.asList(
+                    Pair.of("k1", "v1"),
+                    Pair.of("k1", null)
+                )
+            }
+        };
+    }
+
+    @Test(dataProvider = "messagesToSend")
+    public void testRaceConditionByCompactionAndGetLastMessageId(List<Pair<String,String>> messagesToSend)
+            throws Exception {
+        doTestRaceConditionByCompactionAndGetLastMessageId(false, messagesToSend, 1);
+    }
+
+    @Test(dataProvider = "messagesToSend")
+    public void testRaceConditionByCompactionAndGetLastBatchMessageId(List<Pair<String,String>> messagesToSend)
+            throws Exception {
+        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 1);
+    }
+
+    @Test(dataProvider = "messagesToSend")
+    public void testRaceConditionByCompactionAndGetLastBatchMessageId2(List<Pair<String,String>> messagesToSend)
+            throws Exception {
+        doTestRaceConditionByCompactionAndGetLastMessageId(true, messagesToSend, 3);
+    }
+
+    /**
+     * Motivation:
+     *   1. If the last message with key `k` of a topic is null, the compactor will mark all messages for that key as
+     *      deleted. At this time, the last message read compacted will be `{ml.lastConfirmPosition - 1}`.
+     *   2. When we call `getLastMessageId`, consumer will initialize the attribute`lastMessageIdInBroker`
+     *      as `{ml.lastConfirmPosition}`, then when we call method `hasMessageAvailable` it's going to return
+     *      `consumer.startMessageId < hasMessageAvailable`.
+     * From here we get that the last message for compactor and consumer is different, so there will be a situation
+     * where `hasMessageAvailable` returns `true` but can't read the message by read compacted.
+     */
+    private void doTestRaceConditionByCompactionAndGetLastMessageId(boolean enabledBatch,
+                                                                 List<Pair<String,String>> messagesToSend,
+                                                                 int sendMessagesLoopCount)
+                                                                 throws Exception {
+        cleanup();
+        // Disable the scheduled task: compaction.
+        conf.setBrokerServiceCompactionMonitorIntervalInSeconds(Integer.MAX_VALUE);
+        // Disable the scheduled task: retention.
+        conf.setRetentionCheckIntervalInSeconds(Integer.MAX_VALUE);
+        setup();
+
+        String topicName = "persistent://my-property/use/my-ns/" + BrokerTestUtil.newUniqueName("tp");
+        String subName = "sub";
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .startMessageId(MessageId.earliest)
+                .receiverQueueSize(1)
+                .readCompacted(true)
+                .create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(enabledBatch)
+                .create();
+
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < sendMessagesLoopCount; i++) {
+            for (Pair<String, String> messageToSend : messagesToSend) {
+                String key = messageToSend.getLeft();
+                String value = messageToSend.getRight();
+                if (key == null) {
+                    sendFutures.add(producer.newMessage().value(value).sendAsync());
+                } else {
+                    sendFutures.add(producer.newMessage().key(key).value(value).sendAsync());
+                }
+            }
+            producer.flush();
+        }
+        FutureUtil.waitForAll(sendFutures).join();
+
+        // Trigger race condition of "compaction" and "getLastMessageId".
+        reader.hasMessageAvailable();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        persistentTopic.triggerCompaction();
+
+        Awaitility.await().untilAsserted(() -> {
+            PositionImpl lastConfirmPos = (PositionImpl) persistentTopic.getManagedLedger().getLastConfirmedEntry();
+            PositionImpl markDeletePos = (PositionImpl) persistentTopic
+                    .getSubscription(Compactor.COMPACTION_SUBSCRIPTION).getCursor().getMarkDeletedPosition();
+            assertEquals(markDeletePos.getLedgerId(), lastConfirmPos.getLedgerId());
+            assertEquals(markDeletePos.getEntryId(), lastConfirmPos.getEntryId());
+        });
+
+        //  Method "hasMessageAvailable" does not guarantee that a subsequent call to {@link #readNext()} will not
+        //  block. But we can't always tell users there has messages and can not receive them.
+        int hasAvailableButReadNullTimes = 0;
+        while (reader.hasMessageAvailable()) {
+            Message message = reader.readNext(2, TimeUnit.SECONDS);
+            if (message == null) {
+                hasAvailableButReadNullTimes++;
+            }
+            assertTrue(hasAvailableButReadNullTimes < 10);
+        }
+
+        // cleanup.
+        reader.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
     }
 
     @Test
