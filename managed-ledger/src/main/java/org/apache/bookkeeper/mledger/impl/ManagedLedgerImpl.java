@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -114,6 +115,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -255,9 +257,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
 
+    @Getter
     private final OrderedScheduler scheduledExecutor;
+
+    @Getter
     private final OrderedExecutor executor;
-    final ManagedLedgerFactoryImpl factory;
+
+    @Getter
+    private final ManagedLedgerFactoryImpl factory;
+
+    @Getter
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
 
@@ -1823,7 +1832,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void invalidateLedgerHandle(ReadHandle ledgerHandle) {
+    public void invalidateLedgerHandle(ReadHandle ledgerHandle) {
         long ledgerId = ledgerHandle.getId();
         LedgerHandle currentLedger = this.currentLedger;
 
@@ -2127,10 +2136,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (entryCache.getSize() <= 0) {
             return;
         }
-        // Always remove all entries already read by active cursors
-        PositionImpl slowestReaderPos = getEarlierReadPositionForActiveCursors();
-        if (slowestReaderPos != null) {
-            entryCache.invalidateEntries(slowestReaderPos);
+        PositionImpl evictionPos;
+        if (config.isCacheEvictionByMarkDeletedPosition()) {
+            evictionPos = getEarlierMarkDeletedPositionForActiveCursors().getNext();
+        } else {
+            // Always remove all entries already read by active cursors
+            evictionPos = getEarlierReadPositionForActiveCursors();
+        }
+        if (evictionPos != null) {
+            entryCache.invalidateEntries(evictionPos);
         }
 
         // Remove entries older than the cutoff threshold
@@ -2140,6 +2154,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private PositionImpl getEarlierReadPositionForActiveCursors() {
         PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestReadPositionForActiveCursors();
         PositionImpl durablePosition = activeCursors.getSlowestReadPositionForActiveCursors();
+        if (nonDurablePosition == null) {
+            return durablePosition;
+        }
+        if (durablePosition == null) {
+            return nonDurablePosition;
+        }
+        return durablePosition.compareTo(nonDurablePosition) > 0 ? nonDurablePosition : durablePosition;
+    }
+
+    private PositionImpl getEarlierMarkDeletedPositionForActiveCursors() {
+        PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestMarkDeletedPositionForActiveCursors();
+        PositionImpl durablePosition = activeCursors.getSlowestMarkDeletedPositionForActiveCursors();
         if (nonDurablePosition == null) {
             return durablePosition;
         }
@@ -3523,14 +3549,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers;
     }
 
-    OrderedScheduler getScheduledExecutor() {
-        return scheduledExecutor;
-    }
-
-    OrderedExecutor getExecutor() {
-        return executor;
-    }
-
     private ManagedLedgerInfo getManagedLedgerInfo() {
         return buildManagedLedgerInfo(ledgers);
     }
@@ -3646,10 +3664,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public State getState() {
         return STATE_UPDATER.get(this);
-    }
-
-    public ManagedLedgerMBeanImpl getMBean() {
-        return mbean;
     }
 
     public long getCacheSize() {

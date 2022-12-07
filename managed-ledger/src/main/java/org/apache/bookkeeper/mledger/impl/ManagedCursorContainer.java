@@ -108,6 +108,10 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         return heap.isEmpty() ? null : (PositionImpl) heap.get(0).cursor.getReadPosition();
     }
 
+    public PositionImpl getSlowestMarkDeletedPositionForActiveCursors() {
+        return heap.isEmpty() ? null : (PositionImpl) heap.get(0).cursor.getMarkDeletedPosition();
+    }
+
     public ManagedCursor get(String name) {
         long stamp = rwLock.readLock();
         try {

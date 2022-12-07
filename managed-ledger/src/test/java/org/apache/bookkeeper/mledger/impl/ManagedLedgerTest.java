@@ -110,23 +110,26 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -291,6 +294,204 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         ledger.close();
+    }
+
+    @Test
+    public void testCacheEvictionByMarkDeletedPosition() throws Throwable {
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setCacheEvictionByMarkDeletedPosition(true);
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                .toNanos(30000));
+        factory.asyncOpen("my_test_ledger", config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                        ManagedLedger ledger = (ManagedLedger) ctx;
+                        String message1 = "test";
+                        ledger.asyncAddEntry(message1.getBytes(Encoding), new AddEntryCallback() {
+                            @Override
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                                @SuppressWarnings("unchecked")
+                                Pair<ManagedLedger, ManagedCursor> pair = (Pair<ManagedLedger, ManagedCursor>) ctx;
+                                ManagedLedger ledger = pair.getLeft();
+                                ManagedCursor cursor = pair.getRight();
+                                if (((ManagedLedgerImpl) ledger).getCacheSize() != message1.getBytes(Encoding).length) {
+                                    result.complete(false);
+                                    return;
+                                }
+                                cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                                    @Override
+                                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                        ManagedCursor cursor = (ManagedCursor) ctx;
+                                        assertEquals(entries.size(), 1);
+                                        Entry entry = entries.get(0);
+                                        final Position position = entry.getPosition();
+                                        if (!message1.equals(new String(entry.getDataAndRelease(), Encoding))) {
+                                            result.complete(false);
+                                            return;
+                                        }
+                                        ((ManagedLedgerImpl) ledger).doCacheEviction(
+                                                System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(30000));
+                                        if (((ManagedLedgerImpl) ledger).getCacheSize() != message1.getBytes(Encoding).length) {
+                                            result.complete(false);
+                                            return;
+                                        }
+
+                                        log.debug("Mark-Deleting to position {}", position);
+                                        cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
+                                            @Override
+                                            public void markDeleteComplete(Object ctx) {
+                                                log.debug("Mark delete complete");
+                                                ManagedCursor cursor = (ManagedCursor) ctx;
+                                                if (cursor.hasMoreEntries()) {
+                                                    result.complete(false);
+                                                    return;
+                                                }
+                                                ((ManagedLedgerImpl) ledger).doCacheEviction(
+                                                        System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(30000));
+                                                result.complete(((ManagedLedgerImpl) ledger).getCacheSize() == 0);
+                                            }
+
+                                            @Override
+                                            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                                                result.completeExceptionally(exception);
+                                            }
+
+                                        }, cursor);
+                                    }
+
+                                    @Override
+                                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                                        result.completeExceptionally(exception);
+                                    }
+                                }, cursor, PositionImpl.latest);
+                            }
+
+                            @Override
+                            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                                result.completeExceptionally(exception);
+                            }
+                        }, Pair.of(ledger, cursor));
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+
+                }, ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, null);
+
+        assertTrue(result.get());
+
+        log.info("Test completed");
+    }
+
+    @Test
+    public void testCacheEvictionByReadPosition() throws Throwable {
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                .toNanos(30000));
+        factory.asyncOpen("my_test_ledger", config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                        ManagedLedger ledger = (ManagedLedger) ctx;
+                        String message1 = "test";
+                        ledger.asyncAddEntry(message1.getBytes(Encoding), new AddEntryCallback() {
+                            @Override
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                                @SuppressWarnings("unchecked")
+                                Pair<ManagedLedger, ManagedCursor> pair = (Pair<ManagedLedger, ManagedCursor>) ctx;
+                                ManagedLedger ledger = pair.getLeft();
+                                ManagedCursor cursor = pair.getRight();
+                                if (((ManagedLedgerImpl) ledger).getCacheSize() != message1.getBytes(Encoding).length) {
+                                    result.complete(false);
+                                    return;
+                                }
+
+                                cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                                    @Override
+                                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                        ManagedCursor cursor = (ManagedCursor) ctx;
+                                        assertEquals(entries.size(), 1);
+                                        Entry entry = entries.get(0);
+                                        final Position position = entry.getPosition();
+                                        if (!message1.equals(new String(entry.getDataAndRelease(), Encoding))) {
+                                            result.complete(false);
+                                            return;
+                                        }
+                                        ((ManagedLedgerImpl) ledger).doCacheEviction(
+                                                System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(30000));
+                                        if (((ManagedLedgerImpl) ledger).getCacheSize() != 0) {
+                                            result.complete(false);
+                                            return;
+                                        }
+
+                                        log.debug("Mark-Deleting to position {}", position);
+                                        cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
+                                            @Override
+                                            public void markDeleteComplete(Object ctx) {
+                                                log.debug("Mark delete complete");
+                                                ManagedCursor cursor = (ManagedCursor) ctx;
+                                                if (cursor.hasMoreEntries()) {
+                                                    result.complete(false);
+                                                    return;
+                                                }
+                                                result.complete(((ManagedLedgerImpl) ledger).getCacheSize() == 0);
+                                            }
+
+                                            @Override
+                                            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                                                result.completeExceptionally(exception);
+                                            }
+
+                                        }, cursor);
+                                    }
+
+                                    @Override
+                                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                                        result.completeExceptionally(exception);
+                                    }
+                                }, cursor, PositionImpl.latest);
+                            }
+
+                            @Override
+                            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                                result.completeExceptionally(exception);
+                            }
+                        }, Pair.of(ledger, cursor));
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+
+                }, ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, null);
+
+        assertTrue(result.get());
+
+        log.info("Test completed");
     }
 
     @Test(timeOut = 20000)
@@ -2393,9 +2594,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Set<ManagedCursor> activeCursors = Sets.newHashSet();
         activeCursors.add(cursor1);
         activeCursors.add(cursor2);
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         Iterator<ManagedCursor> activeCursor = ledger.getActiveCursors().iterator();
 
@@ -2467,10 +2666,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_eviction_ledger");
-
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {
