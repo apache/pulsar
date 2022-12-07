@@ -12,6 +12,7 @@ Pulsar exposes the following metrics in Prometheus format. You can monitor your 
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
 * [Pulsar Functions](#pulsar-functions)
+* [Connectors](#connectors)
 * [Proxy](#proxy)
 * [Pulsar SQL Worker](#pulsar-sql-worker)
 * [Pulsar transaction](#pulsar-transaction)
@@ -118,30 +119,6 @@ in the `broker.conf` configuration file.
 All the metrics exposed by a broker are labeled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
 
 The following metrics are available for broker:
-
-- [Broker metrics](#broker-metrics)
-- [BookKeeper client metrics](#bookkeeper-client-metrics)
-- [Namespace metrics](#namespace-metrics)
-- [Topic metrics](#topic-metrics)
-- [Replication metrics](#replication-metrics)
-- [Topic lookup metrics](#topic-lookup-metrics)
-- [ManagedLedger metrics](#managedledger-metrics)
-- [Managed cursor acknowledgment state](#managed-cursor-acknowledgment-state)
-- [LoadBalancing metrics](#loadbalancing-metrics)
-- [BundleUnloading metrics](#bundleunloading-metrics)
-- [BundleSplit metrics](#bundlesplit-metrics)
-- [Bundle metrics](#bundle-metrics)
-- [Subscription metrics](#subscription-metrics)
-- [Consumer metrics](#consumer-metrics)
-- [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
-- [Token metrics](#token-metrics)
-- [Authentication metrics](#authentication-metrics)
-- [Connection metrics](#connection-metrics)
-- [Jetty metrics](#jetty-metrics)
-- [Schema metrics](#schema-metrics)
-- [Offload metrics](#offload-metrics)
-- [Web service executor metrics](#web-service-executor-metrics)
-- [Metadata store metrics](#metadata-store-metrics)
 
 ### Broker metrics
 All the broker metrics are labeled with the following labels:
