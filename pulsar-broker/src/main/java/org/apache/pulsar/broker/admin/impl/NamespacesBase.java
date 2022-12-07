@@ -475,7 +475,7 @@ public abstract class NamespacesBase extends AdminResource {
             if (!topics.isEmpty()) {
                 Set<String> partitionedTopics = new HashSet<>();
                 Set<String> nonPartitionedTopics = new HashSet<>();
-                Set<String> allSystemTopics= new HashSet<>();
+                Set<String> allSystemTopics = new HashSet<>();
                 Set<String> allPartitionedSystemTopics = new HashSet<>();
 
                 for (String topic : topics) {
