@@ -839,12 +839,4 @@ public abstract class AdminResource extends PulsarWebResource {
     protected static String getTopicNotFoundErrorMessage(String topic) {
         return String.format("Topic %s not found", topic);
     }
-
-    protected static String getPartitionedTopicNotFoundErrorMessage(String topic) {
-        return String.format("Partitioned Topic %s not found", topic);
-    }
-
-    protected static String getSubNotFoundErrorMessage(String topic, String subscription) {
-        return String.format("Subscription %s not found for topic %s", subscription, topic);
-    }
 }

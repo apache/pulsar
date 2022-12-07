@@ -72,18 +72,18 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testExpireMessageWithNonExistTopicAndNonExistSub() {
         String uuid = UUID.randomUUID().toString();
-        String topic = "persistent://public/default/test-expire-messages-non-exist-topic-" + uuid;
+        String topic = "test-expire-messages-non-exist-topic-" + uuid;
         String subscriptionName = "test-expire-messages-non-exist-sub-" + uuid;
 
         PulsarAdminException exception = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().expireMessages(topic, subscriptionName, 1));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
-        assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
+        assertEquals(exception.getMessage(), "Topic not found");
 
         exception = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().expireMessagesForAllSubscriptions(topic, 1));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
-        assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
+        assertEquals(exception.getMessage(), "Topic not found");
     }
 
     @Test
@@ -100,18 +100,18 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void tesSkipMessageWithNonExistTopicAndNotExistSub() {
         String uuid = UUID.randomUUID().toString();
-        String topic = "persistent://public/default/test-skip-messages-non-exist-topic-" + uuid;
+        String topic = "test-skip-messages-non-exist-topic-" + uuid;
         String subscriptionName = "test-skip-messages-non-exist-sub-" + uuid;
 
         PulsarAdminException exception = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().skipMessages(topic, subscriptionName, 1));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
-        assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
+        assertEquals(exception.getMessage(), "Topic not found");
 
         exception = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().skipAllMessages(topic, subscriptionName));
         assertEquals(exception.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
-        assertEquals(exception.getMessage(), String.format("Topic %s not found", topic));
+        assertEquals(exception.getMessage(), "Topic not found");
     }
 
     @DataProvider(name = "partitioned")
