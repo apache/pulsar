@@ -25,6 +25,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -54,10 +55,15 @@ public class ConfigShell implements ShellCommandsProvider {
     private static final String LOCAL_FILES_BASE_DIR = System.getProperty("pulsar.shell.working.dir");
 
     static File resolveLocalFile(String input) {
-        if (LOCAL_FILES_BASE_DIR != null) {
-            return new File(LOCAL_FILES_BASE_DIR, input);
+        return resolveLocalFile(input, LOCAL_FILES_BASE_DIR);
+    }
+
+    static File resolveLocalFile(String input, String baseDir) {
+        final File file = new File(input);
+        if (!file.isAbsolute() && baseDir != null) {
+            return new File(baseDir, input);
         }
-        return new File(input);
+        return file;
     }
 
 
