@@ -27,6 +27,7 @@ import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicLim
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicUsage;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.isCGroupEnabled;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.List;
@@ -121,10 +122,12 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         this.usage = usage;
     }
 
-    private double getTotalNicLimitWithConfiguration(List<String> nics) {
+    @VisibleForTesting
+    double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
         return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
+                .map(speed -> speed * nics.size())
                 .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
 
