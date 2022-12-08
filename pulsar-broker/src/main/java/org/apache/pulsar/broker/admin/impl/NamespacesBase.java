@@ -72,6 +72,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -224,10 +225,16 @@ public abstract class NamespacesBase extends AdminResource {
                     boolean hasNonSystemTopic = false;
                     List<String> allSystemTopics = new ArrayList<>();
                     List<String> allPartitionedSystemTopics = new ArrayList<>();
+                    List<String> topicPolicy = new ArrayList<>();
+                    List<String> partitionedTopicPolicy = new ArrayList<>();
                     for (String topic : allTopics) {
                         if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                             hasNonSystemTopic = true;
-                            allUserCreatedTopics.add(topic);
+                            if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                topicPolicy.add(topic);
+                            } else {
+                                allUserCreatedTopics.add(topic);
+                            }
                         } else {
                             allSystemTopics.add(topic);
                         }
@@ -235,7 +242,11 @@ public abstract class NamespacesBase extends AdminResource {
                     for (String topic : allPartitionedTopics) {
                         if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                             hasNonSystemTopic = true;
-                            allUserCreatedPartitionTopics.add(topic);
+                            if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                partitionedTopicPolicy.add(topic);
+                            } else {
+                                allUserCreatedPartitionTopics.add(topic);
+                            }
                         } else {
                             allPartitionedSystemTopics.add(topic);
                         }
@@ -256,6 +267,10 @@ public abstract class NamespacesBase extends AdminResource {
                         return internalDeleteTopicsAsync(allSystemTopics);
                     }).thenCompose(ignore__ -> {
                         return internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics);
+                    }).thenCompose(ignore -> {
+                        return internalDeleteTopicsAsync(topicPolicy);
+                    }).thenCompose(ignore__ -> {
+                        return internalDeletePartitionedTopicsAsync(partitionedTopicPolicy);
                     });
                 })
                 .thenCompose(ignore -> pulsar().getNamespaceService()

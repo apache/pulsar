@@ -1616,4 +1616,33 @@ public class TransactionTest extends TransactionTestBase {
         Transaction abortingTxn = transaction;
         Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
     }
+    @Test
+    public void testDeleteTopicPolicyWhenDeleteSystemTopic() throws Exception {
+        String NAMESPACE2 = TENANT + "/ns2";
+        admin.namespaces().createNamespace(NAMESPACE2);
+        String topic = NAMESPACE2 + "/testDeleteTopicPolicyWhenDeleteSystemTopic";
+        String systemTopic = NAMESPACE2 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                        .topic(topic).create();
+        pulsarServiceList.get(0).getConfig().setMaxConsumersPerTopic(6);
+        admin.topicPolicies().setMaxConsumers(systemTopic, 5);
+
+        Integer maxConsumerPerTopic = pulsarServiceList.get(0)
+                .getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get()
+                .getMaxConsumerPerTopic();
+
+        assertEquals(maxConsumerPerTopic, 5);
+        admin.topics().delete(systemTopic, true);
+        try {
+            pulsarServiceList.get(0)
+                    .getTopicPoliciesService()
+                    .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException ignored) {
+
+        }
+
+    }
 }

@@ -1221,8 +1221,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                         deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
                                 .thenCompose(ignore -> {
-                                    if (!this.getBrokerService().getPulsar().getBrokerService()
-                                            .isSystemTopic(TopicName.get(topic))) {
+                                    if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                         return deleteTopicPolicies();
                                     } else {
                                         return CompletableFuture.completedFuture(null);
