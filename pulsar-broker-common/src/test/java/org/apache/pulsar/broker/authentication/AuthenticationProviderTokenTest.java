@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -36,13 +37,17 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Key;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.sql.Date;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -387,6 +392,94 @@ public class AuthenticationProviderTokenTest {
         });
         assertEquals(subject, SUBJECT);
 
+        provider.close();
+    }
+
+    private void testAuthPublicKeyWithJWKS(byte[] jwks, String kid, KeyPair keyPair)
+            throws IOException, AuthenticationException {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_KEY_SET_KEY,
+                Base64.getEncoder().encodeToString(jwks));
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        byte[] validToken = Jwts.builder()
+                .setSubject(SUBJECT)
+                .setHeaderParam("kid", kid)
+                .signWith(keyPair.getPrivate()).compact().getBytes(StandardCharsets.UTF_8);
+        provider.newAuthState(AuthData.of(validToken), null, null);
+
+        // kid not found
+        byte[] invalidToken = Jwts.builder()
+                .setSubject(SUBJECT)
+                .setHeaderParam("kid", "invalid")
+                .signWith(keyPair.getPrivate()).compact().getBytes(StandardCharsets.UTF_8);
+        assertThrows(Exception.class, () -> provider.newAuthState(AuthData.of(invalidToken), null, null));
+
+        provider.close();
+    }
+
+    @Test
+    public void testAuthRSAPublicKeyWithJWKS() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        RSAPublicKey rsaPublicKey = (RSAPublicKey) keyPair.getPublic();
+        String n = Base64.getUrlEncoder().encodeToString(rsaPublicKey.getModulus().toByteArray());
+        String e = Base64.getUrlEncoder().encodeToString(rsaPublicKey.getPublicExponent().toByteArray());
+        String kid = "iLbu_pppNwxl4S4QB4Ew3";
+
+        byte[] jwks = ("{\n"
+                + "  \"keys\": [\n"
+                + "    {\n"
+                + "      \"alg\": \"RS256\",\n"
+                + "      \"kty\": \"RSA\",\n"
+                + "      \"use\": \"sig\",\n"
+                + "      \"n\": \"" + n + "\",\n"
+                + "      \"e\": \"" + e + "\",\n"
+                + "      \"kid\": \"" + kid + "\"\n"
+                + "    }\n"
+                + "  ]\n"
+                + "}").getBytes();
+
+        testAuthPublicKeyWithJWKS(jwks, kid, keyPair);
+    }
+
+    @Test
+    public void testAuthECPublicKeyWithJWKS() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.ES256);
+
+        ECPublicKey ecPublicKey = (ECPublicKey) keyPair.getPublic();
+        String x = Base64.getUrlEncoder().encodeToString(ecPublicKey.getW().getAffineX().toByteArray());
+        String y = Base64.getUrlEncoder().encodeToString(ecPublicKey.getW().getAffineY().toByteArray());
+        String kid = "iLbu_pppNwxl4S4QB4Ew3";
+
+        byte[] jwks = ("{\n"
+                + "  \"keys\": [\n"
+                + "    {\n"
+                + "      \"crv\": \"P-256\",\n"
+                + "      \"kty\": \"EC\",\n"
+                + "      \"use\": \"enc\",\n"
+                + "      \"x\": \"" + x + "\",\n"
+                + "      \"y\": \"" + y + "\",\n"
+                + "      \"kid\": \"" + kid + "\"\n"
+                + "    }\n"
+                + "  ]\n"
+                + "}").getBytes();
+
+        testAuthPublicKeyWithJWKS(jwks, kid, keyPair);
+    }
+
+    @Test
+    public void testAuthPublicKeyWithBlankJWKS() throws Exception {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_KEY_SET_KEY,
+                Base64.getEncoder().encodeToString(new byte[]{}));
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        assertThrows(IOException.class, () -> provider.initialize(conf));
         provider.close();
     }
 

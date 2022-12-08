@@ -19,26 +19,48 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.JwtParserBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.SigningKeyResolver;
 import io.jsonwebtoken.security.SignatureException;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.AlgorithmParameters;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -58,6 +80,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // When public/private key pair is configured
     static final String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
+    static final String CONF_TOKEN_KEY_SET_KEY = "tokenKeySetKey";
 
     // The token's claim that corresponds to the "role" string
     static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
@@ -84,7 +107,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             .buckets(5, 10, 60, 240)
             .register();
 
-    private Key validationKey;
     private String roleClaim;
     private SignatureAlgorithm publicKeyAlg;
     private String audienceClaim;
@@ -94,6 +116,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     // config keys
     private String confTokenSecretKeySettingName;
     private String confTokenPublicKeySettingName;
+    private String confTokenKeySetSettingName;
     private String confTokenAuthClaimSettingName;
     private String confTokenPublicAlgSettingName;
     private String confTokenAudienceClaimSettingName;
@@ -122,15 +145,27 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.confTokenPublicAlgSettingName = prefix + CONF_TOKEN_PUBLIC_ALG;
         this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
         this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
+        this.confTokenKeySetSettingName = prefix + CONF_TOKEN_KEY_SET_KEY;
 
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
-        this.validationKey = getValidationKey(config);
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
 
-        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
+        Key validationKey = getValidationKey(config);
+        JwtParserBuilder jwtParserBuilder = Jwts.parserBuilder();
+        if (validationKey != null) {
+            jwtParserBuilder.setSigningKey(validationKey);
+        } else {
+            String jwks = (String) config.getProperty(confTokenKeySetSettingName);
+            if (StringUtils.isEmpty(jwks)) {
+                throw new IOException("No secret/Public key was provided for token authentication");
+            }
+            jwtParserBuilder.setSigningKeyResolver(new TokenSigningKeyResolver(jwks));
+        }
+
+        this.parser = jwtParserBuilder.build();
 
         if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -255,6 +290,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     /**
      * Try to get the validation key for tokens from several possible config options.
+     * When returns null, we need to get key from the JWKS.
      */
     private Key getValidationKey(ServiceConfiguration conf) throws IOException {
         String tokenSecretKey = (String) conf.getProperty(confTokenSecretKeySettingName);
@@ -266,7 +302,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(tokenPublicKey);
             return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
-            throw new IOException("No secret key was provided for token authentication");
+            return null;
         }
     }
 
@@ -407,6 +443,136 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
             return super.getHeader(name);
+        }
+    }
+
+    private static final class TokenSigningKeyResolver implements SigningKeyResolver {
+        private final JWK jwk;
+
+        public TokenSigningKeyResolver(String data) {
+            jwk = new JWK(data);
+        }
+
+        @Override
+        public Key resolveSigningKey(JwsHeader header, Claims claims) {
+            return jwk.get(header.getKeyId());
+        }
+
+        @Override
+        public Key resolveSigningKey(JwsHeader header, String plaintext) {
+            return jwk.get(header.getKeyId());
+        }
+    }
+
+    // https://datatracker.ietf.org/doc/html/rfc7517
+    @Slf4j
+    private static final class JWK {
+        private static final String ALGORITHM_RSA = "RSA";
+        private static final String ALGORITHM_EC = "EC";
+
+        private static final Map<String, String> CURVE_MAP = new HashMap<>();
+
+        static {
+            // https://openid.net/specs/draft-jones-json-web-key-03.html#anchor7
+            // https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#parameterspec-names
+            CURVE_MAP.put("P-256", "secp256r1");
+            CURVE_MAP.put("P-384", "secp384r1");
+            CURVE_MAP.put("P-521", "secp521r1");
+        }
+
+        private final Map<String, Key> keyMap = new HashMap<>();
+
+        public JWK(String data) {
+            String json;
+            try {
+                byte[] bytes = AuthTokenUtils.readKeyFromUrl(data);
+                if (bytes == null || bytes.length == 0) {
+                    throw new IOException("invalid JWKS");
+                }
+                json = new String(bytes, StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e);
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("JWKS: {}", json);
+            }
+
+            JsonNode rootNode;
+            try {
+                rootNode = new ObjectMapper().readTree(json);
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e);
+            }
+
+            if (rootNode == null) {
+                return;
+            }
+
+            JsonNode keysNode = rootNode.get("keys");
+            if (keysNode == null) {
+                return;
+            }
+
+            Iterator<JsonNode> elements = keysNode.elements();
+            while (elements.hasNext()) {
+                JsonNode node = elements.next();
+                String type = node.get("kty").textValue();
+                String kid = node.get("kid").textValue();
+                KeyFactory kf;
+                // Reference from:
+                // https://github.com/auth0/jwks-rsa-java/blob/0.21.2/src/main/java/com/auth0/jwk/Jwk.java#L176
+                switch (type) {
+                    case ALGORITHM_RSA:
+                        try {
+                            kf = KeyFactory.getInstance(ALGORITHM_RSA);
+
+                            BigInteger n = new BigInteger(1, Base64.getUrlDecoder().decode(node.get("n").textValue()));
+                            BigInteger e = new BigInteger(1, Base64.getUrlDecoder().decode(node.get("e").textValue()));
+
+                            keyMap.put(kid, kf.generatePublic(new RSAPublicKeySpec(n, e)));
+                        } catch (NoSuchAlgorithmException e) {
+                            throw new IllegalArgumentException("failed to get KeyFactory by algorithm: " + type, e);
+                        } catch (InvalidKeySpecException e) {
+                            throw new IllegalArgumentException("failed to generate the RSA public key", e);
+                        }
+                        break;
+                    case ALGORITHM_EC:
+                        try {
+                            kf = KeyFactory.getInstance(ALGORITHM_EC);
+
+                            BigInteger x = new BigInteger(1, Base64.getUrlDecoder().decode(node.get("x").textValue()));
+                            BigInteger y = new BigInteger(1, Base64.getUrlDecoder().decode(node.get("y").textValue()));
+                            ECPoint ecPoint = new ECPoint(x, y);
+
+                            AlgorithmParameters algorithmParameters = AlgorithmParameters.getInstance(ALGORITHM_EC);
+                            String crv = node.get("crv").textValue();
+                            String stdName = CURVE_MAP.get(crv);
+                            if (stdName == null) {
+                                throw new UnsupportedOperationException("unsupported crv: " + crv);
+                            }
+                            algorithmParameters.init(new ECGenParameterSpec(stdName));
+                            ECParameterSpec parameterSpec = algorithmParameters.getParameterSpec(ECParameterSpec.class);
+                            ECPublicKeySpec ecPublicKeySpec = new ECPublicKeySpec(ecPoint, parameterSpec);
+
+                            keyMap.put(kid, kf.generatePublic(ecPublicKeySpec));
+                        } catch (NoSuchAlgorithmException e) {
+                            throw new IllegalArgumentException("failed to get KeyFactory by algorithm: " + type, e);
+                        } catch (InvalidKeySpecException | InvalidParameterSpecException e) {
+                            throw new IllegalArgumentException("failed to generate the EC public key", e);
+                        }
+                        break;
+                    default:
+                        throw new UnsupportedOperationException("unsupported kty: " + type);
+                }
+            }
+        }
+
+        public Key get(String kid) {
+            if (StringUtils.isEmpty(kid)) {
+                return null;
+            }
+            return keyMap.get(kid);
         }
     }
 }
