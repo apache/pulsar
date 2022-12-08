@@ -149,7 +149,7 @@ public class LinuxInfoUtils {
      */
     private static boolean isPhysicalNic(Path nicPath) {
         try {
-            if (nicPath.toRealPath().toString().contains("/virtual/")) {
+            if (nicPath.toString().contains("/virtual/")) {
                 return false;
             }
             // Check the type to make sure it's ethernet (type "1")
