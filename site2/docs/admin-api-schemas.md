@@ -388,13 +388,13 @@ admin.namespaces().setIsAllowAutoUpdateSchema("my-namspace", false);
 </Tabs>
 ````
 
-## Manage schema validation
+## Manage schema validation enforcement
 
-### Enable schema validation
+### Enable schema validation enforcement
 
-To enforce schema validation at the **cluster** level, you can configure `schemaValidationEnforced` to `true` in the `conf/broker.conf` file. 
+To enforce schema validation enforcement at the **cluster** level, you can configure `schemaValidationEnforced` to `true` in the `conf/broker.conf` file. 
 
-To enable schema validation at the **namespace** level, you can use one of the following commands.
+To enable schema validation enforcement at the **namespace** level, you can use one of the following commands.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -425,7 +425,7 @@ The post payload is in JSON format.
 </TabItem>
 <TabItem value="Java Admin API">
 
-Here is an example to enable schema validation for a tenant/namespace.
+Here is an example to enable schema validation enforcement for a tenant/namespace.
 
 ```java
 admin.namespaces().setSchemaValidationEnforced("my-namspace", true);
@@ -435,9 +435,9 @@ admin.namespaces().setSchemaValidationEnforced("my-namspace", true);
 </Tabs>
 ````
 
-### Disable schema validation
+### Disable schema validation enforcement
 
-To disable schema validation at the **namespace** level, you can use one of the following commands.
+To disable schema validation enforcement at the **namespace** level, you can use one of the following commands.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -468,7 +468,7 @@ The post payload is in JSON format.
 </TabItem>
 <TabItem value="Java Admin API">
 
-Here is an example to enable schema validation for a tenant/namespace.
+Here is an example to enable schema validation enforcement for a tenant/namespace.
 
 ```java
 admin.namespaces().setSchemaValidationEnforced("my-namspace", false);

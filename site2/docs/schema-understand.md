@@ -78,26 +78,26 @@ The following table outlines the complex types that Pulsar schema supports:
 
 | Complex Type | Description |
 |---|---|
-| `Keyvalue` | Represents a complex key/value pair. |
-| `Struct` | Represents structured data, including `AvroBaseStructSchema`, `ProtobufNativeSchema` and `Schema.NATIVE_AVRO`. |
+| `KeyValue` | Represents a complex key/value pair. |
+| `Struct` | Represents structured data, including `AvroBaseStructSchema`, `ProtobufNativeSchema` and `NativeAvroBytesSchema`. |
 
 #### `KeyValue` schema
 
 `KeyValue` schema helps applications define schemas for both key and value. Pulsar stores the `SchemaInfo` of the key schema and the value schema together.
 
 Pulsar provides the following methods to encode a **single** key/value pair in a message：
-* `INLINE` - Key/value pairs are encoded together in the message payload.
+* `INLINE` - Key/Value pairs are encoded together in the message payload.
 * `SEPARATED` - The Key is stored as a message key, while the value is stored as the message payload. See [Construct a key/value schema](schema-get-started.md#keyvalue) for more details.
 
 #### `Struct` schema
 
 The following table outlines the `struct` types that Pulsar schema supports:
 
-|Type|Description|
----|---|
-`AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br /><br />This allows Pulsar to:<br />- use the same tools to manage schema definitions.<br />- use different serialization or deserialization methods to handle data. |
-`ProtobufNativeSchema`|`ProtobufNativeSchema` is based on protobuf native Descriptor. <br /><br />This allows Pulsar to:<br />- use native protobuf-v3 to serialize or deserialize data<br />- use `AutoConsume` to deserialize data.|
-`Schema.NATIVE_AVRO` | `Schema.NATIVE_AVRO` is used to wrap a native Avro schema type `org.apache.avro.Schema`. The result is a schema instance that accepts a serialized Avro payload without validating it against the wrapped Avro schema. <br /><br />When you migrate or ingest event or messaging data from external systems (such as Kafka and Cassandra), the data is often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation when sending the ingested events to a topic. All it needs to do is pass each message or event with its schema to Pulsar. |
+| Type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `AvroBaseStructSchema`  | Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports [`AvroSchema`](schema-get-started.md#avro), [`JsonSchema`](schema-get-started.md#json), and [`ProtobufSchema`](schema-get-started.md#protobuf).<br /><br />This allows Pulsar to:<br />- use the same tools to manage schema definitions.<br />- use different serialization or deserialization methods to handle data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `ProtobufNativeSchema`  | [`ProtobufNativeSchema`](schema-get-started.md#protobufnative) is based on protobuf native descriptor. <br /><br />This allows Pulsar to:<br />- use native protobuf-v3 to serialize or deserialize data.<br />- use `AutoConsume` to deserialize data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `NativeAvroBytesSchema` | [`NativeAvroBytesSchema`](schema-get-started.md#native-avro) wraps a native Avro schema type `org.apache.avro.Schema`. The result is a schema instance that accepts a serialized Avro payload without validating it against the wrapped Avro schema. <br /><br />When you migrate or ingest event or messaging data from external systems (such as Kafka and Cassandra), the data is often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation when sending the ingested events to a topic. All it needs to do is pass each message or event with its schema to Pulsar. |
 
 Pulsar provides the following methods to use the `struct` schema. 
 * `static`
@@ -234,15 +234,15 @@ Auto schema contains two categories:
 * `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#auto_produce).
 * `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#auto_consume).
 
-## Schema validation
+## Schema validation enforcement
 
-Schema validation enables brokers to reject producers/consumers without a schema.
+Schema validation enforcement enables brokers to reject producers/consumers without a schema.
 
-By default, schema validation is only **disabled** (`isSchemaValidationEnforced=false`) for producers, which means:
+By default, schema validation enforcement is only **disabled** (`isSchemaValidationEnforced`=`false`) for producers, which means:
 * A producer without a schema can produce any messages to a topic with schemas, which may result in producing trash data to the topic. 
 * Clients that don’t support schema are allowed to produce messages to a topic with schemas.
 
-For how to enable/enforce schema validation, see [Manage schema validation](admin-api-schemas.md#manage-schema-validation).
+For how to enable schema validation enforcement, see [Manage schema validation](admin-api-schemas.md#manage-schema-validation).
 
 ## Schema evolution
 
@@ -337,7 +337,7 @@ For a producer, the `AutoUpdate` happens in the following cases:
 
 * If a **topic has a schema** and the **producer doesn’t carry any schema** (meaning it produces raw bytes):
 
-    * If [schema validation](#schema-validation) is **disabled** (`schemaValidationEnforced`=`false`) in the namespace that the topic belongs to, the producer is allowed to connect to the topic and produce data. 
+    * If [schema validation enforcement](#schema-validation-enforcement) is **disabled** (`schemaValidationEnforced`=`false`) in the namespace that the topic belongs to, the producer is allowed to connect to the topic and produce data. 
   
     * Otherwise, the producer is rejected.
 
