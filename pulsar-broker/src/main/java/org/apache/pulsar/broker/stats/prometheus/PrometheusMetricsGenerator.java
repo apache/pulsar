@@ -22,7 +22,6 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerat
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.getTypeStr;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -51,6 +50,7 @@ import org.apache.pulsar.broker.stats.WindowWrap;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -138,7 +138,7 @@ public class PrometheusMetricsGenerator {
                 } catch (IOException e) {
                     log.error("Generate metrics failed", e);
                     //return empty buffer if exception happens
-                    return ByteBufAllocator.DEFAULT.heapBuffer(0);
+                    return PulsarByteBufAllocator.DEFAULT.heapBuffer(0);
                 }
             });
 
