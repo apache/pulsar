@@ -187,7 +187,8 @@ public class PulsarConfigurationLoader {
                 try {
                     confField.setAccessible(true);
                     Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
-                    if (!Modifier.isStatic(convertedConfField.getModifiers())) {
+                    if (!Modifier.isStatic(convertedConfField.getModifiers())
+                            && convertedConfField.getDeclaredAnnotation(FieldContext.class) != null) {
                         convertedConfField.setAccessible(true);
                         convertedConfField.set(convertedConf, confField.get(conf));
                     }
