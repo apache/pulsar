@@ -273,9 +273,14 @@ public class TenantsBase extends PulsarWebResource {
                     .thenCompose(__ -> pulsar().getPulsarResources().getLocalPolicies()
                             .deleteLocalPoliciesTenantAsync(tenant))
                     .whenComplete((ignore, ex) -> {
-                        if (ex != null) {
-                            log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, ex);
-                            resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause != null) {
+                            log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, cause);
+                            if (cause instanceof IllegalStateException) {
+                                asyncResponse.resume(new RestException(Status.CONFLICT, cause));
+                            } else {
+                                resumeAsyncResponseExceptionally(asyncResponse, cause);
+                            }
                         } else {
                             log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
                             asyncResponse.resume(Response.noContent().build());
