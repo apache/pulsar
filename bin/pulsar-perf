@@ -144,6 +144,13 @@ PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
+IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
+# Start --add-opens options
+# '--add-opens' option is not supported in jdk8
+if [[ -z "$IS_JAVA_8" ]]; then
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED"
+fi
+
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
