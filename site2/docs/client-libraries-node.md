@@ -4,35 +4,21 @@ title: The Pulsar Node.js client
 sidebar_label: "Node.js"
 ---
 
-The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
-
-All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
+You can use a Pulsar Node.js client to create producers, consumers, and readers. For Pulsar features that Python clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
 
 For 1.3.0 or later versions, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) used in TypeScript are available.
 
 ## Installation
 
-You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
+:::tip
 
-### Requirements
-Pulsar Node.js client library is based on the C++ client library.
-Follow [these instructions](client-libraries-cpp.md#compilation) and install the Pulsar C++ client library.
+Pulsar Node.js client library is based on the C++ client library. 
+* You must install the Pulsar C++ client library before installing a Node.js client. For more details, see [instructions](client-libraries-cpp.md).
+* If an incompatible version of the C++ client is installed, you may fail to build or run the Node.js library. For the compatibility between each version of the Node.js client and the C++ client, see [README](https://github.com/apache/pulsar-client-node/blob/master/README.md).
 
-### Compatibility
+:::
 
-Compatibility between each version of the Node.js client and the C++ client is as follows:
-
-| Node.js client | C++ client     |
-| :------------- | :------------- |
-| 1.0.0          | 2.3.0 or later |
-| 1.1.0          | 2.4.0 or later |
-| 1.2.0          | 2.5.0 or later |
-
-If an incompatible version of the C++ client is installed, you may fail to build or run this library.
-
-### Installation using npm
-
-Install the `pulsar-client` library via [npm](https://www.npmjs.com/):
+Install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/):
 
 ```shell
 npm install pulsar-client
@@ -40,7 +26,7 @@ npm install pulsar-client
 
 :::note
 
-Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
+This library only works in Node.js 10.x or later versions because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
 
 :::
 
@@ -65,6 +51,10 @@ If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in t
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
+
+## Release notes
+
+For the changelog of Pulsar Node.js clients, see [release notes](/release-notes/#nodejs).
 
 ## Create a client
 
@@ -451,158 +441,4 @@ The following static methods are available for the message id object:
 
 ## End-to-end encryption
 
-[End-to-end encryption](/cookbooks-encryption.md#docsNav) allows applications to encrypt messages at producers and decrypt at consumers.
-
-### Configuration
-
-If you want to use the end-to-end encryption feature in the Node.js client, you need to configure `publicKeyPath` for producer and `privateKeyPath` for consumers.
-
-```conf
-publicKeyPath: "./public.pem"
-privateKeyPath: "./private.pem"
-```
-
-### Tutorial
-
-This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Node.js client.
-
-**Prerequisite**
-
-- Pulsar C++ client 2.7.1 or later
-
-**Step**
-
-1. Create both public and private key pairs.
-
-   **Input**
-
-   ```shell
-   openssl genrsa -out private.pem 2048
-   openssl rsa -in private.pem -pubout -out public.pem
-   ```
-
-2. Create a producer to send encrypted messages.
-
-   **Input**
-
-   ```javascript
-   const Pulsar = require('pulsar-client');
-
-   (async () => {
-     // Create a client
-     const client = new Pulsar.Client({
-       serviceUrl: 'pulsar://localhost:6650',
-       operationTimeoutSeconds: 30,
-     });
-
-     // Create a producer
-     const producer = await client.createProducer({
-       topic: 'persistent://public/default/my-topic',
-       sendTimeoutMs: 30000,
-       batchingEnabled: true,
-       publicKeyPath: "./public.pem",
-       encryptionKey: "encryption-key"
-     });
-
-     console.log(producer.ProducerConfig)
-     // Send messages
-     for (let i = 0; i < 10; i += 1) {
-       const msg = `my-message-${i}`;
-       producer.send({
-         data: Buffer.from(msg),
-       });
-       console.log(`Sent message: ${msg}`);
-     }
-     await producer.flush();
-
-     await producer.close();
-     await client.close();
-   })();
-   ```
-
-3. Create a consumer to receive encrypted messages.
-
-   **Input**
-
-   ```javascript
-   const Pulsar = require('pulsar-client');
-
-   (async () => {
-     // Create a client
-     const client = new Pulsar.Client({
-       serviceUrl: 'pulsar://172.25.0.3:6650',
-       operationTimeoutSeconds: 30
-     });
-
-     // Create a consumer
-     const consumer = await client.subscribe({
-       topic: 'persistent://public/default/my-topic',
-       subscription: 'sub1',
-       subscriptionType: 'Shared',
-       ackTimeoutMs: 10000,
-       privateKeyPath: "./private.pem"
-     });
-
-     console.log(consumer)
-     // Receive messages
-     for (let i = 0; i < 10; i += 1) {
-       const msg = await consumer.receive();
-       console.log(msg.getData().toString());
-       consumer.acknowledge(msg);
-     }
-
-     await consumer.close();
-     await client.close();
-   })();
-   ```
-
-4. Run the consumer to receive encrypted messages.
-
-   **Input**
-
-   ```shell
-   node consumer.js
-   ```
-
-5. In a new terminal tab, run the producer to produce encrypted messages.
-
-   **Input**
-
-   ```shell
-   node producer.js
-   ```
-
-   Now you can see the producer sends messages and the consumer receives messages successfully.
-
-   **Output**
-
-   This is from the producer side.
-
-   ```
-   Sent message: my-message-0
-   Sent message: my-message-1
-   Sent message: my-message-2
-   Sent message: my-message-3
-   Sent message: my-message-4
-   Sent message: my-message-5
-   Sent message: my-message-6
-   Sent message: my-message-7
-   Sent message: my-message-8
-   Sent message: my-message-9
-   ```
-
-   This is from the consumer side.
-
-   ```
-   my-message-0
-   my-message-1
-   my-message-2
-   my-message-3
-   my-message-4
-   my-message-5
-   my-message-6
-   my-message-7
-   my-message-8
-   my-message-9
-   ```
-
+Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [Get started](security-encryption.md#get-started) for more details.

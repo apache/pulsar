@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.source;
 
 
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -55,10 +55,10 @@ public class KafkaAbstractSourceTest {
         public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
             KafkaRecord record = new KafkaRecord(consumerRecord,
                     new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                    Schema.STRING);
+                    Schema.STRING,
+                    Collections.emptyMap());
             return record;
         }
-
     }
 
     @Test

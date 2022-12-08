@@ -34,6 +34,7 @@
 
   <properties>
     <integrationTestSuiteFile>pulsar.xml</integrationTestSuiteFile>
+    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
   </properties>
 
   <dependencies>
@@ -208,6 +209,19 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- mongodb -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mongodb</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mongodb</groupId>
+      <artifactId>mongodb-driver-reactivestreams</artifactId>
+      <version>${mongo-reactivestreams.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -275,6 +289,27 @@
               </suiteXmlFiles>
               <forkCount>1</forkCount>
             </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-pulsar-certificate-authority-resources</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.build.testOutputDirectory}/certificate-authority</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.parent.basedir}/certificate-authority</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

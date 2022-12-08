@@ -13,7 +13,7 @@ original_id: deploy-bare-metal-multi-cluster
 
 :::
 
-A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md).Deploying a  multi-cluster Pulsar instance consists of the following steps:
+A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a  multi-cluster Pulsar instance consists of the following steps:
 
 1. Deploying two separate ZooKeeper quorums: a local quorum for each cluster in the instance and a configuration store quorum for instance-wide tasks
 2. Initializing cluster metadata for each cluster
@@ -363,7 +363,7 @@ $ bin/pulsar broker
 
 ## Service discovery
 
-[Clients](getting-started-clients.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL.
+[Clients](client-libraries.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL.
 
 You can use your own service discovery system. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 

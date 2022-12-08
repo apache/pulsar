@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,9 +38,8 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     }
 
     @Override
-    public int getRedeliveryCount(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
+    public int getRedeliveryCount(long ledgerId, long entryId) {
+        LongPair count = trackerCache.get(ledgerId, entryId);
         return (int) (count != null ? count.first : 0);
     }
 

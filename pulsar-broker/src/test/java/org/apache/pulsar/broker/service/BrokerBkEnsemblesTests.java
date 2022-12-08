@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -369,8 +369,6 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
             String message = "my-message2-" + i;
             producer.send(message.getBytes());
         }
-
-        ml.delete();
 
         // Admin should be able to truncate the topic
         admin.topics().truncate(topic1);

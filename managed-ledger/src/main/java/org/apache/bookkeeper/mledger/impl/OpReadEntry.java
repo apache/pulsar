@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -100,8 +100,15 @@ class OpReadEntry implements ReadEntriesCallback {
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
-            // try to find and move to next valid ledger
-            final Position nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+            final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+            Position nexReadPosition;
+            if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                // try to find and move to next valid ledger
+                nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+            } else {
+                // Skip this read operation
+                nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+            }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
@@ -149,7 +156,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 cursor.readOperationCompleted();
 
             } finally {
-                cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
+                cursor.ledger.getExecutor().execute(safeRun(() -> {
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));
@@ -159,10 +166,6 @@ class OpReadEntry implements ReadEntriesCallback {
 
     public int getNumberOfEntriesToRead() {
         return count - entries.size();
-    }
-
-    public boolean isSlowestReader() {
-        return cursor.ledger.getSlowestConsumer() == cursor;
     }
 
     private final Handle<OpReadEntry> recyclerHandle;

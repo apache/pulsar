@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Contains all the data that is maintained locally on each broker.
  */
+@JsonIgnoreProperties(value = {"bundleStats"})
 @JsonDeserialize(as = LocalBrokerData.class)
 public class LocalBrokerData implements LoadManagerReport {
 
@@ -235,7 +237,8 @@ public class LocalBrokerData implements LoadManagerReport {
     }
 
     public double getMaxResourceUsage() {
-        return max(cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+        // does not consider memory because it is noisy by gc.
+        return max(cpu.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage()) / 100;
     }
 
@@ -255,17 +258,7 @@ public class LocalBrokerData implements LoadManagerReport {
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
-    public double getMaxResourceUsageWithWeightWithinLimit(final double cpuWeight, final double memoryWeight,
-                                                           final double directMemoryWeight,
-                                                           final double bandwidthInWeight,
-                                                           final double bandwidthOutWeight) {
-        return maxWithinLimit(100.0d,
-                cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
-                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
-    }
-
-    private static double max(double... args) {
+    public static double max(double... args) {
         double max = Double.NEGATIVE_INFINITY;
 
         for (double d : args) {
@@ -286,16 +279,6 @@ public class LocalBrokerData implements LoadManagerReport {
             }
         }
 
-        return max;
-    }
-
-    private static double maxWithinLimit(double limit, double...args) {
-        double max = 0.0;
-        for (double d : args) {
-            if (d > max && d <= limit) {
-                max = d;
-            }
-        }
         return max;
     }
 

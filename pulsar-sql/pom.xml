@@ -63,6 +63,23 @@
                 <version>${okio.version}</version>
             </dependency>
 
+            <!-- force specific version of jline, see https://github.com/scala/scala/pull/9807 -->
+            <dependency>
+                <groupId>org.jline</groupId>
+                <artifactId>jline-reader</artifactId>
+                <version>${jline3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jline</groupId>
+                <artifactId>jline-terminal</artifactId>
+                <version>${jline3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jline</groupId>
+                <artifactId>jline-terminal-jna</artifactId>
+                <version>${jline3.version}</version>
+            </dependency>
+
             <!-- force specific version of slf4j -->
             <dependency>
                 <groupId>org.slf4j</groupId>

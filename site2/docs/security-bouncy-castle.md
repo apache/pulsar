@@ -101,17 +101,17 @@ Pulsar module `bouncy-castle-bcfips`, which is defined by `bouncy-castle/bcfips/
 Similar to `bouncy-castle-bc`, `bouncy-castle-bcfips` is also packaged as a `jar-in-jar` package for easy include/exclude.
 
 ```xml
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bc-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
-    </dependency>
+<dependency>
+  <groupId>org.bouncycastle</groupId>
+  <artifactId>bc-fips</artifactId>
+  <version>${bouncycastle.bc-fips.version}</version>
+</dependency>
 
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-fips</artifactId>
-      <version>${bouncycastlefips.version}</version>
-    </dependency>
+<dependency>
+  <groupId>org.bouncycastle</groupId>
+  <artifactId>bcpkix-fips</artifactId>
+  <version>${bouncycastle.bcpkix-fips.version}</version>
+</dependency>
 ```
 
 ### Exclude BC-non-FIPS and include BC-FIPS

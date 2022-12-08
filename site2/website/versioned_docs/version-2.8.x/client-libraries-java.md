@@ -134,7 +134,7 @@ boolean|`tlsAllowInsecureConnection`|Whether the Pulsar client accepts untrusted
 boolean | `tlsHostnameVerificationEnable` | Whether to enable TLS hostname verification|false
 int|`concurrentLookupRequest`|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
 int|`maxLookupRequest`|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (60 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 int|`keepAliveIntervalSeconds`|Seconds of keeping alive interval for each client broker connection|30
 int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br /><br />If the duration passes without a response from a broker, the connection attempt is dropped|10000
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000
@@ -535,7 +535,7 @@ private void receiveMessageFromConsumer(Object consumer) {
 
 ### Subscription types
 
-Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
+Pulsar has various [subscription types](concepts-messaging.md#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
 A subscription is identical to the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 

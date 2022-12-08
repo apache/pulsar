@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,12 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +52,7 @@ public class MockAuthentication implements Authentication {
             public String getHttpAuthType() { return "mock"; }
             @Override
             public Set<Map.Entry<String, String>> getHttpHeaders() {
-                return ImmutableMap.of("mockuser", user).entrySet();
+                return Map.of("mockuser", user).entrySet();
             }
             @Override
             public boolean hasDataFromCommand() {

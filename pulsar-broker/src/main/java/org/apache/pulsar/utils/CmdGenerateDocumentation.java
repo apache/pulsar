@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,9 @@ package org.apache.pulsar.utils;
 import com.beust.jcommander.Parameters;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BaseGenerateDocumentation;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.util.BaseGenerateDocumentation;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
 @Data

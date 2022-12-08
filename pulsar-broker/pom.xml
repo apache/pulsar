@@ -339,6 +339,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-api-examples</artifactId>
       <version>${project.version}</version>
@@ -431,10 +436,9 @@
         <configuration>
           <failOnViolations>true</failOnViolations>
           <javaVersion>17</javaVersion>
-          <ignorePackages>
-            <ignorePackage>org.apache.pulsar.broker</ignorePackage>
-            <ignorePackage>org.apache.pulsar.client</ignorePackage>
-          </ignorePackages>
+          <exclusionPatterns>
+            <exclusionPattern>java/lang/StringBuffer."&lt;init&gt;":.*</exclusionPattern>
+          </exclusionPatterns>
         </configuration>
         <executions>
           <execution>
@@ -853,7 +857,7 @@
                         </goals>
                       </pluginExecutionFilter>
                       <action>
-                        <ignore></ignore>
+                        <ignore/>
                       </action>
                     </pluginExecution>
                   </pluginExecutions>

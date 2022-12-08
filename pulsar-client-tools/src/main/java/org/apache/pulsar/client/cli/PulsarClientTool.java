@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -96,8 +97,8 @@ public class PulsarClientTool {
 
     protected JCommander jcommander;
     IUsageFormatter usageFormatter;
-    CmdProduce produceCommand;
-    CmdConsume consumeCommand;
+    protected CmdProduce produceCommand;
+    protected CmdConsume consumeCommand;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
@@ -146,6 +147,17 @@ public class PulsarClientTool {
         this.rootParams.authPluginClassName = properties.getProperty("authPlugin");
         this.rootParams.authParams = properties.getProperty("authParams");
         this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
+        String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
+        if (proxyProtocolString != null) {
+            try {
+                this.rootParams.proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
+                e.printStackTrace();
+                System.exit(-1);
+            }
+        }
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {

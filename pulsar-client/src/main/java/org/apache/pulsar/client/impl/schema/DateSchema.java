@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,10 +32,10 @@ public class DateSchema extends AbstractSchema<Date> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("Date")
-             .setType(SchemaType.DATE)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("Date")
+             .type(SchemaType.DATE)
+             .schema(new byte[0]).build();
        INSTANCE = new DateSchema();
    }
 

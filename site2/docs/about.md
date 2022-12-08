@@ -27,10 +27,10 @@ Select one of the content blocks below to begin your Pulsar journey. If you ...
 <BlockLinks>
     <BlockLink title="About Pulsar" url="/docs/next/concepts-overview/" />
     <BlockLink title="Get Started" url="/docs/next/getting-started-home/" />
-    <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/deploy-aws/" />
-    <BlockLink title="Pulsar for Developers" url="/docs/next/develop-tools/" />
-    <BlockLink title="How To" url="/docs/next/functions-develop/" />
-    <BlockLink title="Reference" url="/docs/next/reference-terminology/" />
+    <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/install-deploy-upgrade-landing/" />
+    <BlockLink title="Pulsar for Developers" url="/docs/next/developers-landing/" />
+    <BlockLink title="How To" url="/docs/next/how-to-landing/" />
+    <BlockLink title="Reference" url="/docs/next/reference-landing/" />
 </BlockLinks>
 
 ## Navigation
@@ -51,7 +51,13 @@ As you probably know, we are working on a new user experience for our documentat
 ## Help Improve These Documents
 ***
 
-You’ll notice an Edit button at the bottom and top of each page. Click it to open a landing page with instructions for requesting changes to posted documents. These are your resources. Participation is not only welcomed – it’s essential!
+You’ll notice an Edit button at the bottom and top of each page. Click it to open a landing page with instructions for requesting changes to posted documents. These are your resources. Participation is not only welcomed – it’s essential! 
+
+:::tip
+
+For how to make contributions to documentation, see [Pulsar Documentation Contribution Guide](https://github.com/apache/pulsar/blob/master/site2/README.md).
+
+:::
 
 ## Join the Community!
 ***
