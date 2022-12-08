@@ -110,6 +110,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
@@ -1682,7 +1683,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreationType("partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         initAndStartBroker();
 
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -1711,7 +1712,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(1);
-        conf.setAllowAutoTopicCreationType("non-partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         initAndStartBroker();
 
         admin.tenants().createTenant("testTenant", tenantInfo);

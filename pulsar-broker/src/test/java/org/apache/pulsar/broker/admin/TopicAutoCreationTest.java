@@ -40,6 +40,7 @@ import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -51,7 +52,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setAllowAutoTopicCreationType("partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
         conf.setDefaultNumPartitions(3);
         super.internalSetup();
