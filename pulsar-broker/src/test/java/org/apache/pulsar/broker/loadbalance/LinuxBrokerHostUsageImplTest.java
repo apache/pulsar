@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -31,6 +32,7 @@ public class LinuxBrokerHostUsageImplTest {
 
     @Test
     public void checkOverrideBrokerNicSpeedGbps() {
+        @Cleanup("shutdown")
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         LinuxBrokerHostUsageImpl linuxBrokerHostUsage =
                 new LinuxBrokerHostUsageImpl(1, Optional.of(3.0), executorService);
