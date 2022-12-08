@@ -599,9 +599,121 @@ In the diagram below, **Consumer A**, **Consumer B** and **Consumer C** are all 
 
 #### Key_Shared
 
-In the *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connects or disconnects, it causes the served consumer to change some message keys.
+In the *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. 
 
 ![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.svg)
+
+There are 3 different types of mapping algorithms dictating how to select a consumer for a given message key (or ordering key): Sticky, Auto-split Hash Range and Auto-split Consistent Hashing. In all of them, the message key (or ordering key) is pass to a hash function (e.g. Murmur3 32bit), which yields a 32bit integer hash. That hash number is then fed to the algorithm to select a consumer from the existing connected consumers. 
+When a new consumer is connected, thus added to the list of added consumers, the algorithm re-adjusts its mapping such that some keys mapped to existing consumers will be mapped to the newly added consumer. When a consumer is disconnected, thus removed from the list of connected consumers, keys mapped to it will be mapped to other consumers. In the sections below each algorithm will contain an explanation on how a consumer is selected given the message hash, and how the mapping is adjusted given a new consumer is connected or an existing consumer disconnects.
+
+##### Auto-split Hash Range
+The algorithm assumes there is a range of number between 0 to 2^16 (65,536). Each consumer is mapped into a single region in this range, such that together all consumers regions cover all the range. The consumer is selected by running a modulo operation on the message hash by the range size (65,536), the number received ( 0 <= i < 65,536), falls into a single region. The consumer mapped to the region is the one selected.
+
+Example:
+
+Suppose we have 4 consumers (C1, C2, C3 and C4), then:
+```
+ 0               16,384            32,768           49,152             65,536
+ |------- C3 ------|------- C2 ------|------- C1 ------|------- C4 ------|
+```
+
+Given a message key `Order-3459134`, it's hash would be `murmur32("Order-3459134") = 3112179635`, and it's index in the range would be `3112179635 mod 65536 = 6067`. That index is mapped to `[0, 16384)` thus consumer C1 will map to this message key.
+
+When a consumer is joining, the largest region is chosen and is then split in half - the lower half will be mapped to the newly added consumer and upper half will be mapped to consumer owning that region. Here is how it looks like from 1 to 4 consumers:
+
+```
+|---------------------------------- C1 ---------------------------------|
+|--------------- C2 ----------------|---------------- C1 ---------------|
+|------- C3 ------|------- C2 ------|---------------- C1 ---------------|
+|------- C3 ------|------- C2 ------|------- C1 ------|------- C4 ------|
+```
+
+When a consumer is disconnected its region will be merged into the region on its right. Example:
+```
+|------- C3 ------|------- C2 ------|---------------- C1 ---------------|
+```
+
+C1 is disconnected:
+```
+|------- C3 ------|-------------------------- C2 -----------------------|
+```
+
+The advantages of this algorithm is that it affects only a single existing consumer upon add/delete consumer, at the expense of regions not evenly sized. The next algorithm does the other way around. 
+
+##### Auto-split Consistent Hashing
+This algorithm uses a Hash Ring. It's a range of number from 0 to MAX_INT (32bit) in which if you traverse the range, when reaching MAX_INT, the next number would be zero. As if you took a line starting from 0 ending at MAX_INT and bent into a circle such that the end glues to the start:
+
+```
+ MAX_INT -----++--------- 0
+              ||
+         , - ~ ~ ~ - ,
+     , '               ' ,
+   ,                       ,
+  ,                         ,
+ ,                           ,
+ ,                           ,
+ ,                           ,
+  ,                         ,
+   ,                       ,
+     ,                  , '
+       ' - , _ _ _ ,  '
+```
+
+When adding a consumer, we mark 100 points on that circle and associating them to the newly added consumer. For each number between 1 and 100, we concatenate the consumer name to that number and run the hash function on it to get the location of the point on the circle that will be marked. For Example, if the consumer name is "orders-aggregator-pod-2345-consumer" then we would mark 100 points on that circle:
+```
+    murmur32("orders-aggregator-pod-2345-consumer1") = 1003084738
+    murmur32("orders-aggregator-pod-2345-consumer2") = 373317202
+    ...
+    murmur32("orders-aggregator-pod-2345-consumer100") = 320276078
+```
+
+Since the hash function has the uniform distribution attribute, those points would be uniformly distributed across the circle. 
+```
+    C1-100                 
+         , - ~ ~ ~ - ,   C1-1
+     , '               ' ,
+   ,                       ,
+  ,                         , C1-2
+ ,                           ,
+ ,                           ,
+ ,                           ,
+  ,                         ,  C1-3
+   ,                       ,
+     ,                  , '
+       ' - , _ _ _ ,  '      ...
+ 
+```
+
+A message is selected by putting its hash on the circle then continue clock-wise on the circle until you reach a marking point. The point might have more than one consumer on it (hash function might have collisions) there for, we run the following operation to get a position within the list of consumers for that point, then we take the consumer in that position: `hash % consumer-list-size = index`.
+
+When a consumer is added, we add 100 marking points to the circle as explained before. Due to the uniform distribution of the hash function, those 100 points is as if the new consumer takes a small slice of keys out of each existing consumer. It's maintains the even distribution, on the trade-off that it impacts all existing consumers.
+
+##### Sticky
+
+The algorithm assumes there is a range of number between 0 to 2^16 (65,536). Each consumer is mapped into a multiple regions in this range. The consumer is selected by running a modulo operation on the message hash by the range size (65,536), the number received ( 0 <= i < 65,536), falls into a single region. The consumer mapped to the region is the one selected.
+In this algorithm you have full control. Every newly added consumer lists the ranges it wishes to be mapped to. When the consumer object is built, you can specify the list of ranges. It's your responsibility to make sure there are no collisions and all the range is covered by regions.
+
+Example:
+
+Suppose we have 2 consumers (C1 and C2) each specified their ranges, then:
+```
+C1 = [0, 16384), (32768, 49152]
+C2 = [16384, 32768), (49,152, 65536]
+ 
+ 0               16,384            32,768           49,152             65,536
+ |------- C1 ------|------- C2 ------|------- C1 ------|------- C2 ------|
+```
+
+Given a message key `Order-3459134`, it's hash would be `murmur32("Order-3459134") = 3112179635`, and it's index in the range would be `3112179635 mod 65536 = 6067`. That index is mapped to `[0, 16384)` thus consumer C1 will map to this message key.
+
+If the newly connected consumer didn't supply their ranges, or they collide with existing consumer ranges, it's disconnected, removed from the consumers list and reverted as if it never tried to connect.
+
+##### How to use them?
+When building the consumer, you can specify the Key Shared Mode: 
+* AUTO_SPLIT - Auto-split Hash Range
+* STICKY - Sticky
+
+Auto-split Consistent Hashing will be used instead of Hash Range if the broker configuration `subscriptionKeySharedUseConsistentHashing` is turned on.
 
 :::note
 
