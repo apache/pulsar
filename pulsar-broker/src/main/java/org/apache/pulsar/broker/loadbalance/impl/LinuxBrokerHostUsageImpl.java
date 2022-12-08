@@ -125,7 +125,6 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
         return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
-                .map(speed -> speed * nics.size())
                 .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
 
