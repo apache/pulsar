@@ -110,6 +110,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -1554,7 +1555,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @AllArgsConstructor
     private static class NamespaceAttr {
         private boolean systemTopicEnabled;
-        private String autoTopicCreationType;
+        private TopicType autoTopicCreationType;
         private int defaultNumPartitions;
         private boolean forceDeleteNamespaceAllowed;
     }
@@ -1562,9 +1563,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "namespaceAttrs")
     public Object[][] namespaceAttributes(){
         return new Object[][]{
-                {new NamespaceAttr(false, "non-partitioned", 0, false)},
-                {new NamespaceAttr(true, "non-partitioned", 0, false)},
-                {new NamespaceAttr(true, "partitioned", 3, false)}
+                {new NamespaceAttr(false, TopicType.NON_PARTITIONED, 0, false)},
+                {new NamespaceAttr(true, TopicType.NON_PARTITIONED, 0, false)},
+                {new NamespaceAttr(true, TopicType.PARTITIONED, 3, false)}
         };
     }
 
@@ -2071,7 +2072,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         cleanup();
         conf.setMaxTopicsPerNamespace(10);
         conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreationType("partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         setup();
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Set.of("test"));
@@ -2089,7 +2090,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // check producer/consumer auto create non-partitioned topic
         cleanup();
         conf.setMaxTopicsPerNamespace(3);
-        conf.setAllowAutoTopicCreationType("non-partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         setup();
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Set.of("test"));

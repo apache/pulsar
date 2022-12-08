@@ -57,6 +57,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -166,7 +167,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setDefaultNumberOfNamespaceBundles(1);
             conf.setMetadataStoreUrl("zk:localhost:2181");
             conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
-            conf.setAllowAutoTopicCreationType("non-partitioned");
+            conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
             conf.setForceDeleteNamespaceAllowed(true);
             conf.setBrokerShutdownTimeoutMs(0L);
