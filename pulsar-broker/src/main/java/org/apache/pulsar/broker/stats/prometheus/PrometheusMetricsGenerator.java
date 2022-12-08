@@ -22,7 +22,6 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerat
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.getTypeStr;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
@@ -45,6 +44,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
@@ -100,7 +100,7 @@ public class PrometheusMetricsGenerator {
         boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, OutputStream out,
         List<PrometheusRawMetricsProvider> metricsProviders)
         throws IOException {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
