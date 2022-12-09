@@ -132,8 +132,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             MessageMetadata msgMetadata;
             if (metadataArray != null) {
                 msgMetadata = metadataArray[metadataIndex];
-            } else if (entry instanceof EntryAndMetadata entryAndMetadata) {
-                msgMetadata = entryAndMetadata.getMetadata();
+            } else if (entry instanceof EntryAndMetadata) {
+                msgMetadata = ((EntryAndMetadata) entry).getMetadata();
             } else {
                 msgMetadata = Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1);
             }
