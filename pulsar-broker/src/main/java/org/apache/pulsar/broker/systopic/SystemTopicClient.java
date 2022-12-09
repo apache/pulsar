@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -154,6 +155,16 @@ public interface SystemTopicClient<T> {
          * @return pulsar event
          */
         Message<T> readNext() throws PulsarClientException;
+
+        /**
+         * Read the next message in the system topic waiting for a maximum time.
+         *
+         * <p>Returns null if no message is received before the timeout.
+         *
+         * @return the next message(Could be null if none received in time)
+         * @throws PulsarClientException
+         */
+        Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException;
 
         /**
          * Async read event from system topic.

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.Message;
@@ -141,6 +142,11 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
         @Override
         public Message<T> readNext() throws PulsarClientException {
             return reader.readNext();
+        }
+
+        @Override
+        public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
+            return reader.readNext(timeout, unit);
         }
 
         @Override

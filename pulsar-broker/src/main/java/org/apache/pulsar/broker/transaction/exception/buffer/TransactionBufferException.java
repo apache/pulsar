@@ -87,5 +87,17 @@ public abstract class TransactionBufferException extends TransactionException {
         }
     }
 
+    /**
+     * Exception is thrown when the transaction is not found in the transaction buffer.
+     */
+    public static class TBRecoverCantCompletedException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TBRecoverCantCompletedException(String message) {
+            super(message);
+        }
+    }
+
 
 }

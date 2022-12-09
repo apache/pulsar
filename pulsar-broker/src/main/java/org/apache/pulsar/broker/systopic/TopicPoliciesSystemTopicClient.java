@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -169,6 +170,11 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public Message<PulsarEvent> readNext() throws PulsarClientException {
             return reader.readNext();
+        }
+
+        @Override
+        public Message<PulsarEvent> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
+            return reader.readNext(timeout, unit);
         }
 
         @Override

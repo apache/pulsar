@@ -66,6 +66,10 @@ public abstract class TopicTransactionBufferState {
         STATE_UPDATER.set(this, State.Close);
     }
 
+    protected void changeToNoneState() {
+        STATE_UPDATER.set(this, State.None);
+    }
+
     public boolean checkIfReady() {
         return STATE_UPDATER.get(this) == State.Ready;
     }

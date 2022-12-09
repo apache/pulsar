@@ -20,9 +20,11 @@ package org.apache.pulsar.broker.transaction;
 
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -33,12 +35,12 @@ import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -81,7 +83,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.events.EventType;
@@ -91,6 +95,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -322,21 +327,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         topicTransactionBuffer.run(null);
     }
 
-    private void triggerLedgerTrims(String topicName){
-        PersistentTopic persistentTopic = findPersistentTopic(topicName);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        CompletableFuture future = new CompletableFuture();
-        managedLedger.trimConsumedLedgersInBackground(future);
-        future.join();
-    }
-
-    private Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> getLedgers(String topicName){
-        PersistentTopic persistentTopic = findPersistentTopic(topicName);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        return managedLedger.getLedgersInfo();
-    }
-
-    private void triggerCompact(String topicName) throws Exception {
+    private void triggerCompactAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic = findPersistentTopic(topicName);
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         persistentTopic.getBrokerService().getPulsar().getCompactor().compact(topicName);
@@ -352,71 +343,68 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 compaction.getMarkDeletedPosition().getEntryId());
     }
 
-    private void waitCursorDedup(String topicName) throws Exception {
-        PersistentTopic persistentTopic = findPersistentTopic(topicName);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        persistentTopic.checkDeduplicationSnapshot();
-        Awaitility.await().untilAsserted(() -> {
-            ManagedCursorImpl dedupCursor = (ManagedCursorImpl) managedLedger.getCursors().get("pulsar.dedup");
-            assertEquals(dedupCursor.getMarkDeletedPosition().getLedgerId(),
-                    managedLedger.getLastConfirmedEntry().getLedgerId());
-            assertEquals(dedupCursor.getMarkDeletedPosition().getEntryId(),
-                    managedLedger.getLastConfirmedEntry().getEntryId());
-        });
-        ManagedCursorImpl dedupCursor = (ManagedCursorImpl) managedLedger.getCursors().get("pulsar.dedup");
-        log.info("===> cursor-dedup mark deleted position {}:{}", dedupCursor.getMarkDeletedPosition().getLedgerId(),
-                dedupCursor.getMarkDeletedPosition().getEntryId());
+    private void initPropLastMessageIdInBrokerOfTBReader(TopicName topicName) throws Exception {
+        for (PulsarService pulsarService : pulsarServiceList){
+            // Init prop: lastMessageIdInBroker.
+            final SystemTopicTxnBufferSnapshotService tbSnapshotService =
+                    pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
+            AtomicReference<SystemTopicClient.Reader> readerCache = new AtomicReference<>();
+            SystemTopicClient.Reader reader =
+                    (SystemTopicClient.Reader) tbSnapshotService.createReader(topicName).join();
+            ReaderImpl innerReader =
+                    WhiteboxImpl.getInternalState(reader, "reader");
+            ConsumerImpl innerConsumer = innerReader.getConsumer();
+            // Because the consumer's incoming queue is 1000, messages are placed in client memory the moment consumers
+            // are created, which prevents the consumer from pulling messages from the broker again.
+            // So we just set a fake MessageId to variable "lastMessageIdInBroker".
+            innerConsumer.hasMessageAvailable();
+            Field lastMessageInBrokerField = ConsumerImpl.class.getDeclaredField("lastMessageIdInBroker");
+            lastMessageInBrokerField.setAccessible(true);
+            lastMessageInBrokerField.set(innerConsumer, MessageId.latest);
+            readerCache.set(reader);
+            // Inject.
+            SystemTopicTxnBufferSnapshotService spyTbSnapshotService = spy(tbSnapshotService);
+            doAnswer(invocation -> {
+                SystemTopicClient.Reader readerInCache = readerCache.getAndSet(null);
+                if (readerInCache != null){
+                    return CompletableFuture.completedFuture(readerInCache);
+                } else {
+                    return tbSnapshotService.createReader(topicName);
+                }
+            }).when(spyTbSnapshotService).createReader(topicName);
+            Field field =
+                    TransactionBufferSnapshotServiceFactory.class.getDeclaredField("txnBufferSnapshotService");
+            field.setAccessible(true);
+            field.set(pulsarService.getTransactionBufferSnapshotServiceFactory(), spyTbSnapshotService);
+        }
     }
 
     @Test
-    private void testTrimLedgerWillKeepsAtLeastOneLedgerWithData() throws Exception {
+    public void testRecoverCantComplete() throws Exception {
+        String topicNameForMakeDataForTB = String.format("persistent://%s/%s", NAMESPACE1,
+                "tx_recover_1_" + UUID.randomUUID().toString().replaceAll("-", "_"));
         String topicName = String.format("persistent://%s/%s", NAMESPACE1,
-                "tx_recover_" + UUID.randomUUID().toString().replaceAll("-", "_"));
+                "tx_recover_2_" + UUID.randomUUID().toString().replaceAll("-", "_"));
         String subName = "sub";
         String transactionBufferTopicName =
                 String.format("persistent://%s/%s", NAMESPACE1, TRANSACTION_BUFFER_SNAPSHOT);
 
-        // Make some data.
-        ProducerAndConsumer producerAndConsumer = null;
-        for (int i = 0; i < 5; i++) {
-            producerAndConsumer = makeManyTx(10, topicName, subName);
-            triggerSnapshot(topicName);
-            if (i != 4) {
-                // Do not close all clients.
-                producerAndConsumer.producer.close();
-                producerAndConsumer.consumer.close();
-            }
-            // Reload for create new ledger, and wait for topic reload.
-            admin.topics().unload(transactionBufferTopicName);
-            Awaitility.await().until(() -> {
-                try {
-                    findPersistentTopic(transactionBufferTopicName);
-                    return true;
-                } catch (Exception e) {
-                    return false;
-                }
-            });
-        }
+        // Make some TB snapshot.
+        ProducerAndConsumer producerAndConsumer1 = makeManyTx(10, topicNameForMakeDataForTB, subName);
+        triggerSnapshot(topicNameForMakeDataForTB);
+        producerAndConsumer1.producer.close();
+        producerAndConsumer1.consumer.close();
+        admin.topics().delete(topicNameForMakeDataForTB);
 
-        // Verify the last ledger will not be deleted.
-        Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = getLedgers(transactionBufferTopicName);
-        long lastLedgerHasData = -1;
-        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledger : ledgers.values()){
-            if (ledger.getEntries() > 0){
-                lastLedgerHasData = Math.max(lastLedgerHasData, ledger.getLedgerId());
-            }
-        }
-        log.info("===> ledgers before trim {}", ledgers.keySet());
-        triggerCompact(transactionBufferTopicName);
-        waitCursorDedup(transactionBufferTopicName);
-        triggerLedgerTrims(transactionBufferTopicName);
-        ledgers = getLedgers(transactionBufferTopicName);
-        log.info("===> ledgers after trim {}", ledgers.keySet());
-        assertTrue(ledgers.containsKey(lastLedgerHasData));
+        // Make race condition of "getLastMessageId" and "compaction" to make recover can't complete.
+        initPropLastMessageIdInBrokerOfTBReader(TopicName.get(topicName));
+        triggerCompactAndWait(transactionBufferTopicName);
+        // Ensure topic works.
+        ProducerAndConsumer producerAndConsumer2 = makeManyTx(3, topicName, subName);
 
         // cleanup.
-        producerAndConsumer.producer.close();
-        producerAndConsumer.consumer.close();
+        producerAndConsumer2.producer.close();
+        producerAndConsumer2.consumer.close();
         admin.topics().delete(topicName, false);
     }
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -31,8 +32,10 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -87,7 +90,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                     PositionImpl startReadCursorPosition = null;
                     try {
                         while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshot> message = reader.readNext();
+                            Message<TransactionBufferSnapshot> message = reader.readNext(2, TimeUnit.SECONDS);
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {
@@ -98,13 +101,20 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                                 }
                             }
                         }
-                        closeReader(reader);
                         return CompletableFuture.completedFuture(startReadCursorPosition);
+                    } catch (NullPointerException npe) {
+                        String warn = String.format("[%s] When reading from topic %s,the latest message has been"
+                                + " deleted by compaction-task or trim ledger.",
+                                topic.getName(),
+                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                        log.warn(warn);
+                        return FutureUtil.failedFuture(new TransactionBufferException.TBRecoverCantCompletedException(warn));
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
-                        closeReader(reader);
                         return FutureUtil.failedFuture(ex);
+                    } finally {
+                        closeReader(reader);
                     }
 
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
