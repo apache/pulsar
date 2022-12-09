@@ -24,12 +24,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -52,10 +52,8 @@ import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,49 +107,44 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
-        try {
-            final Optional<Policies> namespacePolicies = pulsarService.getPulsarResources().getNamespaceResources()
-                    .getPolicies(topicName.getNamespaceObject());
-            if (namespacePolicies.isPresent() && namespacePolicies.get().deleted) {
-                log.debug("[{}] skip sending topic policy event since the namespace is deleted", topicName);
-                result.complete(null);
-                return result;
-            }
-        } catch (MetadataStoreException e) {
-            result.completeExceptionally(e);
-            return result;
-        }
-
-        try {
-            createSystemTopicFactoryIfNeeded();
-        } catch (PulsarServerException e) {
-            result.completeExceptionally(e);
-            return result;
-        }
-
-        SystemTopicClient<PulsarEvent> systemTopicClient =
-                namespaceEventsSystemTopicFactory.createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
-
-        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writerFuture = systemTopicClient.newWriterAsync();
-        writerFuture.whenComplete((writer, ex) -> {
-            if (ex != null) {
-                result.completeExceptionally(ex);
-            } else {
-                PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
-                CompletableFuture<MessageId> actionFuture =
-                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
-                                : writer.writeAsync(getEventKey(event), event);
-                actionFuture.whenComplete(((messageId, e) -> {
-                            if (e != null) {
-                                result.completeExceptionally(e);
-                            } else {
-                                if (messageId != null) {
-                                    result.complete(null);
-                                } else {
-                                    result.completeExceptionally(new RuntimeException("Got message id is null."));
+        return pulsarService.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(topicName.getNamespaceObject())
+                .thenCompose(namespacePolicies -> {
+                    if (namespacePolicies.isPresent() && namespacePolicies.get().deleted) {
+                        log.debug("[{}] skip sending topic policy event since the namespace is deleted", topicName);
+                        result.complete(null);
+                        return new CompletableFuture<>();
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
+                .thenCompose(ignore -> {
+                    try {
+                        createSystemTopicFactoryIfNeeded();
+                    } catch (PulsarServerException e) {
+                        return CompletableFuture.failedFuture(e);
+                    }
+                    SystemTopicClient<PulsarEvent> systemTopicClient =
+                            namespaceEventsSystemTopicFactory.createTopicPoliciesSystemTopicClient(
+                                    topicName.getNamespaceObject());
+                    return systemTopicClient.newWriterAsync();
+                }).thenCompose((SystemTopicClient.Writer writer) -> {
+                    PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
+                    final CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType)
+                            ? writer.deleteAsync(getEventKey(event), event) :
+                            writer.writeAsync(getEventKey(event), event);
+                    return writeFuture
+                            .handle((messageId, e) -> {
+                                if (e != null) {
+                                    return CompletableFuture.failedFuture(e);
                                 }
-                            }
-                            writer.closeAsync().whenComplete((v, cause) -> {
+                                if (messageId != null) {
+                                    return CompletableFuture.completedFuture(null);
+                                } else {
+                                    return CompletableFuture.failedFuture(
+                                            new RuntimeException("Got message id is null."));
+                                }
+                            })
+                            .thenRun(() -> writer.closeAsync().whenComplete((v, cause) -> {
                                 if (cause != null) {
                                     log.error("[{}] Close writer error.", topicName, cause);
                                 } else {
@@ -159,12 +152,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         log.debug("[{}] Close writer success.", topicName);
                                     }
                                 }
-                            });
-                        })
-                );
-            }
-        });
-        return result;
+                            }));
+                })
+                .applyToEither(result, Function.identity());
     }
 
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
