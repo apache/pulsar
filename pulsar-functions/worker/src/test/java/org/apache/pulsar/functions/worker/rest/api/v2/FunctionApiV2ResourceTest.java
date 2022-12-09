@@ -47,6 +47,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -549,8 +550,7 @@ public class FunctionApiV2ResourceTest {
 
     }
     @Test
-    public void testRegisterFunctionEmptyResources() {
-
+    public void testRegisterFunctionEmptyResources() throws Exception {
         SinkSpec sinkSpec = SinkSpec.newBuilder()
                 .setTopic(outputTopic)
                 .setSerDeClassName(outputSerdeClassName).build();
@@ -559,6 +559,7 @@ public class FunctionApiV2ResourceTest {
                 .setSink(sinkSpec)
                 .setName(function)
                 .setNamespace(namespace)
+                .setAutoAck(true)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
                 .setTenant(tenant)
                 .setParallelism(parallelism)
@@ -568,37 +569,22 @@ public class FunctionApiV2ResourceTest {
         FunctionDetails.newBuilder(functionDetails)
                 .setResources(org.apache.pulsar.functions.proto.Function.Resources.newBuilder().build());
 
-        mockStatic(WorkerUtils.class);
+        mockWorkerUtils(ctx -> {});
 
-        try {
-            WorkerUtils.uploadFileToBookkeeper(
-                    anyString(),
-                    any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
-            RequestResult rr = new RequestResult()
-                    .setSuccess(true)
-                    .setMessage("function registered");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        WorkerUtils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
-        try {
-            resource.registerFunction(
-                    tenant,
-                    namespace,
-                    function,
-                    mockedInputStream,
-                    mockedFormData,
-                    null,
-                    JsonFormat.printer().print(functionDetails),
-                    null);
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-        }
-
+        resource.registerFunction(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                JsonFormat.printer().print(functionDetails),
+                null);
     }
 
     private void registerDefaultFunction() {
