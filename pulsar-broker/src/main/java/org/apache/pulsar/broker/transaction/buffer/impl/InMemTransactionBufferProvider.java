@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 
@@ -26,8 +26,9 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
  * A provider that provides in-memory implementations of {@link TransactionBuffer}.
  */
 public class InMemTransactionBufferProvider implements TransactionBufferProvider {
+
     @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        return CompletableFuture.completedFuture(new InMemTransactionBuffer());
+    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+        return new InMemTransactionBuffer(originTopic);
     }
 }

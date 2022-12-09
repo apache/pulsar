@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.io.dynamodb;
 
+import com.amazonaws.services.dynamodbv2.streamsadapter.model.RecordAdapter;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import com.amazonaws.services.dynamodbv2.streamsadapter.model.RecordAdapter;
 import lombok.Getter;
 import org.apache.pulsar.functions.api.Record;
 import software.amazon.awssdk.utils.StringUtils;
@@ -37,7 +36,6 @@ import software.amazon.awssdk.utils.StringUtils;
 
 @Getter
 public class StreamsRecord implements Record<byte[]> {
-    
     public static final String ARRIVAL_TIMESTAMP = "ARRIVAL_TIMESTAMP";
     public static final String ENCRYPTION_TYPE = "ENCRYPTION_TYPE";
     public static final String PARTITION_KEY = "PARTITION_KEY";
@@ -47,8 +45,7 @@ public class StreamsRecord implements Record<byte[]> {
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
-    private final Map<String, String> properties = new HashMap<String, String> ();
-    
+    private final Map<String, String> properties = new HashMap<> ();
     public StreamsRecord(com.amazonaws.services.kinesis.model.Record record) {
         if (record instanceof RecordAdapter) {
             com.amazonaws.services.dynamodbv2.model.Record dynamoRecord = ((RecordAdapter) record).getInternalObject();

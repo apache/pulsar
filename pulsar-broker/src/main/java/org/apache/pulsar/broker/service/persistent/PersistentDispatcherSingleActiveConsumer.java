@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,28 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
-
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -49,47 +50,50 @@ import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.impl.Backoff;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements Dispatcher, ReadEntriesCallback {
+public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer
+        implements Dispatcher, ReadEntriesCallback {
 
-    private final PersistentTopic topic;
-    private final ManagedCursor cursor;
-    private final String name;
+    private final AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
+    protected final PersistentTopic topic;
+    protected final Executor topicExecutor;
+
+    protected final String name;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
-    private volatile boolean havePendingRead = false;
+    protected volatile boolean havePendingRead = false;
 
-    private volatile int readBatchSize;
-    private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
-    private final ServiceConfiguration serviceConfig;
+    protected volatile int readBatchSize;
+    protected final Backoff readFailureBackoff;
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
-            PersistentTopic topic, Subscription subscription) {
-        super(subscriptionType, partitionIndex, topic.getName(), subscription);
+                                                    PersistentTopic topic, Subscription subscription) {
+        super(subscriptionType, partitionIndex, topic.getName(), subscription,
+                topic.getBrokerService().pulsar().getConfiguration(), cursor);
         this.topic = topic;
+        this.topicExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(topicName);
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
-        this.cursor = cursor;
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
+        this.readFailureBackoff = new Backoff(serviceConfig.getDispatcherReadFailureBackoffInitialTimeInMs(),
+            TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMaxTimeInMs(),
+            TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMandatoryStopTimeInMs(),
+            TimeUnit.MILLISECONDS);
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
-        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+        this.initializeDispatchRateLimiterIfNeeded();
     }
 
     protected void scheduleReadOnActiveConsumer() {
-        if (havePendingRead && cursor.cancelPendingReadRequest()) {
-            havePendingRead = false;
-        }
+        cancelPendingRead();
 
         if (havePendingRead) {
             return;
@@ -131,50 +135,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
-    protected boolean isConsumersExceededOnTopic() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?
-                policies.max_consumers_per_topic :
-                serviceConfig.getMaxConsumersPerTopic();
-        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
-            return true;
-        }
-        return false;
-    }
-
+    @Override
     protected boolean isConsumersExceededOnSubscription() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
-                policies.max_consumers_per_subscription :
-                serviceConfig.getMaxConsumersPerSubscription();
-        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
-            return true;
-        }
-        return false;
+        return isConsumersExceededOnSubscription(topic, consumers.size());
     }
 
+    @Override
     protected void cancelPendingRead() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
@@ -183,18 +149,22 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     @Override
     public void readEntriesComplete(final List<Entry> entries, Object obj) {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
+        topicExecutor.execute(SafeRun.safeRun(() -> {
             internalReadEntriesComplete(entries, obj);
         }));
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
-        Consumer readConsumer = (Consumer) obj;
+        ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) obj;
+        Consumer readConsumer = readEntriesCtx.getConsumer();
+        long epoch = readEntriesCtx.getEpoch();
+        readEntriesCtx.recycle();
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
 
         havePendingRead = false;
+        isFirstRead = false;
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
             int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
@@ -216,7 +186,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 Entry entry = iterator.next();
                 byte[] key = peekStickyKey(entry.getDataBuffer());
                 Consumer consumer = stickyKeyConsumerSelector.select(key);
+                // Skip the entry if it's not for current active consumer.
                 if (consumer == null || currentConsumer != consumer) {
+                    entry.release();
                     iterator.remove();
                 }
             }
@@ -237,57 +209,44 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         } else {
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
-
-            int totalMessages = sendMessageInfo.getTotalMessages();
-            long totalBytes = sendMessageInfo.getTotalBytes();
-
-            currentConsumer
-                    .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                            redeliveryTracker)
-                    .addListener(future -> {
-                        if (future.isSuccess()) {
-                            // acquire message-dispatch permits for already delivered messages
-                            if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                                if (topic.getDispatchRateLimiter().isPresent()) {
-                                    topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessages, totalBytes);
-                                }
-
-                                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(totalMessages, totalBytes));
-                            }
-
-                            // Schedule a new read batch operation only after the previous batch has been written to the
-                            // socket
-                            topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName,
-                                    SafeRun.safeRun(() -> {
-                                        synchronized (PersistentDispatcherSingleActiveConsumer.this) {
-                                            Consumer newConsumer = getActiveConsumer();
-                                            if (newConsumer != null && !havePendingRead) {
-                                                readMoreEntries(newConsumer);
-                                            } else {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug(
-                                                            "[{}-{}] Ignoring write future complete. consumerAvailable={} havePendingRead={}",
-                                                            name, newConsumer, newConsumer != null, havePendingRead);
-                                                }
-                                            }
-                                        }
-                                    }));
-                        }
-                    });
+            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, false,
+                    currentConsumer);
+            dispatchEntriesToConsumer(currentConsumer, entries, batchSizes, batchIndexesAcks, sendMessageInfo, epoch);
         }
+    }
+
+    protected void dispatchEntriesToConsumer(Consumer currentConsumer, List<Entry> entries,
+                                             EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+                                             SendMessageInfo sendMessageInfo, long epoch) {
+        currentConsumer
+            .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                    redeliveryTracker, epoch)
+            .addListener(future -> {
+                if (future.isSuccess()) {
+                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
+                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+
+                    // Schedule a new read batch operation only after the previous batch has been written to the socket.
+                    topicExecutor.execute(SafeRun.safeRun(() -> {
+                            synchronized (PersistentDispatcherSingleActiveConsumer.this) {
+                                Consumer newConsumer = getActiveConsumer();
+                                readMoreEntries(newConsumer);
+                            }
+                        }));
+                }
+            });
     }
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
+        topicExecutor.execute(SafeRun.safeRun(() -> {
+            internalConsumerFlow(consumer);
         }));
     }
 
-    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+    private synchronized void internalConsumerFlow(Consumer consumer) {
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Ignoring flow control message since we already have a pending read req", name,
@@ -312,13 +271,22 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer) {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer);
+    public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+        topicExecutor.execute(SafeRun.safeRun(() -> {
+            internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch);
         }));
     }
 
-    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer) {
+    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+
+        if (consumerEpoch > consumer.getConsumerEpoch()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Update epoch, old epoch [{}], new epoch [{}]",
+                        name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
+            }
+            consumer.setConsumerEpoch(consumerEpoch);
+        }
+
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
@@ -330,29 +298,19 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     name, consumer);
             return;
         }
-
-        if (havePendingRead && cursor.cancelPendingReadRequest()) {
-            havePendingRead = false;
+        cursor.cancelPendingReadRequest();
+        havePendingRead = false;
+        cursor.rewind();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
         }
-
-        if (!havePendingRead) {
-            cursor.rewind();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
-            }
-            readMoreEntries(consumer);
-        } else {
-            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: cancelPendingRequest on cursor failed", name,
-                    consumer);
-        }
-
+        readMoreEntries(consumer);
     }
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
-        positions.forEach(redeliveryTracker::addIfAbsent);
-        redeliverUnacknowledgedMessages(consumer);
+        redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }
 
     @Override
@@ -360,103 +318,50 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         // consumer can be null when all consumers are disconnected from broker.
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping read for the topic, Due to the current consumer is null", topic.getName());
+            }
+            return;
+        }
+        if (havePendingRead) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
+            }
             return;
         }
 
-        int availablePermits = consumer.getAvailablePermits();
-
-        if (availablePermits > 0) {
-            if (!consumer.isWritable()) {
-                // If the connection is not currently writable, we issue the read request anyway, but for a single
-                // message. The intent here is to keep use the request as a notification mechanism while avoiding to
-                // read and dispatch a big batch of messages which will need to wait before getting written to the
-                // socket.
-                availablePermits = 1;
-            }
-
-            int messagesToRead = Math.min(availablePermits, readBatchSize);
-            // if turn of precise dispatcher flow control, adjust the records to read
-            if (consumer.isPreciseDispatcherFlowControl()) {
-                int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
-                messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
-            }
-
-            // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
-            // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
-            // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
-            if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                if (topic.getDispatchRateLimiter().isPresent()
-                        && topic.getDispatchRateLimiter().get().isDispatchRateLimitingEnabled()) {
-                    DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                    if (!topicRateLimiter.hasMessageDispatchPermit()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
-                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                        }
-                        topic.getBrokerService().executor().schedule(() -> {
-                            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                            if (currentConsumer != null && !havePendingRead) {
-                                readMoreEntries(currentConsumer);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Skipping read retry for topic: Current Consumer {}, havePendingRead {}",
-                                        topic.getName(), currentConsumer, havePendingRead);
-                                }
-                            }
-                        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                        return;
-                    } else {
-                        // if dispatch-rate is in msg then read only msg according to available permit
-                        long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
-                        if (availablePermitsOnMsg > 0) {
-                            messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
-                        }
+        if (consumer.getAvailablePermits() > 0) {
+            synchronized (this) {
+                if (havePendingRead) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
                     }
+                    return;
                 }
 
-                if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
-                    if (!dispatchRateLimiter.get().hasMessageDispatchPermit()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}", name,
-                                dispatchRateLimiter.get().getDispatchRateOnMsg(), dispatchRateLimiter.get().getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                        }
-                        topic.getBrokerService().executor().schedule(() -> {
-                            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                            if (currentConsumer != null && !havePendingRead) {
-                                readMoreEntries(currentConsumer);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
-                                        topic.getName(), currentConsumer, havePendingRead);
-                                }
-                            }
-                        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
-                        return;
-                    } else {
-                        // if dispatch-rate is in msg then read only msg according to available permit
-                        long subPermitsOnMsg = dispatchRateLimiter.get().getAvailableDispatchRateLimitOnMsg();
-                        if (subPermitsOnMsg > 0) {
-                            messagesToRead = Math.min(messagesToRead, (int) subPermitsOnMsg);
-                        }
-                    }
+                Pair<Integer, Long> calculateResult = calculateToRead(consumer);
+                int messagesToRead = calculateResult.getLeft();
+                long bytesToRead = calculateResult.getRight();
+
+                if (-1 == messagesToRead || bytesToRead == -1) {
+                    // Skip read as topic/dispatcher has exceed the dispatch rate.
+                    return;
                 }
-            }
 
-            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-            messagesToRead = Math.max(messagesToRead, 1);
-
-            // Schedule read
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
-            }
-            havePendingRead = true;
-
-            if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
-            } else {
-                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);
+                // Schedule read
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
+                }
+                havePendingRead = true;
+                if (consumer.readCompacted()) {
+                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                            this, consumer);
+                } else {
+                    ReadEntriesCtx readEntriesCtx =
+                            ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
+                    cursor.asyncReadEntriesOrWait(messagesToRead,
+                            bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
+                }
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -466,15 +371,117 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
+    protected void reScheduleRead() {
+        if (isRescheduleReadInProgress.compareAndSet(false, true)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
+            }
+            topic.getBrokerService().executor().schedule(() -> {
+                isRescheduleReadInProgress.set(false);
+                Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+                readMoreEntries(currentConsumer);
+            }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    protected Pair<Integer, Long> calculateToRead(Consumer consumer) {
+        int availablePermits = consumer.getAvailablePermits();
+        if (!consumer.isWritable()) {
+            // If the connection is not currently writable, we issue the read request anyway, but for a single
+            // message. The intent here is to keep use the request as a notification mechanism while avoiding to
+            // read and dispatch a big batch of messages which will need to wait before getting written to the
+            // socket.
+            availablePermits = 1;
+        }
+
+        int messagesToRead = Math.min(availablePermits, readBatchSize);
+        long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
+        // if turn of precise dispatcher flow control, adjust the records to read
+        if (consumer.isPreciseDispatcherFlowControl()) {
+            int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
+            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
+        }
+
+        // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
+        // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
+        // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
+        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
+                if (reachDispatchRateLimit(brokerRateLimiter)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
+                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
+                }
+            }
+
+            if (topic.getDispatchRateLimiter().isPresent()) {
+                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
+                if (reachDispatchRateLimit(topicRateLimiter)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
+                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
+                }
+            }
+
+            if (dispatchRateLimiter.isPresent()) {
+                if (reachDispatchRateLimit(dispatchRateLimiter.get())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
+                                name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
+                                dispatchRateLimiter.get().getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
+                }
+            }
+        }
+
+        // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+        messagesToRead = Math.max(messagesToRead, 1);
+        bytesToRead = Math.max(bytesToRead, 1);
+        return Pair.of(messagesToRead, bytesToRead);
+    }
+
+    @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
+        topicExecutor.execute(SafeRun.safeRun(() -> {
             internalReadEntriesFailed(exception, ctx);
         }));
     }
 
     private synchronized void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
         havePendingRead = false;
-        Consumer c = (Consumer) ctx;
+        ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) ctx;
+        Consumer c = readEntriesCtx.getConsumer();
+        readEntriesCtx.recycle();
+
+        if (exception instanceof ConcurrentWaitCallbackException) {
+            // At most one pending read request is allowed when there are no more entries, we should not trigger more
+            // read operations in this case and just wait the existing read operation completes.
+            return;
+        }
 
         long waitTimeMillis = readFailureBackoff.next();
 
@@ -482,7 +489,14 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
-                consumers.forEach(Consumer::reachedEndOfTopic);
+                checkAndApplyReachedEndOfTopicOrTopicMigration(consumers);
+            }
+        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
+                || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
+            waitTimeMillis = 1;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error reading transaction entries : {}, - Retrying to read in {} seconds", name,
+                        exception.getMessage(), waitTimeMillis / 1000.0);
             }
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}-{}] Error reading entries at {} : {} - Retrying to read in {} seconds", name, c,
@@ -494,7 +508,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
         }
 
-        checkNotNull(c);
+        Objects.requireNonNull(c);
 
         // Reduce read batch size to avoid flooding bookies with retries
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
@@ -502,7 +516,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         topic.getBrokerService().executor().schedule(() -> {
 
             // Jump again into dispatcher dedicated thread
-            topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
+            topicExecutor.execute(SafeRun.safeRun(() -> {
                 synchronized (PersistentDispatcherSingleActiveConsumer.this) {
                     Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                     // we should retry the read if we have an active consumer and there is no pending read
@@ -540,11 +554,21 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
-    public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
-        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
-                .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.SUBSCRIPTION)) {
-            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+    public void updateRateLimiter() {
+        if (!initializeDispatchRateLimiterIfNeeded()) {
+            this.dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
         }
+    }
+
+    @Override
+    public boolean initializeDispatchRateLimiterIfNeeded() {
+        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
+                topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
+            this.dispatchRateLimiter =
+                    Optional.of(new DispatchRateLimiter(topic, getSubscriptionName(), Type.SUBSCRIPTION));
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -554,5 +578,61 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         return disconnectAllConsumers();
     }
 
+    @Override
+    public boolean checkAndUnblockIfStuck() {
+        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        if (consumer == null || cursor.checkAndUpdateReadPositionChanged()) {
+            return false;
+        }
+        int totalAvailablePermits = consumer.getAvailablePermits();
+        // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
+        if (totalAvailablePermits > 0 && !havePendingRead && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+            log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
+            readMoreEntries(consumer);
+            return true;
+        }
+        return false;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
+
+    public static class ReadEntriesCtx {
+
+        private Consumer consumer;
+        private long epoch;
+
+        private final Recycler.Handle<ReadEntriesCtx> recyclerHandle;
+
+        private ReadEntriesCtx(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+        private static final Recycler<ReadEntriesCtx> RECYCLER =
+                new Recycler<ReadEntriesCtx>() {
+            @Override
+            protected ReadEntriesCtx newObject(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
+                return new ReadEntriesCtx(recyclerHandle);
+            }
+        };
+
+        public static ReadEntriesCtx create(Consumer consumer, long epoch) {
+            ReadEntriesCtx readEntriesCtx = RECYCLER.get();
+            readEntriesCtx.consumer = consumer;
+            readEntriesCtx.epoch = epoch;
+            return readEntriesCtx;
+        }
+
+        Consumer getConsumer() {
+            return consumer;
+        }
+
+        long getEpoch() {
+            return epoch;
+        }
+
+        public void recycle() {
+            consumer = null;
+            epoch = 0;
+            recyclerHandle.recycle(this);
+        }
+    }
 }

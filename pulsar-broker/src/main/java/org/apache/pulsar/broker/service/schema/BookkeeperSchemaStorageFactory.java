@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,9 +26,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 public class BookkeeperSchemaStorageFactory implements SchemaStorageFactory {
     @Override
     @NotNull
-    public SchemaStorage create(PulsarService pulsar) throws Exception {
-        BookkeeperSchemaStorage service = new BookkeeperSchemaStorage(pulsar);
-        service.init();
-        return service;
+    public SchemaStorage create(PulsarService pulsar) {
+        return new BookkeeperSchemaStorage(pulsar);
     }
 }

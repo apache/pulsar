@@ -1,97 +1,61 @@
 ---
 id: administration-pulsar-manager
 title: Pulsar Manager
-sidebar_label: Pulsar Manager
+sidebar_label: "Pulsar Manager"
 ---
 
 Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments.
 
-> Note   
-> If you monitor your current stats with [Pulsar dashboard](administration-dashboard.md), you can try to use Pulsar Manager instead. Pulsar dashboard is deprecated.
-
 ## Install
 
+### Quick Install
 The easiest way to use the Pulsar Manager is to run it inside a [Docker](https://www.docker.com/products/docker) container.
 
-
-```
-docker pull apachepulsar/pulsar-manager:v0.1.0
-docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.0.104 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -v $PWD:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
-```
-
-* REDIRECT_HOST: the IP address of the front-end server.
-
-* REDIRECT_PORT: the port of the front-end server.
-
-* DRIVER_CLASS_NAME: the driver class name of PostgreSQL.
-
-* URL: the URL of PostgreSQL JDBC, For example, `jdbc:postgresql://127.0.0.1:5432/pulsar_manager`.
-
-* USERNAME: the username of PostgreSQL.
-
-* PASSWORD: the password of PostgreSQL.
-
-* LOG_LEVEL: level of log.
-
-You can find the in the [Docker](https://github.com/apache/pulsar-manager/tree/master/docker) directory and build an image from scratch as well:
-
-```
-git clone https://github.com/apache/pulsar-manager
-cd pulsar-manager
-./gradlew build -x test
-cd front-end
-npm install --save
-npm run build:prod
-cd ..
-docker build -f docker/Dockerfile --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`latest` --build-arg VERSION=`latest` -t apachepulsar/pulsar-manager .
+```shell
+docker pull apachepulsar/pulsar-manager:v0.3.0
+docker run -it \
+  -p 9527:9527 -p 7750:7750 \
+  -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+  apachepulsar/pulsar-manager:v0.3.0
 ```
 
-### Use custom databases
+* Pulsar Manager is divided into front-end and back-end, the front-end service port is `9527` and the back-end service port is `7750`.
+* `SPRING_CONFIGURATION_FILE`: Default configuration file for spring.
+* By default, Pulsar Manager uses the `herddb` database. HerdDB is a SQL distributed database implemented in Java and can be found at [herddb.org](https://herddb.org/) for more information.
 
-If you have a large amount of data, you can use a custom database. The following is an example of PostgreSQL.   
+### Configure Database or JWT authentication
+####  Configure Database (optional)
 
-1. Initialize database and table structures using the [file](https://github.com/apache/pulsar-manager/tree/master/src/main/resources/META-INF/sql/postgresql-schema.sql).
+If you have a large amount of data, you can use a custom database. Otherwise, some display errors may occur. For example, the topic information cannot be displayed when the topic exceeds 10000.
+The following is an example of PostgreSQL.
 
-2. Modify the [configuration file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties) and add PostgreSQL configuration.
+1. Initialize database and table structures using the [file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/META-INF/sql/postgresql-schema.sql).
+2. Download and modify the [configuration file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties), then add the PostgreSQL configuration.
 
-```
+```properties
 spring.datasource.driver-class-name=org.postgresql.Driver
 spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/pulsar_manager
 spring.datasource.username=postgres
 spring.datasource.password=postgres
 ```
 
-3. Compile to generate a new executable jar package.
+3. Add a configuration mount and start with a docker image.
 
-```
-./gradlew -x build -x test
-```
-
-### Enable JWT authentication
-
-If you want to turn on JWT authentication, configure the following parameters:
-
-* `backend.jwt.token`:  token for the superuser. You need to configure this parameter during cluster initialization.
-* `jwt.broker.token.mode`:  two modes of generating token, SECRET and PRIVATE.
-* `jwt.broker.public.key`: configure this option if you are using the PRIVATE mode.
-* `jwt.broker.private.key`: configure this option if you are using the PRIVATE mode.
-* `jwt.broker.secret.key`: configure this option if you are using the SECRET mode.
-
-For more information, see [Token Authentication Admin of Pulsar](http://pulsar.apache.org/docs/en/security-token-admin/).
-
-
-If you want to enable JWT authentication, use one of the following methods.
-
-
-* Method 1: use command-line tool
-
-```
-./build/distributions/pulsar-manager/bin/pulsar-manager --redirect.host=http://localhost --redirect.port=9527 insert.stats.interval=600000 --backend.jwt.token=token --jwt.broker.token.mode=PRIVATE --jwt.broker.private.key=file:///path/broker-private.key --jwt.broker.public.key=file:///path/broker-public.key
+```bash
+docker pull apachepulsar/pulsar-manager:v0.3.0
+docker run -it \
+    -p 9527:9527 -p 7750:7750 \
+    -v /your-path/application.properties:/pulsar-manager/pulsar-
+manager/application.properties
+    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+    apachepulsar/pulsar-manager:v0.3.0
 ```
 
-* Method 2: configure the application.properties file
+####  Enable JWT authentication (optional)
 
-```
+If you want to turn on JWT authentication, configure the `application.properties` file.
+
+```properties
 backend.jwt.token=token
 
 jwt.broker.token.mode=PRIVATE
@@ -103,33 +67,119 @@ jwt.broker.token.mode=SECRET
 jwt.broker.secret.key=file:///path/broker-secret.key
 ```
 
-* Method 3: use Docker and turn on token authentication.
+* `backend.jwt.token`: token for the superuser. You need to configure this parameter during cluster initialization.   
+* `jwt.broker.token.mode`: multiple modes of generating tokens, including PUBLIC, PRIVATE, and SECRET.  
+* `jwt.broker.public.key`: configure this option if you use the PUBLIC mode.  
+* `jwt.broker.private.key`: configure this option if you use the PRIVATE mode.  
+* `jwt.broker.secret.key`: configure this option if you use the SECRET mode.  
+For more information, see [Token Authentication Admin of Pulsar](security-token-admin.md).
 
-```
-export JWT_TOKEN="your-token"
-docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -v $PWD:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
-```
+Docker command to add profile and key files mount.
 
-* Method 4: use Docker and turn on **token authentication** and **token management** by private key and public key.
-
-```
-export JWT_TOKEN="your-token"
-export PRIVATE_KEY="file:///private-key-path"
-export PUBLIC_KEY="file:///public-key-path"
-docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e PUBLIC_KEY=$PUBLIC_KEY -v $PWD:/data -v $PWD/private-key-path:/pulsar-manager/private-key-path -v $PWD/public-key-path:/pulsar-manager/public-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
-```
-
-* Method 5: use Docker and turn on **token authentication** and **token management** by secret key.
-
-```
-export JWT_TOKEN="your-token"
-export SECRET_KEY="file:///secret-key-path"
-docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e PUBLIC_KEY=$PUBLIC_KEY -v $PWD:/data -v $PWD/secret-key-path:/pulsar-manager/secret-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
+```bash
+docker pull apachepulsar/pulsar-manager:v0.3.0
+docker run -it \
+  -p 9527:9527 -p 7750:7750 \
+  -v /your-path/application.properties:/pulsar-manager/pulsar-
+manager/application.properties
+  -v /your-path/private.key:/pulsar-manager/private.key
+  -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+  apachepulsar/pulsar-manager:v0.3.0
 ```
 
-* For more information about backend configurations, see [here](https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md).
-* For more information about frontend configurations, see [here](https://github.com/apache/pulsar-manager/blob/master/front-end/README.md).
+### Set the administrator account and password
 
-## Log in
+```bash
+CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
+curl \
+   -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
+   -H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
+   -H "Content-Type: application/json" \
+   -X PUT http://localhost:7750/pulsar-manager/users/superuser \
+   -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
+```
 
-Visit http://localhost:9527 to log in.
+The request parameter in curl command:
+
+```json
+{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}
+```
+
+- `name` is the Pulsar Manager login username, currently `admin`.
+- `password` is the password of the current user of Pulsar Manager, currently `apachepulsar`. The password should be more than or equal to 6 digits.
+
+
+### Configure the environment
+
+1. Login to the system, Visit http://localhost:9527 to login. The current default account is  `admin/apachepulsar`
+
+2. Click "New Environment" button to add an environment.
+
+3. Input the "Environment Name". The environment name is used for identifying an environment.
+
+4. Input the "Service URL". The Service URL is the admin service URL of your Pulsar cluster.
+
+
+## Other Installation
+### Bare-metal installation
+
+When using binary packages for direct deployment, you can follow these steps.
+
+- Download and unzip the binary package, which is available on the [Pulsar Download](/download/) page.
+
+  ```bash
+  	wget https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/pulsar-manager-0.3.0/apache-pulsar-manager-0.3.0-bin.tar.gz
+  	tar -zxvf apache-pulsar-manager-0.3.0-bin.tar.gz
+  ```
+
+- Extract the back-end service binary package and place the front-end resources in the back-end service directory.
+
+  ```bash
+  	cd pulsar-manager
+  	tar -zxvf pulsar-manager.tar
+  	cd pulsar-manager
+  	cp -r ../dist ui
+  ```
+
+- Modify `application.properties` configuration on demand.
+
+  > If you don't want to modify the `application.properties` file, you can add the configuration to the startup parameters via `. /bin/pulsar-manager --backend.jwt.token=token` to add the configuration to the startup parameters. This is a capability of the spring boot framework.
+
+- Start Pulsar Manager
+
+  ```bash
+  ./bin/pulsar-manager
+  ```
+
+### Custom docker image installation
+
+You can find the docker image in the [Docker Hub](https://github.com/apache/pulsar-manager/tree/master/docker) directory and build an image from the source code as well:
+
+  ```bash
+  git clone https://github.com/apache/pulsar-manager
+  cd pulsar-manager/front-end
+  npm install --save
+  npm run build:prod
+  cd ..
+  ./gradlew build -x test
+  cd ..
+  docker build -f docker/Dockerfile --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`latest` --build-arg VERSION=`latest` -t apachepulsar/pulsar-manager .
+  ```
+
+## Configuration
+
+| application.properties              | System env on Docker Image | Desc                                                         | Example                                           |
+| ----------------------------------- | -------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| backend.jwt.token                   | JWT_TOKEN                  | token for the superuser. You need to configure this parameter during cluster initialization. | `token`                                           |
+| jwt.broker.token.mode               | N/A                        | multiple modes of generating token, including PUBLIC, PRIVATE, and SECRET. | `PUBLIC` or `PRIVATE` or `SECRET`.                |
+| jwt.broker.public.key               | PUBLIC_KEY                 | configure this option if you use the PUBLIC mode.            | `file:///path/broker-public.key`                  |
+| jwt.broker.private.key              | PRIVATE_KEY                | configure this option if you use the PRIVATE mode.           | `file:///path/broker-private.key`                 |
+| jwt.broker.secret.key               | SECRET_KEY                 | configure this option if you use the SECRET mode.            | `file:///path/broker-secret.key`                  |
+| spring.datasource.driver-class-name | DRIVER_CLASS_NAME          | the driver class name of the database.                       | `org.postgresql.Driver`                           |
+| spring.datasource.url               | URL                        | the JDBC URL of your  database.                              | `jdbc:postgresql://127.0.0.1:5432/pulsar_manager` |
+| spring.datasource.username          | USERNAME                   | the username of database.                                    | `postgres`                                        |
+| spring.datasource.password          | PASSWORD                   | the password of database.                                    | `postgres`                                        |
+| N/A                                 | LOG_LEVEL                  | the level of log.                                            | DEBUG                                             |
+* For more information about backend configurations, see [here](https://github.com/apache/pulsar-manager/blob/master/src/README).
+* For more information about frontend configurations, see [here](https://github.com/apache/pulsar-manager/tree/master/front-end).
+

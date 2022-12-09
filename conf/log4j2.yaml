@@ -30,6 +30,8 @@ Configuration:
         value: "logs"
       - name: "pulsar.log.file"
         value: "pulsar.log"
+      - name: "pulsar.log.immediateFlush"
+        value: "false"
       - name: "pulsar.log.appender"
         value: "RoutingAppender"
       - name: "pulsar.log.root.level"
@@ -40,12 +42,12 @@ Configuration:
         value: "Console"
 
   # Example: logger-filter script
-  Scripts:
-    ScriptFile:
-      name: filter.js
-      language: JavaScript
-      path: ./conf/log4j2-scripts/filter.js
-      charset: UTF-8
+#  Scripts:
+#    ScriptFile:
+#      name: filter.js
+#      language: JavaScript
+#      path: ./conf/log4j2-scripts/filter.js
+#      charset: UTF-8
 
   Appenders:
 
@@ -54,16 +56,16 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
 
     # Rolling file appender configuration
     RollingFile:
       name: RollingFile
       fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-      immediateFlush: false
+      immediateFlush: ${sys:pulsar.log.immediateFlush}
       PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1

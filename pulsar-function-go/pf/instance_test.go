@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -29,12 +30,12 @@ import (
 )
 
 func testProcessSpawnerHealthCheckTimer(
-	tkr *time.Ticker, lastHealthCheckTs int64, expectedHealthCheckInterval int32, counter *int) {
+	tkr *time.Ticker, lastHealthCheckTS int64, expectedHealthCheckInterval int32, counter *int) {
 	fmt.Println("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := int64(time.Duration(expectedHealthCheckInterval) * 3 * time.Second)
 	fmt.Println("maxIdleTime is: " + strconv.FormatInt(maxIdleTime, 10))
-	timeSinceLastCheck := now.UnixNano() - lastHealthCheckTs
+	timeSinceLastCheck := now.UnixNano() - lastHealthCheckTS
 	fmt.Println("timeSinceLastCheck is: " + strconv.FormatInt(timeSinceLastCheck, 10))
 	if (timeSinceLastCheck) > (maxIdleTime) {
 		fmt.Println("Haven't received health check from spawner in a while. Stopping instance...")
@@ -48,7 +49,7 @@ func testProcessSpawnerHealthCheckTimer(
 
 func testStartScheduler(counter *int) {
 	now := time.Now()
-	lastHealthCheckTs := now.UnixNano()
+	lastHealthCheckTS := now.UnixNano()
 
 	var expectedHealthCheckInterval int32 = 1
 	if expectedHealthCheckInterval > 0 {
@@ -60,7 +61,7 @@ func testStartScheduler(counter *int) {
 			tkr := time.NewTicker(period)
 			for range tkr.C {
 				fmt.Println("Starting Timer")
-				testProcessSpawnerHealthCheckTimer(tkr, lastHealthCheckTs, expectedHealthCheckInterval, counter)
+				testProcessSpawnerHealthCheckTimer(tkr, lastHealthCheckTS, expectedHealthCheckInterval, counter)
 			}
 		}()
 	}
@@ -91,4 +92,26 @@ func TestTime_EqualsThreeSecondsTimed(t *testing.T) {
 
 	assert.True(t, time.Duration(diff) > time.Second*3)
 	assert.True(t, time.Duration(diff) < time.Millisecond*3100)
+}
+
+type MockHandler struct{}
+
+func (m *MockHandler) process(ctx context.Context, input []byte) ([]byte, error) {
+	return []byte(`output`), nil
+}
+
+func Test_goInstance_handlerMsg(t *testing.T) {
+	handler := &MockHandler{}
+	fc := NewFuncContext()
+	instance := &goInstance{
+		function: handler,
+		context:  fc,
+	}
+	message := &MockMessage{payload: []byte(`{}`)}
+
+	output, err := instance.handlerMsg(message)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "output", string(output))
+	assert.Equal(t, message, fc.record)
 }

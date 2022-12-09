@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.base.Charsets;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 public class SimpleBookKeeperTest extends MockedBookKeeperTestCase {
 
     private static final String SECRET = "secret";
-    private static final Charset Encoding = Charsets.UTF_8;
+    private static final Charset Encoding = StandardCharsets.UTF_8;
 
     @Test
     public void simpleTest() throws Exception {

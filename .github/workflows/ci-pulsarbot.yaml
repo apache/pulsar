@@ -23,20 +23,13 @@ on:
     types: [created]
 
 jobs:
-
-  action-runner:
-    name:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-
+  pulsarbot:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/pulsarbot')
     steps:
-      - name: checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Execute pulsarbot command
-        id:   pulsarbot
+        id: pulsarbot
         env:
           GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master

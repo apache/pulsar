@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
 import org.apache.pulsar.functions.proto.Function;
@@ -85,11 +84,11 @@ public class FunctionMetaDataUtilsTest {
                 Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
         Function.FunctionMetaData updatedMetaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(3)).setVersion(version).build();
-        Function.FunctionMetaData newMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingMetaData, updatedMetaData);
+        Function.FunctionMetaData newMetaData = FunctionMetaDataUtils.incrMetadataVersion(existingMetaData, updatedMetaData);
         Assert.assertEquals(newMetaData.getVersion(), version + 1);
         Assert.assertEquals(newMetaData.getFunctionDetails().getParallelism(), 3);
 
-        newMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(null, newMetaData);
+        newMetaData = FunctionMetaDataUtils.incrMetadataVersion(null, newMetaData);
         Assert.assertEquals(newMetaData.getVersion(), 0);
     }
 }

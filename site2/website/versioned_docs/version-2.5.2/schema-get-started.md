@@ -1,7 +1,7 @@
 ---
-id: version-2.5.2-schema-get-started
+id: schema-get-started
 title: Get started
-sidebar_label: Get started
+sidebar_label: "Get started"
 original_id: schema-get-started
 ---
 
@@ -14,6 +14,10 @@ Type safety is extremely important in any application built around a message bus
 Producers and consumers need some kind of mechanism for coordinating types at the topic level to avoid various potential problems arise. For example, serialization and deserialization issues. 
 
 Applications typically adopt one of the following approaches to guarantee type safety in messaging. Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
+
+#### Note
+>
+> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-cgo.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
 
 ### Client-side approach
 
@@ -48,10 +52,12 @@ Pulsar schema enables you to use language-specific types of data when constructi
 You can use the _User_ class to define the messages sent to Pulsar topics.
 
 ```
+
 public class User {
     String name;
     int age;
 }
+
 ```
 
 When constructing a producer with the _User_ class, you can specify a schema or not as below.
@@ -63,13 +69,16 @@ If you construct a producer without specifying a schema, then the producer can o
 **Example**
 
 ```
+
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .create();
-User user = new User(“Tom”, 28);
+User user = new User("Tom", 28);
 byte[] message = … // serialize the `user` by yourself;
 producer.send(message);
+
 ```
+
 ### With schema
 
 If you construct a producer with specifying a schema, then you can send a class to a topic directly without worrying about how to serialize POJOs into bytes. 
@@ -79,11 +88,13 @@ If you construct a producer with specifying a schema, then you can send a class 
 This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize it into bytes. 
 
 ```
+
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
-User user = new User(“Tom”, 28);
+User user = new User("Tom", 28);
 producer.send(user);
+
 ```
 
 ### Summary

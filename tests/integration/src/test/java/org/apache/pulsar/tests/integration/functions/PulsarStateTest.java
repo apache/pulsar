@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,20 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import com.google.common.base.Utf8;
+import java.util.Base64;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -38,14 +47,8 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 /**
  * State related test cases.
@@ -58,8 +61,12 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     public static final String WORDCOUNT_PYTHON_FILE = "wordcount_function.py";
 
+    public static final String VALUE_BASE64 = "0a8001127e0a172e6576656e74732e437573746f6d65724372656174656412630a243"
+                                              + "2336366666263652d623038342d346631352d616565342d326330643135356131666"
+                                              + "36312026e311a3700000000000000000000000000000000000000000000000000000"
+                                              + "000000000000000000000000000000000000000000000000000000000";
 
-    @Test
+    @Test(groups = {"python_state", "state", "function", "python_function"})
     public void testPythonWordCountFunction() throws Exception {
         String inputTopicName = "test-wordcount-py-input-" + randomName(8);
         String outputTopicName = "test-wordcount-py-output-" + randomName(8);
@@ -94,7 +101,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test
+    @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testSourceState() throws Exception {
         String outputTopicName = "test-state-source-output-" + randomName(8);
         String sourceName = "test-state-source-" + randomName(8);
@@ -109,24 +116,22 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
 
-            retryStrategically((test) -> {
-                try {
-                    SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-                    return status.getInstances().size() > 0 && status.getInstances().get(0).getStatus().numWritten > 0;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 10, 200);
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWritten > 0);
+            });
 
-            SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-            assertEquals(status.getInstances().size(), 1);
-            assertTrue(status.getInstances().get(0).getStatus().numWritten > 0);
+            {
+                FunctionState functionState =
+                        admin.functions().getFunctionState("public", "default", sourceName, "initial");
+                assertEquals(functionState.getStringValue(), "val1");
+            }
 
-            FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "initial");
-            assertEquals(functionState.getStringValue(), "val1");
-
-            functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
-            assertTrue(functionState.getStringValue().matches("val1-.*"));
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
+                assertTrue(functionState.getStringValue().matches("val1-.*"));
+            });
         }
 
         // delete source
@@ -135,7 +140,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getSourceInfoNotFound(sourceName);
     }
 
-    @Test
+    @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testSinkState() throws Exception {
         String inputTopicName = "test-state-sink-input-" + randomName(8);
         String sinkName = "test-state-sink-" + randomName(8);
@@ -159,34 +164,80 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                     .topic(inputTopicName)
                     .create();
 
-            FunctionState functionState = admin.functions().getFunctionState("public", "default", sinkName, "initial");
-            assertEquals(functionState.getStringValue(), "val1");
+            {
+                FunctionState functionState =
+                        admin.functions().getFunctionState("public", "default", sinkName, "initial");
+                assertEquals(functionState.getStringValue(), "val1");
+            }
 
             for (int i = 0; i < numMessages; i++) {
                 producer.send("foo");
             }
 
-            retryStrategically((test) -> {
-                try {
-                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-                    return status.getInstances().size() > 0 && status.getInstances().get(0).getStatus().numWrittenToSink > 0;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 10, 200);
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink > 0);
+            });
 
-            SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-            assertEquals(status.getInstances().size(), 1);
-            assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink > 0);
-
-            functionState = admin.functions().getFunctionState("public", "default", sinkName, "now");
-            assertEquals(functionState.getStringValue(), String.format("val1-%d", numMessages - 1));
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sinkName, "now");
+                assertEquals(functionState.getStringValue(), String.format("val1-%d", numMessages - 1));
+            });
         }
 
         // delete source
         deleteSink(sinkName);
 
         getSinkInfoNotFound(sinkName);
+    }
+
+    @Test(groups = {"java_state", "state", "function", "java_function"})
+    public void testBytes2StringNotUTF8() {
+        byte[] valueBytes = Base64.getDecoder().decode(VALUE_BASE64);
+        assertFalse(Utf8.isWellFormed(valueBytes));
+        assertNotEquals(valueBytes, new String(valueBytes, UTF_8).getBytes(UTF_8));
+    }
+
+    @Test(groups = {"java_state", "state", "function", "java_function"})
+    public void testSourceByteState() throws Exception {
+        String outputTopicName = "test-state-source-output-" + randomName(8);
+        String sourceName = "test-state-source-" + randomName(8);
+
+        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestByteStateSource",  JAVAJAR);
+
+        // get source info
+        getSourceInfoSuccess(sourceName);
+
+        // get source status
+        getSourceStatus(sourceName);
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWritten > 0);
+            });
+
+            {
+                FunctionState functionState =
+                        admin.functions().getFunctionState("public", "default", sourceName, "initial");
+                assertNull(functionState.getStringValue());
+                assertEquals(functionState.getByteValue(), Base64.getDecoder().decode(VALUE_BASE64));
+            }
+
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
+                assertNull(functionState.getStringValue());
+                assertEquals(functionState.getByteValue(), Base64.getDecoder().decode(VALUE_BASE64));
+            });
+        }
+
+        // delete source
+        deleteSource(sourceName);
+
+        getSourceInfoNotFound(sourceName);
     }
 
     private void submitSourceConnector(String sourceName,
@@ -204,7 +255,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
+                result.getStdout().contains("Created successfully"),
                 result.getStdout());
     }
 
@@ -223,11 +274,11 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
+                result.getStdout().contains("Created successfully"),
                 result.getStdout());
     }
 
-    private static void submitExclamationFunction(Runtime runtime,
+    private void submitExclamationFunction(Runtime runtime,
                                                   String inputTopicName,
                                                   String outputTopicName,
                                                   String functionName) throws Exception {
@@ -248,7 +299,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static <T> void submitFunction(Runtime runtime,
+    private <T> void submitFunction(Runtime runtime,
                                            String inputTopicName,
                                            String outputTopicName,
                                            String functionName,
@@ -272,12 +323,13 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         };
         ContainerExecResult result = container.execCmd(
             commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
     }
 
-    private static <T> void ensureSubscriptionCreated(String inputTopicName,
+    @SuppressWarnings("try")
+    private <T> void ensureSubscriptionCreated(String inputTopicName,
                                                       String subscriptionName,
                                                       Schema<T> inputTopicSchema)
             throws Exception {
@@ -294,7 +346,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void getSinkInfoSuccess(String sinkName) throws Exception {
+    private void getSinkInfoSuccess(String sinkName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
@@ -306,7 +358,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sinkName + "\""));
     }
 
-    private static void getSourceInfoSuccess(String sourceName) throws Exception {
+    private void getSourceInfoSuccess(String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
@@ -318,7 +370,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
-    private static void getFunctionInfoSuccess(String functionName) throws Exception {
+    private void getFunctionInfoSuccess(String functionName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -330,7 +382,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
     }
 
-    private static void getFunctionInfoNotFound(String functionName) throws Exception {
+    private void getFunctionInfoNotFound(String functionName) throws Exception {
         try {
             container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
@@ -345,7 +397,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void getSinkStatus(String sinkName) throws Exception {
+    private void getSinkStatus(String sinkName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
@@ -357,7 +409,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
-    private static void getSourceStatus(String sourceName) throws Exception {
+    private void getSourceStatus(String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
@@ -369,7 +421,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
-    private static void getFunctionStatus(String functionName, int numMessages) throws Exception {
+    private void getFunctionStatus(String functionName, int numMessages) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -382,7 +434,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\" : " + numMessages));
     }
 
-    private static void queryState(String functionName, String key, int amount)
+    private void queryState(String functionName, String key, int amount)
         throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
@@ -396,7 +448,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numberValue\": " + amount));
     }
 
-    private static void publishAndConsumeMessages(String inputTopic,
+    private void publishAndConsumeMessages(String inputTopic,
                                                   String outputTopic,
                                                   int numMessages) throws Exception {
         @Cleanup PulsarClient client = PulsarClient.builder()
@@ -421,7 +473,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void deleteFunction(String functionName) throws Exception {
+    private void deleteFunction(String functionName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -431,10 +483,10 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             "--name", functionName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
-    private static void deleteSource(String sourceName) throws Exception {
+    private void deleteSource(String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
@@ -444,10 +496,10 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--name", sourceName
         );
         assertTrue(result.getStdout().contains("Delete source successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
-    private static void deleteSink(String sinkName) throws Exception {
+    private void deleteSink(String sinkName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
@@ -457,10 +509,10 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--name", sinkName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
-    private static void getSourceInfoNotFound(String sourceName) throws Exception {
+    private void getSourceInfoNotFound(String sourceName) throws Exception {
         try {
             container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
@@ -475,7 +527,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void getSinkInfoNotFound(String sinkName) throws Exception {
+    private void getSinkInfoNotFound(String sinkName) throws Exception {
         try {
             container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,

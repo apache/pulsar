@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,13 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.Timeout;
+import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -31,22 +36,27 @@ import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +69,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
@@ -67,6 +78,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
+@Test(groups = "broker-impl")
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImplTest.class);
@@ -76,10 +88,11 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @BeforeMethod
     public void setup() throws Exception {
         super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -95,7 +108,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc3/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -124,7 +137,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -141,7 +154,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         assertTrue(consumer.getTopic().startsWith(MultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
-        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         topics.forEach(topic -> log.info("topic: {}", topic));
@@ -150,9 +163,63 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, 6).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
 
         consumer.unsubscribe();
+        consumer.close();
+    }
+
+    @Test
+    public void testMaxAcknowledgmentGroupSize() throws Exception {
+        final String namespace = "use/ns-abc";
+        final String topicName = "persistent://" + namespace + "/topic1";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("use", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        int acknowledgmentGroupSize = 6;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub")
+                .acknowledgmentGroupTime(10000, TimeUnit.SECONDS)
+                .maxAcknowledgmentGroupSize(acknowledgmentGroupSize)
+                .subscribe();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        MessageIdImpl ackMessageId = new MessageIdImpl(-1, -1, -1);
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                MessageId messageId = msg.getMessageId();
+                consumer.acknowledge(msg);
+                // When the acknowledgmentGroupSize message is confirmed, send ack will be triggered
+                if (i == (acknowledgmentGroupSize - 1)) {
+                    ackMessageId = (MessageIdImpl) messageId;
+                }
+            }
+        }
+
+        Awaitility.await().until(() -> cursor.getMarkDeletedPosition().getLedgerId() != -1);
+        Position markDeletedPosition = cursor.getMarkDeletedPosition();
+        long ledgerId = markDeletedPosition.getLedgerId();
+        long entryId = markDeletedPosition.getEntryId();
+
+        assertEquals(ledgerId, ackMessageId.getLedgerId());
+        assertEquals(entryId, ackMessageId.getEntryId());
+
+        producer.close();
         consumer.close();
     }
 
@@ -168,7 +235,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -234,7 +301,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -264,7 +331,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // Asynchronously produce messages
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < totalMessages / 3; i++) {
             futures.add(producer1.sendAsync((messagePredicate + "producer1-" + i).getBytes()));
             futures.add(producer2.sendAsync((messagePredicate + "producer2-" + i).getBytes()));
@@ -277,6 +344,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         log.info("start async consume");
         CountDownLatch latch = new CountDownLatch(totalMessages);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         executor.execute(() -> IntStream.range(0, totalMessages).forEach(index ->
             consumer.receiveAsync()
@@ -304,7 +372,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
-        executor.shutdownNow();
     }
 
     @Test(timeOut = testTimeout)
@@ -319,7 +386,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -437,7 +504,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             String data = new String(message.getData());
             log.debug("Consumer received : " + data);
             consumer.acknowledge(message);
-            message = consumer.receive(100, TimeUnit.MILLISECONDS);
+            message = consumer.receive(2000, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 30);
         size =  ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
@@ -452,6 +519,57 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testTopicNameValid() throws Exception{
+        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.topics().createPartitionedTopic(topicName, 3);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("subscriptionName")
+                .subscribe();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync("ns-abc/testTopicNameValid", 5).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            return null;
+        }).get();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicName, 3).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Already subscribed to " + topicName);
+            return null;
+        }).get();
+    }
+
+    @Test(timeOut = 30000)
+    public void testExclusiveSubscribe() throws Exception {
+        final String topicName = "persistent://tenant1/namespace1/testTopicNameValid";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("tenant1", tenantInfo);
+        admin.namespaces().createNamespace("tenant1/namespace1");
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("subscriptionName")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        try {
+            pulsarClient.newConsumer()
+                    .topics(IntStream.range(0, 3).mapToObj(i -> topicName + "-partition-" + i)
+                    .collect(Collectors.toList()))
+                    .subscriptionName("subscriptionName")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscribe();
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            String errorLog = e.getMessage();
+            assertTrue(errorLog.contains("Exclusive consumer is already connected"));
+        }
+        consumer1.close();
+    }
+
+    @Test
     public void testSubscribeUnsubscribeSingleTopic() throws Exception {
         String key = "TopicsConsumerSubscribeUnsubscribeSingleTopicTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -463,7 +581,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -534,12 +652,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages * 2 / 3);
 
         // 7. use getter to verify internal topics number after un-subscribe topic3
-        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 3);
         assertEquals(consumers.size(), 3);
-        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 2);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 1);
 
         // 8. re-subscribe topic3
         CompletableFuture<Void> subFuture = ((MultiTopicsConsumerImpl<byte[]>)consumer).subscribeAsync(topicName3, true);
@@ -565,18 +683,55 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 11. use getter to verify internal topics number after subscribe topic3
-        topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
 
         consumer.unsubscribe();
         consumer.close();
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test
+    public void testResubscribeSameTopic() throws Exception {
+        final String localTopicName = "TopicsConsumerResubscribeSameTopicTest";
+        final String localPartitionName = localTopicName + "-partition-0";
+        final String topicNameWithNamespace = "public/default/" + localTopicName;
+        final String topicNameWithDomain = "persistent://" + topicNameWithNamespace;
+
+        admin.topics().createPartitionedTopic(localTopicName, 2);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(localTopicName)
+                .subscriptionName("SubscriptionName")
+                .subscribe();
+
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer = (MultiTopicsConsumerImpl<byte[]>) consumer;
+
+        multiTopicsConsumer.subscribeAsync(topicNameWithNamespace, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + topicNameWithNamespace);
+            return null;
+        }).get();
+        multiTopicsConsumer.subscribeAsync(topicNameWithDomain, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + topicNameWithDomain);
+            return null;
+        }).get();
+        multiTopicsConsumer.subscribeAsync(localPartitionName, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + localPartitionName);
+            return null;
+        }).get();
+
+        consumer.unsubscribe();
+        consumer.close();
     }
 
 
@@ -588,7 +743,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -631,7 +786,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         try {
             pulsarClient.newConsumer()
-                .topics(Lists.newArrayList())
+                .topics(new ArrayList<>())
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -658,7 +813,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName1, 2);
 
@@ -688,8 +843,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
-        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
-
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             producer1.send((messagePredicate + "producer1-" + i).getBytes());
@@ -718,11 +871,11 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 6;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
+        final String topicName1 = "persistent://my-property/my-ns/topic-1-" + key;
+        final String topicName2 = "persistent://my-property/my-ns/topic-2-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName1, 2);
         admin.topics().createPartitionedTopic(topicName2, 2);
@@ -778,9 +931,9 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions";
+        final String topicName = "persistent://my-property/my-ns/testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions";
         final String subName = "failover-test";
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, 2);
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
@@ -853,12 +1006,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         Map<String, AtomicInteger> activeConsumers = new HashMap<>();
         PartitionedTopicStats stats = admin.topics().getPartitionedStats(topicName, true);
-        for (TopicStats value : stats.partitions.values()) {
-            for (SubscriptionStats subscriptionStats : value.subscriptions.values()) {
-                assertTrue(subscriptionStats.activeConsumerName.equals(consumer_1.getConsumerName())
-                        || subscriptionStats.activeConsumerName.equals(consumer_2.getConsumerName()));
-                activeConsumers.putIfAbsent(subscriptionStats.activeConsumerName, new AtomicInteger(0));
-                activeConsumers.get(subscriptionStats.activeConsumerName).incrementAndGet();
+        for (TopicStats value : stats.getPartitions().values()) {
+            for (SubscriptionStats subscriptionStats : value.getSubscriptions().values()) {
+                assertTrue(subscriptionStats.getActiveConsumerName().equals(consumer_1.getConsumerName())
+                        || subscriptionStats.getActiveConsumerName().equals(consumer_2.getConsumerName()));
+                activeConsumers.putIfAbsent(subscriptionStats.getActiveConsumerName(), new AtomicInteger(0));
+                activeConsumers.get(subscriptionStats.getActiveConsumerName()).incrementAndGet();
             }
         }
         assertEquals(activeConsumers.get(consumer_1.getConsumerName()).get(), 2);
@@ -895,9 +1048,9 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/expiry";
         final String subName = "expiredSub";
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
-        admin.tenants().createTenant("prop", new TenantInfo(null, Sets.newHashSet("use")));
+        admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespace);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -938,7 +1091,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
@@ -1029,8 +1182,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         topics.add("persistent://prop/use/ns-abc/topic-1");
         topics.add("persistent://prop/use/ns-abc/topic-2");
         topics.add("persistent://prop/use/ns-abc1/topic-3");
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
-        admin.tenants().createTenant("prop", new TenantInfo(null, Sets.newHashSet("use")));
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("use")));
         admin.namespaces().createNamespace("prop/use/ns-abc");
         admin.namespaces().createNamespace("prop/use/ns-abc1");
         Consumer consumer = pulsarClient.newConsumer()
@@ -1073,6 +1226,82 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer.close();
         producer1.close();
         producer2.close();
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .ioThreads(2)
+                .listenerThreads(3)
+                .operationTimeout(2, TimeUnit.MILLISECONDS) // Set this very small so the operation timeout can be triggered
+                .build();
+
+        String topic0 = "public/default/topic0";
+        String topic1 = "public/default/topic1";
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                client.newConsumer(Schema.STRING)
+                        .subscriptionName("subName")
+                        .topics(Lists.newArrayList(topic0, topic1))
+                        .receiverQueueSize(2)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .ackTimeout(365, TimeUnit.DAYS)
+                        .ackTimeoutTickTime(36, TimeUnit.DAYS)
+                        .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe();
+                Thread.sleep(3000);
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof PulsarClientException.TimeoutException);
+            }
+        }
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testPartitionsUpdatesForMultipleTopics() throws Exception {
+        final String topicName0 = "persistent://public/default/testPartitionsUpdatesForMultipleTopics-0";
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topicName0, 2);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName0).partitions, 2);
+
+        PatternMultiTopicsConsumerImpl<String> consumer = (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern("persistent://public/default/test.*")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscriptionName(subName)
+                .subscribe();
+
+        Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 2);
+        Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 2);
+
+        admin.topics().updatePartitionedTopic(topicName0, 5);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 5);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 5);
+        });
+
+        final String topicName1 = "persistent://public/default/testPartitionsUpdatesForMultipleTopics-1";
+        admin.topics().createPartitionedTopic(topicName1, 3);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName1).partitions, 3);
+
+        consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 8);
+        });
+
+        admin.topics().updatePartitionedTopic(topicName1, 5);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 10);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
+        });
     }
 
 }

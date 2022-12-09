@@ -25,11 +25,9 @@ linters:
   enable:
     - bodyclose
     - deadcode
-    - gocritic
     - goimports
     - golint
     - gosimple
-    - govet
     - ineffassign
     - interfacer
     - misspell

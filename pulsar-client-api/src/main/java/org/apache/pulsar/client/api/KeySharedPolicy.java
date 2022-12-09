@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,13 +21,19 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * KeyShared policy for KeyShared subscription.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public abstract class KeySharedPolicy {
 
     protected KeySharedMode keySharedMode;
+
+    protected boolean allowOutOfOrderDelivery = false;
 
     public static final int DEFAULT_HASH_RANGE_SIZE = 2 << 15;
 
@@ -40,6 +46,25 @@ public abstract class KeySharedPolicy {
     }
 
     public abstract void validate();
+
+    /**
+     * If enabled, it will relax the ordering requirement, allowing the broker to send out-of-order messages in case of
+     * failures. This will make it faster for new consumers to join without being stalled by an existing slow consumer.
+     *
+     * <p>In this case, a single consumer will still receive all the keys, but they may be coming in different orders.
+     *
+     * @param allowOutOfOrderDelivery
+     *            whether to allow for out of order delivery
+     * @return KeySharedPolicy instance
+     */
+    public KeySharedPolicy setAllowOutOfOrderDelivery(boolean allowOutOfOrderDelivery) {
+        this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
+        return this;
+    }
+
+    public boolean isAllowOutOfOrderDelivery() {
+        return allowOutOfOrderDelivery;
+    }
 
     public KeySharedMode getKeySharedMode() {
         return this.keySharedMode;
@@ -58,7 +83,7 @@ public abstract class KeySharedPolicy {
      */
     public static class KeySharedPolicySticky extends KeySharedPolicy {
 
-        protected List<Range> ranges;
+        protected final List<Range> ranges;
 
         KeySharedPolicySticky() {
             this.keySharedMode = KeySharedMode.STICKY;
@@ -82,7 +107,7 @@ public abstract class KeySharedPolicy {
             }
             for (int i = 0; i < ranges.size(); i++) {
                 Range range1 = ranges.get(i);
-                if (range1.getStart() < 0 || range1.getEnd() > DEFAULT_HASH_RANGE_SIZE) {
+                if (range1.getStart() < 0 || range1.getEnd() >= DEFAULT_HASH_RANGE_SIZE) {
                     throw new IllegalArgumentException("Ranges must be [0, 65535] but provided range is " + range1);
                 }
                 for (int j = 0; j < ranges.size(); j++) {

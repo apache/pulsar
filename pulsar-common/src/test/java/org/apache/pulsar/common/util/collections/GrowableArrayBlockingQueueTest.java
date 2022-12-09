@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -212,7 +212,7 @@ public class GrowableArrayBlockingQueueTest {
     }
 
     @Test
-    public void removeTest() throws Exception {
+    public void removeTest() {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
 
         assertNull(queue.poll());

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -37,5 +37,3 @@ cd $SCRIPT_DIR
 ./doxygen-doc-gen.sh
 
 ./javadoc-gen.sh
-
-./python-doc-gen.sh

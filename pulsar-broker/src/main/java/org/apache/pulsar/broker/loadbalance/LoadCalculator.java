@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.loadbalance;
 
 /**
- * This interface class defines how we calculator the resource requirement per service unit based on the
- * <code>ServiceRequest</code>
+ * This interface class defines how we calculator the
+ * resource requirement per service unit based on the ServiceRequest.
  */
 public interface LoadCalculator {
     ResourceDescription getResourceDescription(ServiceRequest srvRequest);

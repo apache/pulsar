@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,21 +26,25 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
@@ -48,20 +52,20 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     ManagedLedgerImpl ml1;
     ManagedLedgerImpl ml2;
 
-    @BeforeMethod
-    public void setup(Method method) throws Exception {
-        super.setUp(method);
-        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
-
+    @Override
+    protected void setUpTestCase() throws Exception {
         ml1 = mock(ManagedLedgerImpl.class);
         when(ml1.getScheduledExecutor()).thenReturn(executor);
         when(ml1.getName()).thenReturn("cache1");
-        when(ml1.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
-        when(ml1.getExecutor()).thenReturn(super.executor);
+        when(ml1.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
+        when(ml1.getExecutor()).thenReturn(executor);
+        when(ml1.getFactory()).thenReturn(factory);
+        when(ml1.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         ml2 = mock(ManagedLedgerImpl.class);
         when(ml2.getScheduledExecutor()).thenReturn(executor);
         when(ml2.getName()).thenReturn("cache2");
+        when(ml2.getConfig()).thenReturn(new ManagedLedgerConfig());
     }
 
     @Test
@@ -70,9 +74,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(10);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
         EntryCache cache2 = cacheManager.getEntryCache(ml2);
 
@@ -82,13 +87,16 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache1.getSize(), 7);
         assertEquals(cacheManager.getSize(), 7);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMaxSize(), 10);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 7);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheMaxSize(), 10);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 7);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
+        assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 2);
+        assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 0);
+        assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
 
         cache2.insert(EntryImpl.create(2, 0, new byte[1]));
         cache2.insert(EntryImpl.create(2, 1, new byte[1]));
@@ -116,14 +124,17 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.getSize(), 2);
         assertEquals(cache2.getSize(), 2);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
 
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMaxSize(), 10);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 2);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 1);
+        assertEquals(factory2.getMbean().getCacheMaxSize(), 10);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 2);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 1);
+        assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 5);
+        assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
+        assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 3);
     }
 
     @Test
@@ -132,9 +143,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(10);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
 
         assertTrue(cache1.insert(EntryImpl.create(1, 1, new byte[4])));
@@ -147,7 +159,46 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         assertEquals(cache1.getSize(), 7);
         assertEquals(cacheManager.getSize(), 7);
+        assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 2);
+        assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
+        assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 0);
     }
+
+    @Test
+    public void cacheSizeUpdate() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(200);
+        config.setCacheEvictionWatermark(0.8);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
+        EntryCache cache1 = cacheManager.getEntryCache(ml1);
+        List<EntryImpl> entries = new ArrayList<>();
+
+        // Put entries into cache.
+        for (int i = 0; i < 20; i++) {
+            entries.add(EntryImpl.create(1, i, new byte[i + 1]));
+            assertTrue(cache1.insert(entries.get(i)));
+        }
+        assertEquals(210, cacheManager.getSize());
+
+        // Consume some entries.
+        Random random = new Random();
+        for (int i = 0; i < 20; i++) {
+            if (random.nextBoolean()) {
+                (entries.get(i).getDataBuffer()).readBytes(new byte[entries.get(i).getDataBuffer().readableBytes()]);
+            }
+        }
+
+        cacheManager.removeEntryCache(ml1.getName());
+        assertTrue(cacheManager.getSize() > 0);
+        assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 20);
+        assertEquals(factory2.getMbean().getCacheEntriesCount(), 0);
+        assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 20);
+    }
+
 
     @Test
     public void cacheDisabled() throws Exception {
@@ -155,14 +206,15 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(0);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
         EntryCache cache1 = cacheManager.getEntryCache(ml1);
         EntryCache cache2 = cacheManager.getEntryCache(ml2);
 
-        assertTrue(cache1 instanceof EntryCacheManager.EntryCacheDisabled);
-        assertTrue(cache2 instanceof EntryCacheManager.EntryCacheDisabled);
+        assertTrue(cache1 instanceof EntryCacheDisabled);
+        assertTrue(cache2 instanceof EntryCacheDisabled);
 
         cache1.insert(EntryImpl.create(1, 1, new byte[4]));
         cache1.insert(EntryImpl.create(1, 0, new byte[3]));
@@ -170,13 +222,16 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache1.getSize(), 0);
         assertEquals(cacheManager.getSize(), 0);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMaxSize(), 0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheMaxSize(), 0);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 0);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
+        assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 0);
+        assertEquals(factory2.getMbean().getCacheEntriesCount(), 0);
+        assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 0);
 
         cache2.insert(EntryImpl.create(2, 0, new byte[1]));
         cache2.insert(EntryImpl.create(2, 1, new byte[1]));
@@ -192,10 +247,11 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(7 * 10);
         config.setCacheEvictionWatermark(0.8);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger");
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger");
         EntryCache cache1 = ledger.entryCache;
 
         for (int i = 0; i < 10; i++) {
@@ -205,13 +261,16 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache1.getSize(), 0);
         assertEquals(cacheManager.getSize(), 0);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMaxSize(), 7 * 10);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheMaxSize(), 7 * 10);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 0);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
+        assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 0);
+        assertEquals(factory2.getMbean().getCacheEntriesCount(), 0);
+        assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 0);
     }
 
     @Test
@@ -219,12 +278,13 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(7 * 10);
         config.setCacheEvictionWatermark(0.8);
-        config.setCacheEvictionFrequency(1);
+        config.setCacheEvictionIntervalMs(1000);
 
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        EntryCacheManager cacheManager = factory.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ledger");
+        EntryCacheManager cacheManager = factory2.getEntryCacheManager();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger");
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ManagedCursorImpl c2 = (ManagedCursorImpl) ledger.openCursor("c2");
@@ -233,64 +293,64 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 70);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 70);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
 
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 10);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 70);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 10.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 70.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 70);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 10.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 70.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
 
         ledger.deactivateCursor(c1);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 70);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 70);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
 
         entries = c2.readEntries(10);
         assertEquals(entries.size(), 10);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 70);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 10.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 70.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 0);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 10.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 70.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
 
         PositionImpl pos = (PositionImpl) entries.get(entries.size() - 1).getPosition();
         c2.setReadPosition(pos);
-        ledger.discardEntriesFromCache(c2, pos);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 7);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheHitsThroughput(), 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 0);
+        assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
+        assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
     }
 
     @Test
     public void verifyTimeBasedEviction() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(1000);
-        config.setCacheEvictionFrequency(100);
+        config.setCacheEvictionIntervalMs(10);
         config.setCacheEvictionTimeThresholdMillis(100);
 
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -315,8 +375,6 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         assertEquals(cacheManager.getSize(), 0);
         assertEquals(cache.getSize(), 0);
-
-        factory.shutdown();
     }
 
     @Test(timeOut = 5000)
@@ -325,12 +383,14 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         EntryCache entryCache = cacheManager.getEntryCache(ml1);
 
         final CountDownLatch counter = new CountDownLatch(1);
-        entryCache.asyncReadEntry(lh, new PositionImpl(1L ,1L), new AsyncCallbacks.ReadEntryCallback() {
+        entryCache.asyncReadEntry(lh, new PositionImpl(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
             public void readEntryComplete(Entry entry, Object ctx) {
                 Assert.assertNotEquals(entry, null);
                 entry.release();

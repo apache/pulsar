@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.io.flume.sink;
 
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
@@ -25,10 +28,6 @@ import org.apache.pulsar.io.flume.FlumeConfig;
 import org.apache.pulsar.io.flume.FlumeConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A Simple abstract sink class for pulsar to flume.
@@ -56,7 +55,7 @@ public abstract class AbstractSink<T> implements Sink<T> {
         FlumeConfig flumeConfig = FlumeConfig.load(config);
 
         flumeConnector = new FlumeConnector();
-        flumeConnector.StartConnector(flumeConfig);
+        flumeConnector.startConnector(flumeConfig);
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.mongodb;
 
-import com.mongodb.MongoNamespace;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
 import com.mongodb.reactivestreams.client.ChangeStreamPublisher;
@@ -29,14 +27,13 @@ import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.bson.BsonDocument;
-import org.bson.BsonString;
+import org.bson.BsonInt64;
+import org.bson.BsonTimestamp;
 import org.bson.Document;
 import org.mockito.Mock;
 import org.reactivestreams.Subscriber;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 import java.util.Map;
@@ -76,16 +73,10 @@ public class MongoSourceTest {
 
     private Map<String, Object> map;
 
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
-
     @BeforeMethod
     public void setUp() {
 
-        map = TestHelper.createMap(true);
+        map = TestHelper.createCommonConfigMap();
 
         mockSourceContext = mock(SourceContext.class);
         mockMongoClient = mock(MongoClient.class);
@@ -107,7 +98,7 @@ public class MongoSourceTest {
         }).when(mockPublisher).subscribe(any());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         source.close();
         verify(mockMongoClient, times(1)).close();
@@ -123,8 +114,17 @@ public class MongoSourceTest {
 
         source.open(map, mockSourceContext);
 
-        subscriber.onNext(new ChangeStreamDocument<Document>(null, new MongoNamespace("hello.pulsar"),
-                new Document("hello", "pulsar"), new BsonDocument("_id", new BsonString("id")), OperationType.INSERT, null));
+        subscriber.onNext(new ChangeStreamDocument<>(
+                OperationType.INSERT,
+                BsonDocument.parse("{token: true}"),
+                BsonDocument.parse("{db: \"hello\", coll: \"pulsar\"}"),
+                BsonDocument.parse("{db: \"hello2\", coll: \"pulsar2\"}"),
+                new Document("hello", "pulsar"),
+                BsonDocument.parse("{_id: 1}"),
+                new BsonTimestamp(1234, 2),
+                null,
+                new BsonInt64(1),
+                BsonDocument.parse("{id: 1, uid: 1}")));
 
         Record<byte[]> record = source.read();
 

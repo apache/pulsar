@@ -1,7 +1,7 @@
 ---
-id: version-2.5.1-security-tls-transport
+id: security-tls-transport
 title: Transport Encryption using TLS
-sidebar_label: Transport Encryption using TLS
+sidebar_label: "Transport Encryption using TLS"
 original_id: security-tls-transport
 ---
 
@@ -41,18 +41,21 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
 
-2. Entering the follwing command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
+2. Entering the following command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
 
 ```bash
+
 mkdir my-ca
 cd my-ca
-wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+wget https://pulsar.apache.org/examples/openssl.cnf
 export CA_HOME=$(pwd)
+
 ```
 
 3. Enter the commands below to create the necessary directories, keys and certs.
 
 ```bash
+
 mkdir certs crl newcerts private
 chmod 700 private/
 touch index.txt
@@ -63,6 +66,7 @@ openssl req -config openssl.cnf -key private/ca.key.pem \
     -new -x509 -days 7300 -sha256 -extensions v3_ca \
     -out certs/ca.cert.pem
 chmod 444 certs/ca.cert.pem
+
 ```
 
 4. After you answer the question prompts, CA-related files are stored in the `./my-ca` directory. Within that directory:
@@ -76,40 +80,50 @@ Once you have created a CA certificate, you can create certificate requests and 
 
 The following commands ask you a few questions and then create the certificates. When you are asked for the common name, you should match the hostname of the broker. You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
 
-> #### Tips
-> 
-> Sometimes matching the hostname is not possible or makes no sense,
-> such as when you creat the brokers with random hostnames, or you
-> plan to connect to the hosts via their IP. In these cases, you 
-> should configure the client to disable TLS hostname verification. For more
-> details, you can see [the host verification section in client configuration](#hostname-verification).
+:::tip
+
+Sometimes matching the hostname is not possible or makes no sense,
+such as when you create the brokers with random hostnames, or you
+plan to connect to the hosts via their IP. In these cases, you 
+should configure the client to disable TLS hostname verification. For more
+details, you can see [the host verification section in client configuration](#hostname-verification).
+
+:::
 
 1. Enter the command below to generate the key.
 
 ```bash
+
 openssl genrsa -out broker.key.pem 2048
+
 ```
 
 The broker expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so enter the following command to convert it.
 
 ```bash
+
 openssl pkcs8 -topk8 -inform PEM -outform PEM \
     -in broker.key.pem -out broker.key-pk8.pem -nocrypt
+
 ```
 
-2. Enter the follwing command to generate the certificate request.
+2. Enter the following command to generate the certificate request.
 
 ```bash
+
 openssl req -config openssl.cnf \
     -key broker.key.pem -new -sha256 -out broker.csr.pem
+
 ```
 
 3. Sign it with the certificate authority by entering the command below.
 
 ```bash
+
 openssl ca -config openssl.cnf -extensions server_cert \
     -days 1000 -notext -md sha256 \
     -in broker.csr.pem -out broker.cert.pem
+
 ```
 
 At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS transport encryption for your broker and proxy nodes.
@@ -121,10 +135,12 @@ To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS trans
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
 ```properties
+
 tlsEnabled=true
 tlsCertificateFilePath=/path/to/broker.cert.pem
 tlsKeyFilePath=/path/to/broker.key-pk8.pem
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
+
 ```
 
 > You can find a full list of parameters available in the `conf/broker.conf` file,
@@ -137,8 +153,10 @@ You can configure the broker (and proxy) to require specific TLS protocol versio
 Both the TLS protocol versions and cipher properties can take multiple values, separated by commas. The possible values for protocol version and ciphers depend on the TLS provider that you are using. Pulsar uses OpenSSL if the OpenSSL is available, but if the OpenSSL is not available, Pulsar defaults back to the JDK implementation.
 
 ```properties
+
 tlsProtocols=TLSv1.2,TLSv1.1
 tlsCiphers=TLS_DH_RSA_WITH_AES_256_GCM_SHA384,TLS_DH_RSA_WITH_AES_256_CBC_SHA
+
 ```
 
 OpenSSL currently supports ```SSL2```, ```SSL3```, ```TLSv1```, ```TLSv1.1``` and ```TLSv1.2``` for the protocol version. You can acquire a list of supported cipher from the openssl ciphers command, i.e. ```openssl ciphers -tls_v2```.
@@ -152,6 +170,7 @@ For JDK 8, you can obtain a list of supported values from the documentation:
 Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy connecting to brokers.
 
 ```properties
+
 # For clients connecting to the proxy
 tlsEnabledInProxy=true
 tlsCertificateFilePath=/path/to/broker.cert.pem
@@ -161,6 +180,7 @@ tlsTrustCertsFilePath=/path/to/ca.cert.pem
 # For the proxy to connect to brokers
 tlsEnabledWithBroker=true
 brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
+
 ```
 
 ## Client configuration
@@ -169,7 +189,7 @@ When you enable the TLS transport encryption, you need to configure the client t
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 
-#### Hostname verification
+### Hostname verification
 
 Hostname verification is a TLS security feature whereby a client can refuse to connect to a server if the "CommonName" does not match the hostname to which the hostname is connecting. By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.
 
@@ -181,22 +201,25 @@ The examples below show hostname verification being disabled for the Java client
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
 
 ```properties
+
 webServiceUrl=https://broker.example.com:8443/
 brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
 useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
 tlsEnableHostnameVerification=false
+
 ```
 
-### Java client
+#### Java client
 
 ```java
+
 import org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
@@ -206,34 +229,41 @@ PulsarClient client = PulsarClient.builder()
     .enableTlsHostnameVerification(false) // false by default, in any case
     .allowTlsInsecureConnection(false) // false by default, in any case
     .build();
+
 ```
 
-### Python client
+#### Python client
 
 ```python
+
 from pulsar import Client
 
 client = Client("pulsar+ssl://broker.example.com:6651/",
+                tls_hostname_verification=True,
                 tls_trust_certs_file_path="/path/to/ca.cert.pem",
                 tls_allow_insecure_connection=False) // defaults to false from v2.2.0 onwards
+
 ```
 
-### C++ client
+#### C++ client
 
 ```c++
+
 #include <pulsar/Client.h>
 
-pulsar::ClientConfiguration config;
-config.setUseTls(true);
-config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
-config.setTlsAllowInsecureConnection(false); // defaults to false from v2.2.0 onwards
+ClientConfiguration config = ClientConfiguration();
+config.setUseTls(true);  // shouldn't be needed soon
+config.setTlsTrustCertsFilePath(caPath);
+config.setTlsAllowInsecureConnection(false);
+config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+config.setValidateHostName(true);
 
-pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 ```
 
-### Node.js client
+#### Node.js client
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -242,4 +272,6 @@ const Pulsar = require('pulsar-client');
     tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
   });
 })();
+
 ```
+

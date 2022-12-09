@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,14 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
+
 /**
  * JMX Bean interface for ManagedLedgerFactory stats.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ManagedLedgerFactoryMXBean {
     /**
      * Get the number of currently opened managed ledgers on the factory.
@@ -61,4 +66,19 @@ public interface ManagedLedgerFactoryMXBean {
      * Get the number of cache evictions during the last minute.
      */
     long getNumberOfCacheEvictions();
+
+    /**
+     * Cumulative number of entries inserted into the cache.
+     */
+    long getCacheInsertedEntriesCount();
+
+    /**
+     * Cumulative number of entries evicted from the cache.
+     */
+    long getCacheEvictedEntriesCount();
+
+    /**
+     * Current number of entries in the cache.
+     */
+    long getCacheEntriesCount();
 }

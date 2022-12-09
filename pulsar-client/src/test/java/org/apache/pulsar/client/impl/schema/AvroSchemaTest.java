@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,47 +20,53 @@ package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_ALLOW_NULL;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
-
+import static org.testng.AssertJUnit.assertSame;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
+import java.util.UUID;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.Schema;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.BufferedBinaryEncoder;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.avro.generated.NasaMission;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -120,10 +126,16 @@ public class AvroSchemaTest {
     }
 
     @Test
+    public void testGetNativeSchema() throws SchemaValidationException {
+        AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
+        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
+        assertSame(schema2.schema, avroSchema2);
+    }
+
+    @Test
     public void testSchemaDefinition() throws SchemaValidationException {
         org.apache.avro.Schema schema1 = ReflectData.get().getSchema(DefaultStruct.class);
         AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
-
         String schemaDef1 = schema1.toString();
         String schemaDef2 = new String(schema2.getSchemaInfo().getSchema(), UTF_8);
         assertNotEquals(
@@ -280,7 +292,7 @@ public class AvroSchemaTest {
         schemaLogicalType.setDecimal(new BigDecimal("12.34"));
         schemaLogicalType.setDate(LocalDate.now());
         schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
-        schemaLogicalType.setTimeMillis(LocalTime.now());
+        schemaLogicalType.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
 
         byte[] bytes1 = avroSchema.encode(schemaLogicalType);
         Assert.assertTrue(bytes1.length > 0);
@@ -300,7 +312,7 @@ public class AvroSchemaTest {
         schemaLogicalType.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
         schemaLogicalType.setDate(LocalDate.now());
         schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
-        schemaLogicalType.setTimeMillis(LocalTime.now());
+        schemaLogicalType.setTimeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS));
 
         byte[] bytes1 = avroSchema.encode(schemaLogicalType);
         Assert.assertTrue(bytes1.length > 0);
@@ -385,11 +397,171 @@ public class AvroSchemaTest {
         // Because data does not conform to schema expect a crash
         Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
 
-        // Get the buffered data using powermock
-        BinaryEncoder encoder = Whitebox.getInternalState(avroWriter, "encoder");
-
         // Assert that the buffer position is reset to zero
-        Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
+        Assert.assertEquals(avroWriter.getEncoder().bytesBuffered(), 0);
     }
 
+    @Test
+    public void testAvroSchemaUserDefinedReadAndWriter() {
+        SchemaReader<Foo> reader = new JacksonJsonReader<>(new ObjectMapper(), Foo.class);
+        SchemaWriter<Foo> writer = new JacksonJsonWriter<>(new ObjectMapper());
+        SchemaDefinition<Foo> schemaDefinition = SchemaDefinition.<Foo>builder()
+                .withPojo(Bar.class)
+                .withSchemaReader(reader)
+                .withSchemaWriter(writer)
+                .build();
+
+        AvroSchema<Foo> schema = AvroSchema.of(schemaDefinition);
+        Foo foo = new Foo();
+        foo.setColor(SchemaTestUtils.Color.RED);
+        String field1 = "test";
+        foo.setField1(field1);
+        schema.encode(foo);
+        foo = schema.decode(schema.encode(foo));
+        assertEquals(foo.getColor(), SchemaTestUtils.Color.RED);
+        assertEquals(field1, foo.getField1());
+    }
+
+    static class MyPojo {
+        public UUID uid;
+    }
+
+    @Test
+    public void testAvroUUID() {
+        org.apache.pulsar.client.api.Schema<MyPojo> schema = org.apache.pulsar.client.api.Schema.AVRO(MyPojo.class);
+        MyPojo pojo1 = new MyPojo();
+        pojo1.uid = UUID.randomUUID();
+        MyPojo pojo2 = schema.decode(schema.encode(pojo1));
+        assertEquals(pojo1.uid, pojo2.uid);
+    }
+
+    static class MyBigDecimalPojo {
+        public BigDecimal value1;
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
+        public BigDecimal value2;
+    }
+
+    @Test
+    public void testAvroBigDecimal() {
+        org.apache.pulsar.client.api.Schema<MyBigDecimalPojo> schema =
+                org.apache.pulsar.client.api.Schema.AVRO(MyBigDecimalPojo.class);
+        MyBigDecimalPojo myBigDecimalPojo = new MyBigDecimalPojo();
+        myBigDecimalPojo.value1 = new BigDecimal("10.21");
+        myBigDecimalPojo.value2 = new BigDecimal("10.22");
+        MyBigDecimalPojo pojo2 = schema.decode(schema.encode(myBigDecimalPojo));
+        assertEquals(pojo2.value1, myBigDecimalPojo.value1);
+        assertEquals(pojo2.value2, myBigDecimalPojo.value2);
+    }
+
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    private static class TimestampPojo {
+        Instant value;
+    }
+
+    @Test
+    public void testTimestampWithJsr310Conversion() {
+        AvroSchema<TimestampPojo> schema = AvroSchema.of(TimestampPojo.class);
+        Assert.assertEquals(
+                schema.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMicrosConversion().getLogicalTypeName());
+
+        AvroSchema<TimestampPojo> schema2 = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withPojo(TimestampPojo.class).withJSR310ConversionEnabled(true).build());
+        Assert.assertEquals(
+                schema2.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMillisConversion().getLogicalTypeName());
+    }
+
+    @Test
+    public void testTimestampWithJsonDef(){
+        AvroSchema<TimestampPojo> schemaWithPojo = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withPojo(TimestampPojo.class)
+                .withJSR310ConversionEnabled(false).build());
+
+        TimestampPojo timestampPojo = new TimestampPojo(Instant.parse("2022-06-10T12:38:59.039084Z"));
+        byte[] encode = schemaWithPojo.encode(timestampPojo);
+        TimestampPojo decodeWithPojo = schemaWithPojo.decode(encode);
+
+        Assert.assertEquals(decodeWithPojo, timestampPojo);
+
+        String schemaDefinition = new String(schemaWithPojo.schemaInfo.getSchema());
+        AvroSchema<TimestampPojo> schemaWithJsonDef = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withClassLoader(TimestampPojo.class.getClassLoader())
+                .withJSR310ConversionEnabled(false).build());
+
+        TimestampPojo decodeWithJson = schemaWithJsonDef.decode(encode);
+
+        Assert.assertEquals(decodeWithJson, decodeWithPojo);
+        Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
+
+        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withJSR310ConversionEnabled(false).build());
+
+        TimestampPojo decodeWithJsonNoClassLoader = schemaWithJsonDefNoClassLoader.decode(encode);
+        Assert.assertNotEquals(decodeWithJsonNoClassLoader, decodeWithPojo);
+        Assert.assertNotEquals(Instant.class, decodeWithJsonNoClassLoader.getValue().getClass());
+    }
+
+    @Test
+    public void testTimestampWithJsonDefAndJSR310ConversionEnabled(){
+        AvroSchema<TimestampPojo> schemaWithPojo = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withPojo(TimestampPojo.class)
+                .withJSR310ConversionEnabled(true).build());
+
+        TimestampPojo timestampPojo = new TimestampPojo(Instant.parse("2022-06-10T12:38:59.039084Z"));
+        byte[] encode = schemaWithPojo.encode(timestampPojo);
+        TimestampPojo decodeWithPojo = schemaWithPojo.decode(encode);
+
+        Assert.assertNotEquals(decodeWithPojo, timestampPojo);
+
+        String schemaDefinition = new String(schemaWithPojo.schemaInfo.getSchema());
+        AvroSchema<TimestampPojo> schemaWithJsonDef = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withClassLoader(TimestampPojo.class.getClassLoader())
+                .withJSR310ConversionEnabled(true).build());
+
+        TimestampPojo decodeWithJson = schemaWithJsonDef.decode(encode);
+
+        Assert.assertEquals(decodeWithJson, decodeWithPojo);
+        Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
+
+        AvroSchema<TimestampPojo> schemaWithJsonDefNoClassLoader = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
+                .withJsonDef(schemaDefinition)
+                .withJSR310ConversionEnabled(true).build());
+
+        TimestampPojo decodeWithJsonNoClassLoader = schemaWithJsonDefNoClassLoader.decode(encode);
+        Assert.assertNotEquals(decodeWithJsonNoClassLoader, decodeWithPojo);
+        Assert.assertNotEquals(Instant.class, decodeWithJsonNoClassLoader.getValue().getClass());
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    private static class LocalDateTimePojo {
+        LocalDateTime value;
+    }
+
+    @Test
+    public void testLocalDateTime() {
+        SchemaDefinition<LocalDateTimePojo> schemaDefinition =
+                SchemaDefinition.<LocalDateTimePojo>builder().withPojo(LocalDateTimePojo.class)
+                        .withJSR310ConversionEnabled(true).build();
+
+        AvroSchema<LocalDateTimePojo> avroSchema = AvroSchema.of(schemaDefinition);
+        LocalDateTime now = LocalDateTime.now();
+        byte[] bytes = avroSchema.encode(new LocalDateTimePojo(now));
+
+        LocalDateTimePojo pojo = avroSchema.decode(bytes);
+        assertEquals(pojo.getValue().truncatedTo(ChronoUnit.MILLIS), now.truncatedTo(ChronoUnit.MILLIS));
+    }
 }

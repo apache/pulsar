@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,8 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 import java.util.function.Consumer;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * This is an interface for defining BatchSource triggerers. These triggerers trigger
@@ -38,7 +40,8 @@ import java.util.function.Consumer;
  * 3. stop - Stop from further triggering discovers
  *
  */
-
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface BatchSourceTriggerer {
 
     /**

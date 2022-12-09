@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,14 @@ package org.apache.pulsar.common.schema;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A simple KeyValue class.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class KeyValue<K, V> {
     private final K key;
     private final V value;
@@ -52,7 +56,7 @@ public class KeyValue<K, V> {
         if (!(obj instanceof KeyValue)) {
             return false;
         }
-        KeyValue<K, V> another = (KeyValue<K, V>) obj;
+        @SuppressWarnings("unchecked") KeyValue<K, V> another = (KeyValue<K, V>) obj;
         return Objects.equals(key, another.key)
             && Objects.equals(value, another.value);
     }

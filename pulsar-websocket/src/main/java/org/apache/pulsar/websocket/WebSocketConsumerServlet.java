@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,7 @@ public class WebSocketConsumerServlet extends WebSocketServlet {
     public static final String SERVLET_PATH = "/ws/consumer";
     public static final String SERVLET_PATH_V2 = "/ws/v2/consumer";
 
-    WebSocketService service;
+    private final transient WebSocketService service;
 
     public WebSocketConsumerServlet(WebSocketService service) {
         super();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,31 +20,23 @@ package org.apache.pulsar.functions.instance;
 
 import java.util.Map;
 import java.util.Optional;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-import lombok.extern.slf4j.Slf4j;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.PulsarRecord;
 
-@Slf4j
-@Data
-@AllArgsConstructor
-public class SinkRecord<T> implements Record<T> {
-
+@EqualsAndHashCode(callSuper = true)
+@ToString
+public class SinkRecord<T> extends AbstractSinkRecord<T> {
     private final Record<T> sourceRecord;
     private final T value;
 
-    public Record<T> getSourceRecord() {
-        return sourceRecord;
-    }
-
-    @Override
-    public Optional<String> getTopicName() {
-        return sourceRecord.getTopicName();
+    public SinkRecord(Record<T> sourceRecord, T value) {
+        super(sourceRecord);
+        this.sourceRecord = sourceRecord;
+        this.value = value;
     }
 
     @Override
@@ -63,23 +55,18 @@ public class SinkRecord<T> implements Record<T> {
     }
 
     @Override
+    public Optional<Integer> getPartitionIndex() {
+        return sourceRecord.getPartitionIndex();
+    }
+
+    @Override
     public Optional<Long> getRecordSequence() {
         return sourceRecord.getRecordSequence();
     }
 
-     @Override
+    @Override
     public Map<String, String> getProperties() {
         return sourceRecord.getProperties();
-    }
-
-    @Override
-    public void ack() {
-        sourceRecord.ack();
-    }
-
-    @Override
-    public void fail() {
-        sourceRecord.fail();
     }
 
     @Override
@@ -89,21 +76,26 @@ public class SinkRecord<T> implements Record<T> {
 
     @Override
     public Schema<T> getSchema() {
-        if (sourceRecord == null) {
-            return null;
-        }
-
-        if (sourceRecord.getSchema() != null) {
-            return sourceRecord.getSchema();
-        }
-
-        if (sourceRecord instanceof KVRecord) {
-            KVRecord kvRecord = (KVRecord) sourceRecord;
-            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
-                    kvRecord.getKeyValueEncodingType());
-        }
-
-        return null;
+        return getRecordSchema(sourceRecord);
     }
 
+    @Override
+    public Optional<Long> getEventTime() {
+        return sourceRecord.getEventTime();
+    }
+
+    @Override
+    public Optional<Message<T>> getMessage() {
+        return sourceRecord.getMessage();
+    }
+
+    @Override
+    public boolean shouldAlwaysSetMessageProperties() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldSetSchema() {
+        return !(sourceRecord instanceof PulsarRecord);
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import lombok.experimental.UtilityClass;
 
 /**

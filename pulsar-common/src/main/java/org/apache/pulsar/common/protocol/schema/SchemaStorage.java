@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,8 @@ package org.apache.pulsar.common.protocol.schema;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Schema storage.
@@ -28,9 +30,25 @@ public interface SchemaStorage {
 
     CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
 
+    /**
+     * Put the schema to the schema storage.
+     *
+     * @param key The schema ID
+     * @param fn The function to calculate the value and hash that need to put to the schema storage
+     *           The input of the function is all the existing schemas that used to do the schemas compatibility check
+     * @return The schema version of the stored schema
+     */
+    default CompletableFuture<SchemaVersion> put(String key,
+             Function<CompletableFuture<List<CompletableFuture<StoredSchema>>>,
+                     CompletableFuture<Pair<byte[], byte[]>>> fn) {
+        return fn.apply(getAll(key)).thenCompose(pair -> put(key, pair.getLeft(), pair.getRight()));
+    }
+
     CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
 
     CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
+
+    CompletableFuture<SchemaVersion> delete(String key, boolean forcefully);
 
     CompletableFuture<SchemaVersion> delete(String key);
 

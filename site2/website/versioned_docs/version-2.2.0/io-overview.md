@@ -1,7 +1,7 @@
 ---
-id: version-2.2.0-io-overview
+id: io-overview
 title: Pulsar IO Overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: io-overview
 ---
 
@@ -19,7 +19,7 @@ Pulsar IO connectors come in two types:
 
 This diagram illustrates the relationship between sources, sinks, and Pulsar:
 
-![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
+![Pulsar IO diagram](/assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
 
 ## Working with connectors
 

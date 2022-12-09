@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -76,13 +76,13 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @Test
-    void testForwardAuthData() throws Exception {
+    public void testForwardAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         // Step 1: Create Admin Client
@@ -104,6 +104,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticationEnabled(true);
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());

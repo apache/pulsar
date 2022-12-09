@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,26 +20,26 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.testng.annotations.Test;
 
 public class PartitionedTopicStatsTest {
 
     @Test
     public void testPartitionedTopicStats() {
-        PartitionedTopicStats partitionedTopicStats = new PartitionedTopicStats();
+        PartitionedTopicStatsImpl partitionedTopicStats = new PartitionedTopicStatsImpl();
         partitionedTopicStats.msgRateIn = 1;
         partitionedTopicStats.msgThroughputIn = 1;
         partitionedTopicStats.msgRateOut = 1;
         partitionedTopicStats.msgThroughputOut = 1;
         partitionedTopicStats.averageMsgSize = 1;
         partitionedTopicStats.storageSize = 1;
-        partitionedTopicStats.publishers.add(new PublisherStats());
-        partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStats());
-        partitionedTopicStats.replication.put("test_ns", new ReplicatorStats());
+        partitionedTopicStats.addPublisher((new PublisherStatsImpl()));
+        partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStatsImpl());
+        partitionedTopicStats.replication.put("test_ns", new ReplicatorStatsImpl());
         partitionedTopicStats.metadata.partitions = 1;
         partitionedTopicStats.partitions.put("test", partitionedTopicStats);
         partitionedTopicStats.reset();
@@ -49,7 +49,7 @@ public class PartitionedTopicStatsTest {
         assertEquals(partitionedTopicStats.msgThroughputOut, 0.0);
         assertEquals(partitionedTopicStats.averageMsgSize, 0.0);
         assertEquals(partitionedTopicStats.storageSize, 0);
-        assertEquals(partitionedTopicStats.publishers.size(), 0);
+        assertEquals(partitionedTopicStats.getPublishers().size(), 0);
         assertEquals(partitionedTopicStats.subscriptions.size(), 0);
         assertEquals(partitionedTopicStats.replication.size(), 0);
         assertEquals(partitionedTopicStats.metadata.partitions, 0);

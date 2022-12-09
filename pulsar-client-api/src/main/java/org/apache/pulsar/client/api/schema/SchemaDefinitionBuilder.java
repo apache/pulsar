@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-
-
 import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder to build schema definition {@link SchemaDefinition}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaDefinitionBuilder<T> {
 
     /**
@@ -77,6 +79,15 @@ public interface SchemaDefinitionBuilder<T> {
      * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withPojo(Class pojo);
+
+    /**
+     * Set schema of pojo classLoader.
+     *
+     * @param classLoader pojo classLoader
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withClassLoader(ClassLoader classLoader);
 
     /**
      * Set schema of json definition.

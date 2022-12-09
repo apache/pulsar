@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.nar.NarClassLoader;
-
-import java.util.Map;
 
 @Data
 @Accessors(chain = true)
@@ -39,9 +38,20 @@ public class KubernetesRuntimeFactoryConfig {
     )
     protected String jobNamespace;
     @FieldContext(
+            doc = "The Kubernetes pod name to run the function instances. It is set to"
+                + "`pf-<tenant>-<namespace>-<function_name>-<random_uuid(8)>` if this setting is left to be empty"
+        )
+    protected String jobName;
+    @FieldContext(
         doc = "The docker image used to run function instance. By default it is `apachepulsar/pulsar`"
     )
     protected String pulsarDockerImageName;
+
+    @FieldContext(
+            doc = "The function docker images used to run function instance according to different "
+                    + "configurations provided by users. By default it is `apachepulsar/pulsar`"
+    )
+    protected Map<String, String> functionDockerImages;
 
     @FieldContext(
             doc = "The image pull policy for image used to run function instance. By default it is `IfNotPresent`"
@@ -55,7 +65,8 @@ public class KubernetesRuntimeFactoryConfig {
     protected String pulsarRootDir;
     @FieldContext(
             doc = "The config admin CLI allows users to customize the configuration of the admin cli tool, such as:"
-                    + " `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
+                    + " `/bin/pulsar-admin and /bin/pulsarctl`. "
+                    + "By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
                     + " you need to set this setting accordingly"
     )
     protected String configAdminCLI;
@@ -115,19 +126,20 @@ public class KubernetesRuntimeFactoryConfig {
     protected String changeConfigMapNamespace;
 
     @FieldContext(
-            doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
+            doc = "Additional memory padding added on top of the memory "
+                    + "requested by the function per on a per instance basis"
     )
     protected int percentMemoryPadding;
 
     @FieldContext(
-            doc = "The ratio cpu request and cpu limit to be set for a function/source/sink." +
-                    "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
+            doc = "The ratio cpu request and cpu limit to be set for a function/source/sink."
+                    + "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
     )
     protected double cpuOverCommitRatio = 1.0;
 
     @FieldContext(
-            doc = "The ratio memory request and memory limit to be set for a function/source/sink." +
-                    "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
+            doc = "The ratio memory request and memory limit to be set for a function/source/sink."
+                    + "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
     )
     protected double memoryOverCommitRatio = 1.0;
 
@@ -142,8 +154,19 @@ public class KubernetesRuntimeFactoryConfig {
     private Integer metricsPort = 9094;
 
     @FieldContext(
-       doc = "The directory inside  the function pod where nar packages will be extracted"
+       doc = "The directory inside the function pod where nar packages will be extracted"
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+
+    @FieldContext(
+            doc = "The classpath where function instance files stored"
+    )
+    private String functionInstanceClassPath = "";
+    @FieldContext(
+            doc = "The duration in seconds before the StatefulSet deleted on function stop/restart. "
+                    + "Value must be non-negative integer. The value zero indicates delete immediately. "
+                    + "Default is 5 seconds."
+    )
+    protected int gracePeriodSeconds = 5;
 
 }

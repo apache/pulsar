@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.naming;
 
-import org.apache.pulsar.broker.namespace.NamespaceService;
-
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,8 +28,9 @@ import java.util.concurrent.CompletableFuture;
 public class RangeEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm {
 
     @Override
-    public CompletableFuture<Long> getSplitBoundary(NamespaceService service, NamespaceBundle bundle) {
-        return CompletableFuture.completedFuture(bundle.getLowerEndpoint() +
-            (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2);
+    public CompletableFuture<List<Long>> getSplitBoundary(BundleSplitOption bundleSplitOption) {
+        NamespaceBundle bundle = bundleSplitOption.getBundle();
+        return CompletableFuture.completedFuture(Collections.singletonList(bundle.getLowerEndpoint()
+                + (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2));
     }
 }

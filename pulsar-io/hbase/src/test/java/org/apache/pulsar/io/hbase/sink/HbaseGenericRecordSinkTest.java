@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -117,7 +117,7 @@ public class HbaseGenericRecordSinkTest {
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
-        PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
+        PulsarSourceConfig pulsarSourceConfig = mock(PulsarSourceConfig.class);
         Consumer consumer = mock(Consumer.class);
 
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()

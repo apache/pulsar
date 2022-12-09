@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,8 @@
 package org.apache.pulsar.metadata.api;
 
 import java.io.IOException;
-
 import lombok.experimental.UtilityClass;
-
-import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 
 /**
  * Factory class for {@link MetadataStore}.
@@ -40,7 +38,12 @@ public class MetadataStoreFactory {
      * @throws IOException
      *             if the metadata store initialization fails
      */
-    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
-        return new ZKMetadataStore(metadataURL, metadataStoreConfig);
+    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+            throws MetadataStoreException {
+        return MetadataStoreFactoryImpl.create(metadataURL, metadataStoreConfig);
+    }
+
+    public static boolean isBasedOnZookeeper(String metadataURL) {
+        return MetadataStoreFactoryImpl.isBasedOnZookeeper(metadataURL);
     }
 }

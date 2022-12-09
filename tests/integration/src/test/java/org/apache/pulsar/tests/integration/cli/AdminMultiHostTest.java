@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,8 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.naming.TopicVersion;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -35,20 +37,22 @@ import org.testng.annotations.Test;
 /**
  * Test for admin service url is multi host.
  */
-public class AdminMultiHostTest {
+public class AdminMultiHostTest extends TestRetrySupport {
 
     private final String clusterName = "MultiHostTest-" + UUID.randomUUID();
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder().clusterName(clusterName).numBrokers(3).build();
     private PulsarCluster pulsarCluster = null;
 
-    @BeforeMethod
-    public void setupCluster() throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public void setup() throws Exception {
+        incrementSetupNumber();
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
     }
 
-    @AfterMethod
-    public void tearDownCluster() {
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        markCurrentSetupNumberCleaned();
         if (pulsarCluster != null) {
             pulsarCluster.stop();
             pulsarCluster = null;
@@ -81,7 +85,7 @@ public class AdminMultiHostTest {
         throws InterruptedException, ExecutionException, TimeoutException {
         FutureTask<Boolean> futureTask = new FutureTask<>(() -> {
             while (admin.brokers().getActiveBrokers(clusterName).size() != expectBrokers) {
-                admin.brokers().healthcheck();
+                admin.brokers().healthcheck(TopicVersion.V1);
                 TimeUnit.MILLISECONDS.sleep(1000);
             }
             return true;

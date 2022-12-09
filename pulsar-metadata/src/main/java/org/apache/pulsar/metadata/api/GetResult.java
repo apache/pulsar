@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,6 @@ import lombok.Data;
  */
 @Data
 public class GetResult {
-
     /**
      * The value of the key stored.
      */

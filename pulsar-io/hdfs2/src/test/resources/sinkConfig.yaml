@@ -21,5 +21,6 @@
 "hdfsConfigResources": "core-site.xml",
 "directory": "/foo/bar",
 "filenamePrefix": "prefix",
-"compression": "SNAPPY"
+"compression": "SNAPPY",
+"subdirectoryPattern": "yyyy-MM-dd"
 }

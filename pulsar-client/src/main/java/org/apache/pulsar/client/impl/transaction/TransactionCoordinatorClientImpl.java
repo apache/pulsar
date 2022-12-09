@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,30 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
-import org.apache.pulsar.client.util.MathUtils;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
+import org.apache.pulsar.client.util.MathUtils;
+import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Transaction coordinator client based topic assigned.
@@ -48,7 +52,11 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     private final PulsarClientImpl pulsarClient;
     private TransactionMetaStoreHandler[] handlers;
-    private ConcurrentLongHashMap<TransactionMetaStoreHandler> handlerMap = new ConcurrentLongHashMap<>(16, 1);
+    private ConcurrentLongHashMap<TransactionMetaStoreHandler> handlerMap =
+            ConcurrentLongHashMap.<TransactionMetaStoreHandler>newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(1)
+                    .build();
     private final AtomicLong epoch = new AtomicLong(0);
 
     private static final AtomicReferenceFieldUpdater<TransactionCoordinatorClientImpl, State> STATE_UPDATER =
@@ -71,32 +79,45 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public CompletableFuture<Void> startAsync() {
         if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
-            return pulsarClient.getLookup().getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN)
-                .thenAccept(partitionMeta -> {
+            return pulsarClient.getLookup().getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                .thenCompose(partitionMeta -> {
+                    List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
                     }
                     if (partitionMeta.partitions > 0) {
                         handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
                         for (int i = 0; i < partitionMeta.partitions; i++) {
-                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(i, pulsarClient,
-                                    TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + i);
+                            CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+                            connectFutureList.add(connectFuture);
+                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                                    i, pulsarClient, getTCAssignTopicName(i), connectFuture);
                             handlers[i] = handler;
                             handlerMap.put(i, handler);
+                            handler.start();
                         }
                     } else {
-                        handlers = new TransactionMetaStoreHandler[1];
-                        TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(0, pulsarClient,
-                                TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
-                        handlers[0] = handler;
-                        handlerMap.put(0, handler);
+                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                                "The broker doesn't enable the transaction coordinator, "
+                                        + "or the transaction coordinator has not initialized"));
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
 
+                    return FutureUtil.waitForAll(connectFutureList);
                 });
         } else {
-            return FutureUtil.failedFuture(new CoordinatorClientStateException("Can not start while current state is " + state));
+            return FutureUtil.failedFuture(
+                    new CoordinatorClientStateException("Can not start while current state is " + state));
+        }
+    }
+
+    private String getTCAssignTopicName(int partition) {
+        if (partition >= 0) {
+            return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString()
+                    + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
+        } else {
+            return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString();
         }
     }
 
@@ -116,11 +137,13 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
             LOG.warn("The transaction meta store is closing or closed, doing nothing.");
             result.complete(null);
         } else {
-            for (TransactionMetaStoreHandler handler : handlers) {
-                try {
-                    handler.close();
-                } catch (IOException e) {
-                    LOG.warn("Close transaction meta store handler error", e);
+            if (handlers != null) {
+                for (TransactionMetaStoreHandler handler : handlers) {
+                    try {
+                        handler.close();
+                    } catch (IOException e) {
+                        LOG.warn("Close transaction meta store handler error", e);
+                    }
                 }
             }
             this.handlers = null;
@@ -158,7 +181,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     @Override
-    public void addPublishPartitionToTxn(TxnID txnID, List<String> partitions) throws TransactionCoordinatorClientException {
+    public void addPublishPartitionToTxn(TxnID txnID, List<String> partitions)
+            throws TransactionCoordinatorClientException {
         try {
             addPublishPartitionToTxnAsync(txnID, partitions).get();
         } catch (Exception e) {
@@ -171,9 +195,34 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                            txnID.getMostSigBits()));
         }
         return handler.addPublishPartitionToTxnAsync(txnID, partitions);
+    }
+
+    @Override
+    public void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
+            throws TransactionCoordinatorClientException {
+        try {
+            addSubscriptionToTxnAsync(txnID, topic, subscription).get();
+        } catch (Exception e) {
+            throw TransactionCoordinatorClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription) {
+        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        if (handler == null) {
+            return FutureUtil.failedFuture(
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                            txnID.getMostSigBits()));
+        }
+        Subscription sub = new Subscription()
+                .setTopic(topic)
+                .setSubscription(subscription);
+        return handler.addSubscriptionToTxn(txnID, Collections.singletonList(sub));
     }
 
     @Override
@@ -190,9 +239,10 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                            txnID.getMostSigBits()));
         }
-        return handler.commitAsync(txnID);
+        return handler.endTxnAsync(txnID, TxnAction.COMMIT);
     }
 
     @Override
@@ -209,9 +259,10 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
-                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
+                            txnID.getMostSigBits()));
         }
-        return handler.abortAsync(txnID);
+        return handler.endTxnAsync(txnID, TxnAction.ABORT);
     }
 
     @Override

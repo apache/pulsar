@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,20 +21,17 @@ package org.apache.pulsar.broker.stats;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Maps;
 
 public class MBeanStatsGenerator {
     private MBeanServer mbs;
@@ -105,13 +102,13 @@ public class MBeanStatsGenerator {
     }
 
     /**
-     * Creates a MBean dimension key for metrics
-     * 
+     * Creates a MBean dimension key for metrics.
+     *
      * @param objectName
      * @return
      */
     private Metrics createMetricsByDimension(ObjectName objectName) {
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
 
         dimensionMap.put("MBean", objectName.toString());
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.pulsar.common.stats.Rate;
 
@@ -30,6 +31,10 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     final Rate cacheHits = new Rate();
     final Rate cacheMisses = new Rate();
     final Rate cacheEvictions = new Rate();
+
+    private final LongAdder insertedEntryCount = new LongAdder();
+    private final LongAdder evictedEntryCount = new LongAdder();
+    private final LongAdder cacheEntryCount = new LongAdder();
 
     public ManagedLedgerFactoryMBeanImpl(ManagedLedgerFactoryImpl factory) throws Exception {
         this.factory = factory;
@@ -64,7 +69,15 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
         cacheEvictions.recordEvent();
     }
 
-    // //
+    public void recordCacheInsertion() {
+        insertedEntryCount.increment();
+        cacheEntryCount.increment();
+    }
+
+    public void recordNumberOfCacheEntriesEvicted(int count) {
+        evictedEntryCount.add(count);
+        cacheEntryCount.add(-count);
+    }
 
     @Override
     public int getNumberOfManagedLedgers() {
@@ -104,6 +117,18 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     @Override
     public long getNumberOfCacheEvictions() {
         return cacheEvictions.getCount();
+    }
+
+    public long getCacheInsertedEntriesCount() {
+        return insertedEntryCount.sum();
+    }
+
+    public long getCacheEvictedEntriesCount() {
+        return evictedEntryCount.sum();
+    }
+
+    public long getCacheEntriesCount() {
+        return cacheEntryCount.sum();
     }
 
 }

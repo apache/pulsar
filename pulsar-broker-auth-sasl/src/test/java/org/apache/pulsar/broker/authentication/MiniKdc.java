@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import java.io.File;
@@ -220,12 +219,13 @@ public class MiniKdc {
     }
 
     private void resetDefaultRealm() throws IOException {
-        InputStream templateResource = new FileInputStream(
-                getKrb5conf().getAbsolutePath());
-        String content = IOUtil.readInput(templateResource);
-        content = content.replaceAll("default_realm = .*\n",
-                "default_realm = " + getRealm() + "\n");
-        IOUtil.writeFile(content, getKrb5conf());
+        try (InputStream templateResource = new FileInputStream(
+                getKrb5conf().getAbsolutePath())) {
+            String content = IOUtil.readInput(templateResource);
+            content = content.replaceAll("default_realm = .*\n",
+                    "default_realm = " + getRealm() + "\n");
+            IOUtil.writeFile(content, getKrb5conf());
+        }
     }
 
     private void prepareKdcServer() throws Exception {

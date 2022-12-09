@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,12 +27,19 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.collect.Sets;
+import lombok.Cleanup;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -41,6 +48,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class InterceptorsTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
@@ -52,7 +60,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -63,9 +71,21 @@ public class InterceptorsTest extends ProducerConsumerBase {
         return new Object[][] { { 0 }, { 1000 } };
     }
 
+    /**
+     * 0 indicate the topic is non-partition topic
+     */
+    @DataProvider(name = "topicPartition")
+    public Object[][] getTopicPartition() {
+        return new Object[][] {{ 0 }, { 3 }};
+    }
+
     @Test
-    public void testProducerInterceptor() throws PulsarClientException {
+    public void testProducerInterceptor() throws Exception {
         Map<MessageId, List<String>> ackCallback = new HashMap<>();
+
+        String ns = "my-property/my-ns" + RandomUtils.nextInt(999, 1999);
+        admin.namespaces().createNamespace(ns, Sets.newHashSet("test"));
+        admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         abstract class BaseInterceptor implements
                 org.apache.pulsar.client.api.interceptor.ProducerInterceptor {
@@ -82,7 +102,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             public Message beforeSend(Producer producer, Message message) {
                 MessageImpl msg = (MessageImpl) message;
                 msg.getMessageBuilder()
-                   .addProperties(KeyValue.newBuilder().setKey(tag).setValue(set));
+                   .addProperty().setKey(tag).setValue(set);
                 return message;
             }
 
@@ -106,19 +126,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public boolean eligible(Message message) {
                 return SchemaType.STRING.equals(
-                        ((MessageImpl)message).getSchema().getSchemaInfo().getType());
+                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
             }
         };
         BaseInterceptor interceptor3 = new BaseInterceptor("int3") {
             @Override
             public boolean eligible(Message message) {
                 return SchemaType.INT32.equals(
-                        ((MessageImpl)message).getSchema().getSchemaInfo().getType());
+                        ((MessageImpl)message).getSchemaInternal().getSchemaInfo().getType());
             }
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic("persistent://" + ns + "/my-topic")
                 .intercept(interceptor1, interceptor2, interceptor3)
                 .create();
         MessageId messageId = producer.newMessage().property("STR", "Y")
@@ -144,12 +164,12 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException();
             }
 
             @Override
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException();
             }
         };
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -274,7 +294,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
+                msg.getMessageBuilder().addProperty().setKey("beforeConsumer").setValue("1");
                 return msg;
             }
 
@@ -317,7 +337,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         Message<String> received = consumer.receive();
         MessageImpl<String> msg = (MessageImpl<String>) received;
         boolean haveKey = false;
-        for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+        for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
             if ("beforeConsumer".equals(keyValue.getKey())) {
                 haveKey = true;
             }
@@ -330,7 +350,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         received = consumer.receiveAsync().get();
         msg = (MessageImpl<String>) received;
         haveKey = false;
-        for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+        for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
             if ("beforeConsumer".equals(keyValue.getKey())) {
                 haveKey = true;
             }
@@ -361,7 +381,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         received = future.get();
         msg = (MessageImpl<String>) received;
         haveKey = false;
-        for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+        for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
             if ("beforeConsumer".equals(keyValue.getKey())) {
                 haveKey = true;
             }
@@ -384,7 +404,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
+                msg.getMessageBuilder().addProperty().setKey("beforeConsumer").setValue("1");
                 return msg;
             }
 
@@ -431,7 +451,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         for (int i = 0; i < 2; i++) {
             Message<String> received = consumer.receive();
             MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
-            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+            for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
                     keyCount++;
                 }
@@ -456,7 +476,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
+                msg.getMessageBuilder().addProperty().setKey("beforeConsumer").setValue("1");
                 return msg;
             }
 
@@ -503,7 +523,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         for (int i = 0; i < 2; i++) {
             Message<String> received = consumer.receive();
             MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
-            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+            for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
                     keyCount++;
                 }
@@ -530,7 +550,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
+                msg.getMessageBuilder().addProperty().setKey("beforeConsumer").setValue("1");
                 return msg;
             }
 
@@ -577,7 +597,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             Message<String> received = consumer.receive();
             MessageImpl<String> msg = (MessageImpl<String>) received;
-            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+            for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
                     keyCount++;
                 }
@@ -727,4 +747,125 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
     }
+
+    @Test(timeOut = 1000 * 30, dataProvider = "topicPartition")
+    public void testReaderInterceptor(int topicPartition) throws Exception {
+        String topic = "reader-interceptor-" + topicPartition + "-" + RandomStringUtils.randomAlphabetic(5);
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+
+        class ReaderInterceptorImpl implements ReaderInterceptor<byte[]> {
+            final AtomicInteger beforeReadCount = new AtomicInteger();
+            final AtomicInteger newPartition = new AtomicInteger(0);
+            final int maxReadCount;
+            final AtomicBoolean encounterException = new AtomicBoolean(false);
+
+            ReaderInterceptorImpl(int maxReadCount) {
+                this.maxReadCount = maxReadCount;
+            }
+
+            @Override
+            public void close() {
+                // nothing to do
+            }
+
+            @Override
+            public Message<byte[]> beforeRead(Reader<byte[]> reader, Message<byte[]> message) {
+                if (beforeReadCount.get() > maxReadCount) {
+                    encounterException.set(true);
+                    throw new RuntimeException("The read count exceed maxReadCount - " + maxReadCount);
+                }
+                beforeReadCount.incrementAndGet();
+                return message;
+            }
+
+            @Override
+            public void onPartitionsChange(String topicName, int partitions) {
+                newPartition.set(partitions);
+            }
+        }
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        int msgCount = 10;
+
+        ReaderInterceptorImpl interceptor1 = new ReaderInterceptorImpl(Integer.MAX_VALUE);
+        ReaderInterceptorImpl interceptor2 = new ReaderInterceptorImpl(msgCount * 2);
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .intercept(interceptor1, interceptor2)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
+                .create();
+
+        ReaderInterceptorImpl interceptor3 = new ReaderInterceptorImpl(msgCount * 2);
+        AtomicInteger listenerReceiveCount = new AtomicInteger();
+        @Cleanup
+        Reader<byte[]> reader2 = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .intercept(interceptor3)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
+                .readerListener((ReaderListener<byte[]>) (r, msg) -> {
+                    listenerReceiveCount.incrementAndGet();
+                })
+                .create();
+
+        produceAndConsume(msgCount, producer, reader);
+        Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount);
+        Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount);
+        Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+                () -> {
+                    Assert.assertEquals(listenerReceiveCount.get(), msgCount);
+                }
+        );
+        Assert.assertEquals(interceptor3.beforeReadCount.get(), msgCount);
+
+        if (topicPartition > 0) {
+            // Make sure all interceptors still work well after update the topic partition.
+            final int newPartition = topicPartition + 3;
+            admin.topics().updatePartitionedTopic(topic, newPartition);
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+                    () -> {
+                        Assert.assertEquals(interceptor1.newPartition.get(), newPartition);
+                        Assert.assertEquals(interceptor2.newPartition.get(), newPartition);
+                        Assert.assertEquals(interceptor3.newPartition.get(), newPartition);
+                    });
+
+            produceAndConsume(msgCount, producer, reader);
+            Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount * 2);
+            Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount * 2);
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+                    () -> {
+                        Assert.assertEquals(listenerReceiveCount.get(), msgCount * 2);
+                    }
+            );
+            Assert.assertEquals(interceptor3.beforeReadCount.get(), msgCount * 2);
+        }
+
+        // Even the ReaderInterceptor encounter errors, just log error logs, users receive messages in finally.
+        produceAndConsume(msgCount * 2, producer, reader);
+        Assert.assertFalse(interceptor1.encounterException.get());
+        Assert.assertTrue(interceptor2.encounterException.get());
+        Assert.assertTrue(interceptor3.encounterException.get());
+        Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
+    }
+
+    private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)
+            throws PulsarClientException {
+        for (int i = 0; i < msgCount; i++) {
+            producer.newMessage().value(("msg - " + i).getBytes()).send();
+        }
+
+        for (int i = 0; i < msgCount; i++) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertNotNull(message);
+        }
+    }
+
 }

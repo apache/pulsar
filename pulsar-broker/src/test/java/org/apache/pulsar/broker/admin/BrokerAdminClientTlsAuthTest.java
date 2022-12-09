@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,30 +19,26 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.ImmutableSet;
-
 import java.lang.reflect.Method;
 import java.util.Optional;
-
+import java.util.Set;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-admin")
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
@@ -70,9 +66,9 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setAuthenticationEnabled(true);
-        conf.setSuperUserRoles(ImmutableSet.of("superproxy", "broker.pulsar.apache.org"));
+        conf.setSuperUserRoles(Set.of("superproxy", "broker.pulsar.apache.org"));
         conf.setAuthenticationProviders(
-                ImmutableSet.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
+                Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
         conf.setAuthorizationEnabled(true);
         conf.setBrokerClientTlsEnabled(true);
         String str = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("broker.cert"), getTLSFile("broker.key-pk8"));
@@ -80,9 +76,10 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setTlsAllowInsecureConnection(true);
+        conf.setNumExecutorThreadPoolSize(5);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -112,13 +109,16 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf.setBrokerServicePort(Optional.of(0));
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
+        conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         buildConf(conf);
 
         @Cleanup
@@ -126,16 +126,15 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Broker 2 Started *****/
         try (PulsarAdmin admin = buildAdminClient("superproxy")) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant",
-                                         new TenantInfo(ImmutableSet.of("admin"),
-                                                        ImmutableSet.of("test")));
+                                         new TenantInfoImpl(Set.of("admin"),
+                                                 Set.of("test")));
         }
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             Policies policies = new Policies();
-            policies.bundles = new BundlesData(4);
-            policies.auth_policies.namespace_auth.put("admin", ImmutableSet.of(AuthAction.produce, AuthAction.consume));
-            policies.replication_clusters = ImmutableSet.of("test");
+            policies.bundles = BundlesData.builder().numBundles(4).build();
+            policies.replication_clusters = Set.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {
                 admin.topics().getList("tenant/ns");
@@ -143,6 +142,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 ex.printStackTrace();
                 fail("Should not have thrown an exception");
             }
+            String topicName = String.format("persistent://%s/t1", "tenant/ns");
+            admin.lookups().lookupTopic(topicName);
         }
 
     }

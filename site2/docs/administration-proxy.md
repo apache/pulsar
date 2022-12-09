@@ -1,30 +1,26 @@
 ---
 id: administration-proxy
-title: The Pulsar proxy
-sidebar_label: Pulsar proxy
+title: Pulsar proxy
+sidebar_label: "Pulsar proxy"
 ---
 
-The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) is an optional gateway that you can run in front of the brokers in a Pulsar cluster. You can run a Pulsar proxy in cases when direction connections between clients and Pulsar brokers are either infeasible, undesirable, or both, for example when you run Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.
+Pulsar proxy is an optional gateway. Pulsar proxy is used when direct connections between clients and Pulsar brokers are either infeasible or undesirable. For example, when you run Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform, you can run Pulsar proxy.
+
+The Pulsar proxy is not intended to be exposed on the public internet. The security considerations in the current design expect network perimeter security. The requirement of network perimeter security can be achieved with private networks.
+
+If a proxy deployment cannot be protected with network perimeter security, the alternative would be to use [Pulsar's "Proxy SNI routing" feature](concepts-proxy-sni-routing.md) with a properly secured and audited solution. In that case Pulsar proxy component is not used at all.
 
 ## Configure the proxy
 
-The proxy must have some way to find the addresses of the brokers of the cluster. You can do this by either configuring the proxy to connect directly to service discovery or by specifying a broker URL in the configuration. 
+Before using a proxy, you need to configure it with a broker's address in the cluster. You can configure the broker URL in the proxy configuration, or the proxy to connect directly using service discovery.
 
-### Option 1: Use service discovery
+> In a production environment service discovery is not recommended.
 
-Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
-```properties
-zookeeperServers=zk-0,zk-1,zk-2
-configurationStoreServers=zk-0:2184,zk-remote:2184
-```
+### Use broker URLs
 
-> If you use service discovery, the network ACL must allow the proxy to talk to the ZooKeeper nodes on the zookeeper client port, which is usually 2181, and on the configuration store client port, which is 2184 by default. Opening the network ACLs means that if someone compromises a proxy, they have full access to ZooKeeper. For this reason, using broker URLs to configure the proxy is more secure.
+It is more secure to specify a URL to connect to the brokers.
 
-### Option 2: Use broker URLs
-
-The more secure method of configuring the proxy is to specify a URL to connect to the brokers.
-
-> [Authorization](security-authorization#enable-authorization-and-assign-superusers) at the proxy requires access to ZooKeeper, so if you use these broker URLs to connect to the brokers, you should disable the Proxy level authorization. Brokers still authorize requests after the proxy forwards them.
+Proxy authorization requires access to ZooKeeper, so if you use these broker URLs to connect to the brokers, you need to disable authorization at the Proxy level. Brokers still authorize requests after the proxy forwards them.
 
 You can configure the broker URLs in `conf/proxy.conf` as follows.
 
@@ -34,72 +30,94 @@ brokerWebServiceURL=http://brokers.example.com:8080
 functionWorkerWebServiceURL=http://function-workers.example.com:8080
 ```
 
-Or if you use TLS:
+If you use TLS, configure the broker URLs in the following way:
+
 ```properties
 brokerServiceURLTLS=pulsar+ssl://brokers.example.com:6651
 brokerWebServiceURLTLS=https://brokers.example.com:8443
 functionWorkerWebServiceURL=https://function-workers.example.com:8443
 ```
 
-The hostname in the URLs provided should be a DNS entry which points to multiple brokers or a Virtual IP which is backed by multiple broker IP addresses so that the proxy does not lose connectivity to the pulsar cluster if a single broker becomes unavailable.
+The hostname in the URLs provided should be a DNS entry that points to multiple brokers or a virtual IP address, which is backed by multiple broker IP addresses, so that the proxy does not lose connectivity to Pulsar cluster if a single broker becomes unavailable.
 
 The ports to connect to the brokers (6650 and 8080, or in the case of TLS, 6651 and 8443) should be open in the network ACLs.
 
-Note that if you do not use functions, then you do not need to configure `functionWorkerWebServiceURL`.
+Note that if you do not use functions, you do not need to configure `functionWorkerWebServiceURL`.
+
+### Use service discovery
+
+Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
+
+```properties
+metadataStoreUrl=my-zk-0:2181,my-zk-1:2181,my-zk-2:2181
+configurationMetadataStoreUrl=my-zk-0:2184,my-zk-remote:2184
+```
+
+> To use service discovery, you need to open the network ACLs, so the proxy can connects to the ZooKeeper nodes through the ZooKeeper client port (port `2181`) and the configuration store client port (port `2184`).
+
+> However, it is not secure to use service discovery. Because if the network ACL is open, when someone compromises a proxy, they have full access to ZooKeeper.
+
+### Restricting target broker addresses to mitigate CVE-2022-24280
+
+The Pulsar Proxy trusts clients to provide valid target broker addresses to connect to.
+Unless the Pulsar Proxy is explicitly configured to limit access, the Pulsar Proxy is vulnerable as described in the security advisory [Apache Pulsar Proxy target broker address isn't validated (CVE-2022-24280)](https://github.com/apache/pulsar/wiki/CVE-2022-24280).
+
+It is necessary to limit proxied broker connections to known broker addresses by specifying `brokerProxyAllowedHostNames` and `brokerProxyAllowedIPAddresses` settings.
+
+When specifying `brokerProxyAllowedHostNames`, it's possible to use a wildcard. 
+Please notice that `*` is a wildcard that matches any character in the hostname. It also matches dot `.` characters.
+
+It is recommended to use a pattern that matches only the desired brokers and no other hosts in the local network. Pulsar lookups will use the default host name of the broker by default. This can be overridden with the `advertisedAddress` setting in `broker.conf`.
+
+To increase security, it is also possible to restrict access with the `brokerProxyAllowedIPAddresses` setting. It is not mandatory to configure `brokerProxyAllowedIPAddresses` when `brokerProxyAllowedHostNames` is properly configured so that the pattern matches only the target brokers.
+`brokerProxyAllowedIPAddresses` setting supports a comma separate list of IP address, IP address ranges and IP address networks [(supported format reference)](https://seancfoley.github.io/IPAddress/IPAddress/apidocs/inet/ipaddr/IPAddressString.html).
+
+Example: limiting by host name in a Kubernetes deployment
+```yaml
+  # example of limiting to Kubernetes statefulset hostnames that contain "broker-" 
+  PULSAR_PREFIX_brokerProxyAllowedHostNames: '*broker-*.*.*.svc.cluster.local'
+```
+
+Example: limiting by both host name and ip address in a `proxy.conf` file for host deployment.
+```properties
+# require "broker" in host name
+brokerProxyAllowedHostNames=*broker*.localdomain
+# limit target ip addresses to a specific network
+brokerProxyAllowedIPAddresses=10.0.0.0/8
+```
+
+Example: limiting by multiple host name patterns and multiple ip address ranges in a `proxy.conf` file for host deployment.
+```properties
+# require "broker" in host name
+brokerProxyAllowedHostNames=*broker*.localdomain,*broker*.otherdomain
+# limit target ip addresses to a specific network or range demonstrating multiple supported formats
+brokerProxyAllowedIPAddresses=10.10.0.0/16,192.168.1.100-120,172.16.2.*,10.1.2.3
+```
+
 
 ## Start the proxy
 
 To start the proxy:
 
 ```bash
-$ cd /path/to/pulsar/directory
-$ bin/pulsar proxy
+cd /path/to/pulsar/directory
+bin/pulsar proxy \
+--metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+--configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
-> You can run as many instances of the Pulsar proxy in a cluster as you want.
-
+> You can run multiple instances of the Pulsar proxy in a cluster.
 
 ## Stop the proxy
 
-The Pulsar proxy runs by default in the foreground. To stop the proxy, simply stop the process in which the proxy is running.
+Pulsar proxy runs in the foreground by default. To stop the proxy, simply stop the process in which the proxy is running.
 
 ## Proxy frontends
 
-You can run the Pulsar proxy behind some kind of load-distributing frontend, such as an [HAProxy](https://www.digitalocean.com/community/tutorials/an-introduction-to-haproxy-and-load-balancing-concepts) load balancer.
+You can run Pulsar proxy behind some kind of load-distributing frontend, such as an [HAProxy](https://www.digitalocean.com/community/tutorials/an-introduction-to-haproxy-and-load-balancing-concepts) load balancer.
 
 ## Use Pulsar clients with the proxy
 
-Once your Pulsar proxy is up and running, preferably behind a load-distributing [frontend](#proxy-frontends), clients can connect to the proxy via whichever address that the frontend uses. If the address is the DNS address `pulsar.cluster.default`, for example, then the connection URL for clients is `pulsar://pulsar.cluster.default:6650`.
+Once your Pulsar proxy is up and running, preferably behind a load-distributing [frontend](#proxy-frontends), clients can connect to the proxy via whichever address that the frontend uses. If the address is the DNS address `pulsar.cluster.default`, for example, the connection URL for clients is `pulsar://pulsar.cluster.default:6650`.
 
-## Proxy configuration
-
-You can configure the Pulsar proxy using the [`proxy.conf`](reference-configuration.md#proxy) configuration file. The following parameters are available in that file:
-
-|Name|Description|Default|
-|---|---|---|
-|zookeeperServers|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
-|zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
-|servicePort| The port to use for server binary Protobuf requests |6650|
-|servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
-|statusFilePath | Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
-|advertisedAddress|Hostname or IP address the service advertises to the outside world.|`InetAddress.getLocalHost().getHostname()`|
-|authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
-|authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
-|authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||
-|authorizationEnabled|  Whether authorization is enforced by the Pulsar proxy |false|
-|authorizationProvider| Authorization provider as a fully qualified class name  |org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider|
-|brokerClientAuthenticationPlugin|  The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers  ||
-|brokerClientAuthenticationParameters|  The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers  ||
-|brokerClientTrustCertsFilePath|  The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers ||
-|superUserRoles|  Role names that are treated as “super-users,” meaning that they are able to perform all admin ||
-|forwardAuthorizationCredentials| Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
-|maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy rejects requests beyond that. |10000|
-|maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy errors out requests beyond that. |50000|
-|tlsEnabledInProxy| Whether TLS is enabled for the proxy  |false|
-|tlsEnabledWithBroker|  Whether TLS is enabled when communicating with Pulsar brokers |false|
-|tlsCertificateFilePath|  Path for the TLS certificate file ||
-|tlsKeyFilePath|  Path for the TLS private key file ||
-|tlsTrustCertsFilePath| Path for the trusted TLS certificate pem file ||
-|tlsHostnameVerificationEnabled|  Whether the hostname is validated when the proxy creates a TLS connection with brokers  |false|
-|tlsRequireTrustedClientCertOnConnect|  Whether client certificates are required for TLS. Connections are rejected if the client certificate is not trusted. |false|
+For more information on Proxy configuration, refer to [Pulsar proxy](reference-configuration.md#pulsar-proxy).

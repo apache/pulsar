@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,21 +20,13 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.bookkeeper.test.ZooKeeperUtil;
-import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.List;
 
 public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
@@ -60,9 +52,9 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(info.ledgers.size(), 4);
 
         assertEquals(info.ledgers.get(0).ledgerId, 3);
-        assertEquals(info.ledgers.get(1).ledgerId, 5);
-        assertEquals(info.ledgers.get(2).ledgerId, 6);
-        assertEquals(info.ledgers.get(3).ledgerId, 7);
+        assertEquals(info.ledgers.get(1).ledgerId, 4);
+        assertEquals(info.ledgers.get(2).ledgerId, 5);
+        assertEquals(info.ledgers.get(3).ledgerId, 6);
 
         assertEquals(info.cursors.size(), 1);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.security.GeneralSecurityException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.SslContext;
 import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PulsarVersion;
@@ -42,6 +43,7 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.WithSNISslEngineFactory;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -58,8 +60,8 @@ import org.asynchttpclient.netty.ssl.JsseSslEngineFactory;
 @Slf4j
 public class HttpClient implements Closeable {
 
-    protected final static int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
     protected final ServiceNameResolver serviceNameResolver;
@@ -71,6 +73,7 @@ public class HttpClient implements Closeable {
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
         confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
@@ -93,13 +96,15 @@ public class HttpClient implements Closeable {
 
                 if (conf.isUseKeyStoreTls()) {
                     SSLContext sslCtx = null;
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
+                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                                    conf.getTlsKeyStorePassword());
 
                     sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
-                            params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
+                            params.getKeyStoreType(),
+                            params.getKeyStorePath(),
+                            params.getKeyStorePassword(),
                             conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
@@ -110,23 +115,42 @@ public class HttpClient implements Closeable {
                     JsseSslEngineFactory sslEngineFactory = new JsseSslEngineFactory(sslCtx);
                     confBuilder.setSslEngineFactory(sslEngineFactory);
                 } else {
+                    SslProvider sslProvider = null;
+                    if (conf.getSslProvider() != null) {
+                        sslProvider = SslProvider.valueOf(conf.getSslProvider());
+                    }
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
+                        sslCtx = authData.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(), conf.getTlsCiphers(), conf.getTlsProtocols())
+                                : SecurityUtility.createNettySslContextForClient(sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(), conf.getTlsCiphers(), conf.getTlsProtocols());
+                    } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
+                                sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath(),
-                                authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
-                    }
-                    else {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(
-                                conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath());
+                                conf.getTlsCertificateFilePath(),
+                                conf.getTlsKeyFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
+                    if (!conf.isTlsHostnameVerificationEnable()) {
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
+                                .resolveHostUri().getHost()));
+                    }
                 }
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
+                confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+            } catch (GeneralSecurityException e) {
+                throw new PulsarClientException.InvalidConfigurationException(e);
             } catch (Exception e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             }
@@ -140,6 +164,10 @@ public class HttpClient implements Closeable {
 
     String getServiceUrl() {
         return this.serviceNameResolver.getServiceUrl();
+    }
+
+    public InetSocketAddress resolveHost() {
+        return serviceNameResolver.resolveHost();
     }
 
     void setServiceUrl(String serviceUrl) throws PulsarClientException {
@@ -216,7 +244,8 @@ public class HttpClient implements Closeable {
                     }
 
                     try {
-                        T data = ObjectMapperFactory.getThreadLocal().readValue(response2.getResponseBodyAsBytes(), clazz);
+                        T data = ObjectMapperFactory.getThreadLocal().readValue(
+                                response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {
                         log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());

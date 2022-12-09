@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 
@@ -42,6 +43,7 @@ public abstract class AbstractSchema<T> implements Schema<T> {
 
     /**
      * Decode a byteBuf into an object using the schema definition and deserializer implementation
+     * <p>Do not modify reader/writer index of ByteBuf so, it can be reused to access correct data.
      *
      * @param byteBuf
      *            the byte buffer to decode
@@ -65,5 +67,20 @@ public abstract class AbstractSchema<T> implements Schema<T> {
     @Override
     public Schema<T> clone() {
         return this;
+    }
+
+    /**
+     * Return an instance of this schema at the given version.
+     * @param schemaVersion the version
+     * @return the schema at that specific version
+     * @throws SchemaSerializationException in case of unknown schema version
+     * @throws NullPointerException in case of null schemaVersion and supportSchemaVersioning is true
+     */
+    public Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        if (!supportSchemaVersioning()) {
+            return this;
+        }
+        Objects.requireNonNull(schemaVersion);
+        throw new SchemaSerializationException("Not implemented for " + this.getClass());
     }
 }

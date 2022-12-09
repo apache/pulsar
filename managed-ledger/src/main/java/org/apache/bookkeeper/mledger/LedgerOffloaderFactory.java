@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import java.util.Map;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 /**
@@ -50,9 +50,10 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
-    T create(OffloadPolicies offloadPolicies,
+    T create(OffloadPoliciesImpl offloadPolicies,
              Map<String, String> userMetadata,
-             OrderedScheduler scheduler)
+             OrderedScheduler scheduler,
+             LedgerOffloaderStats offloaderStats)
         throws IOException;
 
     /**
@@ -65,11 +66,12 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
-    default T create(OffloadPolicies offloadPolicies,
-             Map<String, String> userMetadata,
-             SchemaStorage schemaStorage,
-             OrderedScheduler scheduler)
+    default T create(OffloadPoliciesImpl offloadPolicies,
+                     Map<String, String> userMetadata,
+                     SchemaStorage schemaStorage,
+                     OrderedScheduler scheduler,
+                     LedgerOffloaderStats offloaderStats)
             throws IOException {
-        return create(offloadPolicies, userMetadata, scheduler);
+        return create(offloadPolicies, userMetadata, scheduler, offloaderStats);
     }
 }

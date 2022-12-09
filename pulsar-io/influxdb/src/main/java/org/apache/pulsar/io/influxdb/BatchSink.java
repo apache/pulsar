@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,18 +19,17 @@
 package org.apache.pulsar.io.influxdb;
 
 import com.google.common.collect.Lists;
-import lombok.extern.slf4j.Slf4j;
-import lombok.val;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
-
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
 
 /**
  * Pulsar sink which can write data to target in batch.
@@ -53,7 +52,7 @@ public abstract class BatchSink<T, R> implements Sink<R> {
     }
 
     @Override
-    final public void write(Record<R> record) {
+    public final void write(Record<R> record) {
         int currentSize;
         synchronized (this) {
             if (null != record) {
@@ -63,7 +62,7 @@ public abstract class BatchSink<T, R> implements Sink<R> {
         }
 
         if (currentSize >= batchSize) {
-            flushExecutor.submit(this::flush);
+            flushExecutor.execute(this::flush);
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,41 +21,38 @@ package org.apache.pulsar.client.admin.internal;
 import static org.asynchttpclient.Dsl.get;
 import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
-
 import com.google.gson.Gson;
-
 import io.netty.handler.codec.http.HttpHeaders;
-
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHandler;
@@ -63,6 +60,7 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.ByteArrayPart;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
@@ -83,130 +81,42 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public List<String> getFunctions(String tenant, String namespace) throws PulsarAdminException {
-        try {
-            return getFunctionsAsync(tenant, namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionsAsync(tenant, namespace));
     }
 
     @Override
     public CompletableFuture<List<String>> getFunctionsAsync(String tenant, String namespace) {
         WebTarget path = functions.path(tenant).path(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            List<String> functions = response.readEntity(new GenericType<List<String>>() {});
-                            future.complete(functions);
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<String>>() {});
     }
 
     @Override
     public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
-        try {
-            return getFunctionAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionAsync(tenant, namespace, function));
     }
 
     @Override
     public CompletableFuture<FunctionConfig> getFunctionAsync(String tenant, String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function);
-        final CompletableFuture<FunctionConfig> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionConfig.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionConfig.class);
     }
 
     @Override
     public FunctionStatus getFunctionStatus(
             String tenant, String namespace, String function) throws PulsarAdminException {
-        try {
-            return getFunctionStatusAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatusAsync(tenant, namespace, function));
     }
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatusAsync(String tenant, String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("status");
-        final CompletableFuture<FunctionStatus> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionStatus.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionStatus.class);
     }
 
+    @Override
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
-        try {
-            return getFunctionStatusAsync(tenant, namespace, function, id)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatusAsync(tenant, namespace, function, id));
     }
 
     @Override
@@ -214,120 +124,38 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             String tenant, String namespace, String function, int id) {
         WebTarget path =
                 functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status");
-        final CompletableFuture<FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData> future =
-                new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class);
     }
 
     @Override
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(
+    public FunctionInstanceStatsData getFunctionStats(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
-        try {
-            return getFunctionStatsAsync(tenant, namespace, function, id)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatsAsync(tenant, namespace, function, id));
     }
 
     @Override
-    public CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> getFunctionStatsAsync(
+    public CompletableFuture<FunctionInstanceStatsData> getFunctionStatsAsync(
             String tenant, String namespace, String function, int id) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats");
-        final CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> future =
-                new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionInstanceStatsDataImpl.class);
     }
 
     @Override
     public FunctionStats getFunctionStats(String tenant, String namespace, String function)
             throws PulsarAdminException {
-        try {
-            return getFunctionStatsAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatsAsync(tenant, namespace, function));
     }
 
     @Override
-    public CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant, String namespace, String function) {
+    public CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant,
+                                                                  String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("stats");
-        final CompletableFuture<FunctionStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionStats.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionStatsImpl.class);
     }
 
     @Override
     public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
-        try {
-            createFunctionAsync(functionConfig, fileName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createFunctionAsync(functionConfig, fileName));
     }
 
     @Override
@@ -356,6 +184,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {
@@ -366,16 +198,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void createFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
-        try {
-            createFunctionWithUrlAsync(functionConfig, pkgUrl).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createFunctionWithUrlAsync(functionConfig, pkgUrl));
     }
 
     @Override
@@ -393,16 +216,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void deleteFunction(String cluster, String namespace, String function) throws PulsarAdminException {
-        try {
-            deleteFunctionAsync(cluster, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteFunctionAsync(cluster, namespace, function));
     }
 
     @Override
@@ -424,17 +238,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException {
-        try {
-            updateFunctionAsync(functionConfig, fileName, updateOptions)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateFunctionAsync(functionConfig, fileName, updateOptions));
     }
 
     @Override
@@ -449,9 +253,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
-            if (updateOptions != null) {
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
+            if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal()
-                        .writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                        .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -471,6 +276,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
@@ -479,19 +288,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions)
+    public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl,
+                                      UpdateOptions updateOptions)
             throws PulsarAdminException {
-        try {
-            updateFunctionWithUrlAsync(functionConfig, pkgUrl, updateOptions)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateFunctionWithUrlAsync(functionConfig, pkgUrl, updateOptions));
     }
 
     @Override
@@ -505,10 +305,11 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     "functionConfig",
                     ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            if (updateOptions != null) {
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
+            if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
@@ -534,17 +335,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public String triggerFunction(
             String tenant, String namespace, String functionName,
             String topic, String triggerValue, String triggerFile) throws PulsarAdminException {
-        try {
-            return triggerFunctionAsync(tenant, namespace, functionName, topic, triggerValue, triggerFile)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> triggerFunctionAsync(tenant, namespace, functionName, topic, triggerValue, triggerFile));
     }
 
     @Override
@@ -590,17 +381,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void restartFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            restartFunctionAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> restartFunctionAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -613,17 +394,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void restartFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            restartFunctionAsync(tenant, namespace, functionName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> restartFunctionAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -635,17 +406,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void stopFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            stopFunctionAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> stopFunctionAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -657,17 +418,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void stopFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            stopFunctionAsync(tenant, namespace, functionName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() ->  stopFunctionAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -679,17 +430,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void startFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            startFunctionAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> startFunctionAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -702,17 +443,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void startFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            startFunctionAsync(tenant, namespace, functionName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> startFunctionAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -723,16 +454,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
-        try {
-            uploadFunctionAsync(sourceFile, path).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> uploadFunctionAsync(sourceFile, path));
     }
 
     @Override
@@ -754,6 +476,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
@@ -775,6 +501,22 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
+    public void downloadFunction(String destinationPath, String tenant, String namespace, String functionName,
+                                 boolean transformFunction) throws PulsarAdminException {
+        downloadFile(destinationPath, functions.path(tenant).path(namespace).path(functionName).path("download")
+                .queryParam("transform-function", transformFunction));
+    }
+
+    @Override
+    public CompletableFuture<Void> downloadFunctionAsync(
+            String destinationPath, String tenant, String namespace, String functionName, boolean transformFunction) {
+        return downloadFileAsync(destinationPath,
+                functions.path(tenant).path(namespace).path(functionName).path("download")
+                        .queryParam("transform-function", transformFunction));
+    }
+
+
+    @Override
     public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
         downloadFile(destinationPath, functions.path("download").queryParam("path", path));
     }
@@ -785,16 +527,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     private void downloadFile(String destinationPath, WebTarget target) throws PulsarAdminException {
-        try {
-            downloadFileAsync(destinationPath, target).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> downloadFileAsync(destinationPath, target));
     }
 
     private CompletableFuture<Void> downloadFileAsync(String destinationPath, WebTarget target) {
@@ -802,6 +535,9 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         try {
             File file = new File(destinationPath);
             if (!file.exists()) {
+                if (file.getParentFile() != null && !file.getParentFile().exists()) {
+                    file.getParentFile().mkdirs();
+                }
                 file.createNewFile();
             }
             FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
@@ -843,24 +579,29 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             }
                         }).toCompletableFuture();
 
-            statusFuture.thenAccept(status -> {
-                try {
-                    os.close();
-                } catch (Exception e) {
-                    future.completeExceptionally(getApiException(e));
-                    return;
-                }
-
-                if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response
-                                    .status(status.getStatusCode())
-                                    .entity(status.getStatusText())
-                                    .build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+            statusFuture
+                    .whenComplete((status, throwable) -> {
+                        try {
+                            os.close();
+                        } catch (IOException e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                    })
+                    .thenAccept(status -> {
+                        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(status.getStatusCode())
+                                            .entity(status.getStatusText())
+                                            .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -871,7 +612,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
         try {
             Response response = request(functions.path("connectors")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+            if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                 throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<ConnectorDefinition>>() {
@@ -893,6 +634,35 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
+    @Override
+    public List<FunctionDefinition> getBuiltInFunctions() throws PulsarAdminException {
+        return sync(this::getBuiltInFunctionsAsync);
+    }
+
+    @Override
+    public CompletableFuture<List<FunctionDefinition>> getBuiltInFunctionsAsync() {
+        WebTarget path = functions.path("builtins");
+        final CompletableFuture<List<FunctionDefinition>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                            future.completeExceptionally(getApiException(response));
+                        } else {
+                            future.complete(response.readEntity(
+                                    new GenericType<List<FunctionDefinition>>() {}));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
             return request(functions.path("cluster")).get(new GenericType<List<WorkerInfo>>() {
@@ -905,56 +675,20 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionState getFunctionState(String tenant, String namespace, String function, String key)
         throws PulsarAdminException {
-        try {
-            return getFunctionStateAsync(tenant, namespace, function, key)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStateAsync(tenant, namespace, function, key));
     }
 
     @Override
     public CompletableFuture<FunctionState> getFunctionStateAsync(
             String tenant, String namespace, String function, String key) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("state").path(key);
-        final CompletableFuture<FunctionState> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionState.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionState.class);
     }
 
     @Override
     public void putFunctionState(String tenant, String namespace, String function, FunctionState state)
             throws PulsarAdminException {
-        try {
-            putFunctionStateAsync(tenant, namespace, function, state).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> putFunctionStateAsync(tenant, namespace, function, state));
     }
 
     @Override
@@ -977,11 +711,68 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {
             future.completeExceptionally(e);
         }
         return future;
+    }
+
+    public void updateOnWorkerLeader(String tenant, String namespace,
+                                     String function, byte[] functionMetaData,
+                                     boolean delete) throws PulsarAdminException {
+        sync(() -> updateOnWorkerLeaderAsync(tenant, namespace, function,
+                    functionMetaData, delete));
+    }
+
+    public CompletableFuture<Void> updateOnWorkerLeaderAsync(String tenant, String namespace,
+                                                             String function, byte[] functionMetaData,
+                                                             boolean delete) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            RequestBuilder builder =
+                    put(functions.path("leader").path(tenant).path(namespace)
+                            .path(function).getUri().toASCIIString())
+                            .addBodyPart(new ByteArrayPart("functionMetaData", functionMetaData))
+                    .addBodyPart(new StringPart("delete", Boolean.toString(delete)));
+
+            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(response.getStatusCode())
+                                            .entity(response.getResponseBody())
+                                            .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    @Override
+    public void reloadBuiltInFunctions() throws PulsarAdminException {
+        sync(this::reloadBuiltInFunctionsAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> reloadBuiltInFunctionsAsync() {
+        WebTarget path = functions.path("builtins/reload");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 }

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!-- add supressions for false-positives detected by OWASP Dependency Check -->
+  <suppress>
+    <notes>
+      apache:http_server is not used.
+    </notes>
+    <cpe>cpe:/a:apache:http_server</cpe>
+  </suppress>
+  <suppress>
+    <notes>pulsar-package-bookkeeper-storage gets mixed with bookkeeper.</notes>
+    <gav regex="true">org\.apache\.pulsar:.*</gav>
+    <cpe>cpe:/a:apache:bookkeeper</cpe>
+  </suppress>
+  <suppress>
+    <notes>kubernetes client doesn't contain CVE-2020-8554</notes>
+    <gav regex="true">io\.kubernetes:.*</gav>
+    <cve>CVE-2020-8554</cve>
+  </suppress>
+  <suppress>
+    <notes>avro doesn't contain CVE-2019-17195</notes>
+    <gav regex="true">org\.apache\.avro:.*</gav>
+    <cve>CVE-2019-17195</cve>
+  </suppress>
+  <suppress>
+    <notes>CVE-2021-43045 affects only .NET distro, see https://github.com/apache/avro/pull/1357</notes>
+    <gav regex="true">org\.apache\.avro:.*</gav>
+    <cve>CVE-2021-43045</cve>
+  </suppress>
+  <suppress base="true">
+    <notes><![CDATA[
+        FP per #3889
+        ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-classes@.*$</packageUrl>
+    <cpe>cpe:/a:netty:netty</cpe>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
+    <cpe>cpe:/a:chromium_project:chromium</cpe>
+  </suppress>
+  <suppress>
+<!--    Zookkeeper false positive about Jetty and commons-io-->
+<!--    https://github.com/apache/zookeeper/pull/1824-->
+    <notes><![CDATA[
+   file name: zookeeper-3.8.0.jar
+   ]]></notes>
+    <sha1>e395c1d8a71557b7569cc6a83487b2e30e2e58fe</sha1>
+    <cve>CVE-2021-28164</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-3.8.0.jar
+   ]]></notes>
+    <sha1>e395c1d8a71557b7569cc6a83487b2e30e2e58fe</sha1>
+    <cve>CVE-2021-29425</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-3.8.0.jar
+   ]]></notes>
+    <sha1>e395c1d8a71557b7569cc6a83487b2e30e2e58fe</sha1>
+    <cve>CVE-2021-34429</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-prometheus-metrics-3.8.0.jar
+   ]]></notes>
+    <sha1>849e8ece2845cb0185d721233906d487a7f1e4cf</sha1>
+    <cve>CVE-2021-28164</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-prometheus-metrics-3.8.0.jar
+   ]]></notes>
+    <sha1>849e8ece2845cb0185d721233906d487a7f1e4cf</sha1>
+    <cve>CVE-2021-29425</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-prometheus-metrics-3.8.0.jar
+   ]]></notes>
+    <sha1>849e8ece2845cb0185d721233906d487a7f1e4cf</sha1>
+    <cve>CVE-2021-34429</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-jute-3.8.0.jar
+   ]]></notes>
+    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
+    <cve>CVE-2021-28164</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-jute-3.8.0.jar
+   ]]></notes>
+    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
+    <cve>CVE-2021-29425</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-jute-3.8.0.jar
+   ]]></notes>
+    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
+    <cve>CVE-2021-34429</cve>
+  </suppress>
+
+  <!-- CVE-2021-23214 is about PostGre server -->
+  <suppress>
+    <notes><![CDATA[
+   file name: debezium-connector-postgres-1.7.2.Final.jar
+   ]]></notes>
+    <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
+    <cve>CVE-2021-23214</cve>
+  </suppress>
+
+
+<!--  MariaDB client is being confused with MariaDB server-->
+  <suppress>
+    <notes><![CDATA[
+   file name: mariadb-java-client-2.7.5.jar
+   ]]></notes>
+    <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
+    <cve>CVE-2022-27376</cve>
+    <cve>CVE-2022-27377</cve>
+    <cve>CVE-2022-27378</cve>
+    <cve>CVE-2022-27379</cve>
+    <cve>CVE-2022-27380</cve>
+    <cve>CVE-2022-27381</cve>
+    <cve>CVE-2022-27382</cve>
+    <cve>CVE-2022-27383</cve>
+    <cve>CVE-2022-27384</cve>
+    <cve>CVE-2022-27385</cve>
+    <cve>CVE-2022-27386</cve>
+    <cve>CVE-2022-27387</cve>
+  </suppress>
+
+  <!-- google-http-client-gson getting confused with gson-->
+  <suppress>
+    <notes><![CDATA[
+   file name: google-http-client-gson-1.41.0.jar
+   ]]></notes>
+    <sha1>1a754a5dd672218a2ac667d7ff2b28df7a5a240e</sha1>
+    <cve>CVE-2022-25647</cve>
+  </suppress>
+</suppressions>

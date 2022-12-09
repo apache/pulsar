@@ -22,15 +22,23 @@
   connection: ssh
   become: true
   tasks:
-    - command: >
-        tuned-adm profile latency-performance
-    - name: Create and mount disks
+    - name: Set performance profile
+      command: tuned-adm profile latency-performance
+    - name: Format disks
+      filesystem:
+         fstype: xfs
+         dev: '{{ item }}'
+      with_items:
+        - '/dev/nvme0n1'
+        - '/dev/nvme1n1'
+    - name: Mount disks
       mount:
         path: "{{ item.path }}"
         src: "{{ item.src }}"
         fstype: xfs
         opts: defaults,noatime,nodiscard
-        state: present
+        state: mounted
       with_items:
         - { path: "/mnt/journal", src: "/dev/nvme0n1" }
         - { path: "/mnt/storage", src: "/dev/nvme1n1" }
+

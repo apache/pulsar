@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,7 +56,7 @@ public class DataBlockHeaderTest {
         assertEquals(stream.read(), -1);
 
         stream.reset();
-        byte streamContent[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
+        byte[] streamContent = new byte[DataBlockHeaderImpl.getDataStartOffset()];
 
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
         try(InputStream stream2 = new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset())) {

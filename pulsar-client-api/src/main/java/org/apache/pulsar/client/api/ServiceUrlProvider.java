@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * The provider to provide the service url.
  *
@@ -26,7 +29,9 @@ package org.apache.pulsar.client.api;
  *
  * <p>It can be passed with {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
  */
-public interface ServiceUrlProvider {
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface ServiceUrlProvider extends AutoCloseable {
 
     /**
      * Initialize the service url provider with Pulsar client instance.
@@ -46,4 +51,12 @@ public interface ServiceUrlProvider {
      */
     String getServiceUrl();
 
+    /**
+     * Close the resource that the provider allocated.
+     *
+     */
+    @Override
+    default void close() {
+        // do nothing
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,9 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.left;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -26,33 +32,47 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.protobuf.Empty;
-import com.squareup.okhttp.Response;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.kubernetes.client.ApiException;
-import io.kubernetes.client.apis.AppsV1Api;
-import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.V1Container;
-import io.kubernetes.client.models.V1ContainerPort;
-import io.kubernetes.client.models.V1DeleteOptions;
-import io.kubernetes.client.models.V1EnvVar;
-import io.kubernetes.client.models.V1EnvVarSource;
-import io.kubernetes.client.models.V1LabelSelector;
-import io.kubernetes.client.models.V1ObjectFieldSelector;
-import io.kubernetes.client.models.V1ObjectMeta;
-import io.kubernetes.client.models.V1PodList;
-import io.kubernetes.client.models.V1PodSpec;
-import io.kubernetes.client.models.V1PodTemplateSpec;
-import io.kubernetes.client.models.V1ResourceRequirements;
-import io.kubernetes.client.models.V1Service;
-import io.kubernetes.client.models.V1ServicePort;
-import io.kubernetes.client.models.V1ServiceSpec;
-import io.kubernetes.client.models.V1StatefulSet;
-import io.kubernetes.client.models.V1StatefulSetSpec;
-import io.kubernetes.client.models.V1Toleration;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ContainerPort;
+import io.kubernetes.client.openapi.models.V1DeleteOptions;
+import io.kubernetes.client.openapi.models.V1EnvVar;
+import io.kubernetes.client.openapi.models.V1EnvVarSource;
+import io.kubernetes.client.openapi.models.V1LabelSelector;
+import io.kubernetes.client.openapi.models.V1ObjectFieldSelector;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
+import io.kubernetes.client.openapi.models.V1ResourceRequirements;
+import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.V1ServicePort;
+import io.kubernetes.client.openapi.models.V1ServiceSpec;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
+import io.kubernetes.client.openapi.models.V1Toleration;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -68,27 +88,6 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static java.net.HttpURLConnection.HTTP_CONFLICT;
-import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
-
 /**
  * Kubernetes based runtime for running functions.
  * This runtime provides the usual methods to start/stop/getfunctionstatus
@@ -103,7 +102,8 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
-    private static final int maxJobNameSize = 55;
+    private static final int maxJobNameSize = 53;
+    private static final int maxLabelSize = 63;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
@@ -129,33 +129,41 @@ public class KubernetesRuntime implements Runtime {
     private InstanceControlGrpc.InstanceControlFutureStub[] stub;
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
+    private final String jobName;
     private final Map<String, String> customLabels;
+    private final Map<String, String> functionDockerImages;
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
     private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
+    private final String originalTransformFunctionFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
     private double cpuOverCommitRatio;
     private double memoryOverCommitRatio;
+    private int gracePeriodSeconds;
     private final Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider;
     private final AuthenticationConfig authConfig;
     private Integer grpcPort;
     private Integer metricsPort;
     private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
+    private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
                       String jobNamespace,
+                      String jobName,
                       Map<String, String> customLabels,
                       Boolean installUserCodeDependencies,
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      Map<String, String> functionDockerImages,
                       String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -165,6 +173,7 @@ public class KubernetesRuntime implements Runtime {
                       String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
+                      String originalTransformFunctionFileName,
                       String pulsarServiceUrl,
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
@@ -174,35 +183,48 @@ public class KubernetesRuntime implements Runtime {
                       int percentMemoryPadding,
                       double cpuOverCommitRatio,
                       double memoryOverCommitRatio,
+                      int gracePeriodSeconds,
                       Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
                       boolean authenticationEnabled,
                       Integer grpcPort,
-                      Integer metricsPort,
                       String narExtractionDirectory,
-                      Optional<KubernetesManifestCustomizer> manifestCustomizer) throws Exception {
+                      Optional<KubernetesManifestCustomizer> manifestCustomizer,
+                      String functionInstanceClassPath,
+                      String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
+        this.jobName = jobName;
         this.customLabels = customLabels;
+        this.functionDockerImages = functionDockerImages;
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
+        this.downloadDirectory =
+                isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
+        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
+        this.originalTransformFunctionFileName = isNotEmpty(originalTransformFunctionFileName)
+                ? this.downloadDirectory + "/" + originalTransformFunctionFileName
+                : originalTransformFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
         this.cpuOverCommitRatio = cpuOverCommitRatio;
         this.memoryOverCommitRatio = memoryOverCommitRatio;
+        this.gracePeriodSeconds = gracePeriodSeconds;
         this.authenticationEnabled = authenticationEnabled;
         this.manifestCustomizer = manifestCustomizer;
+        this.functionInstanceClassPath = functionInstanceClassPath;
         String logConfigFile = null;
-        String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
+        String secretsProviderClassName =
+                secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
         if (secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()) != null) {
-            secretsProviderConfig = new Gson().toJson(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+            secretsProviderConfig = new Gson()
+                    .toJson(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
         }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -212,7 +234,7 @@ public class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
             case GO:
-                throw new UnsupportedOperationException();
+                break;
         }
 
         this.authConfig = authConfig;
@@ -220,11 +242,20 @@ public class KubernetesRuntime implements Runtime {
         this.functionAuthDataCacheProvider = functionAuthDataCacheProvider;
 
         this.grpcPort = grpcPort;
-        this.metricsPort = metricsPort;
+        this.metricsPort = instanceConfig.hasValidMetricsPort() ? instanceConfig.getMetricsPort() : null;
         this.narExtractionDirectory = narExtractionDirectory;
 
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+            // before we run the command, make sure the go executable with correct permissions
+            this.processArgs.add("chmod");
+            this.processArgs.add("777");
+            this.processArgs.add(this.originalCodeFileName);
+            this.processArgs.add("&&");
+        }
+
         // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
         // so that when we kill the pod, the signal will get propagated to the function code
         this.processArgs.add("exec");
@@ -236,22 +267,25 @@ public class KubernetesRuntime implements Runtime {
                         extraDependenciesDir,
                         logDirectory,
                         this.originalCodeFileName,
+                        this.originalTransformFunctionFileName,
                         pulsarServiceUrl,
                         stateStorageServiceUrl,
                         authConfig,
                         "$" + ENV_SHARD_ID,
                         grpcPort,
-                        -1l,
+                        -1L,
                         logConfigFile,
                         secretsProviderClassName,
                         secretsProviderConfig,
                         installUserCodeDependencies,
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
-                        metricsPort,
-                        narExtractionDirectory));
+                        narExtractionDirectory,
+                        functionInstanceClassPath,
+                        true,
+                        pulsarAdminUrl));
 
-        doChecks(instanceConfig.getFunctionDetails());
+        doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }
 
     /**
@@ -284,13 +318,14 @@ public class KubernetesRuntime implements Runtime {
     private synchronized void setupGrpcChannelIfNeeded() {
         if (channel == null || stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
-            stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+            stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails()
+                    .getParallelism()];
 
-            String jobName = createJobName(instanceConfig.getFunctionDetails());
+            String jobName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
                 channel[i] = ManagedChannelBuilder.forAddress(address, grpcPort)
-                        .usePlaintext(true)
+                        .usePlaintext()
                         .build();
                 stub[i] = InstanceControlGrpc.newFutureStub(channel[i]);
             }
@@ -305,6 +340,15 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public void stop() throws Exception {
+        // Because we're about to delete the function pods, we don't want the channel to attempt loading DNS, which
+        // will cease to exist if the deletion succeeds. However, we don't want to shut down the channel until
+        // the StatefulSet and Service are actually deleted.
+        if (channel != null) {
+            for (ManagedChannel cn : channel) {
+                cn.enterIdle();
+            }
+        }
+
         deleteStatefulSet();
         deleteService();
 
@@ -333,7 +377,9 @@ public class KubernetesRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getFunctionStatus(Empty.newBuilder().build());
+        ListenableFuture<FunctionStatus> response =
+                stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                        .getFunctionStatus(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
@@ -354,14 +400,16 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
-        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesn't support getAndReset metrics via rest"));
+        retval.completeExceptionally(
+                new RuntimeException("Kubernetes Runtime doesn't support getAndReset metrics via rest"));
         return retval;
     }
 
     @Override
     public CompletableFuture<Void> resetMetrics() {
         CompletableFuture<Void> retval = new CompletableFuture<>();
-        retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesn't support resetting metrics via rest"));
+        retval.completeExceptionally(
+                new RuntimeException("Kubernetes Runtime doesn't support resetting metrics via rest"));
         return retval;
     }
 
@@ -378,7 +426,9 @@ public class KubernetesRuntime implements Runtime {
             return retval;
         }
 
-        ListenableFuture<InstanceCommunication.MetricsData> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(Empty.newBuilder().build());
+        ListenableFuture<InstanceCommunication.MetricsData> response =
+                stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                        .getMetrics(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override
             public void onFailure(Throwable throwable) {
@@ -396,7 +446,11 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
-        return RuntimeUtils.getPrometheusMetrics(metricsPort);
+        if (metricsPort != null) {
+            return RuntimeUtils.getPrometheusMetrics(metricsPort);
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -413,12 +467,12 @@ public class KubernetesRuntime implements Runtime {
 
         Actions.Action createService = Actions.Action.builder()
                 .actionName(String.format("Submitting service for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -452,7 +506,7 @@ public class KubernetesRuntime implements Runtime {
 
     @VisibleForTesting
     V1Service createService() {
-        final String jobName = createJobName(instanceConfig.getFunctionDetails());
+        final String jobName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
 
         final V1Service service = new V1Service();
 
@@ -478,7 +532,9 @@ public class KubernetesRuntime implements Runtime {
         service.spec(serviceSpec);
 
         // let the customizer run but ensure it doesn't change the name so we can find it again
-        final V1Service overridden = manifestCustomizer.map((customizer) -> customizer.customizeService(instanceConfig.getFunctionDetails(), service)).orElse(service);
+        final V1Service overridden = manifestCustomizer
+                .map((customizer) -> customizer.customizeService(instanceConfig.getFunctionDetails(), service))
+                .orElse(service);
         overridden.getMetadata().name(jobName);
 
         return overridden;
@@ -488,8 +544,10 @@ public class KubernetesRuntime implements Runtime {
         final V1StatefulSet statefulSet = createStatefulSet();
         // Configure function authentication if needed
         if (authenticationEnabled) {
-            functionAuthDataCacheProvider.ifPresent(kubernetesFunctionAuthProvider -> kubernetesFunctionAuthProvider.configureAuthDataStatefulSet(
-                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
+            functionAuthDataCacheProvider.ifPresent(
+                    kubernetesFunctionAuthProvider -> kubernetesFunctionAuthProvider.configureAuthDataStatefulSet(
+                            statefulSet, Optional.ofNullable(getFunctionAuthData(
+                                    Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
@@ -498,12 +556,12 @@ public class KubernetesRuntime implements Runtime {
 
         Actions.Action createStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Submitting statefulset for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -537,16 +595,16 @@ public class KubernetesRuntime implements Runtime {
 
 
     public void deleteStatefulSet() throws InterruptedException {
-        String statefulSetName = createJobName(instanceConfig.getFunctionDetails());
+        String statefulSetName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
         final V1DeleteOptions options = new V1DeleteOptions();
-        options.setGracePeriodSeconds(5L);
+        options.setGracePeriodSeconds((long) gracePeriodSeconds);
         options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         Actions.Action deleteStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Deleting statefulset for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     Response response;
                     try {
@@ -554,9 +612,9 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
-                                jobNamespace, options, null,
-                                null, null, null,
-                                null, null)
+                                jobNamespace, null, null,
+                                gracePeriodSeconds, null, "Foreground",
+                                options, null)
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -592,10 +650,10 @@ public class KubernetesRuntime implements Runtime {
 
 
         Actions.Action waitForStatefulSetDeletion = Actions.Action.builder()
-                .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
+                .actionName(String.format("Waiting for StatefulSet deletion to complete deletion of function %s", fqfn))
                 // set retry period to be about 2x the graceshutdown time
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES * 2)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS* 2)
+                .numRetries(KubernetesRuntimeFactory.numRetries * 2)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
@@ -623,8 +681,8 @@ public class KubernetesRuntime implements Runtime {
         // Need to wait for all pods to die so we can cleanup subscriptions.
         Actions.Action waitForStatefulPodsToTerminate = Actions.Action.builder()
                 .actionName(String.format("Waiting for pods for function %s to terminate", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES * 2)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS * 2)
+                .numRetries(KubernetesRuntimeFactory.numRetries * 2)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
                 .supplier(() -> {
                     String labels = String.format("tenant=%s,namespace=%s,name=%s",
                             instanceConfig.getFunctionDetails().getTenant(),
@@ -635,7 +693,7 @@ public class KubernetesRuntime implements Runtime {
                     try {
                         response = coreClient.listNamespacedPod(jobNamespace, null, null,
                                 null, null, labels,
-                                null, null, null, null);
+                                null, null, null, null, null);
                     } catch (ApiException e) {
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
@@ -692,12 +750,12 @@ public class KubernetesRuntime implements Runtime {
         options.setGracePeriodSeconds(0L);
         options.setPropagationPolicy("Foreground");
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
-        String serviceName = createJobName(instanceConfig.getFunctionDetails());
+        String serviceName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
 
         Actions.Action deleteService = Actions.Action.builder()
                 .actionName(String.format("Deleting service for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     final Response response;
                     try {
@@ -705,9 +763,9 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = coreClient.deleteNamespacedServiceCall(
                                 serviceName,
-                                jobNamespace, options, null,
-                                null, null,
-                                null, null, null).execute();
+                                jobNamespace, null, null,
+                                0, null,
+                                "Foreground", options, null).execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -741,9 +799,9 @@ public class KubernetesRuntime implements Runtime {
                 .build();
 
         Actions.Action waitForServiceDeletion = Actions.Action.builder()
-                .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .actionName(String.format("Waiting for service deletion to complete deletion of function %s", fqfn))
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     V1Service response;
                     try {
@@ -751,7 +809,7 @@ public class KubernetesRuntime implements Runtime {
                                 null, null, null);
 
                     } catch (ApiException e) {
-                        // statefulset is gone
+                        // service is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
                             return Actions.ActionResult.builder().success(true).build();
                         }
@@ -791,50 +849,47 @@ public class KubernetesRuntime implements Runtime {
     }
 
     protected List<String> getExecutorCommand() {
-        return Arrays.asList(
-                "sh",
-                "-c",
-                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails().getTenant(),
-                        instanceConfig.getFunctionDetails().getNamespace(),
-                        instanceConfig.getFunctionDetails().getName(),
-                        originalCodeFileName))
-                        + " && " + setShardIdEnvironmentVariableCommand()
-                        + " && " + String.join(" ", processArgs)
-        );
+        List<String> cmds =
+                new ArrayList<>(getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName, false));
+        if (isNotEmpty(originalTransformFunctionFileName)) {
+            cmds.add("&&");
+            cmds.addAll(getDownloadCommand(instanceConfig.getFunctionDetails(),
+                originalTransformFunctionFileName, true));
+        }
+        cmds.add("&&");
+        cmds.add(setShardIdEnvironmentVariableCommand());
+        cmds.add("&&");
+        cmds.addAll(processArgs);
+        return Arrays.asList("sh", "-c", String.join(" ", cmds));
     }
 
-    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
+    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath,
+                                            boolean transformFunction) {
+        return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), userCodeFilePath, transformFunction);
+    }
+
+    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath,
+                                            boolean transformFunction) {
+        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(
+                pulsarRootDir + configAdminCLI,
+                "--admin-url",
+                pulsarAdminUrl));
 
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())
                     && instanceConfig.getFunctionAuthenticationSpec() != null) {
-                return Arrays.asList(
-                        pulsarRootDir + configAdminCLI,
+                cmd.addAll(Arrays.asList(
                         "--auth-plugin",
                         authConfig.getClientAuthenticationPlugin(),
                         "--auth-params",
-                        authConfig.getClientAuthenticationParameters(),
-                        "--admin-url",
-                        pulsarAdminUrl,
-                        "functions",
-                        "download",
-                        "--tenant",
-                        tenant,
-                        "--namespace",
-                        namespace,
-                        "--name",
-                        name,
-                        "--destination-file",
-                        userCodeFilePath);
+                        authConfig.getClientAuthenticationParameters()));
             }
         }
 
-        return Arrays.asList(
-                pulsarRootDir + configAdminCLI,
-                "--admin-url",
-                pulsarAdminUrl,
+        cmd.addAll(Arrays.asList(
                 "functions",
                 "download",
                 "--tenant",
@@ -844,7 +899,13 @@ public class KubernetesRuntime implements Runtime {
                 "--name",
                 name,
                 "--destination-file",
-                userCodeFilePath);
+                userCodeFilePath));
+
+        if (transformFunction) {
+            cmd.add("--transform-function");
+        }
+
+        return cmd;
     }
 
     private static String setShardIdEnvironmentVariableCommand() {
@@ -853,7 +914,7 @@ public class KubernetesRuntime implements Runtime {
 
     @VisibleForTesting
     V1StatefulSet createStatefulSet() {
-        final String jobName = createJobName(instanceConfig.getFunctionDetails());
+        final String jobName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
 
         final V1StatefulSet statefulSet = new V1StatefulSet();
 
@@ -890,24 +951,32 @@ public class KubernetesRuntime implements Runtime {
         podTemplateSpec.setMetadata(templateMetaData);
 
         final List<String> command = getExecutorCommand();
-        podTemplateSpec.spec(getPodSpec(command, instanceConfig.getFunctionDetails().hasResources() ? instanceConfig.getFunctionDetails().getResources() : null));
+        podTemplateSpec.spec(getPodSpec(command,
+                instanceConfig.getFunctionDetails().hasResources() ? instanceConfig.getFunctionDetails().getResources()
+                        : null));
 
         statefulSetSpec.setTemplate(podTemplateSpec);
 
         statefulSet.spec(statefulSetSpec);
 
         // let the customizer run but ensure it doesn't change the name so we can find it again
-        final V1StatefulSet overridden = manifestCustomizer.map((customizer) -> customizer.customizeStatefulSet(instanceConfig.getFunctionDetails(), statefulSet)).orElse(statefulSet);
+        final V1StatefulSet overridden = manifestCustomizer
+                .map((customizer) -> customizer.customizeStatefulSet(instanceConfig.getFunctionDetails(), statefulSet))
+                .orElse(statefulSet);
         overridden.getMetadata().name(jobName);
 
         return statefulSet;
     }
 
     private Map<String, String> getPrometheusAnnotations() {
-        final Map<String, String> annotations = new HashMap<>();
-        annotations.put("prometheus.io/scrape", "true");
-        annotations.put("prometheus.io/port", String.valueOf(metricsPort));
-        return annotations;
+        if (metricsPort != null) {
+            final Map<String, String> annotations = new HashMap<>();
+            annotations.put("prometheus.io/scrape", "true");
+            annotations.put("prometheus.io/port", String.valueOf(metricsPort));
+            return annotations;
+        } else {
+            return Collections.emptyMap();
+        }
     }
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
@@ -929,10 +998,11 @@ public class KubernetesRuntime implements Runtime {
                 break;
         }
         labels.put("component", component);
-        labels.put("namespace", functionDetails.getNamespace());
-        labels.put("tenant", functionDetails.getTenant());
-        labels.put("name", functionDetails.getName());
+        labels.put("namespace", toValidLabelName(functionDetails.getNamespace()));
+        labels.put("tenant", toValidLabelName(functionDetails.getTenant()));
+        labels.put("name", toValidLabelName(functionDetails.getName()));
         if (customLabels != null && !customLabels.isEmpty()) {
+            customLabels.replaceAll((k, v) -> toValidLabelName(v));
             labels.putAll(customLabels);
         }
         return labels;
@@ -953,7 +1023,8 @@ public class KubernetesRuntime implements Runtime {
         podSpec.containers(containers);
 
         // Configure secrets
-        secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(podSpec, PULSARFUNCTIONS_CONTAINER_NAME, instanceConfig.getFunctionDetails());
+        secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(podSpec, PULSARFUNCTIONS_CONTAINER_NAME,
+                instanceConfig.getFunctionDetails());
 
         return podSpec;
     }
@@ -977,8 +1048,35 @@ public class KubernetesRuntime implements Runtime {
     V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
-        // set up the container images
-        container.setImage(pulsarDockerImageName);
+        Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
+
+        String imageName = null;
+        if (functionDockerImages != null) {
+            switch (runtime) {
+                case JAVA:
+                    if (functionDockerImages.get("JAVA") != null) {
+                        imageName = functionDockerImages.get("JAVA");
+                    }
+                    break;
+                case PYTHON:
+                    if (functionDockerImages.get("PYTHON") != null) {
+                        imageName = functionDockerImages.get("PYTHON");
+                    }
+                    break;
+                case GO:
+                    if (functionDockerImages.get("GO") != null) {
+                        imageName = functionDockerImages.get("GO");
+                    }
+                    break;
+                default:
+                    imageName = pulsarDockerImageName;
+                    break;
+            }
+            container.setImage(imageName);
+        } else {
+            container.setImage(pulsarDockerImageName);
+        }
+
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command
@@ -1003,7 +1101,7 @@ public class KubernetesRuntime implements Runtime {
         // add memory padding
         long padding = Math.round(ram * (percentMemoryPadding / 100.0));
         long ramWithPadding = ram + padding;
-        long ramRequest =  (long) (ramWithPadding / memoryOverCommitRatio);
+        long ramRequest = (long) (ramWithPadding / memoryOverCommitRatio);
 
         // set resource limits
         double cpuLimit = resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1;
@@ -1031,41 +1129,59 @@ public class KubernetesRuntime implements Runtime {
 
     private List<V1ContainerPort> getFunctionContainerPorts() {
         List<V1ContainerPort> ports = new ArrayList<>();
+        ports.add(getGRPCPort());
+        ports.add(getPrometheusPort());
+        return ports;
+    }
+
+    private V1ContainerPort getGRPCPort() {
         final V1ContainerPort port = new V1ContainerPort();
         port.setName("grpc");
         port.setContainerPort(grpcPort);
-        ports.add(port);
-        return ports;
+        return port;
     }
 
-    private List<V1ContainerPort> getPrometheusContainerPorts() {
-        List<V1ContainerPort> ports = new ArrayList<>();
+    private V1ContainerPort getPrometheusPort() {
         final V1ContainerPort port = new V1ContainerPort();
         port.setName("prometheus");
         port.setContainerPort(metricsPort);
-        ports.add(port);
-        return ports;
+        return port;
     }
 
-    public static String createJobName(Function.FunctionDetails functionDetails) {
-        return createJobName(functionDetails.getTenant(),
-                functionDetails.getNamespace(),
-                functionDetails.getName());
+    public static String createJobName(Function.FunctionDetails functionDetails, String jobName) {
+        return jobName == null ? createJobName(functionDetails.getTenant(),
+                functionDetails.getNamespace(), functionDetails.getName()) :
+                createJobName(jobName, functionDetails.getTenant(),
+                        functionDetails.getNamespace(), functionDetails.getName());
     }
 
     private static String toValidPodName(String ori) {
         return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
     }
 
+    private static String toValidLabelName(String ori) {
+        return left(ori.toLowerCase().replaceAll("[^a-zA-Z0-9-_\\.]", "-").replaceAll("^[^a-zA-Z0-9]", "0")
+                .replaceAll("[^a-zA-Z0-9]$", "0"), maxLabelSize);
+    }
+
+    private static String createJobName(String jobName, String tenant, String namespace, String functionName) {
+        final String convertedJobName = toValidPodName(jobName);
+        // use of customRuntimeOptions 'jobName' may cause naming collisions,
+        // add a short hash here to avoid it
+        final String hashName = String.format("%s-%s-%s-%s", jobName, tenant, namespace, functionName);
+        final String shortHash = DigestUtils.sha1Hex(hashName).toLowerCase().substring(0, 8);
+        return convertedJobName + "-" + shortHash;
+    }
+
     private static String createJobName(String tenant, String namespace, String functionName) {
-        final String jobNameContent = String.format("%s-%s-%s", tenant, namespace,functionName);
-        final String jobName = "pf-" + jobNameContent;
+        final String jobNameBase = String.format("%s-%s-%s", tenant, namespace, functionName);
+        final String jobName = "pf-" + jobNameBase;
         final String convertedJobName = toValidPodName(jobName);
         if (jobName.equals(convertedJobName)) {
             return jobName;
         }
         // toValidPodName may cause naming collisions, add a short hash here to avoid it
-        final String shortHash = DigestUtils.sha1Hex(jobNameContent).toLowerCase().substring(0, 8);
+        final String shortHash = DigestUtils.sha1Hex(jobNameBase).toLowerCase().substring(0, 8);
         return convertedJobName + "-" + shortHash;
     }
 
@@ -1073,14 +1189,15 @@ public class KubernetesRuntime implements Runtime {
         return String.format("%s-%d.%s.%s.svc.cluster.local", jobName, instanceId, jobName, jobNamespace);
     }
 
-    public static void doChecks(Function.FunctionDetails functionDetails) {
-        final String jobName = createJobName(functionDetails);
+    public static void doChecks(Function.FunctionDetails functionDetails, String overridenJobName) {
+        final String jobName = createJobName(functionDetails, overridenJobName);
         if (!jobName.equals(jobName.toLowerCase())) {
             throw new RuntimeException("Kubernetes does not allow upper case jobNames.");
         }
         final Matcher matcher = VALID_POD_NAME_REGEX.matcher(jobName);
         if (!matcher.matches()) {
-            throw new RuntimeException("Kubernetes only admits lower case and numbers.");
+            throw new RuntimeException("Kubernetes only admits lower case and numbers. "
+                    + "(jobName=" + jobName + ")");
         }
         if (jobName.length() > maxJobNameSize) {
             throw new RuntimeException("Kubernetes job name size should be less than " + maxJobNameSize);

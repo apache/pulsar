@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.bookkeeper.mledger.offload;
 
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -39,7 +38,7 @@ public class OffloadUtilsTest {
         map.put("key1", "value1");
         map.put("key2", "value2");
 
-        //only one copy of the offload metadata information is stored in zookeeper,
+        //only one copy of the offload metadata information is stored in metadata store,
         // and the original properties need to be cleared during offload
         OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
 

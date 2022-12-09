@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
 import org.apache.pulsar.functions.proto.Function;
 
 public class FunctionMetaDataUtils {
 
-    public static boolean canChangeState(Function.FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
+    public static boolean canChangeState(Function.FunctionMetaData functionMetaData, int instanceId,
+                                         Function.FunctionState newState) {
         if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
             return false;
         }
@@ -40,7 +40,9 @@ public class FunctionMetaDataUtils {
         } else {
             // want to change state for all instances
             for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
-                if (state != newState) return true;
+                if (state != newState) {
+                    return true;
+                }
             }
             return false;
         }
@@ -60,14 +62,14 @@ public class FunctionMetaDataUtils {
             for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
                 builder.putInstanceStates(i, state);
             }
-        } else if (instanceId < builder.getFunctionDetails().getParallelism()){
+        } else if (instanceId < builder.getFunctionDetails().getParallelism()) {
             builder.putInstanceStates(instanceId, state);
         }
         return builder.build();
     }
 
-    public static Function.FunctionMetaData generateUpdatedMetadata(Function.FunctionMetaData existingMetaData,
-                                                                    Function.FunctionMetaData updatedMetaData) {
+    public static Function.FunctionMetaData incrMetadataVersion(Function.FunctionMetaData existingMetaData,
+                                                                Function.FunctionMetaData updatedMetaData) {
         long version = 0;
         if (existingMetaData != null) {
             version = existingMetaData.getVersion() + 1;

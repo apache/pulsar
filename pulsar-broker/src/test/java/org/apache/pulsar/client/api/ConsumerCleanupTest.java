@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
 
+@Test(groups = "broker-api")
 public class ConsumerCleanupTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -37,18 +39,26 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
-    public void testAllTimerTaskShouldCanceledAfterConsumerClosed() throws PulsarClientException, InterruptedException {
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
+            throws PulsarClientException, InterruptedException {
+        @Cleanup
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
                 .subscriptionName("test")
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscribe();
         consumer.close();
         Thread.sleep(2000);

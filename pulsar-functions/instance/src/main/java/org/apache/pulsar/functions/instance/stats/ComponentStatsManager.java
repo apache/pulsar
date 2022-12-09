@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,17 +19,15 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
-import io.prometheus.client.CollectorRegistry;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.Function;
-
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 @Slf4j
 public abstract class ComponentStatsManager implements AutoCloseable {
@@ -38,23 +36,23 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected ScheduledFuture<?> scheduledFuture;
 
-    protected final CollectorRegistry collectorRegistry;
+    protected final FunctionCollectorRegistry collectorRegistry;
 
-    protected final EvictingQueue EMPTY_QUEUE = EvictingQueue.create(0);
+    protected final EvictingQueue emptyQueue = EvictingQueue.create(0);
 
-    public final static String USER_METRIC_PREFIX = "user_metric_";
+    public static final String USER_METRIC_PREFIX = "user_metric_";
 
-    public static final String[] metricsLabelNames = {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
+    public static final String[] METRICS_LABEL_NAMES =
+            {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
 
-    protected static final String[] exceptionMetricsLabelNames;
+    protected static final String[] EXCEPTION_METRICS_LABEL_NAMES;
 
     static {
-        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 2);
-        exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
-        exceptionMetricsLabelNames[metricsLabelNames.length + 1] = "ts";
+        EXCEPTION_METRICS_LABEL_NAMES = Arrays.copyOf(METRICS_LABEL_NAMES, METRICS_LABEL_NAMES.length + 1);
+        EXCEPTION_METRICS_LABEL_NAMES[METRICS_LABEL_NAMES.length] = "error";
     }
 
-    public static ComponentStatsManager getStatsManager(CollectorRegistry collectorRegistry,
+    public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
                                   Function.FunctionDetails.ComponentType componentType) {
@@ -70,9 +68,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         }
     }
 
-    public ComponentStatsManager(CollectorRegistry collectorRegistry,
-                         String[] metricsLabels,
-                         ScheduledExecutorService scheduledExecutorService) {
+    public ComponentStatsManager(FunctionCollectorRegistry collectorRegistry,
+                                 String[] metricsLabels,
+                                 ScheduledExecutorService scheduledExecutorService) {
 
         this.collectorRegistry = collectorRegistry;
         this.metricsLabels = metricsLabels;
@@ -128,13 +126,17 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract double getAvgProcessLatency1min();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions();
+    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    getLatestUserExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions();
+    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    getLatestSystemExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions();
+    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    getLatestSourceExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions();
+    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    getLatestSinkExceptions();
 
     public String getStatsAsString() throws IOException {
         StringWriter outputWriter = new StringWriter();

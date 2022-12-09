@@ -40,14 +40,10 @@ type instanceConf struct {
 	pulsarServiceURL            string
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
+	metricsPort                 int
 }
 
-func newInstanceConf() *instanceConf {
-	config := &conf.Conf{}
-	cfg := config.GetConf()
-	if cfg == nil {
-		panic("config file is nil.")
-	}
+func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -58,6 +54,7 @@ func newInstanceConf() *instanceConf {
 		pulsarServiceURL:            cfg.PulsarServiceURL,
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
+		metricsPort:                 cfg.MetricsPort,
 		funcDetails: pb.FunctionDetails{
 			Tenant:               cfg.Tenant,
 			Namespace:            cfg.NameSpace,
@@ -79,9 +76,10 @@ func newInstanceConf() *instanceConf {
 						},
 					},
 				},
-				TimeoutMs:           cfg.TimeoutMs,
-				SubscriptionName:    cfg.SubscriptionName,
-				CleanupSubscription: cfg.CleanupSubscription,
+				TimeoutMs:            cfg.TimeoutMs,
+				SubscriptionName:     cfg.SubscriptionName,
+				CleanupSubscription:  cfg.CleanupSubscription,
+				SubscriptionPosition: pb.SubscriptionPosition(cfg.SubscriptionPosition),
 			},
 			Sink: &pb.SinkSpec{
 				Topic:      cfg.SinkSpecTopic,
@@ -96,9 +94,34 @@ func newInstanceConf() *instanceConf {
 				MaxMessageRetries: cfg.MaxMessageRetries,
 				DeadLetterTopic:   cfg.DeadLetterTopic,
 			},
+			UserConfig: cfg.UserConfig,
 		},
 	}
+
+	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {
+		panic("Go instance current not support EFFECTIVELY_ONCE processing guarantees.")
+	}
+
+	if !instanceConf.funcDetails.AutoAck &&
+		(instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE ||
+			instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE) {
+		panic("When Guarantees == " + instanceConf.funcDetails.ProcessingGuarantees.String() +
+			", autoAck must be equal to true. If you want not to automatically ack, " +
+			"please configure the processing guarantees as MANUAL." +
+			" This is a contradictory configuration, autoAck will be removed later." +
+			" Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
+	}
+
 	return instanceConf
+}
+
+func newInstanceConf() *instanceConf {
+	config := &conf.Conf{}
+	cfg := config.GetConf()
+	if cfg == nil {
+		panic("config file is nil.")
+	}
+	return newInstanceConfWithConf(cfg)
 }
 
 func (ic *instanceConf) getInstanceName() string {

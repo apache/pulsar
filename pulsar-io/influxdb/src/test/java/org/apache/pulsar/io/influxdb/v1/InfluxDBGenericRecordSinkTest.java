@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -100,7 +100,7 @@ public class InfluxDBGenericRecordSinkTest {
         when(influxSink.influxDBBuilder.build(any())).thenReturn(influxDB);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         influxSink.close();
         verify(influxDB, times(1)).close();

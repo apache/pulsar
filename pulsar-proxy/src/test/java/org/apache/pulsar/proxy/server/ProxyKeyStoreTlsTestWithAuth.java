@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 
 import com.google.common.collect.Sets;
@@ -42,7 +42,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -51,25 +52,6 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_CN = "clientuser";
-    protected final String KEYSTORE_TYPE = "JKS";
-
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -79,6 +61,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
@@ -92,9 +75,8 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         proxyConfig.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
 
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
-
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         // config for authentication and authorization.
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
@@ -105,15 +87,17 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         providers.add(AuthenticationProviderTls.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
+        proxyService = Mockito.spy(new ProxyService(proxyConfig,
+                                                    new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         proxyService.start();
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
 
@@ -176,7 +160,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
         String topicName = "persistent://sample/test/local/partitioned-topic" + System.currentTimeMillis();
-        TenantInfo tenantInfo = createDefaultTenantInfo();
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, 2);
 
@@ -195,7 +179,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
         }
     }
 

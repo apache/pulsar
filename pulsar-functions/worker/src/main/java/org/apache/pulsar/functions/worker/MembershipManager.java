@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,94 +28,38 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
-import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
-
 /**
  * A simple implementation of leader election using a pulsar topic.
  */
 @Slf4j
-public class MembershipManager implements AutoCloseable, ConsumerEventListener {
+public class MembershipManager implements AutoCloseable {
 
-    private final String consumerName;
-    private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private PulsarAdmin pulsarAdmin;
-    private final CompletableFuture<Void> firstConsumerEventFuture;
-    private final AtomicBoolean isLeader = new AtomicBoolean();
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
-    private static String WORKER_IDENTIFIER = "id";
+    private static final String WORKER_IDENTIFIER = "id";
 
     // How long functions have remained assigned or scheduled on a failed node
     // FullyQualifiedFunctionName -> time in millis
     @VisibleForTesting
     Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
 
-    MembershipManager(WorkerService service, PulsarClient client, PulsarAdmin pulsarAdmin)
-            throws PulsarClientException {
-        this.workerConfig = service.getWorkerConfig();
+    MembershipManager(WorkerService workerService, PulsarClient pulsarClient, PulsarAdmin pulsarAdmin) {
+        this.workerConfig = workerService.getWorkerConfig();
         this.pulsarAdmin = pulsarAdmin;
-        consumerName = String.format(
-            "%s:%s:%d",
-            workerConfig.getWorkerId(),
-            workerConfig.getWorkerHostname(),
-            workerConfig.getWorkerPort()
-        );
-        firstConsumerEventFuture = new CompletableFuture<>();
-        // the membership manager is using a `coordination` topic for leader election.
-        // we don't produce any messages into this topic, we only use the `failover` subscription
-        // to elect an active consumer as the leader worker. The leader worker will be responsible
-        // for scheduling snapshots for FMT and doing task assignment.
-        consumer = (ConsumerImpl<byte[]>) client.newConsumer()
-                .topic(workerConfig.getClusterCoordinationTopic())
-                .subscriptionName(COORDINATION_TOPIC_SUBSCRIPTION)
-                .subscriptionType(SubscriptionType.Failover)
-                .consumerEventListener(this)
-                .property(WORKER_IDENTIFIER, consumerName)
-                .subscribe();
-        
-        isLeader.set(checkLeader(service, consumer.getConsumerName()));
-    }
-
-    @Override
-    public void becameActive(Consumer<?> consumer, int partitionId) {
-        firstConsumerEventFuture.complete(null);
-        if (isLeader.compareAndSet(false, true)) {
-            log.info("Worker {} became the leader.", consumerName);
-        }
-    }
-
-    @Override
-    public void becameInactive(Consumer<?> consumer, int partitionId) {
-        firstConsumerEventFuture.complete(null);
-        if (isLeader.compareAndSet(true, false)) {
-            log.info("Worker {} lost the leadership.", consumerName);
-        }
-    }
-
-    public boolean isLeader() {
-        return isLeader.get();
     }
 
     public List<WorkerInfo> getCurrentMembership() {
@@ -130,9 +74,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             throw new RuntimeException(e);
         }
 
-        for (ConsumerStats consumerStats : topicStats.subscriptions
-                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
-            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+        for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).getConsumers()) {
+            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
             workerIds.add(workerInfo);
         }
         return workerIds;
@@ -148,12 +92,13 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             throw new RuntimeException(e);
         }
 
-        String activeConsumerName = topicStats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName;
+        String activeConsumerName =
+                topicStats.getSubscriptions().get(COORDINATION_TOPIC_SUBSCRIPTION).getActiveConsumerName();
         WorkerInfo leader = null;
-        for (ConsumerStats consumerStats : topicStats.subscriptions
-                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
-            if (consumerStats.consumerName.equals(activeConsumerName)) {
-                leader = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+        for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).getConsumers()) {
+            if (consumerStats.getConsumerName().equals(activeConsumerName)) {
+                leader = WorkerInfo.parseFrom(consumerStats.getMetadata().get(WORKER_IDENTIFIER));
             }
         }
         if (leader == null) {
@@ -163,8 +108,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public void close() throws PulsarClientException {
-        consumer.close();
+    public void close() {
+
     }
 
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
@@ -178,7 +123,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         for (Function.FunctionMetaData entry : functionMetaDataList) {
             functionMetaDataMap.put(FunctionCommon.getFullyQualifiedName(entry.getFunctionDetails()), entry);
         }
-        Map<String, Map<String, Function.Assignment>> currentAssignments = functionRuntimeManager.getCurrentAssignments();
+        Map<String, Map<String, Function.Assignment>> currentAssignments =
+                functionRuntimeManager.getCurrentAssignments();
         Map<String, Function.Assignment> assignmentMap = new HashMap<>();
         for (Map<String, Function.Assignment> entry : currentAssignments.values()) {
             assignmentMap.putAll(entry);
@@ -210,8 +156,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
         // check for function instances that haven't been assigned
         for (Function.FunctionMetaData functionMetaData : functionMetaDataList) {
-            Collection<Function.Assignment> assignments
-                    = FunctionRuntimeManager.findFunctionAssignments(functionMetaData.getFunctionDetails().getTenant(),
+            Collection<Function.Assignment> assignments =
+                    FunctionRuntimeManager.findFunctionAssignments(functionMetaData.getFunctionDetails().getTenant(),
                     functionMetaData.getFunctionDetails().getNamespace(),
                     functionMetaData.getFunctionDetails().getName(),
                     currentAssignments);
@@ -220,7 +166,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
                     .map(assignment -> assignment.getInstance())
                     .collect(Collectors.toSet());
 
-            Set<Function.Instance> instances = new HashSet<>(SchedulerManager.computeInstances(functionMetaData, functionRuntimeManager.getRuntimeFactory().externallyManaged()));
+            Set<Function.Instance> instances = new HashSet<>(SchedulerManager.computeInstances(functionMetaData,
+                    functionRuntimeManager.getRuntimeFactory().externallyManaged()));
 
             for (Function.Instance instance : instances) {
                 if (!assignedInstances.contains(instance)) {
@@ -253,15 +200,23 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         // check unassigned
         Collection<Function.Instance> needSchedule = new LinkedList<>();
         Collection<Function.Assignment> needRemove = new LinkedList<>();
+        Map<String, Integer> numRemoved = new HashMap<>();
         for (Map.Entry<Function.Instance, Long> entry : this.unsignedFunctionDurations.entrySet()) {
             Function.Instance instance = entry.getKey();
             long unassignedDurationMs = entry.getValue();
             if (currentTimeMs - unassignedDurationMs > this.workerConfig.getRescheduleTimeoutMs()) {
                 needSchedule.add(instance);
                 // remove assignment from failed node
-                Function.Assignment assignment = assignmentMap.get(FunctionCommon.getFullyQualifiedInstanceId(instance));
+                Function.Assignment assignment =
+                        assignmentMap.get(FunctionCommon.getFullyQualifiedInstanceId(instance));
                 if (assignment != null) {
                     needRemove.add(assignment);
+
+                    Integer count = numRemoved.get(assignment.getWorkerId());
+                    if (count == null) {
+                        count = 0;
+                    }
+                    numRemoved.put(assignment.getWorkerId(), count + 1);
                 }
                 triggerScheduler = true;
             }
@@ -270,28 +225,12 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             functionRuntimeManager.removeAssignments(needRemove);
         }
         if (triggerScheduler) {
-            log.info("Functions that need scheduling/rescheduling: {}", needSchedule);
+            log.info(
+                    "Failure check - Total number of instances that need to be scheduled/rescheduled: {} "
+                            + "| Number of unassigned instances that need to be scheduled: {} | Number of instances "
+                            + "on dead workers that need to be reassigned {}",
+                    needSchedule.size(), needSchedule.size() - needRemove.size(), numRemoved);
             schedulerManager.schedule();
         }
     }
-
-    /**
-     * Private methods
-     */
-
-    private boolean checkLeader(WorkerService service, String consumerName) {
-        try {
-            TopicStats stats = service.getBrokerAdmin().topics()
-                    .getStats(service.getWorkerConfig().getClusterCoordinationTopic());
-            String activeConsumerName = stats != null
-                    && stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION) != null
-                            ? stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName
-                            : null;
-            return consumerName != null && consumerName.equalsIgnoreCase(activeConsumerName);
-        } catch (Exception e) {
-            log.warn("Failed to check leader {}", e.getMessage());
-        }
-        return false;
-    }
-    
 }
