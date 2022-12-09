@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -261,7 +260,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
         CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
 
-        FutureUtil.waitForAll(Lists.newArrayList(writer1, writer2, f1)).join();
+        CompletableFuture.allOf(writer1, writer2, f1).join();
         Assert.assertTrue(reader1.hasMoreEvents());
         Assert.assertNotNull(reader1.readNext());
         Assert.assertTrue(reader2.hasMoreEvents());
