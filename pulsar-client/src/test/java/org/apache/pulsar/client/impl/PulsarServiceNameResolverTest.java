@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -37,28 +39,28 @@ import org.testng.annotations.Test;
  */
 public class PulsarServiceNameResolverTest {
 
-    private PulsarServiceNameResolver resolver;
-
-    @BeforeMethod
-    public void setup() {
-        this.resolver = new PulsarServiceNameResolver();
+    public PulsarServiceNameResolver createResolver() {
+        // default to allow unresolved addresses
+        final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver(ignore -> true);
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
+        return resolver;
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void testResolveBeforeUpdateServiceUrl() {
-        resolver.resolveHost();
+        createResolver().resolveHost();
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void testResolveUrlBeforeUpdateServiceUrl() {
-        resolver.resolveHostUri();
+        createResolver().resolveHostUri();
     }
 
     @Test
     public void testUpdateInvalidServiceUrl() {
         String serviceUrl = "pulsar:///";
+        PulsarServiceNameResolver resolver = createResolver();
         try {
             resolver.updateServiceUrl(serviceUrl);
             fail("Should fail to update service url if service url is invalid");
@@ -72,6 +74,7 @@ public class PulsarServiceNameResolverTest {
     @Test
     public void testSimpleHostUrl() throws Exception {
         String serviceUrl = "pulsar://host1:6650";
+        PulsarServiceNameResolver resolver = createResolver();
         resolver.updateServiceUrl(serviceUrl);
         assertEquals(serviceUrl, resolver.getServiceUrl());
         assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
@@ -93,6 +96,7 @@ public class PulsarServiceNameResolverTest {
     @Test
     public void testMultipleHostsUrl() throws Exception {
         String serviceUrl = "pulsar://host1:6650,host2:6650";
+        PulsarServiceNameResolver resolver = createResolver();
         resolver.updateServiceUrl(serviceUrl);
         assertEquals(serviceUrl, resolver.getServiceUrl());
         assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
@@ -113,6 +117,7 @@ public class PulsarServiceNameResolverTest {
     @Test
     public void testMultipleHostsTlsUrl() throws Exception {
         String serviceUrl = "pulsar+ssl://host1:6651,host2:6651";
+        PulsarServiceNameResolver resolver = createResolver();
         resolver.updateServiceUrl(serviceUrl);
         assertEquals(serviceUrl, resolver.getServiceUrl());
         assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
@@ -127,6 +132,59 @@ public class PulsarServiceNameResolverTest {
         for (int i = 0; i < 10; i++) {
             assertTrue(expectedAddresses.contains(resolver.resolveHost()));
             assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
+        }
+    }
+
+    @Test
+    public void testMultipleHostsUrlUnreachable() throws Exception {
+        String serviceUrl = "pulsar://host1:6650,host2:6650,host3:6650";
+
+        // use the default manner
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+        assertNull(resolver.getServiceUrl());
+        assertNull(resolver.getServiceUri());
+
+        resolver.updateServiceUrl(serviceUrl);
+        assertEquals(serviceUrl, resolver.getServiceUrl());
+        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
+
+        for (int i = 0; i < 10; i++) {
+            assertThatThrownBy(resolver::resolveHost)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("No host is reachable for service url");
+            assertThatThrownBy(resolver::resolveHostUri)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("No host is reachable for service url");
+        }
+
+        // fake host2 and host3 to be reachable
+        resolver = new PulsarServiceNameResolver(address -> "host2".equals(address.getHostName())
+                || "host3".equals(address.getHostName())
+                || !address.isUnresolved());
+        assertNull(resolver.getServiceUrl());
+        assertNull(resolver.getServiceUri());
+
+        resolver.updateServiceUrl(serviceUrl);
+        assertEquals(serviceUrl, resolver.getServiceUrl());
+        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
+
+        List<InetSocketAddress> expectedAddresses = new ArrayList<>();
+        Set<URI> expectedHostUrls = new HashSet<>();
+        expectedAddresses.add(InetSocketAddress.createUnresolved("host2", 6650));
+        expectedAddresses.add(InetSocketAddress.createUnresolved("host3", 6650));
+        expectedHostUrls.add(URI.create("pulsar://host2:6650"));
+        expectedHostUrls.add(URI.create("pulsar://host3:6650"));
+
+        Set<InetSocketAddress> unexpectedAddresses = new HashSet<>();
+        Set<URI> unexpectedHostUrls = new HashSet<>();
+        unexpectedAddresses.add(InetSocketAddress.createUnresolved("host1", 6650));
+        unexpectedHostUrls.add(URI.create("pulsar://host1:6650"));
+
+        for (int i = 0; i < 10; i++) {
+            assertThat(expectedAddresses).contains(resolver.resolveHost());
+            assertThat(expectedHostUrls).contains(resolver.resolveHostUri());
+            assertThat(unexpectedAddresses).doesNotContain(resolver.resolveHost());
+            assertThat(unexpectedHostUrls).doesNotContain(resolver.resolveHostUri());
         }
     }
 }

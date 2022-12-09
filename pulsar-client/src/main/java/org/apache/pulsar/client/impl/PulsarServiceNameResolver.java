@@ -19,12 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Predicate;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
@@ -37,25 +40,34 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private volatile ServiceURI serviceUri;
     private volatile String serviceUrl;
-    private static final AtomicIntegerFieldUpdater<PulsarServiceNameResolver> CURRENT_INDEX_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(PulsarServiceNameResolver.class, "currentIndex");
-    private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
+
+    private final Predicate<InetSocketAddress> addressPredicate;
+
+    public PulsarServiceNameResolver() {
+        this(address -> !address.isUnresolved());
+    }
+
+    @VisibleForTesting
+    public PulsarServiceNameResolver(Predicate<InetSocketAddress> addressPredicate) {
+        this.addressPredicate = addressPredicate;
+    }
+
 
     @Override
     public InetSocketAddress resolveHost() {
-        List<InetSocketAddress> list = addressList;
-        checkState(
-            list != null, "No service url is provided yet");
-        checkState(
-            !list.isEmpty(), "No hosts found for service url : " + serviceUrl);
-        if (list.size() == 1) {
-            return list.get(0);
-        } else {
-            CURRENT_INDEX_UPDATER.getAndUpdate(this, last -> (last + 1) % list.size());
-            return list.get(currentIndex);
+        final List<InetSocketAddress> list = addressList;
+        checkState(list != null, "No service url is provided yet");
+        checkState(!list.isEmpty(), "No hosts found for service url : " + serviceUrl);
 
+        Collections.shuffle(list);
+        for (InetSocketAddress candidate: list) {
+            if (addressPredicate.test(candidate)) {
+                return candidate;
+            }
         }
+
+        throw new IllegalStateException("No host is reachable for service url: " + serviceUrl);
     }
 
     @Override
@@ -91,7 +103,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             String hostUrl = uri.getServiceScheme() + "://" + host;
             try {
                 URI hostUri = new URI(hostUrl);
-                addresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
+                addresses.add(new InetSocketAddress(hostUri.getHost(), hostUri.getPort()));
             } catch (URISyntaxException e) {
                 log.error("Invalid host provided {}", hostUrl, e);
                 throw new InvalidServiceURL(e);
@@ -100,12 +112,5 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         this.addressList = addresses;
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
-        this.currentIndex = randomIndex(addresses.size());
-    }
-
-    private static int randomIndex(int numAddresses) {
-        return numAddresses == 1
-                ?
-                0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
 }
