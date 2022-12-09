@@ -60,7 +60,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         assertFalse(store.exists("/non-existing-key").join());
         assertFalse(store.exists("/non-existing-key/child").join());
@@ -89,7 +90,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void concurrentPutTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String data = "data";
         String path = "/non-existing-key";
@@ -109,7 +111,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void insertionTestWithExpectedVersion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String key1 = newKey();
 
@@ -167,7 +170,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void getChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String key = newKey();
         int n = 10;
@@ -218,7 +222,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void deletionTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String key = newKey();
         int n = 10;
@@ -252,7 +257,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void emptyKeyTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         try {
             store.delete("", Optional.empty()).join();
@@ -293,7 +299,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void notificationListeners(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
         store.registerListener(n -> {
@@ -359,7 +366,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testDeleteRecursive(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String prefix = newKey();
 
@@ -384,7 +392,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String prefix = newKey();
 
@@ -413,7 +422,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
         String metadataUrl = urlSupplier.get();
-        MetadataStore store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
+        MetadataStore store =
+                MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().fsyncEnable(false).build());
         byte[] data = "testPersistent".getBytes(StandardCharsets.UTF_8);
 
         String key = newKey() + "/a/b/c";
@@ -429,7 +439,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testConcurrentPutGetOneKey(String provider, Supplier<String> urlSupplier) throws Exception {
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
         byte[] data = new byte[]{0};
         String path = newKey();
         int maxValue = 100;
@@ -474,7 +485,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testConcurrentPut(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String k = newKey();
         CompletableFuture<Void> f1 =
@@ -489,7 +501,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testConcurrentDelete(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String k = newKey();
         store.put(k, new byte[0], Optional.of(-1L)).join();
@@ -505,7 +518,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
         store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
