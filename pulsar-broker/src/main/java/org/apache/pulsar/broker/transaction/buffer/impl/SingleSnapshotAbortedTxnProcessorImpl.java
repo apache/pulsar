@@ -91,6 +91,15 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                     try {
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshot> message = reader.readNext(2, TimeUnit.SECONDS);
+                            if (message == null){
+                                String warnLog = String.format("[%s] When reading from topic %s,the latest message has"
+                                                + " been deleted by compaction-task or trim ledger.",
+                                        topic.getName(),
+                                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                                log.warn(warnLog);
+                                return FutureUtil.failedFuture(
+                                        new TransactionBufferException.TBRecoverCantCompletedException(warnLog));
+                            }
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {
@@ -102,13 +111,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                             }
                         }
                         return CompletableFuture.completedFuture(startReadCursorPosition);
-                    } catch (NullPointerException npe) {
-                        String warn = String.format("[%s] When reading from topic %s,the latest message has been"
-                                + " deleted by compaction-task or trim ledger.",
-                                topic.getName(),
-                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-                        log.warn(warn);
-                        return FutureUtil.failedFuture(new TransactionBufferException.TBRecoverCantCompletedException(warn));
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
@@ -116,7 +118,6 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                     } finally {
                         closeReader(reader);
                     }
-
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                         .getExecutor(this));
     }
