@@ -230,25 +230,25 @@ public abstract class NamespacesBase extends AdminResource {
                     for (String topic : allTopics) {
                         if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                             hasNonSystemTopic = true;
+                            allUserCreatedTopics.add(topic);
+                        } else {
                             if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                 topicPolicy.add(topic);
                             } else {
-                                allUserCreatedTopics.add(topic);
+                                allSystemTopics.add(topic);
                             }
-                        } else {
-                            allSystemTopics.add(topic);
                         }
                     }
                     for (String topic : allPartitionedTopics) {
                         if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                             hasNonSystemTopic = true;
+                            allUserCreatedPartitionTopics.add(topic);
+                        } else {
                             if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                 partitionedTopicPolicy.add(topic);
                             } else {
-                                allUserCreatedPartitionTopics.add(topic);
+                                allPartitionedSystemTopics.add(topic);
                             }
-                        } else {
-                            allPartitionedSystemTopics.add(topic);
                         }
                     }
                     if (!force) {
