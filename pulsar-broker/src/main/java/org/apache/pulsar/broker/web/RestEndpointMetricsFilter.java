@@ -70,13 +70,13 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
         }
 
         String method = req.getMethod();
-        Response.Status status = resp.getStatusInfo().toEnum();
+        Response.StatusType status = resp.getStatusInfo();
         if (status.getStatusCode() < Response.Status.BAD_REQUEST.getStatusCode()) {
             long start = req.getProperty(REQUEST_START_TIME) == null
                     ? System.currentTimeMillis() : (long) req.getProperty(REQUEST_START_TIME);
             LATENCY.labels(path, method).observe(System.currentTimeMillis() - start);
         } else {
-            FAILED.labels(path, method, status.name()).inc();
+            FAILED.labels(path, method, String.valueOf(status.getStatusCode())).inc();
         }
     }
 
