@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Maps;
-
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
@@ -41,34 +41,53 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 public class TopicPolicies {
 
-    private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
-    private PersistencePolicies persistence = null;
-    private RetentionPolicies retentionPolicies = null;
-    private Boolean deduplicationEnabled = null;
-    private Integer messageTTLInSeconds = null;
-    private Integer maxProducerPerTopic = null;
-    private Integer maxConsumerPerTopic = null;
-    private Integer maxConsumersPerSubscription = null;
-    private Integer maxUnackedMessagesOnConsumer = null;
-    private Integer maxUnackedMessagesOnSubscription = null;
-    private Long delayedDeliveryTickTimeMillis = null;
-    private Boolean delayedDeliveryEnabled = null;
-    private OffloadPoliciesImpl offloadPolicies;
-    private InactiveTopicPolicies inactiveTopicPolicies = null;
-    private DispatchRateImpl dispatchRate = null;
-    private DispatchRateImpl subscriptionDispatchRate = null;
-    private Long compactionThreshold = null;
-    private PublishRate publishRate = null;
-    private SubscribeRate subscribeRate = null;
-    private Integer deduplicationSnapshotIntervalSeconds = null;
-    private Integer maxMessageSize = null;
-    private Integer maxSubscriptionsPerTopic = null;
-    private DispatchRateImpl replicatorDispatchRate = null;
+    @Builder.Default
+    private Map<String, BacklogQuotaImpl> backLogQuotaMap = new HashMap<>();
+    @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
+    private List<String> replicationClusters;
+    private List<String> shadowTopics;
+    private Boolean isGlobal = false;
+    private PersistencePolicies persistence;
+    private RetentionPolicies retentionPolicies;
+    private Boolean deduplicationEnabled;
+    private Integer messageTTLInSeconds;
+    private Integer maxProducerPerTopic;
+    private Integer maxConsumerPerTopic;
+    private Integer maxConsumersPerSubscription;
+    private Integer maxUnackedMessagesOnConsumer;
+    private Integer maxUnackedMessagesOnSubscription;
+    private Long delayedDeliveryTickTimeMillis;
+    private Boolean delayedDeliveryEnabled;
+    private OffloadPoliciesImpl offloadPolicies;
+    private InactiveTopicPolicies inactiveTopicPolicies;
+    private DispatchRateImpl dispatchRate;
+    private DispatchRateImpl subscriptionDispatchRate;
+    private Long compactionThreshold;
+    private PublishRate publishRate;
+    private SubscribeRate subscribeRate;
+    private Integer deduplicationSnapshotIntervalSeconds;
+    private Integer maxMessageSize;
+    private Integer maxSubscriptionsPerTopic;
+    private DispatchRateImpl replicatorDispatchRate;
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
+    private EntryFilters entryFilters;
+    // If set, it will override the namespace settings for allowing auto subscription creation
+    private AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride;
+
+    /**
+     * Subscription level policies for specific subscription.
+     */
+    @Builder.Default
+    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
+
+    private Boolean schemaValidationEnforced;
+
+    public boolean isGlobalPolicies() {
+        return isGlobal != null && isGlobal;
+    }
 
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;
@@ -160,5 +179,13 @@ public class TopicPolicies {
 
     public boolean isSubscribeRateSet() {
         return subscribeRate != null;
+    }
+
+    public boolean isSchemaValidationEnforced() {
+        return schemaValidationEnforced != null;
+    }
+
+    public Set<String> getReplicationClustersSet() {
+        return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
 }

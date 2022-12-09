@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -106,6 +106,13 @@ public interface LongPairSet {
      * @return
      */
     long size();
+
+    /**
+     * Returns capacity of the set.
+     *
+     * @return
+     */
+    long capacity();
 
     /**
      * Checks if given (item1,item2) composite value exists into set.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,27 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import lombok.Data;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
 
 /**
  * Statistics for a non-persistent topic.
@@ -47,31 +53,77 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     @Getter
     public double msgDropRate;
 
-    /** List of connected publishers on this topic w/ their stats. */
-    @Getter
-    public List<? extends NonPersistentPublisherStats> publishers;
+    @JsonIgnore
+    public List<PublisherStatsImpl> publishers;
 
-    /** Map of subscriptions with their individual statistics. */
-    @Getter
-    public Map<String, ? extends NonPersistentSubscriptionStats> subscriptions;
+    @JsonIgnore
+    public Map<String, SubscriptionStatsImpl> subscriptions;
 
-    /** Map of replication statistics by remote cluster context. */
-    @Getter
-    public Map<String, ? extends NonPersistentReplicatorStats> replication;
+    @JsonIgnore
+    public Map<String, ReplicatorStatsImpl> replication;
+
+    @JsonProperty("publishers")
+    public List<NonPersistentPublisherStats> getNonPersistentPublishers() {
+        return Stream.concat(nonPersistentPublishers.stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                nonPersistentPublishersMap.values().stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
+                .collect(Collectors.toList());
+    }
+
+    @JsonProperty("subscriptions")
+    public Map<String, NonPersistentSubscriptionStats> getNonPersistentSubscriptions() {
+        return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
+    }
+
+    @JsonProperty("replication")
+    public Map<String, NonPersistentReplicatorStats> getNonPersistentReplicators() {
+        return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
+    }
+
+    /** List of connected publishers on this non-persistent topic w/ their stats. */
+    private List<NonPersistentPublisherStats> nonPersistentPublishers;
+
+    private Map<String, NonPersistentPublisherStats> nonPersistentPublishersMap;
+
+    /** Map of non-persistent subscriptions with their individual statistics. */
+    public Map<String, ? extends NonPersistentSubscriptionStats> nonPersistentSubscriptions;
+
+    /** Map of non-persistent replication statistics by remote cluster context. */
+    public Map<String, ? extends NonPersistentReplicatorStats> nonPersistentReplicators;
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public List<NonPersistentPublisherStats> getPublishers() {
-        return (List<NonPersistentPublisherStats>) publishers;
+        return Stream.concat(nonPersistentPublishers.stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                nonPersistentPublishersMap.values().stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
+                .collect(Collectors.toList());
+    }
+
+    public void setPublishers(List<? extends PublisherStats> statsList) {
+        this.nonPersistentPublishers.clear();
+        this.nonPersistentPublishersMap.clear();
+        statsList.forEach(s -> addPublisher((NonPersistentPublisherStatsImpl) s));
+    }
+
+    public void addPublisher(NonPersistentPublisherStatsImpl stats) {
+        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
+            nonPersistentPublishersMap.put(stats.getProducerName(), stats);
+        } else {
+            stats.setSupportsPartialProducer(false); // setter method with side effect
+            nonPersistentPublishers.add(stats);
+        }
     }
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public Map<String, NonPersistentSubscriptionStats> getSubscriptions() {
-        return (Map<String, NonPersistentSubscriptionStats>) subscriptions;
+        return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public Map<String, NonPersistentReplicatorStats> getReplication() {
-        return (Map<String, NonPersistentReplicatorStats>) replication;
+        return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }
 
     @Override
@@ -80,22 +132,94 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     public NonPersistentTopicStatsImpl() {
-        this.publishers = new ArrayList<>();
-        this.subscriptions = new HashMap<>();
-        this.replication = new TreeMap<>();
+        this.nonPersistentPublishers = new ArrayList<>();
+        this.nonPersistentPublishersMap = new ConcurrentHashMap<>();
+        this.nonPersistentSubscriptions = new HashMap<>();
+        this.nonPersistentReplicators = new TreeMap<>();
     }
 
     public void reset() {
         super.reset();
+        this.nonPersistentPublishers.clear();
+        this.nonPersistentPublishersMap.clear();
+        this.nonPersistentSubscriptions.clear();
+        this.nonPersistentReplicators.clear();
         this.msgDropRate = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
     // stats.
-    public NonPersistentTopicStatsImpl add(NonPersistentTopicStatsImpl stats) {
+    public NonPersistentTopicStatsImpl add(NonPersistentTopicStats ts) {
+        NonPersistentTopicStatsImpl stats = (NonPersistentTopicStatsImpl) ts;
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
+
+        stats.getNonPersistentPublishers().forEach(s -> {
+            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
+                ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
+                        .computeIfAbsent(s.getProducerName(), key -> {
+                            final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                            newStats.setSupportsPartialProducer(true);
+                            newStats.setProducerName(s.getProducerName());
+                            return newStats;
+                        })).add((NonPersistentPublisherStatsImpl) s);
+            } else {
+                if (this.nonPersistentPublishers.size() != stats.getNonPersistentPublishers().size()) {
+                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
+                        NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                        newStats.setSupportsPartialProducer(false);
+                        this.nonPersistentPublishers.add(newStats.add((NonPersistentPublisherStatsImpl) s));
+                    }
+                } else {
+                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
+                        ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(i))
+                                .add((NonPersistentPublisherStatsImpl) s);
+                    }
+                }
+            }
+        });
+
+        if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
+            for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
+                NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
+                this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
+                        .add((NonPersistentSubscriptionStatsImpl)
+                                stats.getNonPersistentSubscriptions().get(subscription)));
+            }
+        } else {
+            for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
+                if (this.getNonPersistentSubscriptions().get(subscription) != null) {
+                    ((NonPersistentSubscriptionStatsImpl) this.getNonPersistentSubscriptions().get(subscription))
+                          .add((NonPersistentSubscriptionStatsImpl)
+                                  stats.getNonPersistentSubscriptions().get(subscription));
+                } else {
+                    NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
+                    this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
+                         .add((NonPersistentSubscriptionStatsImpl)
+                                 stats.getNonPersistentSubscriptions().get(subscription)));
+                }
+            }
+        }
+
+        if (this.getNonPersistentReplicators().size() != stats.getNonPersistentReplicators().size()) {
+            for (String repl : stats.getNonPersistentReplicators().keySet()) {
+                NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
+                this.getNonPersistentReplicators().put(repl, replStats
+                        .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
+            }
+        } else {
+            for (String repl : stats.getNonPersistentReplicators().keySet()) {
+                if (this.getNonPersistentReplicators().get(repl) != null) {
+                    ((NonPersistentReplicatorStatsImpl) this.getNonPersistentReplicators().get(repl))
+                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl));
+                } else {
+                    NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
+                    this.getNonPersistentReplicators().put(repl, replStats
+                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
+                }
+            }
+        }
         return this;
     }
 

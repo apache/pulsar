@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Test setting the schema update strategy via the CLI.
  */
+@SuppressWarnings("try")
 public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     private static final Logger log = LoggerFactory.getLogger(SchemaUpdateStrategyTest.class);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,52 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
-
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
 
-    public DynamicConfigurationResources(MetadataStoreExtended store, int operationTimeoutSec) {
+    private static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
+
+    public DynamicConfigurationResources(MetadataStore store, int operationTimeoutSec) {
         super(store, new TypeReference<Map<String, String>>() {
         }, operationTimeoutSec);
     }
 
+    public CompletableFuture<Optional<Map<String, String>>> getDynamicConfigurationAsync() {
+        return getAsync(BROKER_SERVICE_CONFIGURATION_PATH);
+    }
+
+    public Optional<Map<String, String>> getDynamicConfiguration() throws MetadataStoreException {
+        return get(BROKER_SERVICE_CONFIGURATION_PATH);
+    }
+
+    public void setDynamicConfigurationWithCreate(
+                                 Function<Optional<Map<String, String>>, Map<String, String>> createFunction)
+            throws MetadataStoreException {
+        super.setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
+    }
+
+    public CompletableFuture<Void> setDynamicConfigurationWithCreateAsync(
+            Function<Optional<Map<String, String>>, Map<String, String>> createFunction) {
+        return super.setWithCreateAsync(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
+    }
+
+    public CompletableFuture<Void> setDynamicConfigurationAsync(
+            Function<Map<String, String>, Map<String, String>> updateFunction){
+        return super.setAsync(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
+    }
+
+    public void setDynamicConfiguration(
+            Function<Map<String, String>, Map<String, String>> updateFunction)
+            throws MetadataStoreException {
+        super.set(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
+    }
+
+    public boolean isDynamicConfigurationPath(String path) {
+        return BROKER_SERVICE_CONFIGURATION_PATH.equals(path);
+    }
 }

@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.flume.Channel;
 import org.apache.flume.SinkRunner;
 import org.apache.flume.SourceRunner;
-
-import com.google.common.collect.ImmutableMap;
 
 /**
  * MaterializedConfiguration represents the materialization of a Flume
@@ -31,16 +30,16 @@ import com.google.common.collect.ImmutableMap;
  */
 public interface MaterializedConfiguration {
 
-    public void addSourceRunner(String name, SourceRunner sourceRunner);
+    void addSourceRunner(String name, SourceRunner sourceRunner);
 
-    public void addSinkRunner(String name, SinkRunner sinkRunner);
+    void addSinkRunner(String name, SinkRunner sinkRunner);
 
-    public void addChannel(String name, Channel channel);
+    void addChannel(String name, Channel channel);
 
-    public ImmutableMap<String, SourceRunner> getSourceRunners();
+    ImmutableMap<String, SourceRunner> getSourceRunners();
 
-    public ImmutableMap<String, SinkRunner> getSinkRunners();
+    ImmutableMap<String, SinkRunner> getSinkRunners();
 
-    public ImmutableMap<String, Channel> getChannels();
+    ImmutableMap<String, Channel> getChannels();
 
 }

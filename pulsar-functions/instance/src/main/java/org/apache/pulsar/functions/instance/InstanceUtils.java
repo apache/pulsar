@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,14 @@ package org.apache.pulsar.functions.instance;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
-
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -33,19 +37,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.common.util.Reflections;
-
-import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 @Slf4j
 @UtilityClass
@@ -156,18 +152,14 @@ public class InstanceUtils {
         return properties;
     }
 
-
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
-            throws PulsarClientException {
-        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
-    }
-
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
-                                                  AuthenticationConfig authConfig,
-                                                  Optional<Long> memoryLimit) throws PulsarClientException {
+    public static ClientBuilder createPulsarClientBuilder(String pulsarServiceUrl,
+                                                          AuthenticationConfig authConfig,
+                                                          Optional<Long> memoryLimit) throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
-            clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+            clientBuilder = PulsarClient.builder()
+                    .memoryLimit(0, SizeUnit.BYTES)
+                    .serviceUrl(pulsarServiceUrl);
             if (authConfig != null) {
                 if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                         && isNotBlank(authConfig.getClientAuthenticationParameters())) {
@@ -183,10 +175,20 @@ public class InstanceUtils {
                 clientBuilder.memoryLimit(memoryLimit.get(), SizeUnit.BYTES);
             }
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
-            return clientBuilder.build();
+            return clientBuilder;
         }
-        log.warn("pulsarServiceUrl cannot be null");
-        return null;
+        throw new PulsarClientException("pulsarServiceUrl cannot be null");
+    }
+
+    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
+            throws PulsarClientException {
+        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
+    }
+
+    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
+                                                  AuthenticationConfig authConfig,
+                                                  Optional<Long> memoryLimit) throws PulsarClientException {
+        return createPulsarClientBuilder(pulsarServiceUrl, authConfig, memoryLimit).build();
     }
 
     public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig)

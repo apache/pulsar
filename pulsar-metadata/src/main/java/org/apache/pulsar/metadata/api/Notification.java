@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,7 @@ public final class Notification {
     private final NotificationType type;
 
     /**
-     * Path of the kev/value pair interested by the notification
+     * Path of the kev/value pair interested by the notification.
      */
     private final String path;
 }

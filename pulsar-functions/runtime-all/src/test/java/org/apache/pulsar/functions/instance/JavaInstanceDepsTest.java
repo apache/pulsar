@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.instance;
 
 import lombok.Cleanup;
@@ -44,6 +43,9 @@ import java.util.zip.ZipInputStream;
  *     5. log4j-slf4j-impl
  *     6. log4j-api
  *     7. log4j-core
+ *     8. Apache AVRO
+ *     9. Jackson Mapper and Databind (dependency of AVRO)
+ *     10. Apache Commons Compress (dependency of AVRO)
  */
 public class JavaInstanceDepsTest {
 
@@ -60,11 +62,18 @@ public class JavaInstanceDepsTest {
             if (e == null)
                 break;
             String name = e.getName();
-            if (name.endsWith(".class") && !name.startsWith("META-INF")) {
+            if (name.endsWith(".class") && !name.startsWith("META-INF") && !name.equals("module-info.class")) {
                 // The only classes in the java-instance.jar should be org.apache.pulsar, slf4j, and log4j classes
+                // (see the full list above)
                 // filter out those classes to see if there are any other classes that should not be allowed
                 if (!name.startsWith("org/apache/pulsar")
                         && !name.startsWith("org/slf4j")
+                        && !name.startsWith("org/apache/avro")
+                        && !name.startsWith("com/fasterxml/jackson")
+                        && !name.startsWith("org/apache/commons/compress")
+                        && !name.startsWith("com/google")
+                        && !name.startsWith("org/checkerframework")
+                        && !name.startsWith("javax/annotation")
                         && !name.startsWith("org/apache/logging/slf4j")
                         && !name.startsWith("org/apache/logging/log4j")) {
                     notAllowedClasses.add(name);

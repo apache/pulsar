@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,7 +39,7 @@ public interface BatcherBuilder extends Serializable {
      * <p>batched into single batch message:
      * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
      */
-    BatcherBuilder DEFAULT = DefaultImplementation.newDefaultBatcherBuilder();
+    BatcherBuilder DEFAULT = DefaultImplementation.getDefaultImplementation().newDefaultBatcherBuilder();
 
     /**
      * Key based batch message container.
@@ -50,7 +50,7 @@ public interface BatcherBuilder extends Serializable {
      * <p>batched into multiple batch messages:
      * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
      */
-    BatcherBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatcherBuilder();
+    BatcherBuilder KEY_BASED = DefaultImplementation.getDefaultImplementation().newKeyBasedBatcherBuilder();
 
     /**
      * Build a new batch message container.

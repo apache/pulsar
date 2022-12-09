@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,7 +56,7 @@ public class KeyValue<K, V> {
         if (!(obj instanceof KeyValue)) {
             return false;
         }
-        KeyValue<K, V> another = (KeyValue<K, V>) obj;
+        @SuppressWarnings("unchecked") KeyValue<K, V> another = (KeyValue<K, V>) obj;
         return Objects.equals(key, another.key)
             && Objects.equals(value, another.value);
     }

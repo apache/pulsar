@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -288,7 +288,7 @@ public class TestCompaction extends PulsarTestSuite {
                  .readCompacted(true).subscriptionName(sub).subscribe()) {
                 Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), expectedKey);
-                if (m.getValue() == expectedValue) {
+                if (m.getValue().equals(expectedValue)) {
                     break;
                 }
             }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.LongAdder;
@@ -61,10 +60,9 @@ public class StatsBuckets {
         for (int i = 0; i < buckets.length; i++) {
             buckets[i].add(other.values[i]);
         }
-        sumCounter.add(other.count);
+        sumCounter.add(other.sum);
     }
-    
-    
+
     public void addValue(long value) {
         int idx = Arrays.binarySearch(boundaries, value);
         if (idx < 0) {

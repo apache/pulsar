@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.common.classification.InterfaceAudience;
@@ -45,8 +44,8 @@ public enum ConsumerCryptoFailureAction {
      * <p>If message is also compressed, decompression will fail. If message contain batch messages, client will not be
      * able to retrieve individual messages in the batch.
      *
-     * <p>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression
-     * information in it using which application can decrypt consumed message payload.
+     * <p>Delivered encrypted message contains {@link org.apache.pulsar.common.api.EncryptionContext} which contains
+     * encryption and compression information in it using which application can decrypt consumed message payload.
      */
     CONSUME;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.Cleanup;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.*;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -43,7 +44,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         return "/test";
     }
 
-    @Test()
+    @Test(timeOut = 60000)
     public void testChangeZKPath() throws Exception {
         ClientConfiguration configuration = new ClientConfiguration();
         String zkConnectString = zkUtil.getZooKeeperConnectString() + "/test";
@@ -61,12 +62,12 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
             .setAckQuorumSize(1)
             .setMetadataAckQuorumSize(1)
             .setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("test-ledger", config);
-        ManagedCursor cursor = ledger.openCursor("test-c1");
+        ManagedLedger ledger = factory.open("test-ledger" + testName, config);
+        ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 
         for (int i = 0; i < 10; i++) {
             String entry = "entry" + i;
-            ledger.addEntry(entry.getBytes("UTF8"));
+            ledger.addEntry(entry.getBytes(StandardCharsets.UTF_8));
         }
 
         List<Entry> entryList = cursor.readEntries(10);
@@ -74,10 +75,10 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         for (int i = 0; i < 10; i++) {
             Entry entry = entryList.get(i);
-            Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
+            Assert.assertEquals(("entry" + i).getBytes(StandardCharsets.UTF_8), entry.getData());
         }
     }
-    @Test()
+    @Test(timeOut = 60000)
     public void testChangeZKPath2() throws Exception {
         ClientConfiguration configuration = new ClientConfiguration();
         String zkConnectString = zkUtil.getZooKeeperConnectString() + "/test";
@@ -98,12 +99,12 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
                 .setAckQuorumSize(1)
                 .setMetadataAckQuorumSize(1)
                 .setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("test-ledger", config);
-        ManagedCursor cursor = ledger.openCursor("test-c1");
+        ManagedLedger ledger = factory.open("test-ledger" + testName, config);
+        ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 
         for (int i = 0; i < 10; i++) {
             String entry = "entry" + i;
-            ledger.addEntry(entry.getBytes("UTF8"));
+            ledger.addEntry(entry.getBytes(StandardCharsets.UTF_8));
         }
 
         List<Entry> entryList = cursor.readEntries(10);
@@ -111,7 +112,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         for (int i = 0; i < 10; i++) {
             Entry entry = entryList.get(i);
-            Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
+            Assert.assertEquals(("entry" + i).getBytes(StandardCharsets.UTF_8), entry.getData());
         }
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,10 +23,21 @@ import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
 import org.apache.pulsar.tests.integration.io.RabbitMQSinkTester;
 import org.apache.pulsar.tests.integration.io.RabbitMQSourceTester;
 import org.apache.pulsar.tests.integration.io.sources.KafkaSourceTester;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
 public class PulsarSinksTest extends PulsarIOTestBase {
+
+    public PulsarSinksTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
+
+    @DataProvider(name = "withSchema")
+    public Object[][] withSchema() {
+        return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
+    }
 
     @Test(groups = "sink")
     public void testKafkaSink() throws Exception {
@@ -34,12 +45,12 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
-    @Test(enabled = false, groups = "sink")
+    @Test(groups = "sink")
     public void testCassandraSink() throws Exception {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test(enabled = false, groups = "sink")
+    @Test(groups = "sink")
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
@@ -49,20 +60,35 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new HdfsSinkTester(), false);
     }
 
-    @Test(groups = "sink")
-    public void testJdbcSink() throws Exception {
-        testSink(new JdbcPostgresSinkTester(), true);
+    @Test(groups = "sink", dataProvider = "withSchema")
+    public void testJdbcSink(boolean kvSchema) throws Exception {
+        testSink(new JdbcPostgresSinkTester(kvSchema), true);
     }
 
-    @Test(enabled = false, groups = "sink")
-    public void testElasticSearchSink() throws Exception {
-        testSink(new ElasticSearchSinkTester(), true);
+    @Test(groups = "sink", dataProvider = "withSchema")
+    public void testElasticSearch7Sink(boolean withSchema) throws Exception {
+        testSink(new ElasticSearch7SinkTester(withSchema), true);
+    }
+
+    @Test(groups = "sink", dataProvider = "withSchema")
+    public void testElasticSearch8Sink(boolean withSchema) throws Exception {
+        testSink(new ElasticSearch8SinkTester(withSchema), true);
+    }
+
+    @Test(groups = "sink", dataProvider = "withSchema")
+    public void testOpenSearchSinkRawData(boolean withSchema) throws Exception {
+        testSink(new OpenSearchSinkTester(withSchema), true);
     }
 
     @Test(groups = "sink")
     public void testRabbitMQSink() throws Exception {
         final String containerName = "rabbitmq-" + randomName(8);
         testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
+    }
+
+    @Test(groups = "sink", dataProvider = "withSchema")
+    public void testKinesis(boolean withSchema) throws Exception {
+        testSink(new KinesisSinkTester(withSchema), true);
     }
 
 }

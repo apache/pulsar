@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -45,9 +45,9 @@ public class PackagesCliTest extends TestRetrySupport {
     public final void setup() throws Exception {
         incrementSetupNumber();
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
-            .brokerEnvs(getPackagesManagementServiceEnvs())
-            .build();
+                .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
+                .brokerEnvs(getPackagesManagementServiceEnvs())
+                .build();
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
     }
@@ -88,13 +88,13 @@ public class PackagesCliTest extends TestRetrySupport {
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";
         ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
-            "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
+                "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         BrokerContainer container = pulsarCluster.getBroker(0);
         String downloadFile = "tmp-file-" + RandomStringUtils.randomAlphabetic(8);
         String[] downloadCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "download",
-            "--path", downloadFile, testPackageName};
+                "--path", downloadFile, testPackageName};
         result = container.execCmd(downloadCmd);
         assertEquals(result.getExitCode(), 0);
 
@@ -119,7 +119,7 @@ public class PackagesCliTest extends TestRetrySupport {
 
         String contact = "test@apache.org";
         result = runPackagesCommand("update-metadata", "--description", "a test package",
-            "--contact", contact, "-PpropertyA=A", testPackageName);
+                "--contact", contact, "-PpropertyA=A", testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         result = runPackagesCommand("get-metadata", testPackageName);

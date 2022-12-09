@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.io.netty.tcp;
 
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 import java.io.Serializable;
 import java.util.Optional;
-
+import lombok.Data;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.netty.NettySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import lombok.Data;
 
 /**
  * Handles a server-side channel.
@@ -39,7 +37,7 @@ public class NettyTCPServerHandler extends SimpleChannelInboundHandler<byte[]> {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyTCPServerHandler.class);
 
-    private NettySource nettySource;
+    private final NettySource nettySource;
 
     public NettyTCPServerHandler(NettySource nettySource) {
         this.nettySource = nettySource;
@@ -47,7 +45,7 @@ public class NettyTCPServerHandler extends SimpleChannelInboundHandler<byte[]> {
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, byte[] bytes) throws Exception {
-        nettySource.consume(new NettyTCPRecord(Optional.ofNullable(""), bytes));
+        nettySource.consume(new NettyTCPRecord(Optional.of(""), bytes));
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.sink;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SinkContext;
@@ -96,6 +98,11 @@ public class KafkaAbstractSinkTest {
             }
 
             @Override
+            public SinkConfig getSinkConfig() {
+                return null;
+            }
+
+            @Override
             public String getTenant() {
                 return null;
             }
@@ -167,6 +174,11 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<Void> deleteStateAsync(String key) {
             	return null;
             }
+
+            @Override
+            public PulsarClient getPulsarClient() {
+                return null;
+            }
         };
         ThrowingRunnable openAndClose = ()->{
             try {
@@ -213,6 +225,24 @@ public class KafkaAbstractSinkTest {
         assertEquals("SASL_PLAINTEXT", props.getProperty("security.protocol"));
         assertEquals("GSSAPI", props.getProperty("sasl.mechanism"));
         assertEquals("1", props.getProperty(ProducerConfig.ACKS_CONFIG));
+    }
+
+    @Test
+    public final void loadFromSaslYamlFileTest() throws IOException {
+        File yamlFile = getFile("kafkaSinkConfigSasl.yaml");
+        KafkaSinkConfig config = KafkaSinkConfig.load(yamlFile.getAbsolutePath());
+        assertNotNull(config);
+        assertEquals(config.getBootstrapServers(), "localhost:6667");
+        assertEquals(config.getTopic(), "test");
+        assertEquals(config.getAcks(), "1");
+        assertEquals(config.getBatchSize(), 16384L);
+        assertEquals(config.getMaxRequestSize(), 1048576L);
+        assertEquals(config.getSecurityProtocol(), SecurityProtocol.SASL_PLAINTEXT.name);
+        assertEquals(config.getSaslMechanism(), "PLAIN");
+        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
+        assertEquals(config.getSslEndpointIdentificationAlgorithm(), "");
+        assertEquals(config.getSslTruststoreLocation(), "/etc/cert.pem");
+        assertEquals(config.getSslTruststorePassword(), "cert_pwd");
     }
 
     private File getFile(String name) {

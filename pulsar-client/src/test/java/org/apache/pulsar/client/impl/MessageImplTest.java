@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,12 +40,13 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
+
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.fail;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
@@ -59,7 +60,7 @@ public class MessageImplTest {
     @Test
     public void testGetSequenceIdNotAssociated() {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES);
+        MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES, null);
 
         assertEquals(-1, msg.getSequenceId());
     }
@@ -71,7 +72,7 @@ public class MessageImplTest {
         builder.addProperty().setKey("key1").setValue("value2");
         builder.addProperty().setKey("key3").setValue("value3");
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         assertEquals("value2", msg.getProperty("key1"));
         assertEquals("value3", msg.getProperty("key3"));
     }
@@ -82,7 +83,7 @@ public class MessageImplTest {
             .setSequenceId(1234);
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertEquals(1234, msg.getSequenceId());
     }
@@ -91,7 +92,7 @@ public class MessageImplTest {
     public void testGetProducerNameNotAssigned() {
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertNull(msg.getProducerName());
     }
@@ -102,7 +103,7 @@ public class MessageImplTest {
             .setProducerName("test-producer");
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertEquals("test-producer", msg.getProducerName());
     }
@@ -127,7 +128,7 @@ public class MessageImplTest {
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -156,7 +157,7 @@ public class MessageImplTest {
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("inline");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -186,7 +187,7 @@ public class MessageImplTest {
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -218,7 +219,7 @@ public class MessageImplTest {
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -256,7 +257,7 @@ public class MessageImplTest {
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -291,7 +292,7 @@ public class MessageImplTest {
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -329,7 +330,7 @@ public class MessageImplTest {
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -364,7 +365,7 @@ public class MessageImplTest {
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -402,7 +403,7 @@ public class MessageImplTest {
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
-                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
+                builder, ByteBuffer.wrap(encodeBytes), keyValueSchema, null);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
         assertEquals(keyValue.getKey(), foo);
         assertEquals(keyValue.getValue(), bar);
@@ -421,7 +422,7 @@ public class MessageImplTest {
         builder.setPartitionKey(Base64.getEncoder().encodeToString(encodeBytes));
         builder.setPartitionKeyB64Encoded(true);
         builder.setNullValue(true);
-        MessageImpl<Boolean> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), BooleanSchema.of());
+        MessageImpl<Boolean> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), BooleanSchema.of(), null);
         assertNull(msg.getValue());
     }
 
@@ -450,10 +451,9 @@ public class MessageImplTest {
 
             CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
-            MessageImpl messageWithEntryMetadata = MessageImpl.deserializeBrokerEntryMetaDataFirst(compositeByteBuf);
-            MessageImpl message = MessageImpl.deserializeSkipBrokerEntryMetaData(compositeByteBuf);
-            message.setBrokerEntryMetadata(messageWithEntryMetadata.getBrokerEntryMetadata());
-            assertTrue(message.isExpired(100));
+            long entryTimestamp = Commands.getEntryTimestamp(compositeByteBuf);
+            assertTrue(MessageImpl.isEntryExpired(100, entryTimestamp));
+            assertEquals(entryTimestamp, 1);
 
             // test BrokerTimestamp set.
             byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
@@ -463,8 +463,9 @@ public class MessageImplTest {
                     .setProducerName("test")
                     .setSequenceId(1);
             byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
+            long brokerEntryTimestamp = System.currentTimeMillis();
             brokerMetadata = new BrokerEntryMetadata()
-                    .setBrokerTimestamp(System.currentTimeMillis())
+                    .setBrokerTimestamp(brokerEntryTimestamp)
                     .setIndex(MOCK_BATCH_SIZE - 1);
 
             brokerMetaSize = brokerMetadata.getSerializedSize();
@@ -475,10 +476,9 @@ public class MessageImplTest {
 
             compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
-            messageWithEntryMetadata = MessageImpl.deserializeBrokerEntryMetaDataFirst(compositeByteBuf);
-            message = MessageImpl.deserializeSkipBrokerEntryMetaData(compositeByteBuf);
-            message.setBrokerEntryMetadata(messageWithEntryMetadata.getBrokerEntryMetadata());
-            assertFalse(message.isExpired(24 * 3600));
+            entryTimestamp = Commands.getEntryTimestamp(compositeByteBuf);
+            assertFalse(MessageImpl.isEntryExpired(24 * 3600, entryTimestamp));
+            assertEquals(entryTimestamp, brokerEntryTimestamp);
         } catch (IOException e) {
             fail();
         }

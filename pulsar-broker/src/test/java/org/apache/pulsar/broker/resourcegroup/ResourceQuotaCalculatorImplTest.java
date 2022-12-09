@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,11 @@ package org.apache.pulsar.broker.resourcegroup;
 
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import org.testng.Assert;
 
 
 public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest {
@@ -43,9 +42,11 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     }
 
     @Test
-    public void testRQCalcNegativeConfTest() {
+    public void testRQCalcNegativeConfTest() throws PulsarAdminException {
         final long[] allUsage = { 0 };
-        Assert.assertThrows(PulsarAdminException.class, () -> this.rqCalc.computeLocalQuota(-1, 0, allUsage));
+        long calculatedQuota = this.rqCalc.computeLocalQuota(-1, 0, allUsage);
+        long expectedQuota = -1;
+        Assert.assertEquals(calculatedQuota, expectedQuota);
     }
 
     @Test
@@ -75,7 +76,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         final long localUsed = 20;
         final long[] allUsage = { 100 };
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
-        Assert.assertTrue(newQuota == localUsed);
+        Assert.assertEquals(newQuota, localUsed);
     }
 
     @Test
@@ -99,6 +100,25 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         final long newQuota2 = this.rqCalc.computeLocalQuota(config, localUsed2, allUsage);
         final float proposedUsageRatio = (float) newQuota1 / newQuota2;
         Assert.assertEquals(initialUsageRatio, proposedUsageRatio);
+    }
+
+    @Test
+    public void testRQCalcGlobUsedZeroTest() throws PulsarAdminException {
+        final long config = 10;  // don't care
+        final long localUsed = 0;  // don't care
+        final long[] allUsage = { 0 };
+        final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
+        Assert.assertEquals(newQuota, config);
+    }
+
+    @Test
+    public void testNeedToReportLocalUsage() {
+        // If the percentage change (increase or decrease) in usage is more than 5% for
+        // either bytes or messages, send a report.
+        Assert.assertFalse(rqCalc.needToReportLocalUsage(1040, 1000, 104, 100, System.currentTimeMillis()));
+        Assert.assertFalse(rqCalc.needToReportLocalUsage(950, 1000, 95, 100, System.currentTimeMillis()));
+        Assert.assertTrue(rqCalc.needToReportLocalUsage(1060, 1000, 106, 100, System.currentTimeMillis()));
+        Assert.assertTrue(rqCalc.needToReportLocalUsage(940, 1000, 94, 100, System.currentTimeMillis()));
     }
 
     private ResourceQuotaCalculatorImpl rqCalc;

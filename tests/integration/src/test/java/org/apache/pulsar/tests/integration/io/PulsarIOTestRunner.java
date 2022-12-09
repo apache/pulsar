@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,12 +23,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 import lombok.Cleanup;
@@ -37,33 +37,33 @@ import net.jodah.failsafe.RetryPolicy;
 
 @Slf4j
 public abstract class PulsarIOTestRunner {
-
+    static final long MB = 1048576L;
+    public static final long RUNTIME_INSTANCE_RAM_BYTES = 128 * MB;
     final Duration ONE_MINUTE = Duration.ofMinutes(1);
     final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-	protected final RetryPolicy statusRetryPolicy = new RetryPolicy()
+	protected final RetryPolicy<Void> statusRetryPolicy = new RetryPolicy<Void>()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
-    
+
     protected PulsarCluster pulsarCluster;
     protected String functionRuntimeType;
-    
+
     protected PulsarIOTestRunner(PulsarCluster cluster, String functionRuntimeType) {
       this.pulsarCluster = cluster;
       this.functionRuntimeType = functionRuntimeType;
     }
-    
-    @SuppressWarnings("rawtypes")
-	protected Schema getSchema(boolean jsonWithEnvelope) {
+
+	protected Schema<?> getSchema(boolean jsonWithEnvelope) {
         if (jsonWithEnvelope) {
             return KeyValueSchemaImpl.kvBytes();
         } else {
             return KeyValueSchemaImpl.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
         }
     }
-    
+
+    @SuppressWarnings("try")
     protected <T> void ensureSubscriptionCreated(String inputTopicName,
                                                       String subscriptionName,
                                                       Schema<T> inputTopicSchema)
@@ -80,29 +80,16 @@ public abstract class PulsarIOTestRunner {
             }
         }
     }
-    
+
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages) throws Exception {
+                                                              int numMessages, SinkTester<?> tester) throws Exception {
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(inputTopicName)
-            .create();
-
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            String value = "value-" + i;
-            kvs.put(key, value);
-            producer.newMessage()
-                .key(key)
-                .value(value)
-                .send();
-        }
+        tester.produceMessage(numMessages, client, inputTopicName, kvs);
         return kvs;
-    }  
+    }
 }

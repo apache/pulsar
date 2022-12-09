@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +38,8 @@ public class ManagedCursorMetrics extends AbstractMetrics {
 
     public ManagedCursorMetrics(PulsarService pulsar) {
         super(pulsar);
-        this.metricsCollection = Lists.newArrayList();
-        this.dimensionMap = Maps.newHashMap();
+        this.metricsCollection = new ArrayList<>();
+        this.dimensionMap = new HashMap<>();
     }
 
     @Override
@@ -77,6 +77,9 @@ public class ManagedCursorMetrics extends AbstractMetrics {
                 metrics.put("brk_ml_cursor_persistLedgerErrors", cStats.getPersistLedgerErrors());
                 metrics.put("brk_ml_cursor_persistZookeeperSucceed", cStats.getPersistZookeeperSucceed());
                 metrics.put("brk_ml_cursor_persistZookeeperErrors", cStats.getPersistZookeeperErrors());
+                metrics.put("brk_ml_cursor_writeLedgerSize", cStats.getWriteCursorLedgerSize());
+                metrics.put("brk_ml_cursor_writeLedgerLogicalSize", cStats.getWriteCursorLedgerLogicalSize());
+                metrics.put("brk_ml_cursor_readLedgerSize", cStats.getReadCursorLedgerSize());
                 metricsCollection.add(metrics);
             }
         }

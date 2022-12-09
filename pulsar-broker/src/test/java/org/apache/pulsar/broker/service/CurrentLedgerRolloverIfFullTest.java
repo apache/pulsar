@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -72,7 +73,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
-        managedLedgerConfig.setMaximumRolloverTime(5, TimeUnit.MILLISECONDS);
+        managedLedgerConfig.setMaximumRolloverTime(1, TimeUnit.SECONDS);
 
         int msgNum = 10;
         for (int i = 0; i < msgNum; i++) {
@@ -98,6 +99,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
                         });
 
         // trigger a ledger rollover
+        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
         managedLedger.rollCurrentLedgerIfFull();
 
         // the last ledger will be closed and removed and we have one ledger for empty

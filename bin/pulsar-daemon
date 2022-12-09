@@ -20,17 +20,17 @@
 
 usage() {
     cat <<EOF
-Usage: pulsar-daemon (start|stop) <command> <args...>
+Usage: pulsar-daemon (start|stop|restart) <command> <args...>
 where command is one of:
     broker              Run a broker server
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
     configuration-store Run a configuration-store server
-    discovery           Run a discovery server
     websocket           Run a websocket proxy server
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
     proxy               Run a Proxy Pulsar service
+    autorecovery        Run an autorecovery service
 
 where argument is one of:
     -force (accepted only with stop command): Decides whether to stop the server forcefully if not stopped by normal shutdown
@@ -39,22 +39,8 @@ EOF
 
 BINDIR=$(dirname "$0")
 PULSAR_HOME=$(cd -P $BINDIR/..;pwd)
-
-# Check bookkeeper env and load bkenv.sh
-if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
-then
-    . "$PULSAR_HOME/conf/bkenv.sh"
-fi
-
-if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
-then
-    . "$PULSAR_HOME/conf/pulsar_env.sh"
-fi
-
-PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
-PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RollingFile"}
-PULSAR_STOP_TIMEOUT=${PULSAR_STOP_TIMEOUT:-30}
-PULSAR_PID_DIR=${PULSAR_PID_DIR:-$PULSAR_HOME/bin}
+# log directory
+export PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 
 if [ $# = 0 ]; then
     usage
@@ -75,6 +61,28 @@ shift
 command=$1
 shift
 
+# Check bookkeeper env and load bkenv.sh
+if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
+then
+    . "$PULSAR_HOME/conf/bkenv.sh"
+fi
+
+if [[ -f "$PULSAR_HOME/conf/pulsar_env.sh" && $COMMAND != "bookie" ]]
+then
+    . "$PULSAR_HOME/conf/pulsar_env.sh"
+fi
+
+if [[ "$command" = "bookie" ]]
+then
+  PULSAR_PID_DIR=${BOOKIE_PID_DIR:-"$PULSAR_HOME/bin"}
+else
+  PULSAR_PID_DIR=${PULSAR_PID_DIR:-"$PULSAR_HOME/bin"}
+fi
+export PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RollingFile"}
+PULSAR_STOP_TIMEOUT=${PULSAR_STOP_TIMEOUT:-30}
+mkdir -p "$PULSAR_LOG_DIR"
+mkdir -p "$PULSAR_PID_DIR"
+
 case $command in
     (broker)
         echo "doing $startStop $command ..."
@@ -91,9 +99,6 @@ case $command in
     (configuration-store)
         echo "doing $startStop $command ..."
         ;;
-    (discovery)
-        echo "doing $startStop $command ..."
-        ;;
     (websocket)
         echo "doing $startStop $command ..."
         ;;
@@ -106,6 +111,9 @@ case $command in
     (proxy)
         echo "doing $startStop $command ..."
         ;;
+    (autorecovery)
+        echo "doing $startStop $command ..."
+        ;;
     (*)
         echo "Error: unknown service name $command"
         usage
@@ -113,8 +121,6 @@ case $command in
         ;;
 esac
 
-export PULSAR_LOG_DIR=$PULSAR_LOG_DIR
-export PULSAR_LOG_APPENDER=$PULSAR_LOG_APPENDER
 export PULSAR_LOG_FILE=pulsar-$command-$HOSTNAME.log
 
 pid=$PULSAR_PID_DIR/pulsar-$command.pid
@@ -138,12 +144,10 @@ rotate_out_log ()
     fi
 }
 
-mkdir -p "$PULSAR_LOG_DIR"
-
-case $startStop in
-  (start)
-    if [ -f $pid ]; then
-      if kill -0 `cat $pid` > /dev/null 2>&1; then
+start ()
+{
+  if [ -f $pid ]; then
+      if ps -p `cat $pid` > /dev/null 2>&1; then
         echo $command running as process `cat $pid`.  Stop it first.
         exit 1
       fi
@@ -153,19 +157,20 @@ case $startStop in
     echo starting $command, logging to $logfile
     echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
     pulsar=$PULSAR_HOME/bin/pulsar
-    nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
+    nohup $pulsar $command "$1" > "$out" 2>&1 < /dev/null &
     echo $! > $pid
     sleep 1; head $out
     sleep 2;
     if ! ps -p $! > /dev/null ; then
       exit 1
     fi
-    ;;
+}
 
-  (stop)
-    if [ -f $pid ]; then
+stop ()
+{
+  if [ -f $pid ]; then
       TARGET_PID=$(cat $pid)
-      if kill -0 $TARGET_PID > /dev/null 2>&1; then
+      if ps -p $TARGET_PID > /dev/null 2>&1; then
         echo "stopping $command"
         kill $TARGET_PID
 
@@ -186,7 +191,7 @@ case $startStop in
             echo "Shutdown completed."
         fi
 
-        if kill -0 $TARGET_PID > /dev/null 2>&1; then
+        if ps -p $TARGET_PID > /dev/null 2>&1; then
               fileName=$location/$command.out
               $JAVA_HOME/bin/jstack $TARGET_PID > $fileName
               echo "Thread dumps are taken for analysis at $fileName"
@@ -206,6 +211,34 @@ case $startStop in
       rm $pid
     else
       echo no "$command to stop"
+    fi
+}
+
+case $startStop in
+  (start)
+    start "$*"
+    ;;
+
+  (stop)
+    stop $1
+    ;;
+
+  (restart)
+    forceStopFlag=$(echo "$*"|grep "\-force")
+    if [[ "$forceStopFlag" != "" ]]
+    then
+      stop "-force"
+    else
+      stop
+    fi
+    if [ "$?" == 0 ]
+    then
+       sleep 3
+       paramaters="$*"
+       startParamaters=${paramaters//-force/}
+       start "$startParamaters"
+    else
+       echo "WARNNING :  $command failed restart, for $command is not stopped completely."
     fi
     ;;
 

@@ -18,52 +18,52 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import static org.testng.Assert.assertEquals;
+import com.github.stefanbirkner.systemlambda.SystemLambda;
 import java.io.File;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public final class TestEnvVarResolverProperties {
-    private static final File TESTFILE = new File(
+    private static final File TEST_FILE = new File(
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());
 
-    @Rule
-    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     private PropertiesFileConfigurationProvider provider;
 
-    @Before
-    public void setUp() throws Exception {
-        provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
+    @BeforeMethod(alwaysRun = true)
+    public void setUp() {
+        provider = new PropertiesFileConfigurationProvider("a1", TEST_FILE);
     }
 
     @Test
     public void resolveEnvVar() throws Exception {
-        environmentVariables.set("VARNAME", "varvalue");
-        String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
-        Assert.assertEquals("padding varvalue padding", resolved);
+        SystemLambda.withEnvironmentVariable("VARNAME", "varvalue").execute(() -> {
+            String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
+            assertEquals(resolved, "padding varvalue padding");
+        });
     }
 
     @Test
     public void resolveEnvVars() throws Exception {
-        environmentVariables.set("VARNAME1", "varvalue1");
-        environmentVariables.set("VARNAME2", "varvalue2");
-        String resolved = EnvVarResolverProperties
-                .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
-        Assert.assertEquals("padding varvalue1 varvalue2 padding", resolved);
+        SystemLambda.withEnvironmentVariable("VARNAME1", "varvalue1")
+                .and("VARNAME2", "varvalue2")
+                .execute(() -> {
+                    String resolved = EnvVarResolverProperties.resolveEnvVars(
+                            "padding ${VARNAME1} ${VARNAME2} padding");
+                    assertEquals(resolved, "padding varvalue1 varvalue2 padding");
+                });
     }
 
     @Test
     public void getProperty() throws Exception {
-        String NC_PORT = "6667";
-        environmentVariables.set("NC_PORT", NC_PORT);
-        System.setProperty("propertiesImplementation",
-                "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
+        SystemLambda.withEnvironmentVariable("NC_PORT", "6667").execute(() -> {
+            System.setProperty("propertiesImplementation",
+                    "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
-        Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
-                .getConfigurationFor("a1")
-                .getSourceContext().get("r1").getParameters().get("port"));
+            assertEquals(provider.getFlumeConfiguration()
+                    .getConfigurationFor("a1")
+                    .getSourceContext().get("r1").getParameters().get("port"), "6667");
+        });
     }
 }

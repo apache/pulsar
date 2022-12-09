@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -194,4 +194,9 @@ public interface Producer<T> extends Closeable {
      * @return The last disconnected timestamp of the producer
      */
     long getLastDisconnectedTimestamp();
+
+    /**
+     * @return the number of partitions per topic.
+     */
+    int getNumOfPartitions();
 }

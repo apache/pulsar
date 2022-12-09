@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.io.batchdiscovery;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.io.core.*;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.scheduling.support.CronTrigger;
-
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.core.BatchSourceTriggerer;
+import org.apache.pulsar.io.core.SourceContext;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.support.CronTrigger;
 
 /**
  * This is an implementation of BatchSourceTriggerer that triggers based on a cron expression.
@@ -48,7 +48,7 @@ public class CronTriggerer implements BatchSourceTriggerer {
     }
     scheduler = new ThreadPoolTaskScheduler();
     scheduler.setThreadNamePrefix(String.format("%s/%s/%s-cron-triggerer-",
-      sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
+            sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
 
     log.info("Initialized CronTrigger with expression: {}", cronExpression);
   }

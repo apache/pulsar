@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,26 +19,21 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.PerMonitoringClassFields;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
-
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -76,7 +71,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         };
 
         // Somehow, pulsar.resourceUsageTransportManager is null here; work around for now.
-        ResourceUsageTransportManager transportMgr = new ResourceUsageTransportManager(pulsar);
+        ResourceUsageTopicTransportManager transportMgr = new ResourceUsageTopicTransportManager(pulsar);
         this.rgs = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, transportMgr, dummyQuotaCalc);
     }
 
@@ -93,15 +88,16 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     public void measureOpsTime() throws PulsarAdminException {
         long mSecsStart, mSecsEnd, diffMsecs;
         final int numPerfTestIterations = 10_000_000;
-        ResourceGroupConfigInfo rgConfig = new ResourceGroupConfigInfo();
-        rgConfig.setName("measureRGIncStatTime");
+        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
+          new org.apache.pulsar.common.policies.data.ResourceGroup();
         BytesAndMessagesCount stats = new BytesAndMessagesCount();
         ResourceGroupMonitoringClass monClass;
+        final String rgName = "measureRGIncStatTime";
 
-        rgs.resourceGroupCreate(rgConfig);
-        ResourceGroup rg = rgs.resourceGroupGet(rgConfig.getName());
+        rgs.resourceGroupCreate(rgName, rgConfig);
+        ResourceGroup rg = rgs.resourceGroupGet("measureRGIncStatTime");
 
-        // Direct op on the reqourece group
+        // Direct op on the resource group
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
             for (int monClassIdx = 0; monClassIdx < ResourceGroupMonitoringClass.values().length; monClassIdx++) {
@@ -117,8 +113,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         // Going through the resource-group service
         final String tenantName = "SomeTenant";
         final String namespaceName = "SomeNameSpace";
-        rgs.registerTenant(rgConfig.getName(), tenantName);
-        rgs.registerNameSpace(rgConfig.getName(), namespaceName);
+        rgs.registerTenant(rgName, tenantName);
+        final NamespaceName tenantAndNamespaceName = NamespaceName.get(tenantName, namespaceName);
+        rgs.registerNameSpace(rgName, tenantAndNamespaceName);
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
             for (int monClassIdx = 0; monClassIdx < ResourceGroupMonitoringClass.values().length; monClassIdx++) {
@@ -130,64 +127,65 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         diffMsecs = mSecsEnd - mSecsStart;
         log.info("{} iterations of incrementUsage on RGS in {} msecs ({} usecs for each)",
                 numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs)/numPerfTestIterations);
-        rgs.unRegisterTenant(rgConfig.getName(), tenantName);
-        rgs.unRegisterNameSpace(rgConfig.getName(), namespaceName);
+        rgs.unRegisterTenant(rgName, tenantName);
+        rgs.unRegisterNameSpace(rgName, tenantAndNamespaceName);
 
         // The overhead of a RG lookup
-        ResourceGroup retRG;
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
-            retRG = rgs.resourceGroupGet(rg.resourceGroupName);
+            rgs.resourceGroupGet(rg.resourceGroupName);
         }
         mSecsEnd = System.currentTimeMillis();
         diffMsecs = mSecsEnd - mSecsStart;
         log.info("{} iterations of GET on RGS in {} msecs ({} usecs for each)",
                 numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs)/numPerfTestIterations);
 
-        rgs.resourceGroupDelete(rgConfig.getName());
+        rgs.resourceGroupDelete(rgName);
     }
 
     @Test
     public void testResourceGroupOps() throws PulsarAdminException, InterruptedException {
-        ResourceGroupConfigInfo rgConfig = new ResourceGroupConfigInfo();
-        rgConfig.setName("testRG");
-        rgConfig.setPublishBytesPerPeriod(15000);
-        rgConfig.setPublishMessagesPerPeriod(100);
-        rgConfig.setDispatchBytesPerPeriod(40000);
-        rgConfig.setDispatchMessagesPerPeriod(500);
+        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
+          new org.apache.pulsar.common.policies.data.ResourceGroup();
+        final String rgName = "testRG";
+        final String randomRgName = "Something";
+        rgConfig.setPublishRateInBytes(15000L);
+        rgConfig.setPublishRateInMsgs(100);
+        rgConfig.setDispatchRateInBytes(40000L);
+        rgConfig.setDispatchRateInMsgs(500);
 
-        rgs.resourceGroupCreate(rgConfig);
+        int initialNumQuotaCalculations = numAnonymousQuotaCalculations;
+        rgs.resourceGroupCreate(rgName, rgConfig);
 
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupCreate(rgConfig));
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupCreate(rgName, rgConfig));
 
-        ResourceGroupConfigInfo randomConfig = new ResourceGroupConfigInfo();
-        randomConfig.setName("Something");
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupUpdate(randomConfig));
+        org.apache.pulsar.common.policies.data.ResourceGroup randomConfig =
+          new org.apache.pulsar.common.policies.data.ResourceGroup();
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupUpdate(randomRgName, randomConfig));
 
-        rgConfig.setPublishBytesPerPeriod(rgConfig.getPublishBytesPerPeriod() * 10);
-        rgConfig.setPublishMessagesPerPeriod(rgConfig.getPublishMessagesPerPeriod() * 10);
-        rgConfig.setDispatchBytesPerPeriod(rgConfig.getDispatchBytesPerPeriod() / 10);
-        rgConfig.setDispatchMessagesPerPeriod(randomConfig.getDispatchMessagesPerPeriod() / 10);
-        rgs.resourceGroupUpdate(rgConfig);
+        rgConfig.setPublishRateInBytes(rgConfig.getPublishRateInBytes()*10);
+        rgConfig.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs()*10);
+        rgConfig.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes()/10);
+        rgConfig.setDispatchRateInMsgs(rgConfig.getDispatchRateInMsgs()/10);
+        rgs.resourceGroupUpdate(rgName, rgConfig);
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 1);
 
-        ResourceGroup retRG = null;
-        retRG = rgs.resourceGroupGet(randomConfig.getName());
-        Assert.assertEquals(retRG, null);
+        ResourceGroup retRG = rgs.resourceGroupGet(randomRgName);
+        Assert.assertNull(retRG);
 
-        retRG = rgs.resourceGroupGet(rgConfig.getName());
+        retRG = rgs.resourceGroupGet(rgName);
         Assert.assertNotEquals(retRG, null);
 
         PerMonitoringClassFields monClassFields;
         monClassFields = retRG.monitoringClassFields[ResourceGroupMonitoringClass.Publish.ordinal()];
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getPublishBytesPerPeriod());
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getPublishMessagesPerPeriod());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getPublishRateInBytes().longValue());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getPublishRateInMsgs().intValue());
         monClassFields = retRG.monitoringClassFields[ResourceGroupMonitoringClass.Dispatch.ordinal()];
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchBytesPerPeriod());
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchMessagesPerPeriod());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchRateInBytes().longValue());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchRateInMsgs().intValue());
 
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(randomConfig.getName()));
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(randomRgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 1);
 
@@ -195,11 +193,13 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final TopicName topic = TopicName.get(SOME_RANDOM_TOPIC);
         final String tenantName = topic.getTenant();
         final String namespaceName = topic.getNamespacePortion();
-        rgs.registerTenant(rgConfig.getName(), tenantName);
-        rgs.registerNameSpace(rgConfig.getName(), namespaceName);
+        rgs.registerTenant(rgName, tenantName);
+
+        final NamespaceName tenantAndNamespace = NamespaceName.get(tenantName, namespaceName);
+        rgs.registerNameSpace(rgName, tenantAndNamespace);
 
         // Delete of our valid config should throw until we unref correspondingly.
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(rgConfig.getName()));
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(rgName));
 
         // Attempt to report for a few rounds (simulating a fill usage with transport mgr).
         // It should say "we need to report now" every 'maxUsageReportSuppressRounds' rounds,
@@ -219,8 +219,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
             // We know that dummyQuotaCalc::needToReportLocalUsage() makes us report usage once every
             // maxUsageReportSuppressRounds iterations. So, if we run for maxUsageReportSuppressRounds iterations,
             // we should see needToReportLocalUsage() return true at least once.
-            Set<Boolean> myBoolSet = new HashSet();
-            myBoolSet.clear();
+            Set<Boolean> myBoolSet = new HashSet<>();
             for (int idx = 0; idx < ResourceGroupService.MaxUsageReportSuppressRounds; idx++) {
                 needToReport = retRG.setUsageInMonitoredEntity(monClass, nwUsage);
                 myBoolSet.add(needToReport);
@@ -230,16 +229,44 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(myBoolSet.contains(false));
         }
 
-        rgs.unRegisterTenant(rgConfig.getName(), tenantName);
-        rgs.unRegisterNameSpace(rgConfig.getName(), namespaceName);
+        rgs.unRegisterTenant(rgName, tenantName);
+        rgs.unRegisterNameSpace(rgName, tenantAndNamespace);
 
-        rgs.resourceGroupDelete(rgConfig.getName());
+        BytesAndMessagesCount publishQuota = rgs.getPublishRateLimiters(rgName);
+
+        // Calculated quota is synthetically set to the number of quota-calculation callbacks.
+        int numQuotaCalcsDuringTest = numAnonymousQuotaCalculations - initialNumQuotaCalculations;
+        if (numQuotaCalcsDuringTest == 0) {
+            // Quota calculations were not done yet during this test; we expect to see the default "initial" setting.
+            Assert.assertEquals(publishQuota.messages, rgConfig.getPublishRateInMsgs().intValue());
+            Assert.assertEquals(publishQuota.bytes, rgConfig.getPublishRateInBytes().longValue());
+        }
+
+        // Calculate the quota synchronously to avoid waiting for a periodic call within ResourceGroupService.
+        rgs.calculateQuotaForAllResourceGroups();
+        publishQuota = rgs.getPublishRateLimiters(rgName);
+        // The bytes/messages are (synthetically) set from numAnonymousQuotaCalculations in the above round of
+        // calls, or some later round (since the periodic call to calculateQuotaForAllResourceGroups() would be
+        // ongoing). So, we expect bytes/messages setting to be more than 0 and at most numAnonymousQuotaCalculations.
+        Assert.assertTrue(publishQuota.messages > 0 && publishQuota.messages <= numAnonymousQuotaCalculations);
+        Assert.assertTrue(publishQuota.bytes > 0 &&  publishQuota.bytes <= numAnonymousQuotaCalculations);
+
+        rgs.resourceGroupDelete(rgName);
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.getPublishRateLimiters(rgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 0);
     }
 
+    @Test
+    public void testClose() throws Exception {
+        ResourceGroupService service = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, null, null);
+        service.close();
+        Assert.assertTrue(service.getAggregateLocalUsagePeriodicTask().isCancelled());
+        Assert.assertTrue(service.getCalculateQuotaPeriodicTask().isCancelled());
+    }
+
     private ResourceGroupService rgs;
-    int numAnonymousQuotaCalculations = 0;
+    int numAnonymousQuotaCalculations;
 
     private static final Logger log = LoggerFactory.getLogger(ResourceGroupServiceTest.class);
 

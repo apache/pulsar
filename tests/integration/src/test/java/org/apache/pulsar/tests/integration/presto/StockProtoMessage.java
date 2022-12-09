@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@
 
 package org.apache.pulsar.tests.integration.presto;
 
+@SuppressWarnings("deprecation")
 public final class StockProtoMessage {
   private StockProtoMessage() {}
   public static void registerAllExtensions(
@@ -85,7 +86,7 @@ public final class StockProtoMessage {
         throws com.google.protobuf.InvalidProtocolBufferException {
       this();
       if (extensionRegistry == null) {
-        throw new java.lang.NullPointerException();
+        throw new java.lang.IllegalArgumentException();
       }
       int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
@@ -375,6 +376,7 @@ public final class StockProtoMessage {
     /**
      * Protobuf type {@code proto.Stock}
      */
+    @SuppressWarnings("cast")
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
         // @@protoc_insertion_point(builder_implements:proto.Stock)
@@ -581,7 +583,7 @@ public final class StockProtoMessage {
       public Builder setSymbol(
           java.lang.String value) {
         if (value == null) {
-    throw new NullPointerException();
+    throw new IllegalArgumentException();
   }
   
         symbol_ = value;
@@ -603,7 +605,7 @@ public final class StockProtoMessage {
       public Builder setSymbolBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) {
-    throw new NullPointerException();
+    throw new IllegalArgumentException();
   }
   checkByteStringIsUtf8(value);
         

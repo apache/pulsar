@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class SourcesBase extends AdminResource {
 
     Sources<? extends WorkerService> sources() {
-        return pulsar().getWorkerService().getSources();
+        return validateAndGetWorkerService().getSources();
     }
 
     @POST
@@ -76,8 +76,11 @@ public class SourcesBase extends AdminResource {
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String sourcePkgUrl,
-            @ApiParam(
-                    value = "A JSON value presenting configuration payload of a Pulsar Source."
+            @ApiParam(value =
+                    "You can submit a source (in any languages that you are familiar with) to a Pulsar cluster. "
+                            + "Follow the steps below.\n"
+                            + "1. Create a JSON object using some of the following parameters.\n"
+                            + "A JSON value presenting configuration payload of a Pulsar Source."
                             + " An example of the expected functions can be found here.\n"
                             + "- **classname**\n"
                             + "  The class name of a Pulsar Source if archive is file-url-path (file://).\n"
@@ -111,20 +114,29 @@ public class SourcesBase extends AdminResource {
                             + "  [http/https/file (file protocol assumes that file already exists on worker host)] "
                             + "  from which worker can download the package.\n"
                             + "- **runtimeFlags**\n"
-                            + "  Any flags that you want to pass to the runtime.\n",
+                            + "  Any flags that you want to pass to the runtime.\n"
+                            + "2. Encapsulate the JSON object to a multipart object.",
                     examples = @Example(
                             value = @ExampleProperty(
-                                    mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"tenant\": public\n"
-                                            + "  \"namespace\": default\n"
-                                            + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"className\": TestSourceMysql\n"
-                                            + "  \"topicName\": pulsar-io-mysql\n"
-                                            + "  \"parallelism\": 1\n"
-                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
-                                            + "  \"schemaType\": avro\n"
-                                            + "}\n"
+                                    mediaType = MediaType.TEXT_PLAIN,
+                                    value = """
+                                            Example
+                                            1. Create a JSON object.
+                                            {
+                                             "tenant": "public",
+                                             "namespace": "default",
+                                             "name": "pulsar-io-mysql",
+                                             "className": "TestSourceMysql",
+                                             "topicName": "pulsar-io-mysql",
+                                             "parallelism": "1",
+                                             "archive": "/connectors/pulsar-io-mysql-0.0.1.nar",
+                                             "schemaType": "avro"
+                                            }
+                                            2. Encapsulate the JSON object to a multipart object (in Python).
+                                            from requests_toolbelt.multipart.encoder import MultipartEncoder
+                                            mp_encoder = MultipartEncoder([('sourceConfig', \
+                                            (None, json.dumps(config), 'application/json'))])
+                                            """
                             )
                     )
             )
@@ -196,16 +208,18 @@ public class SourcesBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"tenant\": public\n"
-                                            + "  \"namespace\": default\n"
-                                            + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"className\": TestSourceMysql\n"
-                                            + "  \"topicName\": pulsar-io-mysql\n"
-                                            + "  \"parallelism\": 1\n"
-                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
-                                            + "  \"schemaType\": avro\n"
-                                            + "}\n"
+                                    value = """
+                                            {
+                                              "tenant": "public",
+                                              "namespace": "default",
+                                              "name": "pulsar-io-mysql",
+                                              "className": "TestSourceMysql",
+                                              "topicName": "pulsar-io-mysql",
+                                              "parallelism": 1,
+                                              "archive": "/connectors/pulsar-io-mysql-0.0.1.nar",
+                                              "schemaType": "avro"
+                                            }
+                                            """
                             )
                     )
             )

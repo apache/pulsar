@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -186,16 +186,52 @@ public class DockerUtils {
         }
     }
 
+    public static ContainerExecResult runCommandAsUser(String userId,
+                                                       DockerClient docker,
+                                                       String containerId,
+                                                       String... cmd)
+            throws ContainerExecException, ExecutionException, InterruptedException {
+        try {
+            return runCommandAsyncAsUser(userId, docker, containerId, cmd).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof ContainerExecException) {
+                throw (ContainerExecException) e.getCause();
+            }
+            throw e;
+        }
+    }
+
+    public static CompletableFuture<ContainerExecResult> runCommandAsyncAsUser(String userId,
+                                                                               DockerClient dockerClient,
+                                                                               String containerId,
+                                                                               String... cmd) {
+        String execId = dockerClient.execCreateCmd(containerId)
+                .withCmd(cmd)
+                .withAttachStderr(true)
+                .withAttachStdout(true)
+                .withUser(userId)
+                .exec()
+                .getId();
+        return runCommandAsync(execId, dockerClient, containerId, cmd);
+    }
+
     public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient dockerClient,
                                                                          String containerId,
                                                                          String... cmd) {
-        CompletableFuture<ContainerExecResult> future = new CompletableFuture<>();
         String execId = dockerClient.execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
                 .exec()
                 .getId();
+        return runCommandAsync(execId, dockerClient, containerId, cmd);
+    }
+
+    private static CompletableFuture<ContainerExecResult> runCommandAsync(String execId,
+                                                                          DockerClient dockerClient,
+                                                                          String containerId,
+                                                                          String... cmd) {
+        CompletableFuture<ContainerExecResult> future = new CompletableFuture<>();
         final String containerName = getContainerName(dockerClient, containerId);
         String cmdString = String.join(" ", cmd);
         StringBuilder stdout = new StringBuilder();
@@ -231,7 +267,7 @@ public class DockerUtils {
                         LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
 
                         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-                        int retCode = resp.getExitCode();
+                        long retCode = resp.getExitCodeLong();
                         ContainerExecResult result = ContainerExecResult.of(
                                 retCode,
                                 stdout.toString(),
@@ -306,7 +342,7 @@ public class DockerUtils {
         future.join();
 
         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-        int retCode = resp.getExitCode();
+        long retCode = resp.getExitCodeLong();
 
         ContainerExecResultBytes result = ContainerExecResultBytes.of(
                 retCode,
@@ -320,9 +356,9 @@ public class DockerUtils {
         return result;
     }
 
-    public static CompletableFuture<Integer> runCommandAsyncWithLogging(DockerClient dockerClient,
+    public static CompletableFuture<Long> runCommandAsyncWithLogging(DockerClient dockerClient,
                                                                         String containerId, String... cmd) {
-        CompletableFuture<Integer> future = new CompletableFuture<>();
+        CompletableFuture<Long> future = new CompletableFuture<>();
         String execId = dockerClient.execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
@@ -356,7 +392,7 @@ public class DockerUtils {
                     public void onComplete() {
                         LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
                         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-                        int retCode = resp.getExitCode();
+                        long retCode = resp.getExitCodeLong();
                         LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
                         future.complete(retCode);
                     }

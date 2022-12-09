@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -39,11 +41,6 @@ import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
-
 /**
  * An AVRO schema implementation.
  */
@@ -57,7 +54,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
         boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
-        setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader, getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
+        setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader,
+                getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
     }
 
@@ -91,9 +89,12 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                     schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
         }
         ClassLoader pojoClassLoader = null;
-        if (schemaDefinition.getPojo() != null) {
+        if (schemaDefinition.getClassLoader() != null) {
+            pojoClassLoader = schemaDefinition.getClassLoader();
+        } else if (schemaDefinition.getPojo() != null) {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
         }
+
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
 
@@ -106,12 +107,21 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
-        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        addLogicalTypeConversions(reflectData, jsr310ConversionEnabled, true);
+    }
+
+    public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled,
+                                                 boolean decimalConversionEnabled) {
+        if (decimalConversionEnabled) {
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        }
         reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.LocalTimestampMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.LocalTimestampMicrosConversion());
         if (jsr310ConversionEnabled) {
+            // The conversion that is registered first is higher priority than the registered later.
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
         } else {
             try {
@@ -121,6 +131,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                 // Skip if have not provide joda-time dependency.
             }
         }
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
     }
 
     public static class TimestampConversion extends Conversion<DateTime> {
@@ -146,7 +158,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
 
         @Override
         public org.apache.avro.Schema getRecommendedSchema() {
-            return LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
+            return LogicalTypes.timestampMillis().addToSchema(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         }
     }
 

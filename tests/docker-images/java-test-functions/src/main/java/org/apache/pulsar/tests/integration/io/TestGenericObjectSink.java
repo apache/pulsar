@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -26,7 +29,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
-import java.util.Map;
 
 @Slf4j
 public class TestGenericObjectSink implements Sink<GenericObject> {
@@ -47,7 +49,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
         log.info("expectedRecordType {}", expectedRecordType);
         if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
-            throw new RuntimeException("Unexpected record type " + record.getSchema().getSchemaInfo().getType().name() + " is not " + expectedRecordType);
+            final String message = String.format(
+                    "Unexpected record type %s is not %s",
+                    record.getSchema().getSchemaInfo().getType().name(),
+                    expectedRecordType);
+            throw new RuntimeException(message);
         }
 
         log.info("value {}", record.getValue());
@@ -65,9 +71,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
             log.info("kvkey {}", keyValue.getKey());
             log.info("kvvalue {}", keyValue.getValue());
         }
-        log.info("value {}", record.getValue());
-        log.info("value schema type {}", record.getValue().getSchemaType());
-        log.info("value native object {}", record.getValue().getNativeObject());
+
+        final GenericObject value = record.getValue();
+        log.info("value {}", value);
+        log.info("value schema type {}", value.getSchemaType());
+        log.info("value native object {} class {}", value.getNativeObject(), value.getNativeObject().getClass());
 
         String expectedSchemaDefinition = record.getProperties().getOrDefault("expectedSchemaDefinition", "");
         log.info("schemaDefinition {}", record.getSchema().getSchemaInfo().getSchemaDefinition());
@@ -75,8 +83,22 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         if (!expectedSchemaDefinition.isEmpty()) {
             String schemaDefinition = record.getSchema().getSchemaInfo().getSchemaDefinition();
             if (!expectedSchemaDefinition.equals(schemaDefinition)) {
-                throw new RuntimeException("Unexpected schema definition " + schemaDefinition + " is not " + expectedSchemaDefinition);
+                final String message = String.format(
+                        "Unexpected schema definition %s is not %s", schemaDefinition, expectedSchemaDefinition);
+                throw new RuntimeException(message);
             }
+        }
+
+        // testing that actually the Sink is able to use Native AVRO
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
+            GenericRecord nativeGenericRecord = (GenericRecord) record.getValue().getNativeObject();
+            log.info("Schema from AVRO generic object {}", nativeGenericRecord.getSchema());
+        }
+
+        // testing that actually the Sink is able to use Native JSON
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.JSON) {
+            JsonNode nativeGenericRecord = (JsonNode) record.getValue().getNativeObject();
+            log.info("NodeType from JsonNode generic object {}", nativeGenericRecord.getNodeType());
         }
 
         record.ack();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
@@ -42,7 +41,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         this(ledgerId, entryId, partitionIndex, batchIndex, 0, BatchMessageAckerDisabled.INSTANCE);
     }
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize, BatchMessageAcker acker) {
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize,
+                              BatchMessageAcker acker) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
@@ -138,9 +138,19 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return acker.getBatchSize();
     }
 
+    public int getOriginalBatchSize() {
+        return this.batchSize;
+    }
+
     public MessageIdImpl prevBatchMessageId() {
         return new MessageIdImpl(
             ledgerId, entryId - 1, partitionIndex);
+    }
+
+    // MessageIdImpl is widely used as the key of a hash map, in this case, we should convert the batch message id to
+    // have the correct hash code.
+    public MessageIdImpl toMessageIdImpl() {
+        return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 
     public BatchMessageAcker getAcker() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,38 +18,51 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import org.apache.logging.log4j.core.*;
+import java.util.concurrent.TimeUnit;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.ErrorHandler;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.DefaultErrorHandler;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * LogAppender class that is used to send log statements from Pulsar Functions logger
  * to a log topic.
  */
 public class LogAppender implements Appender {
+
+    private static final String LOG_LEVEL = "loglevel";
+    private static final String INSTANCE = "instance";
+    private static final String FQN = "fqn";
+
     private PulsarClient pulsarClient;
     private String logTopic;
     private String fqn;
+    private String instance;
     private State state;
     private ErrorHandler errorHandler;
     private Producer<byte[]> producer;
 
-    public LogAppender(PulsarClient pulsarClient, String logTopic, String fqn) {
+    public LogAppender(PulsarClient pulsarClient, String logTopic, String fqn, String instance) {
         this.pulsarClient = pulsarClient;
         this.logTopic = logTopic;
         this.fqn = fqn;
+        this.instance = instance;
+        this.errorHandler = new DefaultErrorHandler(this);
     }
 
     @Override
     public void append(LogEvent logEvent) {
         producer.newMessage()
                 .value(logEvent.getMessage().getFormattedMessage().getBytes(StandardCharsets.UTF_8))
-                .property("loglevel", logEvent.getLevel().name())
+                .property(LOG_LEVEL, logEvent.getLevel().name())
+                .property(INSTANCE, instance)
+                .property(FQN, fqn)
                 .sendAsync();
     }
 
@@ -75,6 +88,12 @@ public class LogAppender implements Appender {
 
     @Override
     public void setHandler(ErrorHandler errorHandler) {
+        if (errorHandler == null) {
+            throw new RuntimeException("The log error handler cannot be set to null");
+        }
+        if (isStarted()) {
+            throw new RuntimeException("The log error handler cannot be changed once the appender is started");
+        }
         this.errorHandler = errorHandler;
     }
 
@@ -101,7 +120,7 @@ public class LogAppender implements Appender {
                     .property("function", fqn)
                     .create();
         } catch (Exception e) {
-            throw new RuntimeException("Error starting LogTopic Producer", e);
+            throw new RuntimeException("Error starting LogTopic Producer for function " + fqn, e);
         }
         this.state = State.STARTED;
     }
@@ -109,8 +128,10 @@ public class LogAppender implements Appender {
     @Override
     public void stop() {
         this.state = State.STOPPING;
-        producer.closeAsync();
-        producer = null;
+        if (producer != null) {
+            producer.closeAsync();
+            producer = null;
+        }
         this.state = State.STOPPED;
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,23 +32,24 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
     private static final ConfigDef CONFIG;
 
     /**
-     * <code>offset.storage.topic</code>
+     * <code>offset.storage.topic</code>.
      */
     public static final String OFFSET_STORAGE_TOPIC_CONFIG = "offset.storage.topic";
     private static final String OFFSET_STORAGE_TOPIC_CONFIG_DOC = "pulsar topic to store kafka connector offsets in";
 
-
     /**
-     * <code>pulsar.service.url</code>
-     */
-    public static final String PULSAR_SERVICE_URL_CONFIG = "pulsar.service.url";
-    private static final String PULSAR_SERVICE_URL_CONFIG_DOC = "pulsar service url";
-
-    /**
-     * <code>topic.namespace</code>
+     * <code>topic.namespace</code>.
      */
     public static final String TOPIC_NAMESPACE_CONFIG = "topic.namespace";
     private static final String TOPIC_NAMESPACE_CONFIG_DOC = "namespace of topic name to store the output topics";
+
+    /**
+     * <code>offset.storage.reader.config</code>.
+     */
+    public static final String OFFSET_STORAGE_READER_CONFIG = "offset.storage.reader.config";
+    private static final String OFFSET_STORAGE_READER_CONFIG_DOC = "The configs of the reader for the "
+            + "kafka connector offsets topic, in the form of a JSON string with key-value pairs";
+
 
     static {
         CONFIG = new ConfigDef()
@@ -56,15 +57,16 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
                 Type.STRING,
                 Importance.HIGH,
                 OFFSET_STORAGE_TOPIC_CONFIG_DOC)
-            .define(PULSAR_SERVICE_URL_CONFIG,
-                Type.STRING,
-                Importance.HIGH,
-                PULSAR_SERVICE_URL_CONFIG_DOC)
             .define(TOPIC_NAMESPACE_CONFIG,
                 Type.STRING,
                 "public/default",
                 Importance.HIGH,
-                TOPIC_NAMESPACE_CONFIG_DOC);
+                TOPIC_NAMESPACE_CONFIG_DOC)
+            .define(OFFSET_STORAGE_READER_CONFIG,
+                    Type.STRING,
+                    null,
+                    Importance.HIGH,
+                    OFFSET_STORAGE_READER_CONFIG_DOC);
     }
 
     public PulsarKafkaWorkerConfig(Map<String, String> props) {

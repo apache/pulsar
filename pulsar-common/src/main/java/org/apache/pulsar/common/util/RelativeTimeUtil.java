@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.concurrent.TimeUnit;
 import lombok.experimental.UtilityClass;
 
@@ -28,7 +30,7 @@ import lombok.experimental.UtilityClass;
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
         if (relativeTime.isEmpty()) {
-            throw new IllegalArgumentException("exipiry time cannot be empty");
+            throw new IllegalArgumentException("expiry time cannot be empty");
         }
 
         int lastIndex =  relativeTime.length() - 1;
@@ -62,5 +64,16 @@ public class RelativeTimeUtil {
         default:
             throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
         }
+    }
+
+    /**
+     * Convert nanoseconds to seconds and keep three decimal places.
+     * @param ns
+     * @return seconds
+     */
+    public static double nsToSeconds(long ns) {
+        double seconds = (double) ns / 1_000_000_000;
+        BigDecimal bd = new BigDecimal(seconds);
+        return bd.setScale(3, RoundingMode.HALF_UP).doubleValue();
     }
 }

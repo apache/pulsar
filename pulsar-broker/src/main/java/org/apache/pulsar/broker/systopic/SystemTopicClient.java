@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -88,20 +87,44 @@ public interface SystemTopicClient<T> {
      * Writer for system topic.
      */
     interface Writer<T> {
+
         /**
          * Write event to the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        MessageId write(T t) throws PulsarClientException;
+        MessageId write(String key, T t) throws PulsarClientException;
 
         /**
          * Async write event to the system topic.
+         * @param key the key of the event
          * @param t pulsar event
          * @return message id future
          */
-        CompletableFuture<MessageId> writeAsync(T t);
+        CompletableFuture<MessageId> writeAsync(String key, T t);
+
+        /**
+         * Delete event in the system topic.
+         * @param key the key of the event
+         * @param t pulsar event
+         * @return message id
+         * @throws PulsarClientException exception while write event cause
+         */
+        default MessageId delete(String key, T t) throws PulsarClientException {
+            throw new UnsupportedOperationException("Unsupported operation");
+        }
+
+        /**
+         * Async delete event in the system topic.
+         * @param key the key of the event
+         * @param t pulsar event
+         * @return message id future
+         */
+        default CompletableFuture<MessageId> deleteAsync(String key, T t) {
+            throw new UnsupportedOperationException("Unsupported operation");
+        }
 
         /**
          * Close the system topic writer.
@@ -165,15 +188,6 @@ public interface SystemTopicClient<T> {
          * @return system topic
          */
         SystemTopicClient<T> getSystemTopic();
-    }
-
-    static boolean isSystemTopic(TopicName topicName) {
-        if (topicName.isPartitioned()) {
-            return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME
-                    .equals(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
-        }
-
-        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
     }
 
 }

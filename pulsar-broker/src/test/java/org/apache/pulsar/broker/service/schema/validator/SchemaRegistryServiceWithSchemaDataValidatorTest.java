@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,11 +80,10 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         String schemaId = "test-schema-id";
         String user = "test-user";
         CompletableFuture<SchemaVersion> deleteFuture = new CompletableFuture<>();
-        when(underlyingService.deleteSchema(eq(schemaId), eq(user)))
-            .thenReturn(deleteFuture);
-        assertSame(deleteFuture, service.deleteSchema(schemaId, user));
-        verify(underlyingService, times(1))
-            .deleteSchema(eq(schemaId), eq(user));
+        when(underlyingService.deleteSchema(eq(schemaId), eq(user), eq(false)))
+                .thenReturn(deleteFuture);
+        assertSame(deleteFuture, service.deleteSchema(schemaId, user, false));
+        verify(underlyingService, times(1)).deleteSchema(eq(schemaId), eq(user), eq(false));
     }
 
     @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,18 +21,28 @@ package org.apache.pulsar.io.debezium;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import io.debezium.config.Configuration;
+import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
 import io.debezium.relational.Tables;
-import io.debezium.relational.ddl.DdlParserSql2003;
-import io.debezium.relational.ddl.LegacyDdlParser;
+import io.debezium.relational.ddl.DdlParser;
 import io.debezium.relational.history.DatabaseHistory;
 import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.text.ParsingException;
 import io.debezium.util.Collect;
+
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
+
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -67,15 +77,31 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    private void testHistoryTopicContent(boolean skipUnparseableDDL) {
+    private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder, boolean testWithReaderConfig) throws Exception {
+        Configuration.Builder configBuidler = Configuration.create()
+                .with(PulsarDatabaseHistory.TOPIC, topicName)
+                .with(DatabaseHistory.NAME, "my-db-history")
+                .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL);
+
+        if (testWithClientBuilder) {
+            ClientBuilder builder = PulsarClient.builder().serviceUrl(brokerUrl.toString());
+            ByteArrayOutputStream bao = new ByteArrayOutputStream();
+            try (ObjectOutputStream oos = new ObjectOutputStream(bao)) {
+                oos.writeObject(builder);
+                oos.flush();
+                byte[] data = bao.toByteArray();
+                configBuidler.with(PulsarDatabaseHistory.CLIENT_BUILDER, Base64.getEncoder().encodeToString(data));
+            }
+        } else {
+            configBuidler.with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString());
+        }
+
+        if (testWithReaderConfig) {
+            configBuidler.with(PulsarDatabaseHistory.READER_CONFIG, "{\"subscriptionName\":\"my-subscription\"}");
+        }
+
         // Start up the history ...
-        Configuration config = Configuration.create()
-            .with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString())
-            .with(PulsarDatabaseHistory.TOPIC, topicName)
-            .with(DatabaseHistory.NAME, "my-db-history")
-            .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL)
-            .build();
-        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
+        history.configure(configBuidler.build(), null, DatabaseHistoryListener.NOOP, true);
         history.start();
 
         // Should be able to call start more than once ...
@@ -86,8 +112,8 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // Calling it another time to ensure we can work with the DB history topic already existing
         history.initializeStorage();
 
-        LegacyDdlParser recoveryParser = new DdlParserSql2003();
-        LegacyDdlParser ddlParser = new DdlParserSql2003();
+        DdlParser recoveryParser = new MySqlAntlrDdlParser();
+        DdlParser ddlParser = new MySqlAntlrDdlParser();
         ddlParser.setCurrentSchema("db1"); // recover does this, so we need to as well
         Tables tables1 = new Tables();
         Tables tables2 = new Tables();
@@ -102,9 +128,9 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
         // Now record schema changes, which writes out to kafka but doesn't actually change the Tables ...
         setLogPosition(10);
-        ddl = "CREATE TABLE foo ( name VARCHAR(255) NOT NULL PRIMARY KEY); \n" +
-            "CREATE TABLE customers ( id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL ); \n" +
-            "CREATE TABLE products ( productId INTEGER NOT NULL PRIMARY KEY, desc VARCHAR(255) NOT NULL); \n";
+        ddl = "CREATE TABLE foo ( first VARCHAR(22) NOT NULL ); \n" +
+                "CREATE TABLE customers ( id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL ); \n" +
+                "CREATE TABLE products ( productId INTEGER NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL ); \n";
         history.record(source, position, "db1", ddl);
 
         // Parse the DDL statement 3x and each time update a different Tables object ...
@@ -134,7 +160,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // Stop the history (which should stop the producer) ...
         history.stop();
         history = new PulsarDatabaseHistory();
-        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
+        history.configure(configBuidler.build(), null, DatabaseHistoryListener.NOOP, true);
         // no need to start
 
         // Recover from the very beginning to just past the first change ...
@@ -162,6 +188,10 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         assertEquals(recoveredTables, tables3);
     }
 
+    private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder) throws Exception {
+        testHistoryTopicContent(skipUnparseableDDL, testWithClientBuilder, false);
+    }
+
     protected void setLogPosition(int index) {
         this.position = Collect.hashMapOf("filename", "my-txn-file.log",
             "position", index);
@@ -170,7 +200,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
     @Test
     public void shouldStartWithEmptyTopicAndStoreDataAndRecoverAllState() throws Exception {
         // Create the empty topic ...
-        testHistoryTopicContent(false);
+        testHistoryTopicContent(false, true);
     }
 
     @Test
@@ -187,7 +217,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             producer.send("{\"source\":{\"server\":\"my-server\"},\"position\":{\"filename\":\"my-txn-file.log\",\"position\":39},\"databaseName\":\"db1\",\"ddl\":\"xxxDROP TABLE foo;\"}");
         }
 
-        testHistoryTopicContent(true);
+        testHistoryTopicContent(true, true);
     }
 
     @Test(expectedExceptions = ParsingException.class)
@@ -196,14 +226,14 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             producer.send("{\"source\":{\"server\":\"my-server\"},\"position\":{\"filename\":\"my-txn-file.log\",\"position\":39},\"databaseName\":\"db1\",\"ddl\":\"xxxDROP TABLE foo;\"}");
         }
 
-        testHistoryTopicContent(false);
+        testHistoryTopicContent(false, false);
     }
 
 
     @Test
-    public void testExists() {
+    public void testExists() throws Exception {
         // happy path
-        testHistoryTopicContent(true);
+        testHistoryTopicContent(true, false);
         assertTrue(history.exists());
 
         // Set history to use dummy topic
@@ -219,5 +249,18 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
         // dummytopic should not exist yet
         assertFalse(history.exists());
+    }
+
+    @Test
+    public void testSubscriptionName() throws Exception {
+        testHistoryTopicContent(true, false, true);
+        assertTrue(history.exists());
+        try (Reader<String> ignored = history.createHistoryReader()) {
+            List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+            assertEquals(subscriptions.size(), 1);
+            assertTrue(subscriptions.contains("my-subscription"));
+        } catch (Exception e) {
+            fail("Failed to create history reader");
+        }
     }
 }

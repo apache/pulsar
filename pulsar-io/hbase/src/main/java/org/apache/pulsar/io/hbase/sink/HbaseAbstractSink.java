@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,16 @@ package org.apache.pulsar.io.hbase.sink;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -36,16 +43,8 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 /**
- * A Simple abstract class for Hbase sink
+ * A Simple abstract class for Hbase sink.
  * Users need to implement extractKeyValue function to use this sink
  */
 @Slf4j
@@ -121,7 +120,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         }
 
         if (number == batchSize) {
-            flushExecutor.submit(() -> flush());
+            flushExecutor.execute(() -> flush());
         }
     }
 
@@ -189,11 +188,12 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
     /**
      * Get the {@link TableDefinition} for the given table.
      */
-    private TableDefinition getTableDefinition(HbaseSinkConfig hbaseSinkConfig) throws Exception {
+    private TableDefinition getTableDefinition(HbaseSinkConfig hbaseSinkConfig) {
         Preconditions.checkNotNull(hbaseSinkConfig.getRowKeyName(), "rowKeyName property not set.");
         Preconditions.checkNotNull(hbaseSinkConfig.getFamilyName(), "familyName property not set.");
         Preconditions.checkNotNull(hbaseSinkConfig.getQualifierNames(), "qualifierNames property not set.");
 
-        return TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(), hbaseSinkConfig.getQualifierNames());
+        return TableDefinition.of(hbaseSinkConfig.getRowKeyName(), hbaseSinkConfig.getFamilyName(),
+                hbaseSinkConfig.getQualifierNames());
     }
 }

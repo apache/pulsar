@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,8 +35,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.testng.annotations.Test;
-import org.awaitility.Awaitility;
 
 public class GracefulExecutorServicesShutdownTest {
 

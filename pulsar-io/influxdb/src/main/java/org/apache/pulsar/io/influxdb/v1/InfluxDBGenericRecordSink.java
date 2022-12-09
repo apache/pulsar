@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,17 +21,16 @@ package org.apache.pulsar.io.influxdb.v1;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.influxdb.dto.Point;
-
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * A Simple InfluxDB sink, which interprets input Record in generic record.
@@ -41,7 +40,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InfluxDBGenericRecordSink extends InfluxDBAbstractSink<GenericRecord> {
 
-    private final Set<String> FIELDS_TO_SKIP = ImmutableSet.of("measurement", "tags");
+    private static final Set<String> FIELDS_TO_SKIP = ImmutableSet.of("measurement", "tags");
 
     @Override
     protected Point buildPoint(Record<GenericRecord> message) throws Exception {
