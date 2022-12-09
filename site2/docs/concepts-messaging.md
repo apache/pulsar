@@ -99,9 +99,9 @@ Compression types are stored in the message metadata, so consumers can adopt dif
 
 The sample code below shows how to enable compression type for a producer:
 
-```
+```java
 client.newProducer()
-    .topic(“topic-name”)
+    .topic("topic-name")
     .compressionType(CompressionType.LZ4)
     .create();
 ```
@@ -126,7 +126,6 @@ For example:
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer()
-        .newConsumer(Schema.BYTES)
         .topic(topicName)
         .subscriptionName(subscriptionName)
         .subscriptionType(subType)
@@ -317,10 +316,10 @@ If you want to use redelivery backoff, you can use the following API.
 ```java
 consumer.ackTimeout(10, TimeUnit.SECOND)
         .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-        .minDelayMs(1000)
-        .maxDelayMs(60 * 1000)
-        .multiplier(2)
-        .build())
+            .minDelayMs(1000)
+            .maxDelayMs(60 * 1000)
+            .multiplier(2)
+            .build());
 ```
 
 The message redelivery behavior should be as follows.
@@ -388,7 +387,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 The default retry letter topic uses this format:
 
-```
+```text
 <topicname>-<subscriptionname>-RETRY
 ```
 

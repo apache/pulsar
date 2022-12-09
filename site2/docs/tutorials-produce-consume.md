@@ -1,7 +1,7 @@
 ---
 Id: tutorials-produce-consume
 title: Produce and consume messages
-sidebar_label: “Tutorials”
+sidebar_label: "Tutorials"
 ---
 
 In this tutorial, we will:

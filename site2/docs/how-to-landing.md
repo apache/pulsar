@@ -1,7 +1,7 @@
 ---
 Id: how-to-landing
-title: How-to
-sidebar_label: “”
+title: How to landing
+sidebar_label: "How to landing"
 ---
 
 

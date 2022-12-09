@@ -436,14 +436,14 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
 
 2. Start PostgreSQL.
 
-   ```bash
-   docker run -d -it --rm \
-   --name pulsar-postgres \
-   -p 5432:5432 \
-   -e POSTGRES_PASSWORD=password \
-   -e POSTGRES_USER=postgres \
-   postgres:12
-   ```
+    ```bash
+    docker run -d -it --rm \
+        --name pulsar-postgres \
+        -p 5432:5432 \
+        -e POSTGRES_PASSWORD=password \
+        -e POSTGRES_USER=postgres \
+        postgres:12
+    ```
 
 3. Check if PostgreSQL has been started successfully.
 
@@ -553,11 +553,11 @@ This example creates a sink connector and specifies the desired information.
 
 ```bash
 bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-postgres-@pulsar:version@.nar \
---inputs pulsar-postgres-jdbc-sink-topic \
---name pulsar-postgres-jdbc-sink \
---sink-config-file ./connectors/pulsar-postgres-jdbc-sink.yaml \
---parallelism 1
+    --archive ./connectors/pulsar-io-jdbc-postgres-@pulsar:version@.nar \
+    --inputs pulsar-postgres-jdbc-sink-topic \
+    --name pulsar-postgres-jdbc-sink \
+    --sink-config-file ./connectors/pulsar-postgres-jdbc-sink.yaml \
+    --parallelism 1
 ```
 
 Once the command is executed, Pulsar creates a sink connector _pulsar-postgres-jdbc-sink_.
@@ -593,11 +593,11 @@ to monitor a connector and perform other operations on it.
 
 * List all running JDBC sink(s).
 
-  ```bash
-  bin/pulsar-admin sinks list \
-  --tenant public \
-  --namespace default
-  ```
+    ```bash
+    bin/pulsar-admin sinks list \
+        --tenant public \
+        --namespace default
+    ```
 
   :::tip
 
@@ -615,12 +615,12 @@ to monitor a connector and perform other operations on it.
 
 * Get the information of a JDBC sink.
 
-  ```bash
-  bin/pulsar-admin sinks get \
-  --tenant public \
-  --namespace default \
-  --name pulsar-postgres-jdbc-sink
-  ```
+    ```bash
+    bin/pulsar-admin sinks get \
+      --tenant public \
+      --namespace default \
+      --name pulsar-postgres-jdbc-sink
+    ```
 
   :::tip
 
@@ -658,9 +658,9 @@ to monitor a connector and perform other operations on it.
 
   ```bash
   bin/pulsar-admin sinks status \
-  --tenant public \
-  --namespace default \
-  --name pulsar-postgres-jdbc-sink
+    --tenant public \
+    --namespace default \
+    --name pulsar-postgres-jdbc-sink
   ```
 
   :::tip
@@ -700,9 +700,9 @@ You can use the [Connector Admin CLI](/tools/pulsar-admin/) to stop a connector 
 
 ```bash
 bin/pulsar-admin sinks stop \
---tenant public \
---namespace default \
---name pulsar-postgres-jdbc-sink
+    --tenant public \
+    --namespace default \
+    --name pulsar-postgres-jdbc-sink
 ```
 
 :::tip
@@ -723,9 +723,9 @@ You can use the [Connector Admin CLI](/tools/pulsar-admin/) to restart a connect
 
 ```bash
 bin/pulsar-admin sinks restart \
---tenant public \
---namespace default \
---name pulsar-postgres-jdbc-sink
+    --tenant public \
+    --namespace default \
+    --name pulsar-postgres-jdbc-sink
 ```
 
 :::tip
@@ -756,8 +756,8 @@ This example updates the parallelism of the _pulsar-postgres-jdbc-sink_ sink con
 
 ```bash
 bin/pulsar-admin sinks update \
---name pulsar-postgres-jdbc-sink \
---parallelism 2
+    --name pulsar-postgres-jdbc-sink \
+    --parallelism 2
 ```
 
 :::tip
@@ -776,9 +776,9 @@ This example double-checks the information.
 
 ```bash
 bin/pulsar-admin sinks get \
---tenant public \
---namespace default \
---name pulsar-postgres-jdbc-sink
+    --tenant public \
+    --namespace default \
+    --name pulsar-postgres-jdbc-sink
 ```
 
 The result shows that the parallelism is 2.
@@ -816,9 +816,9 @@ This example deletes the _pulsar-postgres-jdbc-sink_ sink connector.
 
 ```bash
 bin/pulsar-admin sinks delete \
---tenant public \
---namespace default \
---name pulsar-postgres-jdbc-sink
+    --tenant public \
+    --namespace default \
+    --name pulsar-postgres-jdbc-sink
 ```
 
 :::tip
@@ -837,9 +837,9 @@ This example double-checks the status of the sink connector.
 
 ```bash
 bin/pulsar-admin sinks get \
---tenant public \
---namespace default \
---name pulsar-postgres-jdbc-sink
+    --tenant public \
+    --namespace default \
+    --name pulsar-postgres-jdbc-sink
 ```
 
 The result shows that the sink connector does not exist.
