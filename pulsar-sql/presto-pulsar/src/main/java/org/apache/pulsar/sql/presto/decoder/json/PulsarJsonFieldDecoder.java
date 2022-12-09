@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,23 +21,10 @@ package org.apache.pulsar.sql.presto.decoder.json;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.prestosql.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
-import static io.prestosql.spi.type.BigintType.BIGINT;
-import static io.prestosql.spi.type.BooleanType.BOOLEAN;
-import static io.prestosql.spi.type.DateType.DATE;
-import static io.prestosql.spi.type.DoubleType.DOUBLE;
-import static io.prestosql.spi.type.IntegerType.INTEGER;
-import static io.prestosql.spi.type.RealType.REAL;
-import static io.prestosql.spi.type.SmallintType.SMALLINT;
-import static io.prestosql.spi.type.TimeType.TIME;
-import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
-import static io.prestosql.spi.type.TinyintType.TINYINT;
-import static io.prestosql.spi.type.Varchars.isVarcharType;
-import static io.prestosql.spi.type.Varchars.truncateToLength;
+import static io.trino.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
+import static io.trino.spi.type.Varchars.truncateToLength;
 import static java.lang.Double.parseDouble;
 import static java.lang.Float.floatToIntBits;
-import static java.lang.Float.parseFloat;
-import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,31 +33,32 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.decoder.json.JsonFieldDecoder;
-import io.prestosql.decoder.json.JsonRowDecoderFactory;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.block.BlockBuilder;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DateType;
-import io.prestosql.spi.type.DecimalType;
-import io.prestosql.spi.type.Decimals;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.MapType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.SmallintType;
-import io.prestosql.spi.type.TimeType;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.TinyintType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.decoder.json.JsonFieldDecoder;
+import io.trino.decoder.json.JsonRowDecoderFactory;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Decimals;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
+import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
 import java.math.BigInteger;
 import java.util.Iterator;
 import java.util.List;
@@ -78,14 +66,14 @@ import java.util.Map;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * Copy from {@link io.prestosql.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
+ * Copy from {@link io.trino.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
  * with some pulsar's extensions.
- * 1) support {@link io.prestosql.spi.type.ArrayType}.
- * 2) support {@link io.prestosql.spi.type.MapType}.
- * 3) support {@link io.prestosql.spi.type.RowType}.
- * 4) support {@link io.prestosql.spi.type.TimestampType},{@link io.prestosql.spi.type.DateType},
- * {@link io.prestosql.spi.type.TimeType}.
- * 5) support {@link io.prestosql.spi.type.RealType}.
+ * 1) support {@link io.trino.spi.type.ArrayType}.
+ * 2) support {@link io.trino.spi.type.MapType}.
+ * 3) support {@link io.trino.spi.type.RowType}.
+ * 4) support {@link io.trino.spi.type.TimestampType},{@link io.trino.spi.type.DateType},
+ * {@link io.trino.spi.type.TimeType}.
+ * 5) support {@link io.trino.spi.type.RealType}.
  */
 public class PulsarJsonFieldDecoder
         implements JsonFieldDecoder {
@@ -106,14 +94,14 @@ public class PulsarJsonFieldDecoder
     }
 
     private static Pair<Long, Long> getNumRangeByType(Type type) {
-        if (type == TINYINT) {
+        if (type == TinyintType.TINYINT) {
             return Pair.of((long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE);
-        } else if (type == SMALLINT) {
+        } else if (type == SmallintType.SMALLINT) {
             return Pair.of((long) Short.MIN_VALUE, (long) Short.MAX_VALUE);
-        } else if (type == INTEGER) {
+        } else if (type == IntegerType.INTEGER) {
             return Pair.of((long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE);
-        } else if (type == BIGINT) {
-            return Pair.of((long) Long.MIN_VALUE, (long) Long.MAX_VALUE);
+        } else if (type == BigintType.BIGINT) {
+            return Pair.of(Long.MIN_VALUE, Long.MAX_VALUE);
         } else {
             // those values will not be used if column type is not one of mentioned above
             return Pair.of(Long.MIN_VALUE, Long.MAX_VALUE);
@@ -124,20 +112,20 @@ public class PulsarJsonFieldDecoder
         if (type instanceof DecimalType) {
             return true;
         }
-        if (isVarcharType(type)) {
+        if (type instanceof VarcharType) {
             return true;
         }
         if (ImmutableList.of(
-                BIGINT,
-                INTEGER,
-                SMALLINT,
-                TINYINT,
-                BOOLEAN,
-                DOUBLE,
-                TIMESTAMP,
-                DATE,
-                TIME,
-                REAL
+                BigintType.BIGINT,
+                IntegerType.INTEGER,
+                SmallintType.SMALLINT,
+                TinyintType.TINYINT,
+                BooleanType.BOOLEAN,
+                DoubleType.DOUBLE,
+                TimestampType.TIMESTAMP_MILLIS,
+                DateType.DATE,
+                TimeType.TIME_MILLIS,
+                RealType.REAL
         ).contains(type)) {
             return true;
         }
@@ -221,7 +209,7 @@ public class PulsarJsonFieldDecoder
             if (value.isValueNode()) {
                 return value.asBoolean();
             }
-            throw new PrestoException(
+            throw new TrinoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
                     format("could not parse non-value node as '%s' for column '%s'", type, columnName));
         }
@@ -229,32 +217,38 @@ public class PulsarJsonFieldDecoder
         public static long getLong(JsonNode value, Type type, String columnName, long minValue, long maxValue) {
             try {
                 if (type instanceof RealType) {
-                    return floatToIntBits((Float) parseFloat(value.asText()));
+                    return floatToIntBits(Float.parseFloat(value.asText()));
                 }
 
                 // If it is decimalType, need to eliminate the decimal point,
                 // and give it to presto to set the decimal point
                 if (type instanceof DecimalType) {
                     String decimalLong = value.asText().replace(".", "");
-                    return Long.valueOf(decimalLong);
+                    return Long.parseLong(decimalLong);
                 }
 
-                long longValue;
+                Long longValue;
                 if (value.isIntegralNumber() && !value.isBigInteger()) {
                     longValue = value.longValue();
-                    if (longValue >= minValue && longValue <= maxValue) {
-                        return longValue;
-                    }
                 } else if (value.isValueNode()) {
-                    longValue = parseLong(value.asText());
-                    if (longValue >= minValue && longValue <= maxValue) {
-                        return longValue;
+                    longValue = Long.parseLong(value.asText());
+                } else {
+                    longValue = null;
+                }
+
+                if (longValue != null && longValue >= minValue && longValue <= maxValue) {
+                    if (TimestampType.TIMESTAMP_MILLIS.equals(type)) {
+                        return longValue * Timestamps.MICROSECONDS_PER_MILLISECOND;
                     }
+                    if (TimeType.TIME_MILLIS.equals(type)) {
+                        return longValue * Timestamps.PICOSECONDS_PER_MILLISECOND;
+                    }
+                    return longValue;
                 }
             } catch (NumberFormatException ignore) {
                 // ignore
             }
-            throw new PrestoException(
+            throw new TrinoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
                     format("could not parse value '%s' as '%s' for column '%s'", value.asText(), type, columnName));
         }
@@ -270,7 +264,7 @@ public class PulsarJsonFieldDecoder
             } catch (NumberFormatException ignore) {
                 // ignore
             }
-            throw new PrestoException(
+            throw new TrinoException(
                     DECODER_CONVERSION_NOT_SUPPORTED,
                     format("could not parse value '%s' as '%s' for column '%s'", value.asText(), type, columnName));
 
@@ -288,7 +282,7 @@ public class PulsarJsonFieldDecoder
             }
 
             Slice slice = utf8Slice(textValue);
-            if (isVarcharType(type)) {
+            if (type instanceof VarcharType) {
                 slice = truncateToLength(slice, type);
             }
             return slice;
@@ -348,7 +342,7 @@ public class PulsarJsonFieldDecoder
             if (node instanceof JsonNode) {
                 value = (JsonNode) node;
             } else {
-                throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+                throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                         format("primitive object of '%s' as '%s' for column '%s' cann't convert to JsonNode",
                                 node.getClass(), type, columnName));
             }
@@ -377,7 +371,7 @@ public class PulsarJsonFieldDecoder
                 return;
             }
 
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'", value.getClass(), type, columnName));
         }
 

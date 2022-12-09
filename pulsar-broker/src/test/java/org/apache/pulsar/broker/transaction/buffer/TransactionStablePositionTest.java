@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -177,6 +177,9 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
         final String topicName = NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-"
                 + clientEnableTransaction + state.name();
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)

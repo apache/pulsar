@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,8 @@ package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
-import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
+import static io.trino.decoder.FieldValueProviders.bytesValueProvider;
+import static io.trino.decoder.FieldValueProviders.longValueProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -31,12 +31,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.connector.ColumnHandle;
-import io.prestosql.spi.connector.RecordCursor;
-import io.prestosql.spi.type.Type;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.block.Block;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.RecordCursor;
+import io.trino.spi.type.Type;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -655,7 +655,7 @@ public class PulsarRecordCursor implements RecordCursor {
             return schemaInfo;
         }
         try {
-            if (this.currentMessage.getSchemaVersion() == null) {
+            if (this.currentMessage.getSchemaVersion() == null || this.currentMessage.getSchemaVersion().length == 0) {
                 schemaInfo = pulsarSplit.getSchemaInfo();
             } else {
                 schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();

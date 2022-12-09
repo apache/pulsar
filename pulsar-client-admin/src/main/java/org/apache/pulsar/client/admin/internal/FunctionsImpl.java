@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,6 +43,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
@@ -86,25 +87,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public CompletableFuture<List<String>> getFunctionsAsync(String tenant, String namespace) {
         WebTarget path = functions.path(tenant).path(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            List<String> functions = response.readEntity(new GenericType<List<String>>() {});
-                            future.complete(functions);
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<String>>() {});
     }
 
     @Override
@@ -115,24 +98,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public CompletableFuture<FunctionConfig> getFunctionAsync(String tenant, String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function);
-        final CompletableFuture<FunctionConfig> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionConfig.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionConfig.class);
     }
 
     @Override
@@ -144,24 +110,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatusAsync(String tenant, String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("status");
-        final CompletableFuture<FunctionStatus> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionStatus.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionStatus.class);
     }
 
     @Override
@@ -175,26 +124,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             String tenant, String namespace, String function, int id) {
         WebTarget path =
                 functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status");
-        final CompletableFuture<FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData> future =
-                new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class);
     }
 
     @Override
@@ -207,25 +137,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public CompletableFuture<FunctionInstanceStatsData> getFunctionStatsAsync(
             String tenant, String namespace, String function, int id) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats");
-        final CompletableFuture<FunctionInstanceStatsData> future =
-                new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionInstanceStatsDataImpl.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionInstanceStatsDataImpl.class);
     }
 
     @Override
@@ -238,24 +150,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public CompletableFuture<FunctionStats> getFunctionStatsAsync(String tenant,
                                                                   String namespace, String function) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("stats");
-        final CompletableFuture<FunctionStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionStatsImpl.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionStatsImpl.class);
     }
 
     @Override
@@ -606,6 +501,22 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
+    public void downloadFunction(String destinationPath, String tenant, String namespace, String functionName,
+                                 boolean transformFunction) throws PulsarAdminException {
+        downloadFile(destinationPath, functions.path(tenant).path(namespace).path(functionName).path("download")
+                .queryParam("transform-function", transformFunction));
+    }
+
+    @Override
+    public CompletableFuture<Void> downloadFunctionAsync(
+            String destinationPath, String tenant, String namespace, String functionName, boolean transformFunction) {
+        return downloadFileAsync(destinationPath,
+                functions.path(tenant).path(namespace).path(functionName).path("download")
+                        .queryParam("transform-function", transformFunction));
+    }
+
+
+    @Override
     public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
         downloadFile(destinationPath, functions.path("download").queryParam("path", path));
     }
@@ -723,6 +634,35 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
+    @Override
+    public List<FunctionDefinition> getBuiltInFunctions() throws PulsarAdminException {
+        return sync(this::getBuiltInFunctionsAsync);
+    }
+
+    @Override
+    public CompletableFuture<List<FunctionDefinition>> getBuiltInFunctionsAsync() {
+        WebTarget path = functions.path("builtins");
+        final CompletableFuture<List<FunctionDefinition>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                            future.completeExceptionally(getApiException(response));
+                        } else {
+                            future.complete(response.readEntity(
+                                    new GenericType<List<FunctionDefinition>>() {}));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
             return request(functions.path("cluster")).get(new GenericType<List<WorkerInfo>>() {
@@ -742,24 +682,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public CompletableFuture<FunctionState> getFunctionStateAsync(
             String tenant, String namespace, String function, String key) {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("state").path(key);
-        final CompletableFuture<FunctionState> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(FunctionState.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, FunctionState.class);
     }
 
     @Override
@@ -840,5 +763,16 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             future.completeExceptionally(e);
         }
         return future;
+    }
+
+    @Override
+    public void reloadBuiltInFunctions() throws PulsarAdminException {
+        sync(this::reloadBuiltInFunctionsAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> reloadBuiltInFunctionsAsync() {
+        WebTarget path = functions.path("builtins/reload");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 }

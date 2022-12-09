@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -236,8 +236,9 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
             Schema<T> schemaToWrite = record.getSchema();
-            if (record.getSourceRecord() instanceof PulsarRecord) {
+            if (!record.shouldSetSchema()) {
                 // we are receiving data directly from another Pulsar topic
+                // and the Function return type is not a Record
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
@@ -278,6 +279,19 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     @VisibleForTesting
+    class PulsarSinkManualProcessor extends PulsarSinkAtMostOnceProcessor {
+
+        public PulsarSinkManualProcessor(Schema schema, Crypto crypto) {
+            super(schema, crypto);
+        }
+
+        @Override
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
+            super.sendOutputMessage(msg, record);
+        }
+    }
+
+    @VisibleForTesting
     class PulsarSinkEffectivelyOnceProcessor extends PulsarSinkProcessorBase {
 
         public PulsarSinkEffectivelyOnceProcessor(Schema schema, Crypto crypto) {
@@ -291,8 +305,9 @@ public class PulsarSink<T> implements Sink<T> {
                         "PartitionId needs to be specified for every record while in Effectively-once mode");
             }
             Schema<T> schemaToWrite = record.getSchema();
-            if (record.getSourceRecord() instanceof PulsarRecord) {
+            if (!record.shouldSetSchema()) {
                 // we are receiving data directly from another Pulsar topic
+                // and the Function return type is not a Record
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
@@ -361,6 +376,9 @@ public class PulsarSink<T> implements Sink<T> {
                 break;
             case EFFECTIVELY_ONCE:
                 this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor(schema, crypto);
+                break;
+            case MANUAL:
+                this.pulsarSinkProcessor = new PulsarSinkManualProcessor(schema, crypto);
                 break;
         }
     }

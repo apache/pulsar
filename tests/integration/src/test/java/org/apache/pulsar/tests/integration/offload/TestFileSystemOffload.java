@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,18 +41,17 @@ public class TestFileSystemOffload extends TestBaseOffload {
     @Test(dataProvider =  "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeDeletionLag(serviceUrl.get(), adminUrl.get());
-
     }
-
 
     @Override
     protected Map<String, String> getEnv() {
         Map<String, String> result = new HashMap<>();
-        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
+        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(getNumEntriesPerLedger()));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "filesystem");
         result.put("fileSystemURI", "file:///");
 
         return result;
     }
+
 }

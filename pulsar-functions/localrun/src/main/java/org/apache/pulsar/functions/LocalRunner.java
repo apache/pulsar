@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions;
 
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
@@ -31,8 +32,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Builder;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
@@ -59,6 +62,7 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -90,14 +94,20 @@ public class LocalRunner implements AutoCloseable {
     private final String functionsDir;
     private final Thread shutdownHook;
     private final int instanceLivenessCheck;
-    private ClassLoader userCodeClassLoader;
-    private boolean userCodeClassLoaderCreated;
+    private UserCodeClassLoader userCodeClassLoader;
+    private UserCodeClassLoader transformFunctionCodeClassLoader;
     private RuntimeFactory runtimeFactory;
     private HTTPServer metricsServer;
 
     public enum RuntimeEnv {
         THREAD,
         PROCESS
+    }
+
+    @Value
+    private static class UserCodeClassLoader {
+        ClassLoader classLoader;
+        boolean classLoaderCreated;
     }
 
     public static class FunctionConfigConverter implements IStringConverter<FunctionConfig> {
@@ -257,11 +267,13 @@ public class LocalRunner implements AutoCloseable {
     }
 
     private static String getPulsarDirectory(String directory) {
-        String pulsarHome = System.getenv("PULSAR_HOME");
-        if (pulsarHome == null) {
-            pulsarHome = Paths.get("").toAbsolutePath().toString();
+        final Path directoryPath;
+        if (System.getenv("PULSAR_HOME") != null) {
+            directoryPath = Path.of(System.getenv("PULSAR_HOME"), directory);
+        } else {
+            directoryPath = Path.of(directory);
         }
-        return Paths.get(pulsarHome, directory).toString();
+        return directoryPath.toAbsolutePath().toString();
     }
 
     private static File createNarExtractionTempDirectory() {
@@ -308,16 +320,21 @@ public class LocalRunner implements AutoCloseable {
                 runtimeFactory = null;
             }
 
-            if (userCodeClassLoaderCreated) {
-                if (userCodeClassLoader instanceof Closeable) {
-                    try {
-                        ((Closeable) userCodeClassLoader).close();
-                    } catch (IOException e) {
-                        log.warn("Error closing classloader", e);
-                    }
+            closeClassLoaderIfneeded(userCodeClassLoader);
+            userCodeClassLoader = null;
+            closeClassLoaderIfneeded(transformFunctionCodeClassLoader);
+            transformFunctionCodeClassLoader = null;
+        }
+    }
+
+    private static void closeClassLoaderIfneeded(UserCodeClassLoader userCodeClassLoader) {
+        if (userCodeClassLoader != null && userCodeClassLoader.isClassLoaderCreated()) {
+            if (userCodeClassLoader.getClassLoader() instanceof Closeable) {
+                try {
+                    ((Closeable) userCodeClassLoader.getClassLoader()).close();
+                } catch (IOException e) {
+                    log.warn("Error closing classloader", e);
                 }
-                userCodeClassLoaderCreated = false;
-                userCodeClassLoader = null;
             }
         }
     }
@@ -331,53 +348,18 @@ public class LocalRunner implements AutoCloseable {
             Runtime.getRuntime().addShutdownHook(shutdownHook);
             Function.FunctionDetails functionDetails = null;
             String userCodeFile;
+            String transformFunctionFile = null;
             int parallelism;
             if (functionConfig != null) {
                 FunctionConfigUtils.inferMissingArguments(functionConfig, true);
                 parallelism = functionConfig.getParallelism();
                 if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                     userCodeFile = functionConfig.getJar();
-                    ClassLoader builtInFunctionClassLoader = userCodeFile != null
-                            ? isBuiltInFunction(userCodeFile)
-                            : null;
-                    if (builtInFunctionClassLoader != null) {
-                        userCodeClassLoader = builtInFunctionClassLoader;
-                        functionDetails = FunctionConfigUtils.convert(
-                                functionConfig,
-                                FunctionConfigUtils.validateJavaFunction(functionConfig, builtInFunctionClassLoader));
-                    } else if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                        File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                        ClassLoader functionClassLoader = FunctionCommon.getClassLoaderFromPackage(
-                                Function.FunctionDetails.ComponentType.FUNCTION,
-                                functionConfig.getClassName(), file, narExtractionDirectory);
-                        functionDetails = FunctionConfigUtils.convert(
-                                functionConfig,
-                                FunctionConfigUtils.validateJavaFunction(functionConfig, functionClassLoader));
-                        userCodeClassLoader = functionClassLoader;
-                        userCodeClassLoaderCreated = true;
-                    } else if (userCodeFile != null) {
-                        File file = new File(userCodeFile);
-                        if (!file.exists()) {
-                            throw new RuntimeException("User jar does not exist");
-                        }
-                        ClassLoader functionClassLoader = FunctionCommon.getClassLoaderFromPackage(
-                                Function.FunctionDetails.ComponentType.FUNCTION,
-                                functionConfig.getClassName(), file, narExtractionDirectory);
-                        functionDetails = FunctionConfigUtils.convert(
-                                functionConfig,
-                                FunctionConfigUtils.validateJavaFunction(functionConfig, functionClassLoader));
-                        userCodeClassLoader = functionClassLoader;
-                        userCodeClassLoaderCreated = true;
-                    } else {
-                        if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
-                            throw new IllegalStateException("The jar property must be specified in FunctionConfig.");
-                        }
-                        functionDetails = FunctionConfigUtils.convert(
-                                functionConfig,
-                                FunctionConfigUtils.validateJavaFunction(
-                                        functionConfig,
-                                        Thread.currentThread().getContextClassLoader()));
-                    }
+                    userCodeClassLoader = extractClassLoader(
+                        userCodeFile, ComponentType.FUNCTION, functionConfig.getClassName());
+                    functionDetails = FunctionConfigUtils.convert(
+                        functionConfig,
+                        FunctionConfigUtils.validateJavaFunction(functionConfig, getCurrentOrUserCodeClassLoader()));
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                     userCodeFile = functionConfig.getGo();
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
@@ -387,91 +369,42 @@ public class LocalRunner implements AutoCloseable {
                 }
 
                 if (functionDetails == null) {
-                    functionDetails = FunctionConfigUtils.convert(functionConfig,
-                            userCodeClassLoader != null ? userCodeClassLoader :
-                                    Thread.currentThread().getContextClassLoader());
+                    functionDetails = FunctionConfigUtils.convert(functionConfig, getCurrentOrUserCodeClassLoader());
                 }
             } else if (sourceConfig != null) {
                 inferMissingArguments(sourceConfig);
                 userCodeFile = sourceConfig.getArchive();
                 parallelism = sourceConfig.getParallelism();
-
-                ClassLoader builtInSourceClassLoader = userCodeFile != null ? isBuiltInSource(userCodeFile) : null;
-                if (builtInSourceClassLoader != null) {
-                    functionDetails = SourceConfigUtils.convert(
-                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(
-                                    sourceConfig, builtInSourceClassLoader, true));
-                    userCodeClassLoader = builtInSourceClassLoader;
-                } else if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                    File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    ClassLoader sourceClassLoader = FunctionCommon.getClassLoaderFromPackage(
-                            Function.FunctionDetails.ComponentType.SOURCE,
-                            sourceConfig.getClassName(), file, narExtractionDirectory);
-                    functionDetails = SourceConfigUtils.convert(
-                            sourceConfig,
-                            SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
-                    userCodeClassLoader = sourceClassLoader;
-                    userCodeClassLoaderCreated = true;
-                } else if (userCodeFile != null) {
-                    File file = new File(userCodeFile);
-                    if (!file.exists()) {
-                        throw new RuntimeException("Source archive (" + userCodeFile + ") does not exist");
-                    }
-                    ClassLoader sourceClassLoader = FunctionCommon.getClassLoaderFromPackage(
-                            Function.FunctionDetails.ComponentType.SOURCE,
-                            sourceConfig.getClassName(), file, narExtractionDirectory);
-                    functionDetails = SourceConfigUtils.convert(sourceConfig,
-                            SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
-                    userCodeClassLoader = sourceClassLoader;
-                    userCodeClassLoaderCreated = true;
-                } else {
-                    if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
-                        throw new IllegalStateException("The archive property must be specified in SourceConfig.");
-                    }
-                    functionDetails = SourceConfigUtils.convert(
-                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(
-                                    sourceConfig, Thread.currentThread().getContextClassLoader(), true));
-                }
+                userCodeClassLoader = extractClassLoader(
+                    userCodeFile, ComponentType.SOURCE, sourceConfig.getClassName());
+                functionDetails = SourceConfigUtils.convert(
+                    sourceConfig,
+                    SourceConfigUtils.validateAndExtractDetails(sourceConfig, getCurrentOrUserCodeClassLoader(), true));
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);
                 userCodeFile = sinkConfig.getArchive();
+                transformFunctionFile = sinkConfig.getTransformFunction();
                 parallelism = sinkConfig.getParallelism();
-
-                ClassLoader builtInSinkClassLoader = userCodeFile != null ? isBuiltInSink(userCodeFile) : null;
-                if (builtInSinkClassLoader != null) {
-                    functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(
-                                    sinkConfig, builtInSinkClassLoader, true));
-                    userCodeClassLoader = builtInSinkClassLoader;
-                } else if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                    File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    ClassLoader sinkClassLoader = FunctionCommon.getClassLoaderFromPackage(
-                            Function.FunctionDetails.ComponentType.SINK,
-                            sinkConfig.getClassName(), file, narExtractionDirectory);
-                    functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
-                    userCodeClassLoader = sinkClassLoader;
-                    userCodeClassLoaderCreated = true;
-                } else if (userCodeFile != null) {
-                    File file = new File(userCodeFile);
-                    if (!file.exists()) {
-                        throw new RuntimeException("Sink archive does not exist");
-                    }
-                    ClassLoader sinkClassLoader = FunctionCommon.getClassLoaderFromPackage(
-                            Function.FunctionDetails.ComponentType.SINK,
-                            sinkConfig.getClassName(), file, narExtractionDirectory);
-                    functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
-                    userCodeClassLoader = sinkClassLoader;
-                    userCodeClassLoaderCreated = true;
-                } else {
-                    if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
-                        throw new IllegalStateException("The archive property must be specified in SourceConfig.");
-                    }
-                    functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(
-                                    sinkConfig, Thread.currentThread().getContextClassLoader(), true));
+                userCodeClassLoader = extractClassLoader(
+                    userCodeFile, ComponentType.SINK, sinkConfig.getClassName());
+                if (isNotEmpty(sinkConfig.getTransformFunction())) {
+                    transformFunctionCodeClassLoader = extractClassLoader(
+                        sinkConfig.getTransformFunction(),
+                        ComponentType.FUNCTION,
+                        sinkConfig.getTransformFunctionClassName());
                 }
+
+                ClassLoader functionClassLoader = null;
+                if (transformFunctionCodeClassLoader != null) {
+                    functionClassLoader = transformFunctionCodeClassLoader.getClassLoader() == null
+                        ? Thread.currentThread().getContextClassLoader()
+                        : transformFunctionCodeClassLoader.getClassLoader();
+                }
+
+                functionDetails = SinkConfigUtils.convert(
+                    sinkConfig,
+                    SinkConfigUtils.validateAndExtractDetails(sinkConfig, getCurrentOrUserCodeClassLoader(),
+                        functionClassLoader, true));
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");
             }
@@ -501,10 +434,10 @@ public class LocalRunner implements AutoCloseable {
                     && (runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
                 // By default run java functions as threads
                 startThreadedMode(functionDetails, parallelism, instanceIdOffset, serviceUrl,
-                        stateStorageServiceUrl, authConfig, userCodeFile);
+                        stateStorageServiceUrl, authConfig, userCodeFile, transformFunctionFile);
             } else {
                 startProcessMode(functionDetails, parallelism, instanceIdOffset, serviceUrl,
-                        stateStorageServiceUrl, authConfig, userCodeFile);
+                        stateStorageServiceUrl, authConfig, userCodeFile, transformFunctionFile);
             }
             local.addAll(spawners);
         }
@@ -526,10 +459,71 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
+    private ClassLoader getCurrentOrUserCodeClassLoader() {
+        return userCodeClassLoader == null || userCodeClassLoader.getClassLoader() == null
+            ? Thread.currentThread().getContextClassLoader()
+            : userCodeClassLoader.getClassLoader();
+    }
+
+    private UserCodeClassLoader extractClassLoader(String userCodeFile, ComponentType componentType, String className)
+        throws IOException, URISyntaxException {
+        ClassLoader classLoader = userCodeFile != null ? isBuiltIn(userCodeFile, componentType) : null;
+        boolean classLoaderCreated = false;
+        if (classLoader == null) {
+            if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
+                classLoader = FunctionCommon.getClassLoaderFromPackage(
+                        componentType, className, file, narExtractionDirectory);
+                classLoaderCreated = true;
+            } else if (userCodeFile != null) {
+                File file = new File(userCodeFile);
+                if (!file.exists()) {
+                    String errorMsg;
+                    switch (componentType) {
+                        case FUNCTION:
+                            errorMsg = "User jar";
+                            break;
+                        case SOURCE:
+                            errorMsg = "Source archive";
+                            break;
+                        case SINK:
+                            errorMsg = "Sink archive";
+                            break;
+                        default:
+                            throw new IllegalStateException("Unexpected value: " + componentType);
+                    }
+                    throw new RuntimeException(errorMsg + " (" + userCodeFile + ") does not exist");
+                }
+                classLoader = FunctionCommon.getClassLoaderFromPackage(
+                        componentType, className, file, narExtractionDirectory);
+                classLoaderCreated = true;
+            } else {
+                if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
+                    String errorMsg;
+                    switch (componentType) {
+                        case FUNCTION:
+                            errorMsg = "The jar property must be specified in FunctionConfig.";
+                            break;
+                        case SOURCE:
+                            errorMsg = "The archive property must be specified in SourceConfig.";
+                            break;
+                        case SINK:
+                            errorMsg = "The archive property must be specified in SinkConfig.";
+                            break;
+                        default:
+                            throw new IllegalStateException("Unexpected ComponentType: " + componentType);
+                    }
+                    throw new IllegalStateException(errorMsg);
+                }
+            }
+        }
+        return new UserCodeClassLoader(classLoader, classLoaderCreated);
+    }
+
     private void startProcessMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
-                                           String userCodeFile) throws Exception {
+                                           String userCodeFile, String transformFunctionFile) throws Exception {
         SecretsProviderConfigurator secretsProviderConfigurator = getSecretsProviderConfigurator();
         runtimeFactory = new ProcessRuntimeFactory(
                 serviceUrl,
@@ -576,6 +570,8 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig,
                     userCodeFile,
                     null,
+                    transformFunctionFile,
+                    null,
                     runtimeFactory,
                     instanceLivenessCheck);
             spawners.add(runtimeSpawner);
@@ -610,7 +606,7 @@ public class LocalRunner implements AutoCloseable {
     private void startThreadedMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
-                                           String userCodeFile) throws Exception {
+                                           String userCodeFile, String transformFunctionFile) throws Exception {
 
         if (metricsPortStart != null) {
             if (metricsPortStart < 0 || metricsPortStart > 65535) {
@@ -641,8 +637,8 @@ public class LocalRunner implements AutoCloseable {
 
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
         try {
-            if (userCodeClassLoader != null) {
-                Thread.currentThread().setContextClassLoader(userCodeClassLoader);
+            if (userCodeClassLoader != null && userCodeClassLoader.getClassLoader() != null) {
+                Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
@@ -662,6 +658,7 @@ public class LocalRunner implements AutoCloseable {
             // TODO: correctly implement function version and id
             instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
             instanceConfig.setFunctionId(UUID.randomUUID().toString());
+            instanceConfig.setTransformFunctionId(UUID.randomUUID().toString());
             instanceConfig.setInstanceId(i + instanceIdOffset);
             instanceConfig.setMaxBufferedTuples(1024);
             if (metricsPortStart != null) {
@@ -680,6 +677,8 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig,
                     userCodeFile,
                     null,
+                    transformFunctionFile,
+                    null,
                     runtimeFactory,
                     instanceLivenessCheck);
             spawners.add(runtimeSpawner);
@@ -689,6 +688,20 @@ public class LocalRunner implements AutoCloseable {
             // starting metrics server
             log.info("Starting metrics server on port {}", metricsPortStart);
             metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
+        }
+    }
+
+    private ClassLoader isBuiltIn(String component, ComponentType componentType)
+        throws IOException {
+        switch (componentType) {
+            case FUNCTION:
+                return isBuiltInFunction(component);
+            case SOURCE:
+                return isBuiltInSource(component);
+            case SINK:
+                return isBuiltInSink(component);
+            default:
+                throw new IllegalStateException("Unexpected ComponentType: " + componentType);
         }
     }
 

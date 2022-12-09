@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import com.google.common.base.Charsets;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -149,7 +149,7 @@ public class LinuxInfoUtils {
      */
     private static boolean isPhysicalNic(Path nicPath) {
         try {
-            if (nicPath.toRealPath().toString().contains("/virtual/")) {
+            if (nicPath.toString().contains("/virtual/")) {
                 return false;
             }
             // Check the type to make sure it's ethernet (type "1")
@@ -177,7 +177,7 @@ public class LinuxInfoUtils {
                 log.error("[LinuxInfo] Failed to get total nic limit.", e);
                 return 0d;
             }
-        }).sum(), BitRateUnit.Bit);
+        }).sum(), BitRateUnit.Megabit);
     }
 
     /**
@@ -231,7 +231,7 @@ public class LinuxInfoUtils {
     }
 
     private static String readTrimStringFromFile(Path path) throws IOException {
-        return new String(Files.readAllBytes(path), Charsets.UTF_8).trim();
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
     }
 
     private static long readLongFromFile(Path path) throws IOException {

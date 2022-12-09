@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -62,6 +63,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
+    private MetadataEventSynchronizer synchronizer;
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
@@ -73,8 +75,12 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
+        super(metadataStoreConfig.getMetadataStoreName());
         String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
         // Local means a private data set
+        // update synchronizer and register sync listener
+        synchronizer = metadataStoreConfig.getSynchronizer();
+        registerSyncLister(Optional.ofNullable(synchronizer));
         if ("local".equals(name)) {
             map = new TreeMap<>();
             sequentialIdGenerator = new AtomicLong();
@@ -123,7 +129,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
             Set<String> children = new TreeSet<>();
             map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-                String relativePath = key.replace(firstKey, "");
+                String relativePath = key.replaceFirst(firstKey, "");
 
                 // Only return first-level children
                 String child = relativePath.split("/", 2)[0];
@@ -217,5 +223,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 return FutureUtils.value(null);
             }
         }
+    }
+
+    @Override
+    public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
+        return Optional.ofNullable(synchronizer);
     }
 }

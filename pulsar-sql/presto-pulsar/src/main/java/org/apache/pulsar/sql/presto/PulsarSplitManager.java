@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,27 +19,27 @@
 package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static io.trino.spi.StandardErrorCode.QUERY_REJECTED;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.ColumnHandle;
-import io.prestosql.spi.connector.ConnectorSession;
-import io.prestosql.spi.connector.ConnectorSplitManager;
-import io.prestosql.spi.connector.ConnectorSplitSource;
-import io.prestosql.spi.connector.ConnectorTableLayoutHandle;
-import io.prestosql.spi.connector.ConnectorTransactionHandle;
-import io.prestosql.spi.connector.FixedSplitSource;
-import io.prestosql.spi.predicate.Domain;
-import io.prestosql.spi.predicate.Range;
-import io.prestosql.spi.predicate.TupleDomain;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.ConnectorTableLayoutHandle;
+import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.FixedSplitSource;
+import io.trino.spi.predicate.Domain;
+import io.trino.spi.predicate.Range;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.predicate.Utils;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,7 +47,6 @@ import java.util.LinkedList;
 import java.util.List;
 import javax.inject.Inject;
 import lombok.Data;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -76,7 +75,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
     private static final Logger log = Logger.get(PulsarSplitManager.class);
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Inject
     public PulsarSplitManager(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig) {
@@ -111,7 +110,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                     String.format("%s/%s", namespace, tableHandle.getTopicName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
-                throw new PrestoException(QUERY_REJECTED,
+                throw new TrinoException(QUERY_REJECTED,
                         String.format("Failed to get pulsar topic schema for topic %s/%s: Unauthorized",
                                 namespace, tableHandle.getTopicName()));
             } else if (e.getStatusCode() == 404) {
@@ -193,7 +192,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             numPartitions = (this.pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
-                throw new PrestoException(QUERY_REJECTED,
+                throw new TrinoException(QUERY_REJECTED,
                     String.format("Failed to get metadata for partitioned topic %s: Unauthorized", topicName));
             }
 
@@ -207,13 +206,15 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             if (domain != null) {
                 domain.getValues().getValuesProcessor().consume(
                     ranges -> domain.getValues().getRanges().getOrderedRanges().forEach(range -> {
-                        Integer low = 0;
-                        Integer high = numPartitions;
-                        if (!range.getLow().isLowerUnbounded() && range.getLow().getValueBlock().isPresent()) {
-                            low = range.getLow().getValueBlock().get().getInt(0, 0);
+                        int low = 0;
+                        int high = numPartitions;
+                        if (range.getLowValue().isPresent()) {
+                            Block block = Utils.nativeValueToBlock(range.getType(), range.getLowBoundedValue());
+                            low = block.getInt(0, 0);
                         }
-                        if (!range.getHigh().isLowerUnbounded() && range.getHigh().getValueBlock().isPresent()) {
-                            high = range.getHigh().getValueBlock().get().getInt(0, 0);
+                        if (range.getHighValue().isPresent()) {
+                            Block block = Utils.nativeValueToBlock(range.getType(), range.getHighBoundedValue());
+                            high = block.getInt(0, 0);
                         }
                         for (int i = low; i <= high; i++) {
                             predicatePartitions.add(i);
@@ -274,7 +275,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
             long numEntries = readOnlyCursor.getNumberOfEntries();
             if (numEntries <= 0) {
-                return Collections.EMPTY_LIST;
+                return Collections.emptyList();
             }
 
             PredicatePushdownInfo predicatePushdownInfo = PredicatePushdownInfo.getPredicatePushdownInfo(
@@ -379,14 +380,14 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
                             Range range = domain.getValues().getRanges().getOrderedRanges().get(0);
 
-                            if (!range.getHigh().isUpperUnbounded()) {
-                                upperBoundTs = new Timestamp(range.getHigh().getValueBlock().get()
-                                        .getLong(0, 0)).getTime();
+                            if (!range.isHighUnbounded()) {
+                                Block block = Utils.nativeValueToBlock(range.getType(), range.getHighBoundedValue());
+                                upperBoundTs = block.getLong(0, 0) / 1000;
                             }
 
-                            if (!range.getLow().isLowerUnbounded()) {
-                                lowerBoundTs = new Timestamp(range.getLow().getValueBlock().get()
-                                        .getLong(0, 0)).getTime();
+                            if (!range.isLowUnbounded()) {
+                                Block block = Utils.nativeValueToBlock(range.getType(), range.getLowBoundedValue());
+                                lowerBoundTs = block.getLong(0, 0) / 1000;
                             }
 
                             PositionImpl overallStartPos;
@@ -439,19 +440,18 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     private static PositionImpl findPosition(ReadOnlyCursor readOnlyCursor, long timestamp) throws
             ManagedLedgerException,
             InterruptedException {
-        return (PositionImpl) readOnlyCursor.findNewestMatching(SearchAllAvailableEntries, new Predicate<Entry>() {
-            @Override
-            public boolean apply(Entry entry) {
-                try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return entryTimestamp <= timestamp;
-                } catch (Exception e) {
-                    log.error(e, "Failed To deserialize message when finding position with error: %s", e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            }
-        });
+        return (PositionImpl) readOnlyCursor.findNewestMatching(
+                SearchAllAvailableEntries,
+                entry -> {
+                    try {
+                        long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                        return entryTimestamp <= timestamp;
+                    } catch (Exception e) {
+                        log.error(e, "Failed To deserialize message when finding position with error: %s", e);
+                    } finally {
+                        entry.release();
+                    }
+                    return false;
+                });
     }
 }

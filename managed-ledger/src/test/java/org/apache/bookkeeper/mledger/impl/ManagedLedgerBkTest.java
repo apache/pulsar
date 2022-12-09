@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -49,6 +50,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
@@ -116,7 +118,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         metadataStore.unsetAlwaysFail();
 
         bkc = new BookKeeperTestClient(baseClientConf);
-        startNewBookie();
+        int port = startNewBookie();
 
         // Reconnect a new bk client
         factory.shutdown();
@@ -146,6 +148,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals("entry-2", new String(entries.get(0).getData()));
         entries.forEach(Entry::release);
         factory.shutdown();
+        releaseLockedPort(port);
     }
 
     @Test
@@ -168,7 +171,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         final AtomicBoolean done = new AtomicBoolean();
         final CyclicBarrier barrier = new CyclicBarrier(NumProducers + NumConsumers + 1);
 
-        List<Future<?>> futures = Lists.newArrayList();
+        List<Future<?>> futures = new ArrayList();
 
         for (int i = 0; i < NumProducers; i++) {
             futures.add(executor.submit(() -> {
@@ -254,12 +257,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         mlConfig.setMetadataMaxEntriesPerLedger(10);
         ManagedLedger ledger = factory.open("ml-markdelete-ledger", mlConfig);
 
-        final List<Position> addedEntries = Lists.newArrayList();
+        final List<Position> addedEntries = new ArrayList();
 
         int numCursors = 10;
         final CyclicBarrier barrier = new CyclicBarrier(numCursors);
 
-        List<ManagedCursor> cursors = Lists.newArrayList();
+        List<ManagedCursor> cursors = new ArrayList();
         for (int i = 0; i < numCursors; i++) {
             cursors.add(ledger.openCursor(String.format("c%d", i)));
         }
@@ -269,7 +272,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             addedEntries.add(pos);
         }
 
-        List<Future<?>> futures = Lists.newArrayList();
+        List<Future<?>> futures = new ArrayList();
 
         for (ManagedCursor cursor : cursors) {
             futures.add(executor.submit(() -> {
@@ -303,7 +306,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        List<Position> positions = Lists.newArrayList();
+        List<Position> positions = new ArrayList();
 
         for (int i = 0; i < 10; i++) {
             Position p = ledger.addEntry("entry".getBytes());
@@ -311,7 +314,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
 
         final CountDownLatch counter = new CountDownLatch(positions.size());
-        final AtomicBoolean gotException = new AtomicBoolean(false);
+        final AtomicReference<Exception> gotException = new AtomicReference();
 
         for (Position p : positions) {
             cursor.asyncDelete(p, new DeleteCallback() {
@@ -323,19 +326,21 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
                 @Override
                 public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                    exception.printStackTrace();
-                    gotException.set(true);
+                    gotException.set(exception);
                     counter.countDown();
                 }
             }, null);
         }
 
-        cursor.close();
-        ledger.close();
-
         counter.await();
 
-        assertFalse(gotException.get());
+        // cleanup.
+        closeManagedLedgerWithRetry(ledger);
+
+        // Add information to determine the problem.
+        if (gotException.get() != null){
+            fail(ThrowableToStringUtil.toString(gotException.get()));
+        }
     }
 
     /**
@@ -435,7 +440,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ledger.close();
 
         ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(
-                DigestType.CRC32, "".getBytes(Charsets.UTF_8), "", false);
+                DigestType.CRC32, "".getBytes(StandardCharsets.UTF_8), "", false);
         PersistentOfflineTopicStats offlineTopicStats = offlineTopicBacklog.getEstimatedUnloadedTopicBacklog(
                 (ManagedLedgerFactoryImpl) factory, "property/cluster/namespace/my-ledger");
         assertNotNull(offlineTopicStats);

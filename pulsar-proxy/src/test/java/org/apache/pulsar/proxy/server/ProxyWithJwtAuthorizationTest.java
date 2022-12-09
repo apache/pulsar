@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -146,6 +147,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -216,6 +218,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      * 2. Update the topic partition number to 4.
      * 3. Use new producer/consumer with client role to process the topic.
      * 4. Broker should authorize producer/consumer normally.
+     * 5. revoke produce/consumer permission of topic
+     * 6. new producer/consumer should not be authorized
      * </pre>
      */
     @Test
@@ -224,6 +228,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String clusterName = "proxy-authorization";
@@ -297,6 +302,26 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(messageSet, receivedMessageSet);
         consumer.close();
         producer.close();
+
+        // revoke produce/consume permission
+        admin.topics().revokePermissions(topicName, CLIENT_ROLE);
+
+        // produce/consume the topic should fail
+        try {
+            consumer = proxyClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName).subscribe();
+            Assert.fail("Should not pass");
+        } catch (PulsarClientException.AuthorizationException ex) {
+            // ok
+        }
+        try {
+            producer = proxyClient.newProducer(Schema.BYTES)
+                    .topic(topicName).create();
+            Assert.fail("Should not pass");
+        } catch (PulsarClientException.AuthorizationException ex) {
+            // ok
+        }
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -319,6 +344,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";

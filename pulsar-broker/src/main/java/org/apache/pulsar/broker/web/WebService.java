@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.web;
 
-import com.google.common.collect.Lists;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
@@ -27,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.servlet.DispatcherType;
+import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -75,8 +75,17 @@ public class WebService implements AutoCloseable {
     private final FilterInitializer filterInitializer;
     private JettyStatisticsCollector jettyStatisticsCollector;
 
+    @Getter
+    private static final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
+            new DynamicSkipUnknownPropertyHandler();
+
+    public void updateHttpRequestsFailOnUnknownPropertiesEnabled(boolean httpRequestsFailOnUnknownPropertiesEnabled){
+        sharedUnknownPropertyHandler
+                .setSkipUnknownProperty(!httpRequestsFailOnUnknownPropertiesEnabled);
+    }
+
     public WebService(PulsarService pulsar) throws PulsarServerException {
-        this.handlers = Lists.newArrayList();
+        this.handlers = new ArrayList<>();
         this.pulsar = pulsar;
         ServiceConfiguration config = pulsar.getConfiguration();
         this.webServiceExecutor = new WebExecutorThreadPool(
@@ -147,29 +156,37 @@ public class WebService implements AutoCloseable {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
 
         filterInitializer = new FilterInitializer(pulsar);
+        // Whether to reject requests with unknown attributes.
+        sharedUnknownPropertyHandler.setSkipUnknownProperty(!config.isHttpRequestsFailOnUnknownPropertiesEnabled());
     }
 
     public void addRestResources(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                 String... javaPackages) {
+                                 boolean useSharedJsonMapperProvider, String... javaPackages) {
         ResourceConfig config = new ResourceConfig();
         for (String javaPackage : javaPackages) {
             config.packages(false, javaPackage);
         }
-        addResourceServlet(basePath, requiresAuthentication, attributeMap, config);
+        addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
     public void addRestResource(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                Class<?>... resourceClasses) {
+                                boolean useSharedJsonMapperProvider, Class<?>... resourceClasses) {
         ResourceConfig config = new ResourceConfig();
         for (Class<?> resourceClass : resourceClasses) {
             config.register(resourceClass);
         }
-        addResourceServlet(basePath, requiresAuthentication, attributeMap, config);
+        addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
     private void addResourceServlet(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                    ResourceConfig config) {
-        config.register(JsonMapperProvider.class);
+                                    ResourceConfig config, boolean useSharedJsonMapperProvider) {
+        if (useSharedJsonMapperProvider){
+            JsonMapperProvider jsonMapperProvider = new JsonMapperProvider(sharedUnknownPropertyHandler);
+            config.register(jsonMapperProvider);
+            config.register(UnrecognizedPropertyExceptionMapper.class);
+        } else {
+            config.register(JsonMapperProvider.class);
+        }
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);

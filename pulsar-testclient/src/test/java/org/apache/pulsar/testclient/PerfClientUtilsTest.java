@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,12 @@
 package org.apache.pulsar.testclient;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -70,6 +73,7 @@ public class PerfClientUtilsTest {
         args.serviceURL = "pulsar+ssl://my-pulsar:6651";
         args.tlsTrustCertsFilePath = "path";
         args.tlsAllowInsecureConnection = true;
+        args.maxLookupRequest = 100000;
 
         final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -86,6 +90,88 @@ public class PerfClientUtilsTest {
         Assert.assertEquals(conf.getServiceUrl(), "pulsar+ssl://my-pulsar:6651");
         Assert.assertEquals(conf.getTlsTrustCertsFilePath(), "path");
         Assert.assertTrue(conf.isTlsAllowInsecureConnection());
+        Assert.assertEquals(conf.getMaxLookupRequest(), 100000);
+        Assert.assertNull(conf.getProxyServiceUrl());
+        Assert.assertNull(conf.getProxyProtocol());
 
+    }
+
+    @Test
+    public void testClientCreationWithProxy() throws Exception {
+
+        final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+            @Override
+            public void fillArgumentsFromProperties(Properties prop) {
+            }
+        };
+
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        args.proxyServiceURL = "pulsar+ssl://my-proxy-pulsar:4443";
+        args.proxyProtocol = ProxyProtocol.SNI;
+
+        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientConfigurationData conf = builder.getClientConfigurationData();
+
+        Assert.assertEquals(conf.getProxyServiceUrl(), "pulsar+ssl://my-proxy-pulsar:4443");
+        Assert.assertEquals(conf.getProxyProtocol(), ProxyProtocol.SNI);
+
+    }
+
+    @Test
+    public void testClientCreationWithProxyDefinedInConfFile() throws Exception {
+
+        Path testConf = Files.createTempFile("test", ".conf");
+        try {
+            Files.writeString(testConf, "brokerServiceUrl=pulsar+ssl://my-pulsar:6651\n"
+                    + "proxyServiceUrl=pulsar+ssl://my-proxy-pulsar:4443\n"
+                    + "proxyProtocol=SNI");
+
+            final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+                @Override
+                public void fillArgumentsFromProperties(Properties prop) {
+                }
+            };
+
+            args.confFile = testConf.toString();
+            args.fillArgumentsFromProperties();
+
+            final ClientBuilderImpl builder =
+                    (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
+            final ClientConfigurationData conf = builder.getClientConfigurationData();
+
+            Assert.assertEquals(conf.getProxyServiceUrl(), "pulsar+ssl://my-proxy-pulsar:4443");
+            Assert.assertEquals(conf.getProxyProtocol(), ProxyProtocol.SNI);
+        } finally {
+            Files.deleteIfExists(testConf);
+        }
+    }
+
+    @Test
+    public void testClientCreationWithEmptyProxyPropertyInConfFile() throws Exception {
+
+        Path testConf = Files.createTempFile("test", ".conf");
+        try {
+            Files.writeString(testConf, "brokerServiceUrl=pulsar+ssl://my-pulsar:6651\n"
+                    + "proxyServiceUrl=\n"
+                    + "proxyProtocol=");
+
+            final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+                @Override
+                public void fillArgumentsFromProperties(Properties prop) {
+                }
+            };
+
+            args.confFile = testConf.toString();
+            args.fillArgumentsFromProperties();
+
+            final ClientBuilderImpl builder =
+                    (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
+            final ClientConfigurationData conf = builder.getClientConfigurationData();
+
+            Assert.assertNull(conf.getProxyServiceUrl());
+            Assert.assertNull(conf.getProxyProtocol());
+        } finally {
+            Files.deleteIfExists(testConf);
+        }
     }
 }

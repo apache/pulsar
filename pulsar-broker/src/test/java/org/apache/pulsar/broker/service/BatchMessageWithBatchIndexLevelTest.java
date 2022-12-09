@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -33,11 +39,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker")
 public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
@@ -76,7 +77,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatching(true)
                 .create();
 
-        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        List<CompletableFuture<MessageId>> sendFutureList = new ArrayList<>();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("batch-message-" + i).getBytes();
             sendFutureList.add(producer.newMessage().value(message).sendAsync());
@@ -99,11 +100,15 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
         });
+        // Block cmd-flow send until verify finish. see: https://github.com/apache/pulsar/pull/17436.
+        consumer.pause();
         Message<byte[]> receive5 = consumer.receive();
         consumer.negativeAcknowledge(receive5);
         Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
         });
+        // Unblock cmd-flow.
+        consumer.resume();
         consumer.receive();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
@@ -194,5 +199,85 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                     .getUnackedMessages();
             assertEquals(unackedMessages, 10);
         });
+    }
+
+    @Test
+    public void testAckMessageWithNotOwnerConsumerUnAckMessageCount() throws Exception {
+        final String subName = "test";
+        final String topicName = "persistent://prop/ns-abc/testAckMessageWithNotOwnerConsumerUnAckMessageCount-"
+                + UUID.randomUUID();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .enableBatching(true)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .consumerName("consumer-1")
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .isAckReceiptEnabled(true)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .consumerName("consumer-2")
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .isAckReceiptEnabled(true)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().value(("Hello Pulsar - " + i).getBytes()).sendAsync();
+        }
+
+        // consume-1 receive 5 batch messages
+        List<MessageId> list = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            list.add(consumer1.receive().getMessageId());
+        }
+
+        // consumer-1 redeliver the batch messages
+        consumer1.negativeAcknowledge(list.get(0));
+
+        // consumer-2 will receive the messages that the consumer-1 redelivered
+        for (int i = 0; i < 5; i++) {
+            consumer2.receive().getMessageId();
+        }
+
+        // consumer1 ack two messages in the batch message
+        consumer1.acknowledge(list.get(1));
+        consumer1.acknowledge(list.get(2));
+
+        // consumer-2 redeliver the rest of the messages
+        consumer2.negativeAcknowledge(list.get(1));
+
+        // consume-1 close will redeliver the rest messages to consumer-2
+        consumer1.close();
+
+        // consumer-2 can receive the rest of 3 messages
+        for (int i = 0; i < 3; i++) {
+            consumer2.acknowledge(consumer2.receive().getMessageId());
+        }
+
+        // consumer-2 can't receive any messages, all the messages in batch has been acked
+        Message<byte[]> message = consumer2.receive(1, TimeUnit.SECONDS);
+        assertNull(message);
+
+        // the number of consumer-2's unacked messages is 0
+        Awaitility.await().until(() -> getPulsar().getBrokerService().getTopic(topicName, false)
+                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages() == 0);
     }
 }

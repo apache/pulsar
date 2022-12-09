@@ -14,18 +14,17 @@ This guide describes how to use Pulsar connectors.
 
 ## Install a connector
 
-Pulsar bundles several [builtin connectors](io-connectors.md) used to move data in and out of commonly used systems (such as database and messaging system). Optionally, you can create and use your desired non-builtin connectors.
+Pulsar bundles several [built-in connectors](io-connectors.md) used to move data in and out of commonly used systems (such as database and messaging system). Optionally, you can create and use your desired non-built-in connectors.
 
 :::note
 
-When using a non-builtin connector, you need to specify the path of an archive file for the connector.
+When using a non-built-in connector, you need to specify the path of an archive file for the connector.
 
 :::
 
-To set up a builtin connector, follow
-the instructions [here](getting-started-standalone.md#installing-builtin-connectors).
+To set up a built-in connector, follow the [instructions](io-quickstart.md#install-pulsar-and-built-in-connector).
 
-After the setup, the builtin connector is automatically discovered by Pulsar brokers (or function-workers), so no additional installation steps are required.
+After the setup, the built-in connector is automatically discovered by Pulsar brokers (or function-workers), so no additional installation steps are required.
 
 ## Configure a connector
 
@@ -33,24 +32,22 @@ You can configure the following information:
 
 * [Configure a default storage location for a connector](#configure-a-default-storage-location-for-a-connector)
 
-* [Configure a connector with a YAML file](#configure-a-connector-with-yaml-file)
+* [Configure a connector with a YAML file](#configure-a-connector-with-a-yaml-file)
 
 ### Configure a default storage location for a connector
 
-To configure a default folder for builtin connectors, set the `connectorsDirectory` parameter in the `./conf/functions_worker.yml` configuration file.
+To configure a default folder for built-in connectors, set the `connectorsDirectory` parameter in the `./conf/functions_worker.yml` configuration file.
 
 **Example**
 
-Set the `./connectors` folder as the default storage location for builtin connectors.
+Set the `./connectors` folder as the default storage location for built-in connectors.
 
-```
-
+```shell
 ########################
 # Connectors
 ########################
 
 connectorsDirectory: ./connectors
-
 ```
 
 ### Configure a connector with a YAML file
@@ -64,13 +61,12 @@ The YAML configuration file tells Pulsar where to locate connectors and how to c
 Below is a YAML configuration file of a Cassandra sink, which tells Pulsar:
 
 * Which Cassandra cluster to connect
-  
+
 * What is the `keyspace` and `columnFamily` to be used in Cassandra for collecting data
-  
+
 * How to map Pulsar messages into Cassandra table key and columns
 
-```shell
-
+```yaml
 tenant: public
 namespace: default
 name: cassandra-test-sink
@@ -82,36 +78,31 @@ configs:
     columnFamily: "pulsar_test_table"
     keyname: "key"
     columnName: "col"
-
 ```
 
 **Example 2**
 
 Below is a YAML configuration file of a Kafka source.
 
-```shell
-
+```yaml
 configs:
    bootstrapServers: "pulsar-kafka:9092"
    groupId: "test-pulsar-io"
    topic: "my-topic"
    sessionTimeoutMs: "10000"
    autoCommitEnabled: "false"
-
 ```
 
 **Example 3**
 
 Below is a YAML configuration file of a PostgreSQL JDBC sink.
 
-```shell
-
+```yaml
 configs:
    userName: "postgres"
    password: "password"
    jdbcUrl: "jdbc:postgresql://localhost:5432/test_jdbc"
    tableName: "test_jdbc"
-
 ```
 
 ## Get available connectors
@@ -119,21 +110,19 @@ configs:
 Before starting using connectors, you can perform the following operations:
 
 * [Reload connectors](#reload)
-  
+
 * [Get a list of available connectors](#get-available-connectors)
 
 ### `reload`
 
-If you add or delete a nar file in a connector folder, reload the available builtin connector before using it.
+If you add or delete a nar file in a connector folder, reload the available built-in connector before using it.
 
 #### Source
 
 Use the `reload` subcommand.
 
 ```shell
-
-$ pulsar-admin sources reload
-
+pulsar-admin sources reload
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -143,9 +132,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 Use the `reload` subcommand.
 
 ```shell
-
-$ pulsar-admin sinks reload
-
+pulsar-admin sinks reload
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -159,9 +146,7 @@ After reloading connectors (optional), you can get a list of available connector
 Use the `available-sources` subcommand.
 
 ```shell
-
-$ pulsar-admin sources available-sources
-
+pulsar-admin sources available-sources
 ```
 
 #### Sink
@@ -169,9 +154,7 @@ $ pulsar-admin sources available-sources
 Use the `available-sinks` subcommand.
 
 ```shell
-
-$ pulsar-admin sinks available-sinks
-
+pulsar-admin sinks available-sinks
 ```
 
 ## Run a connector
@@ -179,7 +162,7 @@ $ pulsar-admin sinks available-sinks
 To run a connector, you can perform the following operations:
 
 * [Create a connector](#create)
-  
+
 * [Start a connector](#start)
 
 * [Run a connector locally](#localrun)
@@ -201,10 +184,8 @@ Create a source connector.
 
 Use the `create` subcommand.
 
-```
-
-$ pulsar-admin sources create options
-
+```shell
+pulsar-admin sources create options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -220,11 +201,9 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
 * Create a source connector with a **local file**.
 
   ```java
-  
   void createSource(SourceConfig sourceConfig,
                     String fileName)
              throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -241,14 +220,12 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
 
   For more information, see [`createSource`](/api/admin/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-).
 
-* Create a source connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
+* Create a source connector using a **remote file** with a URL from which fun-pkg can be downloaded.
 
   ```java
-  
   void createSourceWithUrl(SourceConfig sourceConfig,
                            String pkgUrl)
                     throws PulsarAdminException
-  
   ```
 
   Supported URLs are `http` and `file`.
@@ -271,7 +248,7 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
   |Name|Description|
   |---|---
   | `PulsarAdminException` | Unexpected error
-  
+
   For more information, see [`createSourceWithUrl`](/api/admin/org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-).
 
 </TabItem>
@@ -292,10 +269,8 @@ Create a sink connector.
 
 Use the `create` subcommand.
 
-```
-
-$ pulsar-admin sinks create options
-
+```shell
+pulsar-admin sinks create options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -311,11 +286,9 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 * Create a sink connector with a **local file**.
 
   ```java
-  
   void createSink(SinkConfig sinkConfig,
                   String fileName)
            throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -332,14 +305,12 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 
   For more information, see [`createSink`](/api/admin/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-).
 
-* Create a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
+* Create a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded.
 
   ```java
-  
   void createSinkWithUrl(SinkConfig sinkConfig,
                       String pkgUrl)
                   throws PulsarAdminException
-  
   ```
 
   Supported URLs are `http` and `file`.
@@ -362,7 +333,7 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
   |Name|Description|
   |---|---
   | `PulsarAdminException` | Unexpected error
-  
+
   For more information, see [`createSinkWithUrl`](/api/admin/org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-).
 
 </TabItem>
@@ -387,10 +358,8 @@ Start a source connector.
 
 Use the `start` subcommand.
 
-```
-
-$ pulsar-admin sources start options
-
+```shell
+pulsar-admin sources start options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -424,10 +393,8 @@ Start a sink connector.
 
 Use the `start` subcommand.
 
-```
-
-$ pulsar-admin sinks start options
-
+```shell
+pulsar-admin sinks start options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -465,10 +432,8 @@ Run a source connector locally.
 
 Use the `localrun` subcommand.
 
-```
-
-$ pulsar-admin sources localrun options
-
+```shell
+pulsar-admin sources localrun options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -491,10 +456,8 @@ Run a sink connector locally.
 
 Use the `localrun` subcommand.
 
-```
-
-$ pulsar-admin sinks localrun options
-
+```shell
+pulsar-admin sinks localrun options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -530,10 +493,8 @@ Get the information of a source connector.
 
 Use the `get` subcommand.
 
-```
-
-$ pulsar-admin sources get options
-
+```shell
+pulsar-admin sources get options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -547,12 +508,10 @@ Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/
 <TabItem value="Java Admin API">
 
 ```java
-
 SourceConfig getSource(String tenant,
                        String namespace,
                        String source)
                 throws PulsarAdminException
-
 ```
 
 **Example**
@@ -560,7 +519,6 @@ SourceConfig getSource(String tenant,
 This is a sourceConfig.
 
 ```java
-
 {
  "tenant": "tenantName",
  "namespace": "namespaceName",
@@ -576,13 +534,11 @@ This is a sourceConfig.
    "disk": 10737418240
  }
 }
-
 ```
 
 This is a sourceConfig example.
 
-```
-
+```json
 {
  "tenant": "public",
  "namespace": "default",
@@ -612,14 +568,13 @@ This is a sourceConfig example.
    "disk": 10737418240
  }
 }
-
 ```
 
 **Exception**
 
 Exception name | Description
 |---|---
-`PulsarAdminException.NotAuthorizedException` | You don't have the admin permission 
+`PulsarAdminException.NotAuthorizedException` | You don't have the admin permission
 `PulsarAdminException.NotFoundException` | Cluster doesn't exist
 `PulsarAdminException` | Unexpected error
 
@@ -643,10 +598,8 @@ Get the information of a sink connector.
 
 Use the `get` subcommand.
 
-```
-
-$ pulsar-admin sinks get options
-
+```shell
+pulsar-admin sinks get options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -660,12 +613,10 @@ Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:t
 <TabItem value="Java Admin API">
 
 ```java
-
 SinkConfig getSink(String tenant,
                    String namespace,
                    String sink)
             throws PulsarAdminException
-
 ```
 
 **Example**
@@ -673,7 +624,6 @@ SinkConfig getSink(String tenant,
 This is a sinkConfig.
 
 ```json
-
 {
 "tenant": "tenantName",
 "namespace": "namespaceName",
@@ -690,13 +640,11 @@ This is a sinkConfig.
 "retainOrdering": false,
 "autoAck": true
 }
-
 ```
 
 This is a sinkConfig example.
 
 ```json
-
 {
   "tenant": "public",
   "namespace": "default",
@@ -718,7 +666,6 @@ This is a sinkConfig example.
   "retainOrdering": false,
   "autoAck": true
 }
-
 ```
 
 **Parameter description**
@@ -753,10 +700,8 @@ Get the list of all running source connectors.
 
 Use the `list` subcommand.
 
-```
-
-$ pulsar-admin sources list options
-
+```shell
+pulsar-admin sources list options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -764,25 +709,21 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/|operation/listSources?version=@pulsar:version_number@}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace|operation/listSources?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
 
 ```java
-
 List<String> listSources(String tenant,
                          String namespace)
                   throws PulsarAdminException
-
 ```
 
 **Response example**
 
 ```java
-
 ["f1", "f2", "f3"]
-
 ```
 
 **Exception**
@@ -812,10 +753,8 @@ Get the list of all running sink connectors.
 
 Use the `list` subcommand.
 
-```
-
-$ pulsar-admin sinks list options
-
+```shell
+pulsar-admin sinks list options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -823,32 +762,28 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/|operation/listSinks?version=@pulsar:version_number@}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace|operation/listSinks?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
 
 ```java
-
 List<String> listSinks(String tenant,
                        String namespace)
                 throws PulsarAdminException
-
 ```
 
 **Response example**
 
 ```java
-
 ["f1", "f2", "f3"]
-
 ```
 
 **Exception**
 
 Exception name | Description
 |---|---
-`PulsarAdminException.NotAuthorizedException` | You don't have the admin permission 
+`PulsarAdminException.NotAuthorizedException` | You don't have the admin permission
 `PulsarAdminException` | Unexpected error
 
 For more information, see [`listSource`](/api/admin/org/apache/pulsar/client/admin/Sink.html#listSinks-java.lang.String-java.lang.String-).
@@ -875,10 +810,8 @@ Get the current status of a source connector.
 
 Use the `status` subcommand.
 
-```
-
-$ pulsar-admin sources status options
-
+```shell
+pulsar-admin sources status options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -887,7 +820,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 * Get the current status of **all** source connectors.
-  
+
   Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName/status|operation/getSourceStatus?version=@pulsar:version_number@}
 
 * Gets the current status of a **specified** source connector.
@@ -900,12 +833,10 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Get the current status of **all** source connectors.
 
   ```java
-  
   SourceStatus getSourceStatus(String tenant,
                               String namespace,
                               String source)
                       throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -927,13 +858,11 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Gets the current status of a **specified** source connector.
 
   ```java
-  
   SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(String tenant,
                                                                              String namespace,
                                                                              String source,
                                                                              int id)
                                                                       throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -971,10 +900,8 @@ Get the current status of a Pulsar sink connector.
 
 Use the `status` subcommand.
 
-```
-
-$ pulsar-admin sinks status options
-
+```shell
+pulsar-admin sinks status options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -983,7 +910,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 * Get the current status of **all** sink connectors.
-  
+
   Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/:sinkName/status|operation/getSinkStatus?version=@pulsar:version_number@}
 
 * Gets the current status of a **specified** sink connector.
@@ -996,12 +923,10 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Get the current status of **all** sink connectors.
 
   ```java
-  
   SinkStatus getSinkStatus(String tenant,
                            String namespace,
                            String sink)
                     throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1023,13 +948,11 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Gets the current status of a **specified** source connector.
 
   ```java
-  
   SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant,
                                                                      String namespace,
                                                                      String sink,
                                                                      int id)
                                                               throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1073,10 +996,8 @@ Update a running Pulsar source connector.
 
 Use the `update` subcommand.
 
-```
-
-$ pulsar-admin sources update options
-
+```shell
+pulsar-admin sources update options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1092,11 +1013,9 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 * Update a running source connector with a **local file**.
 
   ```java
-  
   void updateSource(SourceConfig sourceConfig,
                   String fileName)
           throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1109,20 +1028,18 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 
   |Name|Description|
   |---|---
-  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission
   | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
   | `PulsarAdminException` | Unexpected error
 
   For more information, see [`updateSource`](/api/admin/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-).
 
-* Update a source connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
+* Update a source connector using a **remote file** with a URL from which fun-pkg can be downloaded.
 
   ```java
-  
   void updateSourceWithUrl(SourceConfig sourceConfig,
                        String pkgUrl)
                 throws PulsarAdminException
-  
   ```
 
   Supported URLs are `http` and `file`.
@@ -1132,7 +1049,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
   * HTTP: http://www.repo.com/fileName.jar
 
   * File: file:///dir/fileName.jar
-  
+
   **Parameter**
 
   | Name | Description
@@ -1144,7 +1061,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 
   |Name|Description|
   |---|---
-  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission
   | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
   | `PulsarAdminException` | Unexpected error
 
@@ -1168,10 +1085,8 @@ Update a running Pulsar sink connector.
 
 Use the `update` subcommand.
 
-```
-
-$ pulsar-admin sinks update options
-
+```shell
+pulsar-admin sinks update options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1187,11 +1102,9 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 * Update a running sink connector with a **local file**.
 
   ```java
-  
   void updateSink(SinkConfig sinkConfig,
                   String fileName)
        throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1210,14 +1123,12 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 
   For more information, see [`updateSink`](/api/admin/org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-).
 
-* Update a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
+* Update a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded.
 
   ```java
-  
   void updateSinkWithUrl(SinkConfig sinkConfig,
                          String pkgUrl)
                   throws PulsarAdminException
-  
   ```
 
   Supported URLs are `http` and `file`.
@@ -1227,7 +1138,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
   * HTTP: http://www.repo.com/fileName.jar
 
   * File: file:///dir/fileName.jar
-  
+
   **Parameter**
 
   | Name | Description
@@ -1239,7 +1150,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 
   |Name|Description|
   |---|---
-  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission
   |`PulsarAdminException.NotFoundException` | Cluster doesn't exist
   |`PulsarAdminException` | Unexpected error
 
@@ -1269,10 +1180,8 @@ Stop a source connector.
 
 Use the `stop` subcommand.
 
-```
-
-$ pulsar-admin sources stop options
-
+```shell
+pulsar-admin sources stop options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1281,11 +1190,11 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 * Stop **all** source connectors.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/stopSource?version=@pulsar:version_number@}
 
 * Stop a **specified** source connector.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId|operation/stopSource?version=@pulsar:version_number@}
 
 </TabItem>
@@ -1294,12 +1203,10 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Stop **all** source connectors.
 
   ```java
-  
   void stopSource(String tenant,
                   String namespace,
                   String source)
           throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1318,16 +1225,14 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 
   For more information, see [`stopSource`](/api/admin/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-).
 
-* Stop a **specified** source connector. 
+* Stop a **specified** source connector.
 
   ```java
-  
   void stopSource(String tenant,
                   String namespace,
                   String source,
                   int instanceId)
            throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1366,9 +1271,7 @@ Stop a sink connector.
 Use the `stop` subcommand.
 
 ```
-
-$ pulsar-admin sinks stop options
-
+pulsar-admin sinks stop options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1377,11 +1280,11 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 * Stop **all** sink connectors.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sinkName/stop|operation/stopSink?version=@pulsar:version_number@}
 
 * Stop a **specified** sink connector.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop|operation/stopSink?version=@pulsar:version_number@}
 
 </TabItem>
@@ -1390,12 +1293,10 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Stop **all** sink connectors.
 
   ```java
-  
   void stopSink(String tenant,
               String namespace,
               String sink)
       throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1414,16 +1315,14 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 
   For more information, see [`stopSink`](/api/admin/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-).
 
-* Stop a **specified** sink connector. 
+* Stop a **specified** sink connector.
 
   ```java
-  
   void stopSink(String tenant,
                 String namespace,
                 String sink,
                 int instanceId)
          throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1467,10 +1366,8 @@ Restart a source connector.
 
 Use the `restart` subcommand.
 
-```
-
-$ pulsar-admin sources restart options
-
+```shell
+pulsar-admin sources restart options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1479,11 +1376,11 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 * Restart **all** source connectors.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/restart|operation/restartSource?version=@pulsar:version_number@}
 
 * Restart a **specified** source connector.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart|operation/restartSource?version=@pulsar:version_number@}
 
 </TabItem>
@@ -1492,12 +1389,10 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Restart **all** source connectors.
 
   ```java
-  
   void restartSource(String tenant,
                      String namespace,
                      String source)
               throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1516,16 +1411,14 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 
   For more information, see [`restartSource`](/api/admin/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-).
 
-* Restart a **specified** source connector. 
+* Restart a **specified** source connector.
 
   ```java
-  
   void restartSource(String tenant,
                      String namespace,
                      String source,
                      int instanceId)
               throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1563,10 +1456,8 @@ Restart a sink connector.
 
 Use the `restart` subcommand.
 
-```
-
-$ pulsar-admin sinks restart options
-
+```shell
+pulsar-admin sinks restart options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1575,11 +1466,11 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 * Restart **all** sink connectors.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/restart|operation/restartSource?version=@pulsar:version_number@}
 
 * Restart a **specified** sink connector.
-  
+
   Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart|operation/restartSource?version=@pulsar:version_number@}
 
 </TabItem>
@@ -1588,12 +1479,10 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 * Restart all Pulsar sink connectors.
 
   ```java
-  
   void restartSink(String tenant,
                    String namespace,
                    String sink)
             throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1612,16 +1501,14 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 
   For more information, see [`restartSink`](/api/admin/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-).
 
-* Restart a **specified** sink connector. 
+* Restart a **specified** sink connector.
 
   ```java
-  
   void restartSink(String tenant,
                    String namespace,
                    String sink,
                    int instanceId)
             throws PulsarAdminException
-  
   ```
 
   **Parameter**
@@ -1665,10 +1552,8 @@ Delete a source connector.
 
 Use the `delete` subcommand.
 
-```
-
-$ pulsar-admin sources delete options
-
+```shell
+pulsar-admin sources delete options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1677,7 +1562,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 Delete al Pulsar source connector.
-  
+
 Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/deregisterSource?version=@pulsar:version_number@}
 
 </TabItem>
@@ -1686,12 +1571,10 @@ Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/so
 Delete a source connector.
 
 ```java
-
 void deleteSource(String tenant,
                   String namespace,
                   String source)
            throws PulsarAdminException
-
 ```
 
 **Parameter**
@@ -1731,10 +1614,8 @@ Delete a sink connector.
 
 Use the `delete` subcommand.
 
-```
-
-$ pulsar-admin sinks delete options
-
+```shell
+pulsar-admin sinks delete options
 ```
 
 For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -1743,7 +1624,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 <TabItem value="REST API">
 
 Delete a sink connector.
-  
+
 Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/deregisterSink?version=@pulsar:version_number@}
 
 </TabItem>
@@ -1752,12 +1633,10 @@ Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v3/si
 Delete a Pulsar sink connector.
 
 ```java
-
 void deleteSink(String tenant,
                 String namespace,
                 String source)
          throws PulsarAdminException
-
 ```
 
 **Parameter**

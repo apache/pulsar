@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,7 +41,8 @@ public class FunctionConfig {
     public enum ProcessingGuarantees {
         ATLEAST_ONCE,
         ATMOST_ONCE,
-        EFFECTIVELY_ONCE
+        EFFECTIVELY_ONCE,
+        MANUAL
     }
 
     /**
@@ -102,6 +103,8 @@ public class FunctionConfig {
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
     private Runtime runtime;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    @Deprecated
     private Boolean autoAck;
     private Integer maxMessageRetries;
     private String deadLetterTopic;

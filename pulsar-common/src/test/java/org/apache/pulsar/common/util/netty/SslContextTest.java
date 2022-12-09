@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.util.netty;
 
 import static org.testng.Assert.assertThrows;
@@ -107,6 +106,7 @@ public class SslContextTest {
                 null,
                 false,
                 keyStoreType, brokerTrustStorePath, keyStorePassword,
+                null, null, null,
                 cipher, null, 0, new ClientAuthenticationData());
         contextAutoRefreshBuilder.update();
     }

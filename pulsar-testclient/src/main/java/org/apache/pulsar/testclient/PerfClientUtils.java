@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -74,7 +74,9 @@ public class PerfClientUtils {
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS)
                 .enableBusyWait(arguments.enableBusyWait)
                 .listenerThreads(arguments.listenerThreads)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
+                .maxLookupRequests(arguments.maxLookupRequest)
+                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);

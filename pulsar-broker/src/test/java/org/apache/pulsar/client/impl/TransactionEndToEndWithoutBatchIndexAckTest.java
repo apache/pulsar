@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,17 +20,17 @@ package org.apache.pulsar.client.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
  * End to end transaction test.
  */
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
-    @BeforeMethod
+    @BeforeClass
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(false);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);

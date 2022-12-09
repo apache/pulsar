@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
         pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);

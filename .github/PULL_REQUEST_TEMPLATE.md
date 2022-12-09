@@ -10,26 +10,23 @@
   - Each commit in the pull request has a meaningful commit message
 
   - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
-
-**(The sections below can be removed for hotfixes of typos)**
 -->
 
-*(If this PR fixes a github issue, please add `Fixes #<xyz>`.)*
+<!-- Either this PR fixes an issue, -->
 
-Fixes #<xyz>
+Fixes #xyz
 
-*(or if this PR is one task of a github issue, please add `Master Issue: #<xyz>` to link to the master issue.)*
+<!-- or this PR is one task of an issue -->
 
-Master Issue: #<xyz>
+Master Issue: #xyz
 
 ### Motivation
 
-
-*Explain here the context, and why you're making that change. What is the problem you're trying to solve.*
+<!-- Explain here the context, and why you're making that change. What is the problem you're trying to solve. -->
 
 ### Modifications
 
-*Describe the modifications you've done.*
+<!-- Describe the modifications you've done. -->
 
 ### Verifying this change
 
@@ -53,31 +50,40 @@ This change added tests and can be verified as follows:
 
 ### Does this pull request potentially affect one of the following parts:
 
-*If `yes` was chosen, please highlight the changes*
+*If the box was checked, please highlight the changes*
 
-  - Dependencies (does it add or upgrade a dependency): (yes / no)
-  - The public API: (yes / no)
-  - The schema: (yes / no / don't know)
-  - The default values of configurations: (yes / no)
-  - The wire protocol: (yes / no)
-  - The rest endpoints: (yes / no)
-  - The admin cli options: (yes / no)
-  - Anything that affects deployment: (yes / no / don't know)
+- [ ] Dependencies (add or upgrade a dependency)
+- [ ] The public API
+- [ ] The schema
+- [ ] The default values of configurations
+- [ ] The threading model
+- [ ] The binary protocol
+- [ ] The REST endpoints
+- [ ] The admin CLI options
+- [ ] Anything that affects deployment
 
 ### Documentation
 
-Check the box below or label this PR directly.
+<!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
-Need to update docs? 
+- [ ] `doc` <!-- Your PR contains doc changes. Please attach the local preview screenshots (run `sh start.sh` at `pulsar/site2/website`) to your PR description, or else your PR might not get merged. -->
+- [ ] `doc-required` <!-- Your PR changes impact docs and you will update later -->
+- [ ] `doc-not-needed` <!-- Your PR changes do not impact docs -->
+- [ ] `doc-complete` <!-- Docs have been already added -->
 
-- [ ] `doc-required` 
-(Your PR needs to update docs and you will update later)
-  
-- [ ] `doc-not-needed` 
-(Please explain why)
-  
-- [ ] `doc` 
-(Your PR contains doc changes)
+### Matching PR in forked repository
 
-- [ ] `doc-complete`
-(Docs have been already added)
+PR in forked repository: <!-- ENTER URL HERE -->
+
+<!--
+After opening this PR, the build in apache/pulsar will fail and instructions will
+be provided for opening a PR in the PR author's forked repository.
+
+apache/pulsar pull requests should be first tested in your own fork since the 
+apache/pulsar CI based on GitHub Actions has constrained resources and quota.
+GitHub Actions provides separate quota for pull requests that are executed in 
+a forked repository.
+
+The tests will be run in the forked repository until all PR review comments have
+been handled, the tests pass and the PR is approved by a reviewer.
+-->

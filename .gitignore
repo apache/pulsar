@@ -5,6 +5,7 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+packages-storage
 pulsar-broker/data/
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
@@ -26,9 +27,11 @@ pulsar-functions/worker/src/test/resources/
 .factorypath
 
 # IntelliJ
-.idea/
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
+.fleet/*
 
 # NetBeans
 nb-configuration.xml
@@ -47,6 +50,7 @@ target/
 
 # Python
 *.pyc
+.python-version
 
 # Perf tools
 *.hgrm
@@ -66,11 +70,6 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 
 # Vagrant
 **/.vagrant
-
-
-pulsar-client-cpp/python/pkg/osx/*/*.bak
-pulsar-client-cpp/python/pkg/osx/*/*.whl
-pulsar-client-cpp/python/wheelhouse
 
 # CI generated files
 .repository

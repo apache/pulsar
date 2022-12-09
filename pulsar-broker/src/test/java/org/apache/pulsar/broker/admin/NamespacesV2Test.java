@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,11 +25,11 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
@@ -53,7 +53,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin-v2")
+@Test(groups = "broker-admin")
 public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesV2Test.class);
 
@@ -74,7 +74,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     public void initNamespace() throws Exception {
-        testLocalNamespaces = Lists.newArrayList();
+        testLocalNamespaces = new ArrayList<>();
         testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -85,7 +85,6 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
-        resetConfig();
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
@@ -96,13 +95,13 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
-        doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
+        doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
 
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
         admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
-                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
+                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
 
         createTestNamespaces(this.testLocalNamespaces);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -47,6 +46,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -91,6 +91,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     private final WriteOptions optionDontSync;
     private final ReadOptions optionCache;
     private final ReadOptions optionDontCache;
+    private MetadataEventSynchronizer synchronizer;
 
     enum State {
         RUNNING, CLOSED
@@ -115,6 +116,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
         // Create a new store instance
         store = new RocksdbMetadataStore(metadataStoreUri, conf);
+        // update synchronizer and register sync listener
+        store.synchronizer = conf.getSynchronizer();
+        store.registerSyncLister(Optional.ofNullable(store.synchronizer));
         instancesCache.put(metadataStoreUri, store);
         return store;
     }
@@ -211,6 +215,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
      */
     private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
+        super(metadataStoreConfig.getMetadataStoreName());
         this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();
@@ -588,5 +593,10 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         } finally {
             dbStateLock.readLock().unlock();
         }
+    }
+
+    @Override
+    public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
+        return Optional.ofNullable(synchronizer);
     }
 }

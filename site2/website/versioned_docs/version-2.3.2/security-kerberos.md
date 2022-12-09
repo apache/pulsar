@@ -301,7 +301,7 @@ saslJaasBrokerSectionName=PulsarBroker
 
 ## Regarding authorization and role token
 
-For Kerberos authentication, the authenticated principal is used as the role token for Pulsar authorization.  For more information of authorization in Pulsar, see [security authorization](security-authorization).
+For Kerberos authentication, the authenticated principal is used as the role token for Pulsar authorization.  For more information of authorization in Pulsar, see [security authorization](security-authorization.md).
 
 ## Regarding authorization between BookKeeper and ZooKeeper
 

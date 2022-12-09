@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -31,12 +34,14 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
@@ -48,6 +53,10 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testPendingAckManageLedgerWriteFailState() throws Exception {
+        TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
@@ -72,7 +81,8 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = completableFuture.get().openCursor("test");
         ManagedCursor subCursor = completableFuture.get().openCursor("test");
         MLPendingAckStore pendingAckStore =
-                new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500);
+                new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500,
+                        bufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);
@@ -90,9 +100,12 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         }
         pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
 
+        // cleanup.
+        pendingAckStore.closeAsync();
         completableFuture.get().close();
         cursor.close();
         subCursor.close();
+        transactionTimer.stop();
     }
 
 }

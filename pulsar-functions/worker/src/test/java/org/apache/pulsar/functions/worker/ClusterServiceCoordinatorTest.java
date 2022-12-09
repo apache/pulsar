@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.functions.worker.executor.MockExecutorController;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -54,8 +53,7 @@ public class ClusterServiceCoordinatorTest {
 
         this.leaderService = mock(LeaderService.class);
         this.checkIsStillLeader = () -> leaderService.isLeader();
-        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader);
-        Whitebox.setInternalState(coordinator, "executor", mockExecutor);
+        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader, mockExecutor);
     }
 
 

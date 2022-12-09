@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -41,7 +40,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import javax.crypto.SecretKey;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -50,9 +48,11 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import javax.crypto.SecretKey;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.PulsarServiceMockSupport;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
@@ -112,11 +112,14 @@ public class ServerCnxAuthorizationTest {
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         svcConfig.setProperties(properties);
 
-        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
+        pulsar = spyWithClassAndConstructorArgsRecordingInvocations(PulsarService.class, svcConfig);
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
         doReturn(svcConfig).when(pulsar).getConfiguration();
-        doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
+        });
+
 
         ManagedLedgerFactory mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
@@ -131,30 +134,34 @@ public class ServerCnxAuthorizationTest {
         doReturn(store).when(pulsar).getLocalMetadataStore();
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
 
-        pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        pulsarResources = spyWithClassAndConstructorArgsRecordingInvocations(PulsarResources.class, store, store);
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        });
         NamespaceResources namespaceResources =
-                spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
+                spyWithClassAndConstructorArgsRecordingInvocations(NamespaceResources.class, store, 30);
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
 
-        TenantResources tenantResources = spyWithClassAndConstructorArgs(TenantResources.class, store, 30);
+        TenantResources tenantResources = spyWithClassAndConstructorArgsRecordingInvocations(TenantResources.class, store, 30);
         doReturn(tenantResources).when(pulsarResources).getTenantResources();
 
         doReturn(CompletableFuture.completedFuture(Optional.of(TenantInfo.builder().build()))).when(tenantResources)
                 .getTenantAsync("public");
 
-        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
+        brokerService = spyWithClassAndConstructorArgsRecordingInvocations(BrokerService.class, pulsar, eventLoopGroup);
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
-        doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(executor).when(pulsar).getOrderedExecutor();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(brokerService).when(pulsar).getBrokerService();
+            doReturn(executor).when(pulsar).getOrderedExecutor();
+        });
     }
 
     @Test
     public void testVerifyOriginalPrincipalWithAuthDataForwardedFromProxy() throws Exception {
         doReturn(true).when(svcConfig).isAuthenticateOriginalAuthData();
 
-        ServerCnx serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        ServerCnx serverCnx = spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class, pulsar);
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
         ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
@@ -190,7 +197,7 @@ public class ServerCnxAuthorizationTest {
         assertEquals(serverCnx.getAuthState().getAuthRole(), PROXY_PRINCIPAL);
 
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsarResources);
+                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig, pulsarResources);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
 
         // lookup
@@ -260,7 +267,7 @@ public class ServerCnxAuthorizationTest {
     public void testVerifyOriginalPrincipalWithoutAuthDataForwardedFromProxy() throws Exception {
         doReturn(false).when(svcConfig).isAuthenticateOriginalAuthData();
 
-        ServerCnx serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        ServerCnx serverCnx = spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class, pulsar);
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
         ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
@@ -291,7 +298,7 @@ public class ServerCnxAuthorizationTest {
         assertEquals(serverCnx.getAuthState().getAuthRole(), PROXY_PRINCIPAL);
 
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsarResources);
+                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig, pulsarResources);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
 
         // lookup
@@ -352,7 +359,7 @@ public class ServerCnxAuthorizationTest {
 
     @Test
     public void testVerifyAuthRoleAndAuthDataFromDirectConnectionBroker() throws Exception {
-        ServerCnx serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        ServerCnx serverCnx = spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class, pulsar);
 
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -383,7 +390,7 @@ public class ServerCnxAuthorizationTest {
         assertEquals(serverCnx.getAuthState().getAuthRole(), CLIENT_PRINCIPAL);
 
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsarResources);
+                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig, pulsarResources);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
 
         // lookup

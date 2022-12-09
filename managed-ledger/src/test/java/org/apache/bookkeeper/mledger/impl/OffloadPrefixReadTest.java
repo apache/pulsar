@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,9 +29,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -202,12 +202,13 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl                                                                                                                                                                                                                                                     .create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
@@ -273,7 +274,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
     static class MockOffloadReadHandle implements ReadHandle {
         final long id;
-        final List<ByteBuf> entries = Lists.newArrayList();
+        final List<ByteBuf> entries = new ArrayList();
         final LedgerMetadata metadata;
 
         MockOffloadReadHandle(ReadHandle toCopy) throws Exception {
@@ -302,7 +303,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @Override
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-            List<LedgerEntry> readEntries = Lists.newArrayList();
+            List<LedgerEntry> readEntries = new ArrayList();
             for (long eid = firstEntry; eid <= lastEntry; eid++) {
                 ByteBuf buf = entries.get((int)eid).retainedSlice();
                 readEntries.add(LedgerEntryImpl.create(id, eid, buf.readableBytes(), buf));
@@ -381,7 +382,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             metadataFormatVersion = toCopy.getMetadataFormatVersion();
             state = toCopy.getState();
             password = Arrays.copyOf(toCopy.getPassword(), toCopy.getPassword().length);
-            customMetadata = ImmutableMap.copyOf(toCopy.getCustomMetadata());
+            customMetadata = Map.copyOf(toCopy.getCustomMetadata());
         }
 
         @Override

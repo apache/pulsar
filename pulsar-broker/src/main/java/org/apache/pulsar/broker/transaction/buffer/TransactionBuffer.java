@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -141,9 +141,10 @@ public interface TransactionBuffer {
     /**
      * Close the buffer asynchronously.
      * @param txnID {@link TxnID} txnId.
+     * @param readPosition the persitent position of the txn message.
      * @return the txnId is aborted.
      */
-    boolean isTxnAborted(TxnID txnID);
+    boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
 
     /**
      * Sync max read position for normal publish.
@@ -176,4 +177,12 @@ public interface TransactionBuffer {
      * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
      */
     CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
+
+
+
+    long getOngoingTxnCount();
+
+    long getAbortedTxnCount();
+
+    long getCommittedTxnCount();
 }

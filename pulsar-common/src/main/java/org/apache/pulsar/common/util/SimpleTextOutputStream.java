@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,15 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.CharsetUtil;
 
 /**
  * Format strings and numbers into a ByteBuf without any memory allocation.
- *
  */
 public class SimpleTextOutputStream {
     private final ByteBuf buffer;
-    private static final char[] hexChars = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e',
-            'f' };
+    private static final char[] hexChars = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e',
+            'f'};
 
     public SimpleTextOutputStream(ByteBuf buffer) {
         this.buffer = buffer;
@@ -44,7 +44,7 @@ public class SimpleTextOutputStream {
     }
 
     public SimpleTextOutputStream write(char c) {
-        buffer.writeByte((byte) c);
+        write(String.valueOf(c));
         return this;
     }
 
@@ -52,11 +52,8 @@ public class SimpleTextOutputStream {
         if (s == null) {
             return this;
         }
-        int len = s.length();
-        for (int i = 0; i < len; i++) {
-            buffer.writeByte((byte) s.charAt(i));
-        }
 
+        buffer.writeCharSequence(s, CharsetUtil.UTF_8);
         return this;
     }
 
@@ -130,5 +127,13 @@ public class SimpleTextOutputStream {
 
         write(r);
         return this;
+    }
+
+    public void write(ByteBuf byteBuf) {
+        buffer.writeBytes(byteBuf);
+    }
+
+    public ByteBuf getBuffer() {
+        return buffer;
     }
 }
