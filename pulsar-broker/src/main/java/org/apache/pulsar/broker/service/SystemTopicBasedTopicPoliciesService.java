@@ -526,6 +526,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         } else {
                             fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, policies, future);
                         }
+                    } else {
+                        future.complete(null);
                     }
                 });
             } else {
