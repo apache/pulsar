@@ -18,12 +18,36 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import java.util.concurrent.CompletableFuture;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
+    public static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
+
     public LocalPoliciesResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
         super(configurationStore, LocalPolicies.class, operationTimeoutSec);
+    }
+
+    public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
+        CompletableFuture<Void> completableFuture = deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        // in order to delete the cluster for namespace v1
+        if (ns.getCluster() != null) {
+            String clusterPath = joinPath(LOCAL_POLICIES_ROOT, ns.getTenant(), ns.getCluster());
+            return getChildrenAsync(clusterPath).thenCompose(nss -> {
+                if (nss.isEmpty()) {
+                    return deleteIfExistsAsync(clusterPath);
+                }
+                return completableFuture;
+            });
+        } else {
+            return completableFuture;
+        }
+    }
+
+    public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
+        return deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, tenant));
     }
 }

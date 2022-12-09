@@ -52,6 +52,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -109,9 +110,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public abstract class NamespacesBase extends AdminResource {
 
     protected List<String> internalGetTenantNamespaces(String tenant) {
@@ -163,14 +163,14 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
         if (force) {
-            internalDeleteNamespaceForcefully(asyncResponse, authoritative);
+            internalDeleteNamespaceForcefully(asyncResponse);
         } else {
-            internalDeleteNamespace(asyncResponse, authoritative);
+            internalDeleteNamespace(asyncResponse);
         }
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalDeleteNamespace(AsyncResponse asyncResponse) {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
@@ -308,14 +308,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return FutureUtil.waitForAll(deleteBundleFutures);
                     });
         })
-        .thenCompose(__ -> {
-            // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
-            // now
-            final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-            final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-            return namespaceResources().deleteAsync(globalZkPolicyPath)
-                    .thenCompose((ignore -> getLocalPolicies().deleteAsync(localZkPolicyPath)));
-        })
+        .thenCompose(__ -> internalClearZkSources())
         .thenAccept(__ -> {
             log.info("[{}] Remove namespace successfully {}", clientAppId(), namespaceName);
             asyncResponse.resume(Response.noContent().build());
@@ -327,8 +320,26 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    // clear zk-node resources for deleting namespace
+    protected CompletableFuture<Void> internalClearZkSources() {
+        // clear resource of `/namespace/{namespaceName}` for zk-node
+        return namespaceResources().deleteNamespaceAsync(namespaceName)
+                .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
+                        .clearPartitionedTopicMetadataAsync(namespaceName))
+                // clear resource for manager-ledger z-node
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearDomainPersistence(namespaceName))
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearNamespacePersistence(namespaceName))
+                // we have successfully removed all the ownership for the namespace, the policies
+                // z-node can be deleted now
+                .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
+                // clear z-node of local policies
+                .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName));
+    }
+
     @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespaceForcefully(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalDeleteNamespaceForcefully(AsyncResponse asyncResponse) {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
@@ -463,51 +474,21 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to remove forcefully owned namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
             return;
         }
 
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
+        FutureUtil.waitForAll(futures).thenCompose(__ -> internalClearZkSources())
+                .thenAccept(__ -> {
+                    log.info("[{}] Remove namespace successfully {}", clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, ex.getCause());
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
-                } else {
-                    log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
-            }
-
-            try {
-                // remove partitioned topics znode
-                final String globalPartitionedPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString());
-                // check whether partitioned topics znode exist
-                if (namespaceResources().exists(globalPartitionedPath)) {
-                    deleteRecursive(namespaceResources(), globalPartitionedPath);
-                }
-
-                // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
-                // now
-                final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
-
-                try {
-                    getLocalPolicies().delete(localZkPolicyPath);
-                } catch (NotFoundException nne) {
-                    // If the z-node with the modified information is not there anymore, we're already good
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to remove owned namespace {} from ZK", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return null;
-            }
-
-            asyncResponse.resume(Response.noContent().build());
-            return null;
-        });
+                });
     }
 
     protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative, boolean force) {
@@ -2780,7 +2761,4 @@ public abstract class NamespacesBase extends AdminResource {
 
         internalSetPolicies("resource_group_name", rgName);
     }
-
-
-    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }
