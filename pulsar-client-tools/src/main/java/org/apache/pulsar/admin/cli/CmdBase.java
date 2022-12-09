@@ -69,7 +69,8 @@ public abstract class CmdBase {
         try {
             jcommander.parse(args);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println(e.getMessage());
+            System.err.println();
             tryShowCommandUsage();
             return false;
         }
