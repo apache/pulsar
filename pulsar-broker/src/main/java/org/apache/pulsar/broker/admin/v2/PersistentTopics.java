@@ -100,9 +100,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
-            @QueryParam("bundle") String bundle,
-            @ApiParam(value = "Include system topic")
-            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
+            @QueryParam("bundle") String bundle) {
         validateNamespaceName(tenant, namespace);
         internalGetListAsync(Optional.ofNullable(bundle))
             .thenAccept(asyncResponse::resume)
