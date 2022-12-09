@@ -1178,68 +1178,74 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return null;
             });
 
-            closeClientFuture.thenAccept(delete -> {
-                CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
-                brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
-                deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema())
-                        .thenCompose(__ -> deleteTopicPolicies())
-                        .thenCompose(__ -> transactionBufferCleanupAndClose())
-                        .whenComplete((v, ex) -> {
-                            if (ex != null) {
-                                log.error("[{}] Error deleting topic", topic, ex);
-                                unfenceTopicToResume();
-                                deleteFuture.completeExceptionally(ex);
-                            } else {
-                                List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
-                                subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
+                closeClientFuture.thenAccept(__ -> {
+                    CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
+                    brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
+                    deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
+                            .thenCompose(ignore -> {
+                                if (!this.getBrokerService().getPulsar().getBrokerService()
+                                        .isSystemTopic(TopicName.get(topic))) {
+                                    return deleteTopicPolicies();
+                                } else {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                })
+                            .thenCompose(ignore -> transactionBufferCleanupAndClose())
+                            .whenComplete((v, ex) -> {
+                                if (ex != null) {
+                                    log.error("[{}] Error deleting topic", topic, ex);
+                                    unfenceTopicToResume();
+                                    deleteFuture.completeExceptionally(ex);
+                                } else {
+                                    List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
+                                    subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
+                                    FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
+                                        if (e != null) {
+                                            log.error("[{}] Error deleting topic", topic, e);
+                                            unfenceTopicToResume();
+                                            deleteFuture.completeExceptionally(e);
+                                        } else {
+                                            ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
+                                                @Override
+                                                public void deleteLedgerComplete(Object ctx) {
+                                                    brokerService.removeTopicFromCache(PersistentTopic.this);
 
-                                FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
-                                    if (e != null) {
-                                        log.error("[{}] Error deleting topic", topic, e);
-                                        unfenceTopicToResume();
-                                        deleteFuture.completeExceptionally(e);
-                                    } else {
-                                        ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
-                                            @Override
-                                            public void deleteLedgerComplete(Object ctx) {
-                                                brokerService.removeTopicFromCache(PersistentTopic.this);
+                                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+                                                    unregisterTopicPolicyListener();
 
-                                                unregisterTopicPolicyListener();
-
-                                                log.info("[{}] Topic deleted", topic);
-                                                deleteFuture.complete(null);
-                                            }
-
-                                            @Override
-                                            public void deleteLedgerFailed(ManagedLedgerException exception,
-                                                                           Object ctx) {
-                                                if (exception.getCause()
-                                                        instanceof MetadataStoreException.NotFoundException) {
-                                                    log.info("[{}] Topic is already deleted {}",
-                                                            topic, exception.getMessage());
-                                                    deleteLedgerComplete(ctx);
-                                                } else {
-                                                    unfenceTopicToResume();
-                                                    log.error("[{}] Error deleting topic", topic, exception);
-                                                    deleteFuture.completeExceptionally(
-                                                            new PersistenceException(exception));
+                                                    log.info("[{}] Topic deleted", topic);
+                                                    deleteFuture.complete(null);
                                                 }
-                                            }
-                                        }, null);
-                                    }
-                                });
-                            }
-                        });
-            }).exceptionally(ex->{
-                unfenceTopicToResume();
-                deleteFuture.completeExceptionally(
-                        new TopicBusyException("Failed to close clients before deleting topic."));
-                return null;
-            });
+
+                                                @Override
+                                                public void deleteLedgerFailed(ManagedLedgerException exception,
+                                                                               Object ctx) {
+                                                    if (exception.getCause()
+                                                            instanceof MetadataStoreException.NotFoundException) {
+                                                        log.info("[{}] Topic is already deleted {}",
+                                                                topic, exception.getMessage());
+                                                        deleteLedgerComplete(ctx);
+                                                    } else {
+                                                        unfenceTopicToResume();
+                                                        log.error("[{}] Error deleting topic", topic, exception);
+                                                        deleteFuture.completeExceptionally(
+                                                                new PersistenceException(exception));
+                                                    }
+                                                }
+                                            }, null);
+                                         }
+                                    });
+                                }
+                            });
+                }).exceptionally(ex->{
+                    unfenceTopicToResume();
+                    deleteFuture.completeExceptionally(
+                            new TopicBusyException("Failed to close clients before deleting topic."));
+                    return null;
+                });
         } finally {
             lock.writeLock().unlock();
         }
