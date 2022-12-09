@@ -37,12 +37,12 @@ public abstract class CmdBase {
     private PulsarAdmin admin;
     private IUsageFormatter usageFormatter;
 
-    @Parameter(names = { "-h", "--help" }, help = true, hidden = true)
-    private boolean help;
+    @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
+    private boolean help = false;
 
     public CmdBase(String cmdName, Supplier<PulsarAdmin> adminSupplier) {
         this.adminSupplier = adminSupplier;
-        jcommander = new JCommander();
+        jcommander = new JCommander(this);
         usageFormatter = new CmdUsageFormatter(jcommander);
         jcommander.setProgramName("pulsar-admin " + cmdName);
         jcommander.setUsageFormatter(usageFormatter);
@@ -69,19 +69,24 @@ public abstract class CmdBase {
         try {
             jcommander.parse(args);
         } catch (Exception e) {
-            System.err.println(e.getMessage());
-            System.err.println();
+            e.printStackTrace();
             tryShowCommandUsage();
             return false;
         }
 
         String cmd = jcommander.getParsedCommand();
-        if (cmd == null) {
+        if (cmd == null || help) {
             jcommander.usage();
             return false;
         } else {
             JCommander obj = jcommander.getCommands().get(cmd);
             CliCommand cmdObj = (CliCommand) obj.getObjects().get(0);
+
+            if (cmdObj.isHelp()) {
+                obj.setProgramName(jcommander.getProgramName() + " " + cmd);
+                obj.usage();
+                return true;
+            }
 
             try {
                 cmdObj.run();
