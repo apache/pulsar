@@ -19,12 +19,12 @@
 package org.apache.pulsar.common.util;
 
 /**
- * Util class to place some special handling of exceptions
+ * Util class to place some special handling of exceptions.
  */
 public class ExceptionHandler {
 
     /**
-     * This utility class should not be instantiated
+     * This utility class should not be instantiated.
      */
     private ExceptionHandler() {
     }
