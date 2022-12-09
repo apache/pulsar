@@ -65,15 +65,8 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public boolean equals(Object o) {
-        if (o instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) o;
-            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
-            return messageIdEquals(
-                this.ledgerId, this.entryId, this.partitionIndex, NO_BATCH,
-                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
-            );
-        } else if (o instanceof TopicMessageIdImpl) {
-            return equals(((TopicMessageIdImpl) o).getInnerMessageId());
+        if (o instanceof MessageId) {
+            return compareTo((MessageId) o) == 0;
         }
         return false;
     }
