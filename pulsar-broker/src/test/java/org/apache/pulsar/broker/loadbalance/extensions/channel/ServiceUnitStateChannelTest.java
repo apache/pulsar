@@ -455,7 +455,18 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, bundle, null);
         waitUntilNewOwner(channel2, bundle, null);
 
-        // TODO: assert child bundle ownerships in the channels.
+        // Assert child bundle ownerships in the channels.
+        String childBundle1 = "public/default/0x7fffffff_0xffffffff";
+        String childBundle2 = "public/default/0x00000000_0x7fffffff";
+
+        waitUntilNewOwner(channel1, childBundle1, lookupServiceAddress1);
+        waitUntilNewOwner(channel1, childBundle2, lookupServiceAddress1);
+        waitUntilNewOwner(channel2, childBundle1, lookupServiceAddress1);
+        waitUntilNewOwner(channel2, childBundle2, lookupServiceAddress1);
+        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(childBundle1).get());
+        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(childBundle2).get());
+        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(childBundle1).get());
+        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(childBundle2).get());
     }
 
     @Test(priority = 7)

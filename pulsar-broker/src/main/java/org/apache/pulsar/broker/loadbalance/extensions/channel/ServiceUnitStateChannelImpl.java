@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
+import static java.lang.String.format;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
@@ -32,6 +33,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,22 +49,32 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.naming.BundleSplitOption;
+import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -410,8 +422,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleSplitEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
-            splitServiceUnit(serviceUnit)
-                    .thenCompose(__ -> tombstoneAsync(serviceUnit))
+            splitServiceUnit(serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         }
     }
@@ -509,25 +520,101 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 });
     }
 
-    private CompletableFuture<Void> splitServiceUnit(String serviceUnit) {
-        // TODO: after the split we need to write the child ownerships to BSC instead of ZK.
+    private CompletableFuture<Void> splitServiceUnit(String serviceUnit, ServiceUnitStateData data) {
+        // Write the child ownerships to BSC.
         long startTime = System.nanoTime();
-        return pulsar.getNamespaceService()
-                .splitAndOwnBundle(getNamespaceBundle(serviceUnit),
-                        false,
-                        NamespaceBundleSplitAlgorithm.of(pulsar.getConfig().getDefaultNamespaceBundleSplitAlgorithm()),
-                        null)
-                .whenComplete((__, ex) -> {
-                    double splitBundleTime = TimeUnit.NANOSECONDS
-                            .toMillis((System.nanoTime() - startTime));
-                    if (ex == null) {
-                        log.info("Successfully split {} namespace-bundle in {} ms",
-                                serviceUnit, splitBundleTime);
-                    } else {
-                        log.error("Failed to split {} namespace-bundle in {} ms",
-                                serviceUnit, splitBundleTime, ex);
-                    }
-                });
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
+        NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
+
+        CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+        CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
+
+        getSplitBoundary(bundle).thenAccept(splittedBundles -> {
+            // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
+            if (splittedBundles == null) {
+                String msg = format("Bundle %s not found under namespace", serviceUnit);
+                log.warn(msg);
+                updateFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
+                return;
+            }
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker());
+            for (NamespaceBundle sBundle : splittedBundles.getRight()) {
+                futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> {}));
+            }
+            NamespaceName nsname = bundle.getNamespaceObject();
+            FutureUtil.waitForAll(futures).thenRun(() -> {
+                namespaceService.updateNamespaceBundles(nsname, splittedBundles.getLeft()).thenCompose(__ ->
+                        namespaceService.updateNamespaceBundlesForPolicies(nsname, splittedBundles.getLeft()))
+                        .thenRun(() -> {
+                            bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
+                            updateFuture.complete(splittedBundles.getRight());
+                        }).exceptionally(ex1 -> {
+                            String msg = format("failed to update namespace policies [%s], "
+                                            + "NamespaceBundle: %s due to %s",
+                                    nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
+                            log.warn(msg);
+                            updateFuture.completeExceptionally(
+                                    new BrokerServiceException.ServiceUnitNotReadyException(msg, ex1.getCause()));
+                            return null;
+                        });
+            }).exceptionally(e -> {
+                updateFuture.completeExceptionally(e);
+                return null;
+            });
+        }).exceptionally(e -> {
+            updateFuture.completeExceptionally(e);
+           return null;
+        });
+
+        updateFuture.thenAccept(r -> {
+            // Free the old bundle
+            tombstoneAsync(serviceUnit).thenRun(() -> {
+                // Update bundled_topic cache for load-report-generation
+                pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
+                // TODO: Update the load data if needed.
+                completionFuture.complete(null);
+                double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
+                log.info("Successfully split {} namespace-bundle in {} ms", serviceUnit, splitBundleTime);
+            }).exceptionally(e -> {
+                String msg = format(
+                        "Failed to free bundle %s under namespace [%s] with error %s",
+                        bundle.getNamespaceObject().toString(), bundle.toString(), e.getMessage());
+                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
+                double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
+                log.error("Failed to split {} namespace-bundle in {} ms", serviceUnit, splitBundleTime, e);
+                return null;
+            });
+        }).exceptionally(ex -> {
+            // TODO: Retry when have exception.
+            completionFuture.completeExceptionally(ex);
+            return null;
+        });
+        return completionFuture;
+    }
+
+    private CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> getSplitBoundary(NamespaceBundle bundle) {
+        ServiceConfiguration config = pulsar.getConfig();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        BundleSplitOption bundleSplitOption;
+        if (config.getDefaultNamespaceBundleSplitAlgorithm()
+                .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
+            Map<String, TopicStatsImpl> topicStatsMap =  pulsar.getBrokerService().getTopicStats(bundle);
+            bundleSplitOption = new FlowOrQpsEquallyDivideBundleSplitOption(namespaceService, bundle, null,
+                    topicStatsMap,
+                    config.getLoadBalancerNamespaceBundleMaxMsgRate(),
+                    config.getLoadBalancerNamespaceBundleMaxBandwidthMbytes(),
+                    config.getFlowOrQpsDifferenceThresholdPercentage());
+        } else {
+            bundleSplitOption = new BundleSplitOption(namespaceService, bundle, null);
+        }
+        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
+                NamespaceBundleSplitAlgorithm.of(pulsar.getConfig().getDefaultNamespaceBundleSplitAlgorithm());
+        CompletableFuture<List<Long>> splitBoundary =
+                nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
+        return splitBoundary.thenCompose(splitBoundaries -> pulsar.getNamespaceService().getNamespaceBundleFactory()
+                .splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries));
     }
 
     public void handleMetadataSessionEvent(SessionEvent e) {

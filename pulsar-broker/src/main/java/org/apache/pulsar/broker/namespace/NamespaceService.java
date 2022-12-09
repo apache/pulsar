@@ -950,7 +950,7 @@ public class NamespaceService implements AutoCloseable {
      * @param nsBundles
      * @throws Exception
      */
-    private CompletableFuture<Void> updateNamespaceBundlesForPolicies(NamespaceName nsname,
+    public CompletableFuture<Void> updateNamespaceBundlesForPolicies(NamespaceName nsname,
                                                                       NamespaceBundles nsBundles) {
         Objects.requireNonNull(nsname);
         Objects.requireNonNull(nsBundles);
@@ -979,7 +979,7 @@ public class NamespaceService implements AutoCloseable {
      * @param nsBundles
      * @throws Exception
      */
-    private CompletableFuture<Void> updateNamespaceBundles(NamespaceName nsname, NamespaceBundles nsBundles) {
+    public CompletableFuture<Void> updateNamespaceBundles(NamespaceName nsname, NamespaceBundles nsBundles) {
         Objects.requireNonNull(nsname);
         Objects.requireNonNull(nsBundles);
 
