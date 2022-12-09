@@ -233,6 +233,9 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_inserted_entries_total | Counter | The number of entries inserted into the entry cache. Note that this metric is only available in Pulsar 2.9.4 and later versions. |
+| pulsar_ml_cache_evicted_entries_total | Counter | The number of entries evicted from the entry cache. Note that this metric is only available in Pulsar 2.9.4 and later versions. |
+| pulsar_ml_cache_entries | Gauge | The number of entries in the entry cache. Note that this metric is only available in Pulsar 2.9.4 and later versions.|
 | pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
 | pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
 | pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
