@@ -22,10 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
@@ -34,6 +37,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -71,23 +75,6 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 .get().get().getLastMessageId().get();
     }
 
-    private void sendManyBatchedMessages(int msgCountPerEntry, int entryCount, String topicName, String key)
-            throws Exception {
-        Producer<String> producer = pulsarClient.newProducer(Schema.JSON(String.class))
-                .topic(topicName)
-                .enableBatching(true)
-                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.SECONDS)
-                .batchingMaxMessages(Integer.MAX_VALUE)
-                .create();
-        for (int i = 0; i < entryCount; i++){
-            for (int j = 0; j < msgCountPerEntry; j++){
-                producer.newMessage().key(key).value(String.format("entry-seq[%s], batch_index[%s]", i, j)).sendAsync();
-            }
-            producer.flush();
-        }
-        producer.close();
-    }
-
     private void triggerCompactionAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
@@ -98,6 +85,36 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                     .getSubscription(Compactor.COMPACTION_SUBSCRIPTION).getCursor().getMarkDeletedPosition();
             assertEquals(markDeletePos.getLedgerId(), lastConfirmPos.getLedgerId());
             assertEquals(markDeletePos.getEntryId(), lastConfirmPos.getEntryId());
+        });
+    }
+
+    private void triggerLedgerSwitch(String topicName) throws Exception{
+        admin.topics().unload(topicName);
+        Awaitility.await().until(() -> {
+            CompletableFuture<Optional<Topic>> topicFuture =
+                    pulsar.getBrokerService().getTopic(topicName, false);
+            if (!topicFuture.isDone() || topicFuture.isCompletedExceptionally()){
+                return false;
+            }
+            Optional<Topic> topicOptional = topicFuture.join();
+            if (!topicOptional.isPresent()){
+                return false;
+            }
+            PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+            ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            return managedLedger.getState() == ManagedLedgerImpl.State.LedgerOpened;
+        });
+    }
+
+    private void clearAllTheLedgersOutdated(String topicName) throws Exception {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            CompletableFuture future = new CompletableFuture();
+            managedLedger.trimConsumedLedgersInBackground(future);
+            future.join();
+            return managedLedger.getLedgersInfo().size() == 1;
         });
     }
 
@@ -117,6 +134,38 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
         // cleanup.
         consumer.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    @Test
+    public void testGetLastMessageIdWhenNoNonEmptyLedgerExists() throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String subName = "sub";
+        ReaderImpl<String> reader = (ReaderImpl<String>) pulsarClient.newReader(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .receiverQueueSize(1)
+                .startMessageId(MessageId.earliest)
+                .readCompacted(false)
+                .create();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        producer.newMessage().key("k0").value("v0").sendAsync().get();
+        reader.readNext();
+        triggerLedgerSwitch(topicName);
+        clearAllTheLedgersOutdated(topicName);
+
+        MessageIdImpl messageId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
+        assertEquals(messageId.getLedgerId(), -1);
+        assertEquals(messageId.getEntryId(), -1);
+
+        // cleanup.
+        reader.close();
+        producer.close();
         admin.topics().delete(topicName, false);
     }
 
@@ -170,8 +219,6 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         producer.close();
         admin.topics().delete(topicName, false);
     }
-
-
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompaction(boolean enabledBatch) throws Exception {

@@ -98,7 +98,7 @@ public interface Reader<T> extends Closeable {
      *
      * <pre>{@code
      * while (reader.hasMessageAvailable()) {
-     *     Message<String> msg = reader.readNext();
+     *     Message<String> msg = reader.readNext(2, TimeUnit);
      *     // Do something
      * }
      *
@@ -107,7 +107,12 @@ public interface Reader<T> extends Closeable {
      *
      * <p>Note that this call might be blocking (see {@link #hasMessageAvailableAsync()} for async version) and
      * that even if this call returns true, that will not guarantee that a subsequent call to {@link #readNext()}
-     * will not block.
+     * will not block. Blocking occurs in the following scenarios (you can reproduce these scenarios by test
+     * ReproduceCantGetMessageButHasMessageAvailableTest)：
+     *   1. The last message has been deleted by compaction task.
+     *   2. Enabled compacted read and with batch sends, the last message read from compacted topic and marked
+     *   "compactedOut" has been lost by consumer.
+     *   3. No durable cursor exists, all messages deleted by trim ledgers task.
      *
      * @return true if the are messages available to be read, false otherwise
      * @throws PulsarClientException if there was any error in the operation

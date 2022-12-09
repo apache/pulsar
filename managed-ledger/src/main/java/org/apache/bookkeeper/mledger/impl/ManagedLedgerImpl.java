@@ -2602,7 +2602,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 ls.getLedgerId());
                     }
                     break;
-                }
+                }m
                 // if truncate, all ledgers besides currentLedger are going to be deleted
                 if (isTruncate) {
                     if (log.isDebugEnabled()) {

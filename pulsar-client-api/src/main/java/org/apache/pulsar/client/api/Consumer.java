@@ -545,6 +545,9 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Get the last message id available for consume.
+     * Note tht in both cases below, the resulted message id of the second call will smaller than the first call.
+     *   1. Enabled read compacted, the last message has been deleted by compaction task.
+     *   2. If all the messages have been consumed and the all non-empty ledgers has been deleted. -1:-1
      *
      * @return the last message id.
      */

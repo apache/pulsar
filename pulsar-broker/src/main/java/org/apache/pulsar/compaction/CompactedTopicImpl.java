@@ -104,22 +104,12 @@ public class CompactedTopicImpl implements CompactedTopic {
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
             } else {
-                final PositionImpl mlLastConfirmPosition =
-                        (PositionImpl) cursor.getManagedLedger().getLastConfirmedEntry();
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
                         .thenCompose((startPoint) -> {
+                            // do not need to read the compaction ledger if it is empty.
+                            // the cursor just needs to be set to the compaction horizon
                             if (startPoint == COMPACT_LEDGER_EMPTY) {
-                                // All messages have deleted by compaction, just read the last message from original
-                                // cursor.
-                                if (compactionHorizon.compareTo(mlLastConfirmPosition) >= 0) {
-                                    cursor.seek(compactionHorizon);
-                                    cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx,
-                                            PositionImpl.LATEST);
-                                    return CompletableFuture.completedFuture(null);
-                                }
-                                // do not need to read the compaction ledger if it is empty.
-                                // the cursor just needs to be set to the compaction horizon
                                 cursor.seek(compactionHorizon.getNext());
                                 callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
                                 return CompletableFuture.completedFuture(null);
@@ -131,13 +121,6 @@ public class CompactedTopicImpl implements CompactedTopic {
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
                                                          startPoint + numberOfEntriesToRead);
-                                if (startPoint == context.ledger.getLastAddConfirmed()
-                                        && compactionHorizon.compareTo(mlLastConfirmPosition) >= 0){
-                                    cursor.seek(compactionHorizon);
-                                    cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, readEntriesCtx,
-                                            PositionImpl.LATEST);
-                                    return CompletableFuture.completedFuture(null);
-                                }
                                 if (startPoint == NEWER_THAN_COMPACTED) {
                                     cursor.seek(compactionHorizon.getNext());
                                     callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
