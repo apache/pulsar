@@ -41,27 +41,30 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile String serviceUrl;
     private volatile List<InetSocketAddress> addressList;
 
-    private final Predicate<InetSocketAddress> addressPredicate;
+    private final Predicate<InetSocketAddress> predicate;
 
     public PulsarServiceNameResolver() {
-        this(address -> !address.isUnresolved());
+        this(address -> {
+            final InetSocketAddress resolved = new InetSocketAddress(address.getHostName(), address.getPort());
+            return !resolved.isUnresolved();
+        });
     }
 
     @VisibleForTesting
-    public PulsarServiceNameResolver(Predicate<InetSocketAddress> addressPredicate) {
-        this.addressPredicate = addressPredicate;
+    public PulsarServiceNameResolver(Predicate<InetSocketAddress> predicate) {
+        this.predicate = predicate;
     }
-
 
     @Override
     public InetSocketAddress resolveHost() {
         final List<InetSocketAddress> list = addressList;
+        final String url = serviceUrl;
         checkState(list != null, "No service url is provided yet");
         checkState(!list.isEmpty(), "No hosts found for service url : " + serviceUrl);
 
         Collections.shuffle(list);
         for (InetSocketAddress candidate: list) {
-            if (addressPredicate.test(candidate)) {
+            if (predicate.test(candidate)) {
                 log.debug("Found reachable address {}.", candidate);
                 return candidate;
             } else {
@@ -69,7 +72,9 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             }
         }
 
-        throw new IllegalStateException("No host is reachable for service url: " + serviceUrl);
+        final InetSocketAddress fallback = list.get(0);
+        log.warn("No host is reachable for service url: {}, fallback to: {}", url, fallback);
+        return fallback;
     }
 
     @Override
@@ -105,7 +110,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             String hostUrl = uri.getServiceScheme() + "://" + host;
             try {
                 URI hostUri = new URI(hostUrl);
-                addresses.add(new InetSocketAddress(hostUri.getHost(), hostUri.getPort()));
+                addresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
             } catch (URISyntaxException e) {
                 log.error("Invalid host provided {}", hostUrl, e);
                 throw new InvalidServiceURL(e);

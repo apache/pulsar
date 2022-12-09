@@ -40,8 +40,7 @@ import org.testng.annotations.Test;
 public class PulsarServiceNameResolverTest {
 
     public PulsarServiceNameResolver createResolver() {
-        // default to allow unresolved addresses
-        final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver(ignore -> true);
+        final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
         return resolver;
@@ -139,28 +138,10 @@ public class PulsarServiceNameResolverTest {
     public void testMultipleHostsUrlUnreachable() throws Exception {
         String serviceUrl = "pulsar://host1:6650,host2:6650,host3:6650";
 
-        // use the default manner
-        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
-        assertNull(resolver.getServiceUrl());
-        assertNull(resolver.getServiceUri());
-
-        resolver.updateServiceUrl(serviceUrl);
-        assertEquals(serviceUrl, resolver.getServiceUrl());
-        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
-
-        for (int i = 0; i < 10; i++) {
-            assertThatThrownBy(resolver::resolveHost)
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No host is reachable for service url");
-            assertThatThrownBy(resolver::resolveHostUri)
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No host is reachable for service url");
-        }
-
-        // fake host2 and host3 to be reachable
-        resolver = new PulsarServiceNameResolver(address -> "host2".equals(address.getHostName())
-                || "host3".equals(address.getHostName())
-                || !address.isUnresolved());
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver(
+                address -> "host2".equals(address.getHostName())
+                        || "host3".equals(address.getHostName())
+                        || !address.isUnresolved());
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
 
