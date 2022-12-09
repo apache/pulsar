@@ -170,7 +170,7 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
        ```bash
        bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar \
-       --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
+       --name debezium-mysql-source \
        --tenant public \
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
@@ -178,14 +178,14 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
      :::note
 
-     Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
+     The Debezium connector saves data in the following 4 types of topics:
       
        - One topic named with the database server name (`database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
-     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics.
 
      :::
 
@@ -313,7 +313,6 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar \
        --name debezium-postgres-source \
-       --destination-topic-name debezium-postgres-topic \
        --tenant public \
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
@@ -321,14 +320,14 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
      :::note
 
-     Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
+     The Debezium connector saves data in the following 4 types of topics:
 
        - One topic named with the database server name (`database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
-     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics.
 
      :::
 
@@ -474,7 +473,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
        bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-mongodb-@pulsar:version@.nar \
        --name debezium-mongodb-source \
-       --destination-topic-name debezium-mongodb-topic \
        --tenant public \
        --namespace default \
        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'
@@ -482,14 +480,14 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
      :::note
 
-     Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
+     The Debezium connector saves data in the following 4 types of topics:
 
        - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
-     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics.
 
      :::
 

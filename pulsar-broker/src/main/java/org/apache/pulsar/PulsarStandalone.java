@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -251,8 +252,7 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean noFunctionsWorker = false;
 
     @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
-    private String fnWorkerConfigFile =
-            Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+    private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
     @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
     private boolean noStreamStorage = false;
@@ -305,8 +305,8 @@ public class PulsarStandalone implements AutoCloseable {
 
         // initialize the functions worker
         if (!this.isNoFunctionsWorker()) {
-            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
-                config, this.getFnWorkerConfigFile());
+            final String filepath = Path.of(getFnWorkerConfigFile()).toAbsolutePath().normalize().toString();
+            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, filepath);
             if (usingNewDefaultsPIP117) {
                 workerConfig.setStateStorageProviderImplementation(
                         PulsarMetadataStateStoreProviderImpl.class.getName());

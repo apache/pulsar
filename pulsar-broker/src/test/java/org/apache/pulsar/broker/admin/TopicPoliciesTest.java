@@ -3092,4 +3092,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getShadowTopics(sourceTopic)));
     }
 
+    @Test
+    public void testGetTopicPoliciesWhenDeleteTopicPolicy() throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        admin.topicPolicies().setMaxConsumers(persistenceTopic, 5);
+
+        Integer maxConsumerPerTopic = pulsar
+                .getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get()
+                .getMaxConsumerPerTopic();
+
+        assertEquals(maxConsumerPerTopic, 5);
+        admin.topics().delete(persistenceTopic, true);
+        TopicPolicies topicPolicies =pulsar.getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get(5, TimeUnit.SECONDS);
+        assertNull(topicPolicies);
+    }
+
 }

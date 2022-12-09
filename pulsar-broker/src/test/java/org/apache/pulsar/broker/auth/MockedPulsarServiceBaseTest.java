@@ -73,6 +73,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -544,7 +545,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setDefaultNumberOfNamespaceBundles(1);
         configuration.setMetadataStoreUrl("zk:localhost:2181");
         configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
-        configuration.setAllowAutoTopicCreationType("non-partitioned");
+        configuration.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         configuration.setBrokerServicePort(Optional.of(0));

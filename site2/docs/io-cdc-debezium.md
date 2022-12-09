@@ -133,7 +133,7 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
        ```bash
        bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar \
-       --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
+       --name debezium-mysql-source \
        --tenant public \
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
@@ -256,7 +256,6 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar \
        --name debezium-postgres-source \
-       --destination-topic-name debezium-postgres-topic \
        --tenant public \
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "postgres","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
@@ -399,7 +398,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
        bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-mongodb-@pulsar:version@.nar \
        --name debezium-mongodb-source \
-       --destination-topic-name debezium-mongodb-topic \
        --tenant public \
        --namespace default \
        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
