@@ -143,6 +143,16 @@ public class ConfigShellTest {
                 "--file", newClientConf.toFile().getAbsolutePath()}));
         assertTrue(output.isEmpty());
         verify(pulsarShell, times(2)).reload(any());
+
+        assertTrue(runCommand(new String[]{"clone", "myclient",
+                "--name", "myclient-copied"}));
+        assertTrue(output.isEmpty());
+        verify(pulsarShell, times(2)).reload(any());
+
+        assertTrue(runCommand(new String[]{"view", "myclient-copied"}));
+        assertEquals(output.get(0), "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
+                "=pulsar://localhost:6651/\n");
+        output.clear();
     }
 
     @Test

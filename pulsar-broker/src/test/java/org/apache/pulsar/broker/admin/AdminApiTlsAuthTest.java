@@ -459,7 +459,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete("tenant1/ns1/foobar", true);
 
             log.info("Deleting namespace");
-            deleteNamespaceGraceFully("tenant1/ns1", false, admin);
+            deleteNamespaceWithRetry("tenant1/ns1", false, admin);
         }
     }
 

@@ -132,6 +132,18 @@ This strategy tends to shed the bundles if any broker's usage is above the confi
 
 For example, assume you have three brokers, the average broker usage of broker1 is 40%, the average broker usage of broker2 and broker3 is 10%, then the cluster average usage is 20% ((40% + 10% + 10%) / 3). If you set `loadBalancerBrokerThresholdShedderPercentage` to `10`, then only broker1's certain bundles get unloaded, because the average usage of broker1 is greater than the sum of the cluster average usage (20%) plus `loadBalancerBrokerThresholdShedderPercentage`(10%).
 
+However, in some special cases, the above default strategy cannot leverage the resources of low-load or idle machines.
+
+For example:
+
+There are 11 brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+The average load is 80% * 10 / 11 = 72.73%, and the threshold to unload is 72.73% + 10% = 82.73%.
+Since 80% < 82.73%, unload will not be triggered, and there is one idle Broker with load of 0%.
+
+To leverage the resources of low-load or idle machines, you can configure the `lowerBoundarySheddingEnabled` parameter on top of `ThresholdShedder`.
+When `lowerBoundarySheddingEnabled` is set to `true`, a leader decides the lower boundary of the load.
+If `current usage` is less than `average usage - lower boundary load`, e.g., 0% < (82.73% - 10%), the broker with the highest load will be triggered to unload.
+
 To use the `ThresholdShedder` strategy, configure brokers with this value.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -62,12 +63,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -88,6 +91,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -110,6 +114,8 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
@@ -971,7 +977,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             AsyncResponse response = mock(AsyncResponse.class);
             namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0xffffffff",
-                    false, true, null);
+                    false, true, null, null);
             ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
             verify(response, timeout(5000).times(1)).resume(captor.capture());
             // verify split bundles
@@ -1012,7 +1018,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // split bundles
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.splitNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal,
-                "0x08375b1a_0x08375b1b", false, false, null);
+                "0x08375b1a_0x08375b1b", false, false, null, null);
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(any(RestException.class));
 
@@ -1457,46 +1463,25 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
         String namespace =  topicName.getNamespaceObject().toString();
         System.out.println(namespace);
-        // set a default
-        pulsar.getConfiguration().setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(1);
-        pulsar.getConfiguration().setManagedLedgerOffloadThresholdInSeconds(100);
         // create the namespace
         admin.namespaces().createNamespace(namespace, Set.of(testLocalCluster));
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         admin.namespaces().setOffloadDeleteLag(namespace, 10000, TimeUnit.SECONDS);
+        // assert we get -1 which indicates it will fall back to default
         assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
         assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
-
-        // assert we get the default which indicates it will fall back to default
-        assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
-        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
-        // the ledger config should have the expected value
-        ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
-                null, null,
-                null, null,
-                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
-                admin.namespaces().getOffloadThreshold(namespace),
-                admin.namespaces().getOffloadThresholdInSeconds(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
-                OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
-        ledgerConf.setLedgerOffloader(offloader);
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                Long.valueOf(-1));
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInSeconds(),
-                Long.valueOf(-1));
-
 
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
         admin.namespaces().setOffloadThresholdInSeconds(namespace, 100);
-        assertEquals(admin.namespaces().getOffloadThreshold(namespace), 100);
-        assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), 100);
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(admin.namespaces().getOffloadThreshold(namespace), 100);
+                    assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), 100);
+                });
+        ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         admin.namespaces().getOffloadPolicies(namespace);
-        offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
+        MockLedgerOffloader offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
@@ -1514,7 +1499,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // set another negative value to disable
         admin.namespaces().setOffloadThreshold(namespace, -2);
         admin.namespaces().setOffloadThresholdInSeconds(namespace, -2);
-        assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(admin.namespaces().getOffloadThreshold(namespace), -2);
+                    assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -2);
+                });
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
@@ -1534,7 +1522,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // set back to -1 and fall back to default
         admin.namespaces().setOffloadThreshold(namespace, -1);
         admin.namespaces().setOffloadThresholdInSeconds(namespace, -1);
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1);
+                    assertEquals(admin.namespaces().getOffloadThresholdInSeconds(namespace), -1);
+                });
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         offloader = new MockLedgerOffloader(OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
@@ -1697,7 +1688,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreationType("partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         initAndStartBroker();
 
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -1726,7 +1717,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(1);
-        conf.setAllowAutoTopicCreationType("non-partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         initAndStartBroker();
 
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -2017,7 +2008,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             if (StringUtils.isEmpty(ns)){
                 continue;
             }
-            deleteNamespaceGraceFully(ns, true);
+            deleteNamespaceWithRetry(ns, true);
         }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(forceDeleteNamespaceAllowedOriginalValue);
     }
@@ -2064,7 +2055,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testNotClearTopicPolicesWhenDeleteSystemTopic() throws Exception {
+    public void testNotClearTopicPolicesWhenDeleteTopicPolicyTopic() throws Exception {
         String namespace = this.testTenant + "/delete-systemTopic";
         String topic = TopicName.get(TopicDomain.persistent.toString(), this.testTenant, "delete-systemTopic",
                 "testNotClearTopicPolicesWhenDeleteSystemTopic").toString();
@@ -2083,5 +2074,34 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(topic, 5);
         // 4. delete the policies topic and the topic wil not to clear topic polices
         admin.topics().delete(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, true);
+    }
+    @Test
+    public void testDeleteTopicPolicyWhenDeleteSystemTopic() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        Field field = PulsarService.class.getDeclaredField("topicPoliciesService");
+        field.setAccessible(true);
+        field.set(pulsar, new SystemTopicBasedTopicPoliciesService(pulsar));
+
+        String systemTopic = SYSTEM_NAMESPACE.toString() + "/" + "testDeleteTopicPolicyWhenDeleteSystemTopic";
+        admin.tenants().createTenant(SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
+
+        admin.namespaces().createNamespace(SYSTEM_NAMESPACE.toString());
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(systemTopic).create();
+        admin.topicPolicies().setMaxConsumers(systemTopic, 5);
+
+        Integer maxConsumerPerTopic = pulsar
+                .getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get()
+                .getMaxConsumerPerTopic();
+
+        assertEquals(maxConsumerPerTopic, 5);
+        admin.topics().delete(systemTopic, true);
+        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
+        assertNull(topicPolicies);
     }
 }

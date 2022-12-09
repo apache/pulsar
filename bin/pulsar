@@ -90,11 +90,13 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
-   PULSAR_TRINO_CONF            Configuration directory for Pulsar SQL (default: $DEFAULT_PULSAR_TRINO_CONF)
+   PULSAR_TRINO_CONF             Configuration directory for Pulsar SQL (default: $DEFAULT_PULSAR_TRINO_CONF)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
    PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
+   PULSAR_LOG_LEVEL              Log level for the command run (default: info)
+   PULSAR_LOG_ROOT_LEVEL         Log root level for the command run (default: \$PULSAR_LOG_LEVEL)
 
 These variable can also be set in conf/pulsar_env.sh
 EOF

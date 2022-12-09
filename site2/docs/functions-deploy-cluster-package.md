@@ -10,7 +10,7 @@ With the package management service enabled, you can [upload your function packa
 
 By default, the package management service is disabled. To enable it in your cluster, set the properties in the `conf/broker.conf` file as follows.
 
-```conf
+```properties
 enablePackagesManagement=true
 packagesManagementStorageProvider=org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider
 packagesReplicas=1

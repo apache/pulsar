@@ -197,7 +197,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
                 assertNull(pulsar.getResourceGroupServiceManager()
                         .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
-        deleteNamespaceGraceFully(namespaceName, false);
+        deleteNamespaceWithRetry(namespaceName, false);
         deleteResourceGroup(rgName);
     }
 

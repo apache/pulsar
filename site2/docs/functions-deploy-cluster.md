@@ -31,4 +31,5 @@ bin/pulsar-admin functions update \
 * [Enable parallel processing](functions-deploy-cluster-parallelism.md)
 * [Enable end-to-end encryption](functions-deploy-cluster-encryption.md)
 * [Enable package management service](functions-deploy-cluster-package.md)
+* [Use built-in functions](functions-deploy-cluster-builtin.md)
 

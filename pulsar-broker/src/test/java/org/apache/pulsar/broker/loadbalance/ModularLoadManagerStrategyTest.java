@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -131,6 +132,16 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("2"));
+
+        // test restart broker can load bundle as one of the best brokers.
+        brokerData1 = initBrokerData(35,100);
+        brokerData2 = initBrokerData(20,100);
+        brokerData3 = initBrokerData(0,100);
+        brokerData3.getLocalData().setBundles(Collections.emptySet());
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("3"));
     }
 
     public void testLeastResourceUsageWithWeightWithArithmeticException()
@@ -180,6 +191,12 @@ public class ModularLoadManagerStrategyTest {
         localBrokerData.setDirectMemory(new ResourceUsage(usage, limit));
         localBrokerData.setBandwidthIn(new ResourceUsage(usage, limit));
         localBrokerData.setBandwidthOut(new ResourceUsage(usage, limit));
+        // add msgRate and bundle for update resource usage check.
+        localBrokerData.setMsgRateIn(100.00);
+        localBrokerData.setMsgRateOut(100.00);
+        Set<String> bundles = new HashSet<>();
+        bundles.add("0x00000000_0xffffffff");
+        localBrokerData.setBundles(bundles);
         BrokerData brokerData = new BrokerData(localBrokerData);
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         brokerData.setTimeAverageData(timeAverageBrokerData);
