@@ -611,10 +611,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 completionFuture.completeExceptionally(ex);
             } else {
                 // Retry enough, or meet other exception
-                String msg2 = format("Bundle: %s not success update nsBundles, counter %d, reason %s",
+                String msg = format("Bundle: %s not success update nsBundles, counter %d, reason %s",
                         bundle.toString(), counter.get(), ex.getMessage());
-                log.warn(msg2);
-                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg2));
+                log.warn(msg);
+                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
             }
             return null;
         });
