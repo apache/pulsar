@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface ServiceUrlProvider {
+public interface ServiceUrlProvider extends AutoCloseable {
 
     /**
      * Initialize the service url provider with Pulsar client instance.
@@ -51,4 +51,12 @@ public interface ServiceUrlProvider {
      */
     String getServiceUrl();
 
+    /**
+     * Close the resource that the provider allocated.
+     *
+     */
+    @Override
+    default void close() {
+        // do nothing
+    }
 }

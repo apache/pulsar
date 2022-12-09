@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.websocket;
 import java.lang.reflect.Field;
 
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;

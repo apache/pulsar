@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import java.io.Serializable;
 
 @Data
 @Accessors(chain = true)
@@ -47,9 +46,18 @@ public class ElasticSearchSslConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "true",
-            help = "Whether or not to validate node hostnames when using SSL"
+            help = "Whether or not to validate node hostnames when using SSL. "
+                    + "Changing this value is high insecure and you should not use it in production environment."
     )
     private boolean hostnameVerification = true;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "Whether or not to disable the node certificate validation. "
+                    + "Changing this value is high insecure and you should not use it in production environment."
+    )
+    private boolean disableCertificateValidation;
 
     @FieldDoc(
             required = false,

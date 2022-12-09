@@ -19,7 +19,7 @@
 
 resource "aws_security_group" "elb" {
   name   = "pulsar-elb"
-  vpc_id = "${aws_vpc.pulsar_vpc.id}"
+  vpc_id = aws_vpc.pulsar_vpc.id
 
   ingress {
     from_port   = 6650
@@ -45,7 +45,7 @@ resource "aws_security_group" "elb" {
 
 resource "aws_security_group" "default" {
   name   = "pulsar-terraform"
-  vpc_id = "${aws_vpc.pulsar_vpc.id}"
+  vpc_id = aws_vpc.pulsar_vpc.id
 
   # SSH access from anywhere
   ingress {
@@ -60,7 +60,7 @@ resource "aws_security_group" "default" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["${var.base_cidr_block}"]
+    cidr_blocks = [var.base_cidr_block]
   }
 
   # outbound internet access
@@ -71,7 +71,7 @@ resource "aws_security_group" "default" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     Name = "Pulsar-Security-Group"
   }
 }

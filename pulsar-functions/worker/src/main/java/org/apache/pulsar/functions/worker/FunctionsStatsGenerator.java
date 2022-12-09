@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.IOException;
+import java.util.Map;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Map;
-
 /**
- * A class to generate stats for pulsar functions running on this broker
+ * A class to generate stats for pulsar functions running on this broker.
  */
 public class FunctionsStatsGenerator {
 
@@ -45,7 +44,7 @@ public class FunctionsStatsGenerator {
                 out.write(workerService.getWorkerStatsManager().getStatsAsString());
             } catch (IOException e) {
                 log.warn("Encountered error when generating metrics for worker {}",
-                  workerService.getWorkerConfig().getWorkerId(), e);
+                        workerService.getWorkerConfig().getWorkerId(), e);
             }
 
             /* function stats */
@@ -55,8 +54,8 @@ public class FunctionsStatsGenerator {
                 return;
             }
 
-            Map<String, FunctionRuntimeInfo> functionRuntimes
-                    = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
+            Map<String, FunctionRuntimeInfo> functionRuntimes =
+                    workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
             for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
                 String fullyQualifiedInstanceName = entry.getKey();
@@ -68,7 +67,10 @@ public class FunctionsStatsGenerator {
                     if (functionRuntime != null) {
                         try {
 
-                            out.write(functionRuntime.getPrometheusMetrics());
+                            String prometheusMetrics = functionRuntime.getPrometheusMetrics();
+                            if (prometheusMetrics != null) {
+                                out.write(prometheusMetrics);
+                            }
 
                         } catch (IOException e) {
                             log.warn("Failed to collect metrics for function instance {}",

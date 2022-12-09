@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.common.stats;
 
-import com.google.common.collect.Maps;
-
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +42,7 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
     private static Method getTotalSafepointTimeHandle;
     private static Method getSafepointCountHandle;
 
-    private Map<String, GCMetrics> gcMetricsMap = Maps.newHashMap();
+    private Map<String, GCMetrics> gcMetricsMap = new HashMap<>();
 
     static {
         try {

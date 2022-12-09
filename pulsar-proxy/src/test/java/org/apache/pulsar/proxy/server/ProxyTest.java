@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoopGroup;
@@ -34,7 +34,6 @@ import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -55,6 +54,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -70,8 +70,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyTest.class);
 
-    private ProxyService proxyService;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    protected ProxyService proxyService;
+    protected ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Data
     @ToString
@@ -90,8 +90,9 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.ofNullable(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
@@ -149,7 +150,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
             consumer.acknowledge(msg);
         }
 
@@ -183,7 +184,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
         }
     }
 
@@ -192,9 +193,9 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
      **/
     @Test
     public void testAutoCreateTopic() throws Exception{
-        int defaultPartition=2;
-        int defaultNumPartitions=pulsar.getConfiguration().getDefaultNumPartitions();
-        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        int defaultPartition = 2;
+        int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(defaultPartition);
         try {
             @Cleanup
@@ -204,8 +205,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             CompletableFuture<List<String>> partitionNamesFuture = client.getPartitionsForTopic(topic);
             List<String> partitionNames = partitionNamesFuture.get(30000, TimeUnit.MILLISECONDS);
             Assert.assertEquals(partitionNames.size(), defaultPartition);
-        }finally {
-            pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
+        } finally {
+            pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar.getConfiguration().setDefaultNumPartitions(defaultNumPartitions);
         }
     }
@@ -271,12 +272,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
         byte[] schemaVersion = new byte[8];
-        byte b = new Long(0l).byteValue();
-        for (int i = 0; i<8; i++){
+        byte b = Long.valueOf(0L).byteValue();
+        for (int i = 0; i < 8; i++){
             schemaVersion[i] = b;
         }
         SchemaInfo schemaInfo = ((PulsarClientImpl) client).getLookup()
-                .getSchema(TopicName.get("persistent://sample/test/local/get-schema"), schemaVersion).get().orElse(null);
+                .getSchema(TopicName.get("persistent://sample/test/local/get-schema"), schemaVersion)
+                .get().orElse(null);
         Assert.assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
     }
 
@@ -304,7 +306,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
             consumer.acknowledge(msg);
         }
     }

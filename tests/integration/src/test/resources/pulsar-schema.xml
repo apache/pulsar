@@ -24,6 +24,7 @@
         <classes>
             <class name="org.apache.pulsar.tests.integration.schema.SchemaTest" />
             <class name="org.apache.pulsar.tests.integration.schema.JodaTimeTest" />
+            <class name="org.apache.pulsar.tests.integration.python.PythonSchemaTest" />
         </classes>
     </test>
 </suite>

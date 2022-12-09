@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.nio.ByteBuffer;
+import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -39,7 +39,7 @@ public class MessageTest {
         String from = "ClusterNameOfReplicatedFrom";
         MessageMetadata builder = new MessageMetadata().setReplicatedFrom(from);
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertTrue(msg.isReplicated());
         assertEquals(msg.getReplicatedFrom(), from);
@@ -49,7 +49,7 @@ public class MessageTest {
     public void testMessageImplNoReplicatedInfo() {
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertFalse(msg.isReplicated());
         assertNull(msg.getReplicatedFrom());
@@ -61,7 +61,7 @@ public class MessageTest {
         String topicName = "myTopic";
         MessageMetadata builder = new MessageMetadata().setReplicatedFrom(from);
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
         TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
 
@@ -74,11 +74,22 @@ public class MessageTest {
         String topicName = "myTopic";
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
         TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
 
         assertFalse(topicMessage.isReplicated());
         assertNull(topicMessage.getReplicatedFrom());
+    }
+
+    @Test
+    public void testMessageImplGetReaderSchema() {
+        MessageMetadata builder = new MessageMetadata();
+        builder.hasSchemaVersion();
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
+
+        Optional<Schema<?>> readerSchema = msg.getReaderSchema();
+        assertTrue(readerSchema.isPresent());
     }
 }

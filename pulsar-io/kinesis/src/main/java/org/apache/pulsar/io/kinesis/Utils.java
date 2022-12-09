@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,28 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Base64.getEncoder;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.wnameless.json.base.JacksonJsonValue;
+import com.github.wnameless.json.flattener.JsonFlattener;
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.gson.JsonObject;
-
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionCtx;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionKey;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
-
-import com.google.flatbuffers.FlatBufferBuilder;
+import org.apache.pulsar.io.kinesis.json.JsonConverter;
+import org.apache.pulsar.io.kinesis.json.JsonRecord;
 
 public class Utils {
 
@@ -57,20 +62,19 @@ public class Utils {
     /**
      * Serialize record to flat-buffer. it's not a thread-safe method.
      *
-     * @param record
-     * @return
+     * @param record the record to serialize
+     * @return the buffer containing the serialized record
      */
-    public static ByteBuffer serializeRecordToFlatBuffer(Record<byte[]> record) {
+    public static ByteBuffer serializeRecordToFlatBuffer(Record<GenericObject> record) {
         DEFAULT_FB_BUILDER.clear();
         return serializeRecordToFlatBuffer(DEFAULT_FB_BUILDER, record);
     }
 
-    public static ByteBuffer serializeRecordToFlatBuffer(FlatBufferBuilder builder, Record<byte[]> record) {
+    public static ByteBuffer serializeRecordToFlatBuffer(FlatBufferBuilder builder, Record<GenericObject> record) {
         checkNotNull(record, "record-context can't be null");
-        Optional<EncryptionContext> encryptionCtx = (record instanceof RecordWithEncryptionContext)
-                ? ((RecordWithEncryptionContext<byte[]>) record).getEncryptionCtx()
-                : Optional.empty();
-        Map<String, String> properties = record.getProperties();
+        final org.apache.pulsar.client.api.Message<GenericObject> recordMessage = getMessage(record);
+        final Optional<EncryptionContext> encryptionCtx = recordMessage.getEncryptionCtx();
+        final Map<String, String> properties = record.getProperties();
 
         int encryptionCtxOffset = -1;
         int propertiesOffset = -1;
@@ -86,10 +90,10 @@ public class Utils {
         }
 
         if (encryptionCtx.isPresent()) {
-            encryptionCtxOffset = createEncryptionCtxOffset(builder, encryptionCtx);
+            encryptionCtxOffset = createEncryptionCtxOffset(builder, encryptionCtx.get());
         }
 
-        int payloadOffset = Message.createPayloadVector(builder, record.getValue());
+        int payloadOffset = Message.createPayloadVector(builder, recordMessage.getData());
         Message.startMessage(builder);
         Message.addPayload(builder, payloadOffset);
         if (encryptionCtxOffset != -1) {
@@ -109,12 +113,11 @@ public class Utils {
         return ByteBuffer.wrap(bb.array(), space, bb.capacity() - space);
     }
 
-    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder, Optional<EncryptionContext> encryptionCtx) {
-        if (!encryptionCtx.isPresent()) {
+    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder,
+                                                 EncryptionContext ctx) {
+        if (ctx == null) {
             return -1;
         }
-        // Message.addEncryptionCtx(builder, encryptionCtxOffset);
-        EncryptionContext ctx = encryptionCtx.get();
         int[] keysOffsets = new int[ctx.getKeys().size()];
         int keyIndex = 0;
         for (Entry<String, org.apache.pulsar.common.api.EncryptionContext.EncryptionKey> entry : ctx.getKeys()
@@ -135,7 +138,7 @@ public class Utils {
             EncryptionKey.startEncryptionKey(builder);
             EncryptionKey.addKey(builder, key);
             EncryptionKey.addValue(builder, value);
-            if(metadataOffset!=-1) {
+            if (metadataOffset != -1) {
                 EncryptionKey.addMetadata(builder, metadataOffset);
             }
             keysOffsets[keyIndex++] = EncryptionKey.endEncryptionKey(builder);
@@ -147,9 +150,9 @@ public class Utils {
         int batchSize = ctx.getBatchSize().isPresent() ? ctx.getBatchSize().get() : 1;
         byte compressionType;
         switch (ctx.getCompressionType()) {
-        case LZ4:
-            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4;
-            break;
+            case LZ4:
+                compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4;
+                break;
         case ZLIB:
             compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.ZLIB;
             break;
@@ -166,37 +169,34 @@ public class Utils {
      * Serializes sink-record into json format. It encodes encryption-keys, encryption-param and payload in base64
      * format so, it can be sent in json.
      *
-     * @param record
-     * @return
+     * @param record the record to serialize
+     * @return the record serialized to JSON
      */
-    public static String serializeRecordToJson(Record<byte[]> record) {
+    public static String serializeRecordToJson(Record<GenericObject> record) {
         checkNotNull(record, "record can't be null");
+        final org.apache.pulsar.client.api.Message<GenericObject> recordMessage = getMessage(record);
 
         JsonObject result = new JsonObject();
-        result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(record.getValue()));
+        result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(recordMessage.getData()));
         if (record.getProperties() != null) {
             JsonObject properties = new JsonObject();
-            record.getProperties().entrySet()
-                    .forEach(e -> properties.addProperty(e.getKey(), e.getValue()));
+            record.getProperties().forEach(properties::addProperty);
             result.add(PROPERTIES_FIELD, properties);
         }
 
-        Optional<EncryptionContext> optEncryptionCtx = (record instanceof RecordWithEncryptionContext)
-                ? ((RecordWithEncryptionContext<byte[]>) record).getEncryptionCtx()
-                : Optional.empty();
+        final Optional<EncryptionContext> optEncryptionCtx = recordMessage.getEncryptionCtx();
         if (optEncryptionCtx.isPresent()) {
             EncryptionContext encryptionCtx = optEncryptionCtx.get();
             JsonObject encryptionCtxJson = new JsonObject();
             JsonObject keyBase64Map = new JsonObject();
             JsonObject keyMetadataMap = new JsonObject();
-            encryptionCtx.getKeys().entrySet().forEach(entry -> {
-                keyBase64Map.addProperty(entry.getKey(), getEncoder().encodeToString(entry.getValue().getKeyValue()));
-                Map<String, String> keyMetadata = entry.getValue().getMetadata();
+            encryptionCtx.getKeys().forEach((key, value) -> {
+                keyBase64Map.addProperty(key, getEncoder().encodeToString(value.getKeyValue()));
+                Map<String, String> keyMetadata = value.getMetadata();
                 if (keyMetadata != null && !keyMetadata.isEmpty()) {
                     JsonObject metadata = new JsonObject();
-                    entry.getValue().getMetadata().entrySet()
-                            .forEach(m -> metadata.addProperty(m.getKey(), m.getValue()));
-                    keyMetadataMap.add(entry.getKey(), metadata);
+                    value.getMetadata().forEach(metadata::addProperty);
+                    keyMetadataMap.add(key, metadata);
                 }
             });
             encryptionCtxJson.add(KEY_MAP_FIELD, keyBase64Map);
@@ -214,6 +214,61 @@ public class Utils {
             result.add(ENCRYPTION_CTX_FIELD, encryptionCtxJson);
         }
         return result.toString();
+    }
+
+    public static String serializeRecordToJsonExpandingValue(ObjectMapper mapper, Record<GenericObject> record,
+                                                             boolean flatten)
+            throws JsonProcessingException {
+        JsonRecord jsonRecord = new JsonRecord();
+        GenericObject value = record.getValue();
+        if (value != null) {
+            jsonRecord.setPayload(toJsonSerializable(record.getSchema(), value.getNativeObject()));
+        }
+        record.getKey().ifPresent(jsonRecord::setKey);
+        record.getTopicName().ifPresent(jsonRecord::setTopicName);
+        record.getEventTime().ifPresent(jsonRecord::setEventTime);
+        record.getProperties().forEach(jsonRecord::addProperty);
+
+        if (flatten) {
+            JsonNode jsonNode = mapper.convertValue(jsonRecord, JsonNode.class);
+            return JsonFlattener.flatten(new JacksonJsonValue(jsonNode));
+        } else {
+            return mapper.writeValueAsString(jsonRecord);
+        }
+    }
+
+    public static org.apache.pulsar.client.api.Message<GenericObject> getMessage(Record<GenericObject> record) {
+        return record.getMessage()
+                .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"));
+    }
+
+    private static Object toJsonSerializable(Schema<?> schema, Object val) {
+        if (schema == null || schema.getSchemaInfo().getType().isPrimitive()) {
+            return val;
+        }
+        switch (schema.getSchemaInfo().getType()) {
+            case KEY_VALUE:
+                KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) schema;
+                org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject> keyValue =
+                        (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) val;
+                Map<String, Object> jsonKeyValue = new HashMap<>();
+                if (keyValue.getKey() != null) {
+                    jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
+                            keyValue.getKey().getNativeObject()));
+                }
+                if (keyValue.getValue() != null) {
+                    jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
+                            keyValue.getValue().getNativeObject()));
+                }
+                return jsonKeyValue;
+            case AVRO:
+                return JsonConverter.toJson((org.apache.avro.generic.GenericRecord) val);
+            case JSON:
+                return val;
+            default:
+                throw new UnsupportedOperationException("Unsupported key schemaType="
+                        + schema.getSchemaInfo().getType());
+        }
     }
 
 }

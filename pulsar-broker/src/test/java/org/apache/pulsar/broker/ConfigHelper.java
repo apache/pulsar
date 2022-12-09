@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,28 +18,29 @@
  */
 package org.apache.pulsar.broker;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
-
-import java.util.Map;
 
 public class ConfigHelper {
     private ConfigHelper() {}
 
 
     public static Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap(ServiceConfiguration configuration) {
-        return ImmutableMap.of(BacklogQuota.BacklogQuotaType.destination_storage,
+        return Map.of(BacklogQuota.BacklogQuotaType.destination_storage,
                 sizeBacklogQuota(configuration),
                 BacklogQuota.BacklogQuotaType.message_age,
                 timeBacklogQuota(configuration));
     }
 
     public static BacklogQuota sizeBacklogQuota(ServiceConfiguration configuration) {
+        long backlogQuotaBytes = configuration.getBacklogQuotaDefaultLimitGB() > 0
+                ? ((long) (configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE))
+                : configuration.getBacklogQuotaDefaultLimitBytes();
         return BacklogQuota.builder()
-                .limitSize(configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                .limitSize(backlogQuotaBytes)
                 .retentionPolicy(configuration.getBacklogQuotaDefaultRetentionPolicy())
                 .build();
     }

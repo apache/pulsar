@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,11 +25,11 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -38,12 +38,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.S3Container;
-import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
 
 /**
  * Test presto query from tiered storage, the Pulsar SQL is cluster mode.
@@ -89,6 +85,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         String offloadProperties = getOffloadProperties(BUCKET, null, ENDPOINT);
         pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, offloadProperties);
         pulsarCluster.startPrestoFollowWorkers(1, OFFLOAD_DRIVER, offloadProperties);
+        initJdbcConnection();
     }
 
     private String getOffloadProperties(String bucket, String region, String endpoint) {
@@ -133,13 +130,8 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
-
         @Cleanup
         Consumer<Stock> consumer = pulsarClient.newConsumer(JSONSchema.of(Stock.class))
                 .topic(topicName.toString())
@@ -157,7 +149,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         int sendMessageCnt = 0;
         while (true) {
             Stock stock = new Stock(
-                    sendMessageCnt,"STOCK_" + sendMessageCnt , 100.0 + sendMessageCnt * 10);
+                    sendMessageCnt,"STOCK_" + sendMessageCnt, 100.0 + sendMessageCnt * 10);
             MessageIdImpl messageId = (MessageIdImpl) producer.send(stock);
             sendMessageCnt ++;
             if (firstLedgerId == -1) {
@@ -225,7 +217,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     }
 
     @Override
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) {
         for (int i = 0; i < messageNum; ++i) {
             assertThat(contentArr).contains("\"" + i + "\"");
             assertThat(contentArr).contains("\"" + "STOCK_" + i + "\"");

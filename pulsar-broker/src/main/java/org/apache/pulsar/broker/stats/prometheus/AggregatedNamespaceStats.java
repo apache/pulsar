@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
     public int topicsCount;
@@ -31,6 +33,7 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
+    public long messageAckRate;
     public long bytesInCounter;
     public long msgInCounter;
     public long bytesOutCounter;
@@ -40,12 +43,27 @@ public class AggregatedNamespaceStats {
     public long msgBacklog;
     public long msgDelayed;
 
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
+
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
 
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
     public Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+
+    long compactionRemovedEventCount;
+    long compactionSucceedCount;
+    long compactionFailedCount;
+    long compactionDurationTimeInMills;
+    double compactionReadThroughput;
+    double compactionWriteThroughput;
+    long compactionCompactedEntriesCount;
+    long compactionCompactedEntriesSize;
+    StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+    int delayedTrackerMemoryUsage;
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -63,6 +81,11 @@ public class AggregatedNamespaceStats {
         msgInCounter += stats.msgInCounter;
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
+        delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
+
+        this.ongoingTxnCount += stats.ongoingTxnCount;
+        this.abortedTxnCount += stats.abortedTxnCount;
+        this.committedTxnCount += stats.committedTxnCount;
 
         managedLedgerStats.storageSize += stats.managedLedgerStats.storageSize;
         managedLedgerStats.storageLogicalSize += stats.managedLedgerStats.storageLogicalSize;
@@ -83,7 +106,7 @@ public class AggregatedNamespaceStats {
 
         stats.replicationStats.forEach((n, as) -> {
             AggregatedReplicationStats replStats =
-                    replicationStats.computeIfAbsent(n,  k -> new AggregatedReplicationStats());
+                    replicationStats.computeIfAbsent(n, k -> new AggregatedReplicationStats());
             replStats.msgRateIn += as.msgRateIn;
             replStats.msgRateOut += as.msgRateOut;
             replStats.msgThroughputIn += as.msgThroughputIn;
@@ -104,14 +127,29 @@ public class AggregatedNamespaceStats {
             subsStats.msgDelayed += as.msgDelayed;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
+            subsStats.filterProcessedMsgCount += as.filterProcessedMsgCount;
+            subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
+            subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
+            subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
             as.consumerStat.forEach((c, v) -> {
                 AggregatedConsumerStats consumerStats =
                         subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());
                 consumerStats.blockedSubscriptionOnUnackedMsgs = v.blockedSubscriptionOnUnackedMsgs;
                 consumerStats.msgRateRedeliver += v.msgRateRedeliver;
                 consumerStats.unackedMessages += v.unackedMessages;
+                messageAckRate += v.msgAckRate;
             });
         });
+
+        compactionRemovedEventCount += stats.compactionRemovedEventCount;
+        compactionSucceedCount += stats.compactionSucceedCount;
+        compactionFailedCount += stats.compactionFailedCount;
+        compactionDurationTimeInMills += stats.compactionDurationTimeInMills;
+        compactionReadThroughput += stats.compactionReadThroughput;
+        compactionWriteThroughput += stats.compactionWriteThroughput;
+        compactionCompactedEntriesCount += stats.compactionCompactedEntriesCount;
+        compactionCompactedEntriesSize += stats.compactionCompactedEntriesSize;
+        compactionLatencyBuckets.addAll(stats.compactionLatencyBuckets);
     }
 
     public void reset() {
@@ -132,5 +170,6 @@ public class AggregatedNamespaceStats {
 
         replicationStats.clear();
         subscriptionStats.clear();
+        delayedTrackerMemoryUsage = 0;
     }
 }

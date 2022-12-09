@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,23 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.connect.sink.SinkTaskContext;
-import org.apache.kafka.connect.storage.OffsetBackingStore;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.util.MessageIdUtils;
-import org.apache.pulsar.io.core.SinkContext;
-
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,11 +32,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.connect.sink.SinkTaskContext;
+import org.apache.kafka.connect.storage.OffsetBackingStore;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.util.MessageIdUtils;
+import org.apache.pulsar.io.core.SinkContext;
 
 @Slf4j
 public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
@@ -73,7 +67,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
         offsetStore.start();
 
         this.onPartitionChange = onPartitionChange;
-        this.topicNamespace = pulsarKafkaWorkerConfig.getString(TOPIC_NAMESPACE_CONFIG);
+        this.topicNamespace = pulsarKafkaWorkerConfig.getString(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG);
     }
 
     public void close() {
@@ -97,37 +91,29 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
             List<ByteBuffer> req = Lists.newLinkedList();
             ByteBuffer key = topicPartitionAsKey(topicPartition);
             req.add(key);
-            CompletableFuture<Long> offsetFuture = new CompletableFuture<>();
-            offsetStore.get(req, (Throwable ex, Map<ByteBuffer, ByteBuffer> result) -> {
-                if (ex == null) {
-                    if (result != null && result.size() != 0) {
-                        Optional<ByteBuffer> val = result.entrySet().stream()
-                                .filter(entry -> entry.getKey().equals(key))
-                                .findFirst().map(entry -> entry.getValue());
-                        if (val.isPresent()) {
-                            long received = val.get().getLong();
-                            if (log.isDebugEnabled()) {
-                                log.debug("read initial offset for {} == {}", topicPartition, received);
-                            }
-                            offsetFuture.complete(received);
-                            return;
-                        }
-                    }
-                    offsetFuture.complete(-1L);
-                } else {
-                    offsetFuture.completeExceptionally(ex);
-                }
-            });
-
             try {
-                return offsetFuture.get();
+                Map<ByteBuffer, ByteBuffer> result = offsetStore.get(req).get();
+                if (result != null && result.size() != 0) {
+                    Optional<ByteBuffer> val = result.entrySet().stream()
+                            .filter(entry -> entry.getKey().equals(key))
+                            .findFirst().map(entry -> entry.getValue());
+                    if (val.isPresent()) {
+                        long received = val.get().getLong();
+                        if (log.isDebugEnabled()) {
+                            log.debug("read initial offset for {} == {}", topicPartition, received);
+                        }
+                        return received;
+                    }
+                }
+                return -1L;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("error getting initial state of {}", topicPartition, e);
                 throw new RuntimeException("error getting initial state of " + topicPartition, e);
             } catch (ExecutionException e) {
                 log.error("error getting initial state of {}", topicPartition, e);
-                throw new RuntimeException("error getting initial state of " + topicPartition, e);            }
+                throw new RuntimeException("error getting initial state of " + topicPartition, e);
+            }
         });
         return offset;
     }
@@ -144,7 +130,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     }
 
     private ByteBuffer topicPartitionAsKey(TopicPartition topicPartition) {
-        return ByteBuffer.wrap((topicNamespace + "/" + topicPartition.toString()).getBytes(UTF_8));
+        return ByteBuffer.wrap((topicNamespace + "/" + topicPartition.toString()).getBytes(StandardCharsets.UTF_8));
 
     }
 

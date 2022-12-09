@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.util.List;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -82,7 +83,8 @@ public class PulsarInitialNamespaceSetup {
         }
 
         try (MetadataStore configStore = PulsarClusterMetadataSetup
-                .initMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+            PulsarResources pulsarResources = new PulsarResources(null, configStore);
             for (String namespace : arguments.namespaces) {
                 NamespaceName namespaceName = null;
                 try {
@@ -94,10 +96,10 @@ public class PulsarInitialNamespaceSetup {
 
                 // Create specified tenant
                 PulsarClusterMetadataSetup
-                        .createTenantIfAbsent(configStore, namespaceName.getTenant(), arguments.cluster);
+                        .createTenantIfAbsent(pulsarResources, namespaceName.getTenant(), arguments.cluster);
 
                 // Create specified namespace
-                PulsarClusterMetadataSetup.createNamespaceIfAbsent(configStore, namespaceName,
+                PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, namespaceName,
                         arguments.cluster);
             }
         }

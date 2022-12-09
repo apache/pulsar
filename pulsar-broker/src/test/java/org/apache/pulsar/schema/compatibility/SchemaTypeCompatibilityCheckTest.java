@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,17 +27,16 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.schema.Schemas;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
@@ -56,7 +55,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     private static final String namespace = "test-namespace";
     private static final String namespaceName = PUBLIC_TENANT + "/" + namespace;
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -72,10 +71,34 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testSchemaCompatibilityStrategyInBrokerLevel() throws PulsarClientException {
+        conf.setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "testSchemaCompatibilityStrategyInBrokerLevel"
+        ).toString();
+
+        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
+                withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+                .topic(topicName)
+                .create();
+
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition
+                .<Schemas.PersonThree>builder().withAlwaysAllowNull(true).withPojo(Schemas.PersonThree.class).build()))
+                .topic(topicName);
+
+        Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
+        assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
     @Test
@@ -97,7 +120,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -123,7 +146,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -149,7 +172,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                     .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -178,7 +201,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName + "2");
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -200,7 +223,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
@@ -226,7 +249,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
@@ -252,7 +275,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
@@ -281,7 +304,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName + "2");
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,6 @@ import java.lang.annotation.Target;
 
 /**
  * Stores field context to validate based on requirement or value constraints.
- * 
- *
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
@@ -34,35 +32,35 @@ public @interface FieldContext {
 
     /**
      * checks field value is required. By default field is mandatory false.
-     * 
+     *
      * @return true if attribute is required else returns false
      */
     boolean required() default false;
 
     /**
-     * binds numeric value's lower bound
-     * 
+     * binds numeric value's lower bound.
+     *
      * @return minimum value of the field
      */
     long minValue() default Long.MIN_VALUE;
 
     /**
-     * binds numeric value's upper bound
-     * 
+     * binds numeric value's upper bound.
+     *
      * @return maximum value of the field
      */
     long maxValue() default Long.MAX_VALUE;
 
     /**
-     * binds character length of text
-     * 
+     * binds character length of text.
+     *
      * @return character length of field
      */
     int maxCharLength() default Integer.MAX_VALUE;
-    
+
     /**
-     * allow field to be updated dynamically
-     * 
+     * allow field to be updated dynamically.
+     *
      * @return
      */
     boolean dynamic() default false;

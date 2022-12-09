@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import java.util.Map;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
-
-import java.util.Map;
 
 class PulsarIOSourceTaskContext implements SourceTaskContext {
 

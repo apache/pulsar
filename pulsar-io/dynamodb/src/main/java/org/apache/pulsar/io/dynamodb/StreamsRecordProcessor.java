@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,9 +28,8 @@ import com.amazonaws.services.kinesis.clientlibrary.types.InitializationInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
 import com.amazonaws.services.kinesis.model.Record;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.concurrent.LinkedBlockingQueue;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 // This is a direct adaptation of the kinesis record processor for kcl v1; no dynamo-specific logic
@@ -43,7 +42,6 @@ public class StreamsRecordProcessor implements IRecordProcessor {
     private final LinkedBlockingQueue<StreamsRecord> queue;
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
-    
     public StreamsRecordProcessor(LinkedBlockingQueue<StreamsRecord> queue, DynamoDBSourceConfig config) {
         this.queue = queue;
         this.checkpointInterval = config.getCheckpointInterval();
@@ -53,7 +51,6 @@ public class StreamsRecordProcessor implements IRecordProcessor {
 
     private void checkpoint(IRecordProcessorCheckpointer checkpointer) {
         log.info("Checkpointing shard " + kinesisShardId);
-        
         for (int i = 0; i < numRetries; i++) {
             try {
                 checkpointer.checkpoint();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,7 +38,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.json.JSONException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -88,7 +87,7 @@ public class KeyValueSchemaInfoTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testDecodeNonKeyValueSchemaInfo() {
-        DefaultImplementation.decodeKeyValueSchemaInfo(
+        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(
             FOO_SCHEMA.getSchemaInfo()
         );
     }
@@ -110,18 +109,18 @@ public class KeyValueSchemaInfoTest {
         );
         SchemaInfo kvSchemaInfo = kvSchema.getSchemaInfo();
         assertEquals(
-            DefaultImplementation.decodeKeyValueEncodingType(kvSchemaInfo),
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(kvSchemaInfo),
             encodingType);
 
         SchemaInfo encodedSchemaInfo =
-            DefaultImplementation.encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
+                DefaultImplementation.getDefaultImplementation().encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
         assertEquals(encodedSchemaInfo, kvSchemaInfo);
         assertEquals(
-            DefaultImplementation.decodeKeyValueEncodingType(encodedSchemaInfo),
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(encodedSchemaInfo),
             encodingType);
 
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-            DefaultImplementation.decodeKeyValueSchemaInfo(kvSchemaInfo);
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(kvSchemaInfo);
 
         assertEquals(schemaInfoKeyValue.getKey(), FOO_SCHEMA.getSchemaInfo());
         assertEquals(schemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());
@@ -138,26 +137,26 @@ public class KeyValueSchemaInfoTest {
         );
         SchemaInfo kvSchemaInfo = kvSchema.getSchemaInfo();
         assertEquals(
-            DefaultImplementation.decodeKeyValueEncodingType(kvSchemaInfo),
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(kvSchemaInfo),
             encodingType);
 
         SchemaInfo encodedSchemaInfo =
-            DefaultImplementation.encodeKeyValueSchemaInfo(
+                DefaultImplementation.getDefaultImplementation().encodeKeyValueSchemaInfo(
                 FOO_SCHEMA,
                 nestedSchema,
                 encodingType);
         assertEquals(encodedSchemaInfo, kvSchemaInfo);
         assertEquals(
-            DefaultImplementation.decodeKeyValueEncodingType(encodedSchemaInfo),
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(encodedSchemaInfo),
             encodingType);
 
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-            DefaultImplementation.decodeKeyValueSchemaInfo(kvSchemaInfo);
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(kvSchemaInfo);
 
         assertEquals(schemaInfoKeyValue.getKey(), FOO_SCHEMA.getSchemaInfo());
         assertEquals(schemaInfoKeyValue.getValue().getType(), SchemaType.KEY_VALUE);
         KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue =
-            DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
 
         assertEquals(nestedSchemaInfoKeyValue.getKey(), Schema.STRING.getSchemaInfo());
         assertEquals(nestedSchemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());
@@ -171,18 +170,18 @@ public class KeyValueSchemaInfoTest {
             KeyValueEncodingType.SEPARATED
         );
 
-        SchemaInfo oldSchemaInfo = new SchemaInfoImpl()
-            .setName("")
-            .setType(SchemaType.KEY_VALUE)
-            .setSchema(kvSchema.getSchemaInfo().getSchema())
-            .setProperties(Collections.emptyMap());
+        SchemaInfo oldSchemaInfo = SchemaInfoImpl.builder()
+            .name("")
+            .type(SchemaType.KEY_VALUE)
+            .schema(kvSchema.getSchemaInfo().getSchema())
+            .properties(Collections.emptyMap()).build();
 
         assertEquals(
-            DefaultImplementation.decodeKeyValueEncodingType(oldSchemaInfo),
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(oldSchemaInfo),
             KeyValueEncodingType.INLINE);
 
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-            DefaultImplementation.decodeKeyValueSchemaInfo(oldSchemaInfo);
+                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(oldSchemaInfo);
         // verify the key schema
         SchemaInfo keySchemaInfo = schemaInfoKeyValue.getKey();
         assertEquals(
@@ -210,14 +209,14 @@ public class KeyValueSchemaInfoTest {
     }
 
     @Test
-    public void testKeyValueSchemaInfoToString() throws JSONException {
-        String havePrimitiveType = DefaultImplementation
+    public void testKeyValueSchemaInfoToString() throws Exception {
+        String havePrimitiveType = DefaultImplementation.getDefaultImplementation()
                 .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo
                         .decodeKeyValueSchemaInfo(Schema.KeyValue(Schema.AVRO(Foo.class), Schema.STRING)
                                 .getSchemaInfo()));
         JSONSchemaTest.assertJSONEqual(havePrimitiveType, KEY_VALUE_SCHEMA_INFO_INCLUDE_PRIMITIVE);
 
-        String notHavePrimitiveType = DefaultImplementation
+        String notHavePrimitiveType = DefaultImplementation.getDefaultImplementation()
                 .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo
                         .decodeKeyValueSchemaInfo(Schema.KeyValue(Schema.AVRO(Foo.class),
                                 Schema.AVRO(Foo.class)).getSchemaInfo()));

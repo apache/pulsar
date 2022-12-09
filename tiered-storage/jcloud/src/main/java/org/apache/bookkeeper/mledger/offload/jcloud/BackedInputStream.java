@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,4 +27,5 @@ import java.io.InputStream;
 public abstract class BackedInputStream extends InputStream {
     public abstract void seek(long position);
     public abstract void seekForward(long position) throws IOException;
+    public abstract long getCurrentPosition();
 }

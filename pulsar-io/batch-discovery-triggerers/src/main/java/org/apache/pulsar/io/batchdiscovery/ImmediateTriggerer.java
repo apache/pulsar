@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,17 +20,16 @@ package org.apache.pulsar.io.batchdiscovery;
 
 import java.util.Map;
 import java.util.function.Consumer;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
 
 @Slf4j
 public class ImmediateTriggerer implements BatchSourceTriggerer {
-	
+
   @Override
   public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
-    log.info("Initialized ImmediateTrigger at: {}",  System.currentTimeMillis());
+    log.info("Initialized ImmediateTrigger at: {}", System.currentTimeMillis());
   }
 
   @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,6 +42,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return getProperty("zookeeperServers");
     }
 
+    String getMetadataStoreUrl() {
+        return getProperty("metadataStoreUrl");
+    }
+
     String getPackagesManagementLedgerRootPath() {
         return getProperty("packagesManagementLedgerRootPath");
     }
@@ -58,6 +62,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return getProperty("bookkeeperClientAuthenticationParameters");
     }
 
+    @Override
+    public Properties getProperties() {
+        return configuration.getProperties();
+    }
 
     @Override
     public String getProperty(String key) {

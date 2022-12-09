@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,7 @@ package org.apache.pulsar.client.cli;
 import java.time.Duration;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.websocket.WebSocketService;
-import org.apache.pulsar.websocket.service.ProxyServer;
 import org.awaitility.Awaitility;
-import org.awaitility.pollinterval.PollInterval;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -49,7 +46,6 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
     }
 

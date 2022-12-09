@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,7 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
      * @throws IOException if the de-serialization fails
      */
     static MessageId fromByteArray(byte[] data) throws IOException {
-        return DefaultImplementation.newMessageIdFromByteArray(data);
+        return DefaultImplementation.getDefaultImplementation().newMessageIdFromByteArray(data);
     }
 
     /**
@@ -70,7 +70,7 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
      * @throws IOException if the de-serialization fails
      */
     static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
-        return DefaultImplementation.newMessageIdFromByteArrayWithTopic(data, topicName);
+        return DefaultImplementation.getDefaultImplementation().newMessageIdFromByteArrayWithTopic(data, topicName);
     }
 
     // CHECKSTYLE.OFF: ConstantName
@@ -78,12 +78,13 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
     /**
      * MessageId that represents the oldest message available in the topic.
      */
-    MessageId earliest = DefaultImplementation.newMessageId(-1, -1, -1);
+    MessageId earliest = DefaultImplementation.getDefaultImplementation().newMessageId(-1, -1, -1);
 
     /**
      * MessageId that represents the next message published in the topic.
      */
-    MessageId latest = DefaultImplementation.newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
+    MessageId latest = DefaultImplementation.getDefaultImplementation()
+            .newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
 
     // CHECKSTYLE.ON: ConstantName
 }

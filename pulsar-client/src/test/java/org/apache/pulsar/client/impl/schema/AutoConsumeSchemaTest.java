@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,7 +38,7 @@ public class AutoConsumeSchemaTest {
         Schema<GenericRecord> autoConsumeSchema = new AutoConsumeSchema();
         byte[] bytes = "bytes data".getBytes();
         MessageImpl<GenericRecord> message = MessageImpl.create(
-                new MessageMetadata(), ByteBuffer.wrap(bytes), autoConsumeSchema);
+                new MessageMetadata(), ByteBuffer.wrap(bytes), autoConsumeSchema, null);
         Assert.assertNull(message.getSchemaVersion());
         GenericRecord genericRecord = message.getValue();
         Assert.assertEquals(genericRecord.getNativeObject(), bytes);

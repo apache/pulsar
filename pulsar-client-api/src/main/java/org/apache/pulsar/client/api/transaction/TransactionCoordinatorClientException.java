@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api.transaction;
 
 import java.io.IOException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -68,6 +69,11 @@ public class TransactionCoordinatorClientException extends IOException {
         public InvalidTxnStatusException(String message) {
             super(message);
         }
+
+        public InvalidTxnStatusException(String txnId, String actualState, String expectState) {
+            super("[" + txnId + "] with unexpected state : "
+                    + actualState + ", expect " + expectState + " state!");
+        }
     }
 
     /**
@@ -114,18 +120,13 @@ public class TransactionCoordinatorClientException extends IOException {
         } else if (t instanceof InterruptedException) {
             Thread.currentThread().interrupt();
             return new TransactionCoordinatorClientException(t);
-        }  else if (!(t instanceof ExecutionException)) {
+        } else if (t instanceof CoordinatorNotFoundException) {
+            return (CoordinatorNotFoundException) t;
+        } else if (t instanceof InvalidTxnStatusException) {
+            return (InvalidTxnStatusException) t;
+        } else if (t instanceof ExecutionException | t instanceof CompletionException) {
             // Generic exception
-            return new TransactionCoordinatorClientException(t);
-        }
-
-        Throwable cause = t.getCause();
-        String msg = cause.getMessage();
-
-        if (cause instanceof CoordinatorNotFoundException) {
-            return new CoordinatorNotFoundException(msg);
-        } else if (cause instanceof InvalidTxnStatusException) {
-            return new InvalidTxnStatusException(msg);
+            return unwrap(t.getCause());
         } else {
             return new TransactionCoordinatorClientException(t);
         }

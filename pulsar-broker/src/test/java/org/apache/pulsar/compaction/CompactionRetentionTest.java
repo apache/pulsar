@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,69 +18,37 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.swagger.models.auth.In;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.api.OpenBuilder;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.testng.Assert;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -96,10 +64,10 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         conf.setManagedLedgerMaxEntriesPerLedger(2);
         super.internalSetup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-tenant",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-tenant/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-tenant/my-ns", Collections.singleton("test"));
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
@@ -121,7 +89,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testCompaction() throws Exception {
-        String topic = "persistent://my-tenant/use/my-ns/my-topic-" + System.nanoTime();
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
 
         Set<String> keys = Sets.newHashSet("a", "b", "c");
         Set<String> keysToExpire = Sets.newHashSet("x1", "x2");
@@ -193,6 +161,91 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         // In the raw topic there should be no messages
         validateMessages(pulsarClient, false, topic, round, Collections.emptySet());
+    }
+
+
+    /**
+     * When a topic is created, if the compaction threshold are set, the data should be retained in the compacted view,
+     * even if the topic is not yet compacted.
+     */
+    @Test
+    public void testCompactionRetentionOnTopicCreationWithNamespacePolicies() throws Exception {
+        String namespace = "my-tenant/my-ns";
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
+        admin.namespaces().setCompactionThreshold(namespace, 10);
+
+        testCompactionCursorRetention(topic);
+    }
+
+    @Test
+    public void testCompactionRetentionAfterTopicCreationWithNamespacePolicies() throws Exception {
+        String namespace = "my-tenant/my-ns";
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
+
+        // Pre-create the topic, so that compaction is enabled only after the topic was created
+        pulsarClient.newProducer(Schema.INT32).topic(topic).create().close();
+
+        admin.namespaces().setCompactionThreshold(namespace, 10);
+
+        Awaitility.await().untilAsserted(() ->
+                testCompactionCursorRetention(topic)
+        );
+    }
+
+    @Test
+    public void testCompactionRetentionOnTopicCreationWithTopicPolicies() throws Exception {
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
+
+        // Pre-create the topic, otherwise setting policies will fail
+        pulsarClient.newProducer(Schema.INT32).topic(topic).create().close();
+
+        admin.topics().setCompactionThreshold(topic, 10);
+
+        Awaitility.await().untilAsserted(() ->
+                testCompactionCursorRetention(topic)
+        );
+    }
+
+    private void testCompactionCursorRetention(String topic) throws Exception {
+        Set<String> keys = Sets.newHashSet("a", "b", "c");
+        Set<String> keysToExpire = Sets.newHashSet("x1", "x2");
+        Set<String> allKeys = new HashSet<>();
+        allKeys.addAll(keys);
+        allKeys.addAll(keysToExpire);
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+
+        log.info(" ---- X 1: {}", mapper.writeValueAsString(
+                admin.topics().getInternalStats(topic, false)));
+
+        int round = 1;
+
+        for (String key : allKeys) {
+            producer.newMessage()
+                    .key(key)
+                    .value(round)
+                    .send();
+        }
+
+        log.info(" ---- X 2: {}", mapper.writeValueAsString(
+                admin.topics().getInternalStats(topic, false)));
+
+        validateMessages(pulsarClient, true, topic, round, allKeys);
+
+        compactor.compact(topic).join();
+
+        log.info(" ---- X 3: {}", mapper.writeValueAsString(
+                admin.topics().getInternalStats(topic, false)));
+
+        validateMessages(pulsarClient, true, topic, round, allKeys);
     }
 
     private void validateMessages(PulsarClient client, boolean readCompacted, String topic, int round, Set<String> expectedKeys)

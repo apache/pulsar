@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import java.util.Map;
 import org.apache.pulsar.common.util.Reflections;
 
-import java.util.Map;
-
 public interface RuntimeCustomizer {
-    void initialize(final Map<String, Object> runtimeCustomizerConfig);
+    void initialize(Map<String, Object> runtimeCustomizerConfig);
 
     static RuntimeCustomizer getRuntimeCustomizer(String className) {
-        return Reflections.createInstance(className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
+        return Reflections
+                .createInstance(className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
     }
 }

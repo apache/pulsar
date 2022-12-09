@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,6 +38,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,8 +98,11 @@ public class PulsarClusterMetadataTeardown {
         }
 
         @Cleanup
-        MetadataStore metadataStore = MetadataStoreFactory.create(arguments.zookeeper,
-                MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis).build());
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeper,
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .build());
 
         if (arguments.bkMetadataServiceUri != null) {
             @Cleanup
@@ -120,7 +124,8 @@ public class PulsarClusterMetadataTeardown {
             // Should it be done by REST API before broker is down?
             @Cleanup
             MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.configurationStore,
-                    MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis).build());
+                    MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
+                            .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
             deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
         }
 

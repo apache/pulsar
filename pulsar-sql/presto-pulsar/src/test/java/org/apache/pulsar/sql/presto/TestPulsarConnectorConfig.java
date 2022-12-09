@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -65,7 +65,6 @@ public class TestPulsarConnectorConfig {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
         Assert.assertEquals(0L, connectorConfig.getManagedLedgerCacheSizeMB());
-        Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumWorkerThreads());
         Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumSchedulerThreads());
         Assert.assertEquals(connectorConfig.getMaxSplitQueueSizeBytes(), -1);
     }

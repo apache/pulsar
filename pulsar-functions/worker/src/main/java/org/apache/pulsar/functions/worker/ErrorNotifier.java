@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,23 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
-
 import java.io.Serializable;
+import org.apache.pulsar.broker.ShutdownService;
 
 public interface ErrorNotifier extends Serializable, AutoCloseable {
-  
+
   void triggerError(Throwable th);
 
   void waitForError() throws Exception;
 
   void close();
-  
+
   static ErrorNotifier getDefaultImpl() {
     return new ErrorNotifierImpl();
   }
 
-  static ErrorNotifier getShutdownServiceImpl(ZooKeeperSessionWatcher.ShutdownService shutdownService) {
+  static ErrorNotifier getShutdownServiceImpl(ShutdownService shutdownService) {
     return new ErrorNotifierShutdownServiceImpl(shutdownService);
   }
-  
+
 }

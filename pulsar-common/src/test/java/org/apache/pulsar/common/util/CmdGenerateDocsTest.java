@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -57,7 +57,7 @@ public class CmdGenerateDocsTest {
                     + "    -h, --help\n"
                     + "      Display help information\n"
                     + "      Default: false\n"
-                    + "\n";
+                    + System.lineSeparator();
             assertEquals(rightMsg, message);
         } finally {
             System.setOut(oldStream);
@@ -77,20 +77,10 @@ public class CmdGenerateDocsTest {
             cmd.run(null);
 
             String message = baoStream.toString();
-            String rightMsg = "------------\n"
+            String rightMsg = "# test\n\n"
+                    + "Options\n\n"
                     + "\n"
-                    + "# test\n"
-                    + "\n"
-                    + "### Usage\n"
-                    + "\n"
-                    + "`$test`\n"
-                    + "\n"
-                    + "------------\n"
-                    + "\n"
-                    + "Options\n"
-                    + "\n"
-                    + "\n"
-                    + "```bdocs-tab:example_shell\n"
+                    + "```shell\n"
                     + "$ pulsar test options\n"
                     + "```\n"
                     + "\n"
@@ -98,7 +88,7 @@ public class CmdGenerateDocsTest {
                     + "|---|---|---|\n"
                     + "| `-n, --name` | Name|null|\n"
                     + "| `-h, --help` | Show this help message|false|\n"
-                    + "\n";
+                    + System.lineSeparator();
             assertEquals(rightMsg, message);
         } finally {
             System.setOut(oldStream);

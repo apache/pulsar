@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import org.apache.pulsar.broker.PulsarServerException;
+
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;

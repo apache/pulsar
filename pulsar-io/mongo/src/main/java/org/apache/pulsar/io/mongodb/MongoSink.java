@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,24 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import static java.util.stream.Collectors.toList;
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.reactivestreams.client.MongoClient;
-import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -37,19 +48,6 @@ import org.bson.json.JsonParseException;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
-
-import static java.util.stream.Collectors.toList;
-
 /**
  * The base class for MongoDB sinks.
  * Users need to implement extractKeyValue function to use this sink.
@@ -59,12 +57,12 @@ import static java.util.stream.Collectors.toList;
     name = "mongo",
     type = IOType.SINK,
     help = "A sink connector that sends pulsar messages to mongodb",
-    configClass = MongoConfig.class
+    configClass = MongoSinkConfig.class
 )
 @Slf4j
 public class MongoSink implements Sink<byte[]> {
 
-    private MongoConfig mongoConfig;
+    private MongoSinkConfig mongoSinkConfig;
 
     private MongoClient mongoClient;
 
@@ -88,22 +86,22 @@ public class MongoSink implements Sink<byte[]> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Open MongoDB Sink");
 
-        mongoConfig = MongoConfig.load(config);
-        mongoConfig.validate(true, true);
+        mongoSinkConfig = MongoSinkConfig.load(config);
+        mongoSinkConfig.validate();
 
         if (clientProvider != null) {
             mongoClient = clientProvider.get();
         } else {
-            mongoClient = MongoClients.create(mongoConfig.getMongoUri());
+            mongoClient = MongoClients.create(mongoSinkConfig.getMongoUri());
         }
 
-        final MongoDatabase db = mongoClient.getDatabase(mongoConfig.getDatabase());
-        collection = db.getCollection(mongoConfig.getCollection());
+        final MongoDatabase db = mongoClient.getDatabase(mongoSinkConfig.getDatabase());
+        collection = db.getCollection(mongoSinkConfig.getCollection());
 
         incomingList = Lists.newArrayList();
         flushExecutor = Executors.newScheduledThreadPool(1);
         flushExecutor.scheduleAtFixedRate(() -> flush(),
-                mongoConfig.getBatchTimeMs(), mongoConfig.getBatchTimeMs(), TimeUnit.MILLISECONDS);
+                mongoSinkConfig.getBatchTimeMs(), mongoSinkConfig.getBatchTimeMs(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -121,8 +119,8 @@ public class MongoSink implements Sink<byte[]> {
             currentSize = incomingList.size();
         }
 
-        if (currentSize == mongoConfig.getBatchSize()) {
-            flushExecutor.submit(() -> flush());
+        if (currentSize == mongoSinkConfig.getBatchSize()) {
+            flushExecutor.execute(() -> flush());
         }
     }
 
@@ -148,8 +146,7 @@ public class MongoSink implements Sink<byte[]> {
                 final byte[] docAsBytes = record.getValue();
                 final Document doc = Document.parse(new String(docAsBytes, StandardCharsets.UTF_8));
                 docsToInsert.add(doc);
-            }
-            catch (JsonParseException | BSONException e) {
+            } catch (JsonParseException | BSONException e) {
                 log.error("Bad message", e);
                 record.fail();
                 iter.remove();
@@ -157,15 +154,17 @@ public class MongoSink implements Sink<byte[]> {
         }
 
         if (docsToInsert.size() > 0) {
-            collection.insertMany(docsToInsert).subscribe(new DocsToInsertSubscriber(docsToInsert,recordsToInsert));
+            collection.insertMany(docsToInsert).subscribe(new DocsToInsertSubscriber(docsToInsert, recordsToInsert));
         }
     }
-    private class DocsToInsertSubscriber implements Subscriber<InsertManyResult>{
+
+    private class DocsToInsertSubscriber implements Subscriber<InsertManyResult> {
         final List<Document> docsToInsert;
         final List<Record<byte[]>> recordsToInsert;
-        final List<Integer> idxToAck ;
+        final List<Integer> idxToAck;
         final List<Integer> idxToFail = Lists.newArrayList();
-        public DocsToInsertSubscriber(List<Document> docsToInsert,List<Record<byte[]>> recordsToInsert){
+
+        public DocsToInsertSubscriber(List<Document> docsToInsert, List<Record<byte[]>> recordsToInsert) {
             this.docsToInsert = docsToInsert;
             this.recordsToInsert = recordsToInsert;
             idxToAck = IntStream.range(0, this.docsToInsert.size()).boxed().collect(toList());

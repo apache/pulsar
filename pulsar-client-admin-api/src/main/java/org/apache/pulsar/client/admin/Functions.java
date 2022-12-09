@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -757,6 +758,42 @@ public interface Functions {
             String destinationFile, String tenant, String namespace, String function);
 
     /**
+     * Download Function Code.
+     *
+     * @param destinationFile
+     *           file where data should be downloaded to
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param transformFunction
+     *            Whether to download the transform function (for sources and sinks)
+     * @throws PulsarAdminException
+     */
+    void downloadFunction(String destinationFile, String tenant, String namespace, String function,
+                          boolean transformFunction) throws PulsarAdminException;
+
+    /**
+     * Download Function Code asynchronously.
+     *
+     * @param destinationFile
+     *           file where data should be downloaded to
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param transformFunction
+     *            Whether to download the transform function (for sources and sinks)
+     */
+    CompletableFuture<Void> downloadFunctionAsync(
+            String destinationFile, String tenant, String namespace, String function, boolean transformFunction);
+
+
+    /**
      * Deprecated in favor of getting sources and sinks for their own APIs.
      * <p/>
      * Fetches a list of supported Pulsar IO connectors currently running in cluster mode
@@ -791,6 +828,19 @@ public interface Functions {
      */
     @Deprecated
     Set<String> getSinks() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar Functions currently running in cluster mode.
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<FunctionDefinition> getBuiltInFunctions() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar Functions currently running in cluster mode asynchronously.
+     */
+    CompletableFuture<List<FunctionDefinition>> getBuiltInFunctionsAsync();
 
     /**
      * Fetch the current state associated with a Pulsar Function.
@@ -893,4 +943,17 @@ public interface Functions {
      */
     CompletableFuture<Void> putFunctionStateAsync(
             String tenant, String namespace, String function, FunctionState state);
+
+    /**
+     * Reload the available built-in functions.
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void reloadBuiltInFunctions() throws PulsarAdminException;
+
+    /**
+     * Reload the available built-in functions.
+     */
+    CompletableFuture<Void> reloadBuiltInFunctionsAsync();
 }

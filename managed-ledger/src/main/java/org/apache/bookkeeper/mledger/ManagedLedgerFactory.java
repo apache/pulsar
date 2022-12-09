@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,16 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -91,7 +93,7 @@ public interface ManagedLedgerFactory {
             Supplier<Boolean> mlOwnershipChecker, Object ctx);
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
      * @param managedLedgerName
      * @param startPosition
@@ -103,7 +105,7 @@ public interface ManagedLedgerFactory {
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
      * @param managedLedgerName
      * @param startPosition
@@ -114,6 +116,17 @@ public interface ManagedLedgerFactory {
      */
     void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
             OpenReadOnlyCursorCallback callback, Object ctx);
+
+    /**
+     * Asynchronous open a Read-only managedLedger.
+     * @param managedLedgerName the unique name that identifies the managed ledger
+     * @param callback
+     * @param config the managed ledger configuration.
+     * @param ctx opaque context
+     */
+    void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+                                AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
+                                ManagedLedgerConfig config, Object ctx);
 
     /**
      * Get the current metadata info for a managed ledger.
@@ -151,7 +164,27 @@ public interface ManagedLedgerFactory {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
+    void delete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture)
+            throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
     void asyncDelete(String name, DeleteLedgerCallback callback, Object ctx);
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                             DeleteLedgerCallback callback, Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.
@@ -160,4 +193,44 @@ public interface ManagedLedgerFactory {
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
 
+    /**
+     * This method tries it's best to releases all the resources maintained by the ManagedLedgerFactory.
+     * It will take longer time to shutdown than shutdown();
+     *
+     * @see #shutdown()
+     * @throws ManagedLedgerException
+     */
+    CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException, InterruptedException;
+
+    /**
+     * Check managed ledger has been initialized before.
+     *
+     * @param ledgerName {@link String}
+     * @return a future represents the result of the operation.
+     *         an instance of {@link Boolean} is returned
+     *         if the operation succeeds.
+     */
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
+
+    /**
+     * @return return EntryCacheManager.
+     */
+    EntryCacheManager getEntryCacheManager();
+
+    /**
+     * update cache evictionTimeThreshold.
+     *
+     * @param cacheEvictionTimeThresholdNanos time threshold for eviction.
+     */
+    void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
+
+    /**
+     * @return time threshold for eviction.
+     * */
+    long getCacheEvictionTimeThreshold();
+
+    /**
+     * @return properties of this managedLedger.
+     */
+    CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
 }

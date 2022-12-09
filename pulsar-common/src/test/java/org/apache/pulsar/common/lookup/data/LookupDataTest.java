@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -79,9 +79,8 @@ public class LookupDataTest {
         final String simpleLmReportName = "simpleLoadManager";
         final String modularLmBrokerUrl = "modular";
         final SystemResourceUsage simpleLmSystemResourceUsage = new SystemResourceUsage();
-        final ResourceUsage resource = new ResourceUsage();
         final double usage = 55.0;
-        resource.usage = usage;
+        final ResourceUsage resource = new ResourceUsage(usage, 0);
         simpleLmSystemResourceUsage.bandwidthIn = resource;
         
         LoadReport simpleReport = getSimpleLoadManagerLoadReport(simpleLmBrokerUrl, simpleLmReportName,

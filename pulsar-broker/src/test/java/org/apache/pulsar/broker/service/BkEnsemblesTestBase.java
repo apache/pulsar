@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,8 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
@@ -74,20 +74,23 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             bkEnsemble.start();
 
             // start pulsar service
-            config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            if (config == null) {
+                config = new ServiceConfiguration();
+            }
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
             config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setManagedLedgerMaxEntriesPerLedger(5);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
-            config.setAllowAutoTopicCreationType("non-partitioned");
-            config.setZooKeeperOperationTimeoutSeconds(10);
+            config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            config.setMetadataStoreOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();
             properties.put("bookkeeper_numWorkerThreads", "1");
@@ -111,6 +114,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
     @Override
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
+        config = null;
         markCurrentSetupNumberCleaned();
         admin.close();
         pulsar.close();

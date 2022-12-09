@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -68,8 +68,8 @@ public interface Message<T> {
 
     /**
      * Get the uncompressed message payload size in bytes.
-     * 
-     * @return size in bytes. 
+     *
+     * @return size in bytes.
      */
     int size();
 
@@ -241,8 +241,42 @@ public interface Message<T> {
     /**
      * Release a message back to the pool. This is required only if the consumer was created with the option to pool
      * messages, otherwise it will have no effect.
-     * 
+     *
      * @since 2.8.0
      */
     void release();
+
+    /**
+     * Check whether the message has a broker publish time.
+     *
+     * @since 2.9.0
+     * @return true if the message has a broker publish time, otherwise false.
+     */
+    boolean hasBrokerPublishTime();
+
+    /**
+     * Get broker publish time from broker entry metadata.
+     * Note that only if the feature is enabled in the broker then the value is available.
+     *
+     * @since 2.9.0
+     * @return broker publish time from broker entry metadata, or empty if the feature is not enabled in the broker.
+     */
+    Optional<Long> getBrokerPublishTime();
+
+    /**
+     * Check whether the message has an index.
+     *
+     * @since 2.9.0
+     * @return true if the message has an index, otherwise false.
+     */
+    boolean hasIndex();
+
+    /**
+     * Get index from broker entry metadata.
+     * Note that only if the feature is enabled in the broker then the value is available.
+     *
+     * @since 2.9.0
+     * @return index from broker entry metadata, or empty if the feature is not enabled in the broker.
+     */
+    Optional<Long> getIndex();
 }

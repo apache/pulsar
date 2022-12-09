@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 
 public interface TopicTransactionBufferRecoverCallBack {
 
@@ -29,11 +28,10 @@ public interface TopicTransactionBufferRecoverCallBack {
     void recoverComplete();
 
     /**
-     * Handle transactionBufferSnapshot.
-     *
-     * @param snapshot the transaction buffer snapshot
+     * No message with transaction has ever been sent.
+     * Skip recovery procedure
      */
-    void handleSnapshot(TransactionBufferSnapshot snapshot);
+    void noNeedToRecover();
 
     /**
      * Handle transaction entry beyond the snapshot.
@@ -45,5 +43,5 @@ public interface TopicTransactionBufferRecoverCallBack {
     /**
      * Topic transaction buffer recover exceptionally.
      */
-    void recoverExceptionally(Exception e);
+    void recoverExceptionally(Throwable e);
 }

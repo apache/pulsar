@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -28,6 +25,9 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
 
 /**
  * An abstract OAuth 2.0 authorization flow.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,6 +80,10 @@ public class PulsarVersion {
         } else {
             return commit;
         }
+    }
+
+    public static String getGitBranch() {
+        return "${git.branch}";
     }
 
     public static String getBuildUser() {

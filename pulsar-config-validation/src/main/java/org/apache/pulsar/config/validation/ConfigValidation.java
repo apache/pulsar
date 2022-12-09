@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ public class ConfigValidation {
     private static final Class DEFAULT_ANNOTATION_CLASS = ConfigValidationAnnotations.class;
 
     /**
-     * Validate the config object with annotations from annotationClass
+     * Validate the config object with annotations from annotationClass.
      * @param config config object
      * @param annotationClass class with annotations to use
      */
@@ -53,7 +53,7 @@ public class ConfigValidation {
     }
 
     /**
-     * Validate the config object with default annotation class
+     * Validate the config object with default annotation class.
      * @param config config object
      */
     public static void validateConfig(Object config) {
@@ -68,7 +68,8 @@ public class ConfigValidation {
         processAnnotations(field.getAnnotations(), field.getName(), value, annotationClass);
     }
 
-    private static void processAnnotations(Annotation[] annotations, String fieldName, Object value, Class annotationClass) {
+    private static void processAnnotations(Annotation[] annotations, String fieldName, Object value,
+                                           Class annotationClass) {
         try {
             for (Annotation annotation : annotations) {
                 String type = annotation.annotationType().getName();
@@ -95,7 +96,7 @@ public class ConfigValidation {
                     if (hasConstructor(clazz, Map.class)) {
                         o = clazz.getConstructor(Map.class).newInstance(params);
                     } else { //If not call default constructor
-                        o = clazz.newInstance();
+                        o = clazz.getDeclaredConstructor().newInstance();
                     }
                     o.validateField(fieldName, value);
                 }

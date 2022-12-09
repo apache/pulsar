@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import java.util.Objects;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import java.util.Objects;
 
 /**
  * Statistics about a replicator.

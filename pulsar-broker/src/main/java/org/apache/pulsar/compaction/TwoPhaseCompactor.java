@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
@@ -28,6 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -124,17 +124,23 @@ public class TwoPhaseCompactor extends Compactor {
             try {
                 MessageId id = m.getMessageId();
                 boolean deletedMessage = false;
+                boolean replaceMessage = false;
+                mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
                         for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
                                 .extractIdsAndKeysAndSize(m)) {
                             if (e != null) {
                                 if (e.getRight() > 0) {
-                                    latestForKey.put(e.getMiddle(), e.getLeft());
+                                    MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
+                                    replaceMessage = old != null;
                                 } else {
                                     deletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
                                 }
+                            }
+                            if (replaceMessage || deletedMessage) {
+                                mxBean.addCompactionRemovedEvent(reader.getTopic());
                             }
                         }
                     } catch (IOException ioe) {
@@ -145,14 +151,17 @@ public class TwoPhaseCompactor extends Compactor {
                     Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
                     if (keyAndSize != null) {
                         if (keyAndSize.getRight() > 0) {
-                            latestForKey.put(keyAndSize.getLeft(), id);
+                            MessageId old = latestForKey.put(keyAndSize.getLeft(), id);
+                            replaceMessage = old != null;
                         } else {
                             deletedMessage = true;
                             latestForKey.remove(keyAndSize.getLeft());
                         }
                     }
+                    if (replaceMessage || deletedMessage) {
+                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                    }
                 }
-
                 MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                 MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                 if (id.compareTo(lastMessageId) == 0) {
@@ -191,12 +200,12 @@ public class TwoPhaseCompactor extends Compactor {
 
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
-            CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
+            CompletableFuture<Void> loopPromise = new CompletableFuture<>();
             phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
-                        ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
+                        Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
                 .whenComplete((res, exception) -> {
                     if (exception != null) {
                         deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
@@ -226,6 +235,7 @@ public class TwoPhaseCompactor extends Compactor {
             try {
                 MessageId id = m.getMessageId();
                 Optional<RawMessage> messageToAdd = Optional.empty();
+                mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
                         messageToAdd = RawBatchConverter.rebatchMessage(
@@ -254,7 +264,7 @@ public class TwoPhaseCompactor extends Compactor {
                     RawMessage message = messageToAdd.get();
                     try {
                         outstanding.acquire();
-                        CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message)
+                        CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message, reader.getTopic())
                                 .whenComplete((res, exception2) -> {
                                     outstanding.release();
                                     if (exception2 != null) {
@@ -355,12 +365,15 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m) {
+    private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m, String topic) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         ByteBuf serialized = m.serialize();
         try {
+            mxBean.addCompactionWriteOp(topic, m.getHeadersAndPayload().readableBytes());
+            long start = System.nanoTime();
             lh.asyncAddEntry(serialized,
                     (rc, ledger, eid, ctx) -> {
+                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
                         if (rc != BKException.Code.OK) {
                             bkf.completeExceptionally(BKException.create(rc));
                         } else {

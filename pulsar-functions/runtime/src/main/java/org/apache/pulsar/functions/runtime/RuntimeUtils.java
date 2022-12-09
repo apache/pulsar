@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,23 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
-
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.URL;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.hotspot.BufferPoolsExports;
 import io.prometheus.client.hotspot.ClassLoadingExports;
 import io.prometheus.client.hotspot.GarbageCollectorExports;
@@ -41,8 +31,21 @@ import io.prometheus.client.hotspot.StandardExports;
 import io.prometheus.client.hotspot.ThreadExports;
 import io.prometheus.client.hotspot.VersionInfoExports;
 import io.prometheus.jmx.JmxCollector;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URL;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import javax.management.MalformedObjectNameException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -50,11 +53,6 @@ import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-
-import javax.management.MalformedObjectNameException;
-
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Util class for common runtime functionality.
@@ -70,6 +68,7 @@ public class RuntimeUtils {
                                           String extraDependenciesDir, /* extra dependencies for running instances */
                                           String logDirectory,
                                           String originalCodeFileName,
+                                          String originalTransformFunctionFileName,
                                           String pulsarServiceUrl,
                                           String stateStorageServiceUrl,
                                           AuthenticationConfig authConfig,
@@ -89,7 +88,7 @@ public class RuntimeUtils {
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
         cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
-                originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                originalCodeFileName, originalTransformFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
@@ -171,7 +170,11 @@ public class RuntimeUtils {
             goInstanceConfig.setLogTopic(instanceConfig.getFunctionDetails().getLogTopic());
         }
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
-            goInstanceConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+            goInstanceConfig
+                    .setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+        }
+        if (instanceConfig.getFunctionDetails().getRuntime() != null) {
+            goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntimeValue());
         }
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
             goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
@@ -191,11 +194,14 @@ public class RuntimeUtils {
             goInstanceConfig.setPulsarServiceURL(pulsarServiceUrl);
         }
         if (instanceConfig.getFunctionDetails().getSource().getCleanupSubscription()) {
-            goInstanceConfig.setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
+            goInstanceConfig
+                    .setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
         }
         if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
             goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
         }
+        goInstanceConfig.setSubscriptionPosition(
+                instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
             for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
@@ -224,11 +230,13 @@ public class RuntimeUtils {
         }
 
         if (instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
-            goInstanceConfig.setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
+            goInstanceConfig
+                    .setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
         }
 
         if (instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
-            goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+            goInstanceConfig
+                    .setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
         if (instanceConfig.hasValidMetricsPort()) {
@@ -252,12 +260,12 @@ public class RuntimeUtils {
         return args;
     }
 
-
     public static List<String> getCmd(InstanceConfig instanceConfig,
                                       String instanceFile,
                                       String extraDependenciesDir, /* extra dependencies for running instances */
                                       String logDirectory,
                                       String originalCodeFileName,
+                                      String originalTransformFunctionFileName,
                                       String pulsarServiceUrl,
                                       String stateStorageServiceUrl,
                                       AuthenticationConfig authConfig,
@@ -302,7 +310,8 @@ public class RuntimeUtils {
                 // the functions instance dependencies separately from user code dependencies
                 String systemFunctionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
                 if (systemFunctionInstanceClasspath == null) {
-                    log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
+                    log.warn("Property {} is not set.  Falling back to using classpath of current JVM",
+                            FUNCTIONS_INSTANCE_CLASSPATH);
                     systemFunctionInstanceClasspath = System.getProperty("java.class.path");
                 }
                 args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
@@ -313,10 +322,21 @@ public class RuntimeUtils {
                     "%s-%s",
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
+
+            args.add("-Dio.netty.tryReflectionSetAccessible=true");
+
+            // Needed for netty.DnsResolverUtil on JDK9+
+            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+                args.add("--add-opens");
+                args.add("java.base/sun.net=ALL-UNNAMED");
+            }
+
+            if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
+                args.addAll(instanceConfig.getAdditionalJavaRuntimeArguments());
+            }
+
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                    args.add(runtimeFlagArg);
-                }
+                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
@@ -328,12 +348,16 @@ public class RuntimeUtils {
 
             args.add("--jar");
             args.add(originalCodeFileName);
+            if (isNotEmpty(originalTransformFunctionFileName)) {
+                args.add("--transform_function_jar");
+                args.add(originalTransformFunctionFileName);
+                args.add("--transform_function_id");
+                args.add(instanceConfig.getTransformFunctionId());
+            }
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            args.add("python");
+            args.add("python3");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                    args.add(runtimeFlagArg);
-                }
+                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             args.add(instanceFile);
             args.add("--py");
@@ -367,7 +391,8 @@ public class RuntimeUtils {
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");
-        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails()) + "'");
+        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace()
+                .print(instanceConfig.getFunctionDetails()) + "'");
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
@@ -403,7 +428,7 @@ public class RuntimeUtils {
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        
+
         args.add("--port");
         args.add(String.valueOf(grpcPort));
 
@@ -415,7 +440,7 @@ public class RuntimeUtils {
             args.add("--pending_async_requests");
             args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
         }
-        
+
         // state storage configs
         if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");
@@ -467,7 +492,7 @@ public class RuntimeUtils {
     }
 
     /**
-     * Regex for splitting a string using space when not surrounded by single or double quotes
+     * Regex for splitting a string using space when not surrounded by single or double quotes.
      */
     public static String[] splitRuntimeArgs(String input) {
         return input.split("\\s(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
