@@ -79,6 +79,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
@@ -2710,5 +2711,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNull();
             });
         }
+    }
+
+    @Test
+    public void testGetTopicPoliciesWhenDeleteTopicPolicy() throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        admin.topicPolicies().setMaxConsumers(persistenceTopic, 5);
+
+        Integer maxConsumerPerTopic = pulsar
+                .getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get()
+                .getMaxConsumerPerTopic();
+
+        assertEquals(maxConsumerPerTopic.intValue(), 5);
+        admin.topics().delete(persistenceTopic, true);
+        TopicPolicies topicPolicies =pulsar.getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get(5, TimeUnit.SECONDS);
+        assertNull(topicPolicies);
     }
 }
