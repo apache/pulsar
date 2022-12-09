@@ -1352,27 +1352,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testGetTopic() throws Exception {
-        final String ns = "prop/ns-test";
-        admin.namespaces().createNamespace(ns, 2);
-        final String topicName = "persistent://" + ns + "/topic-1";
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        producer1.close();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
-        persistentTopic.close().join();
-        List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keys());
-        topics.removeIf(item -> item.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
-        Assert.assertEquals(topics.size(), 0);
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("sub-1")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-    }
-
-    @Test
     public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
         cleanup();
         conf.setForceDeleteNamespaceAllowed(false);
