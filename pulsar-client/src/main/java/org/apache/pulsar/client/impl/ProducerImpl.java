@@ -533,6 +533,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     ? msg.getMessageBuilder().getSchemaVersion() : null;
             byte[] orderingKey = totalChunks > 1 && msg.getMessageBuilder().hasOrderingKey()
                     ? msg.getMessageBuilder().getOrderingKey() : null;
+            // msg.messageId will be reset if previous message chunk is sent successfully.
+            final MessageId messageId = msg.getMessageId();
             for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                 // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
                 // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
@@ -555,7 +557,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 synchronized (this) {
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
-                            compressedPayload.readableBytes(), callback, chunkedMessageCtx);
+                            compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
                     readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }
@@ -617,7 +619,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                          boolean compressed,
                                          int compressedPayloadSize,
                                          SendCallback callback,
-                                         ChunkedMessageCtx chunkedMessageCtx) throws IOException {
+                                         ChunkedMessageCtx chunkedMessageCtx,
+                                         MessageId messageId) throws IOException {
         ByteBuf chunkPayload = compressedPayload;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         if (totalChunks > 1 && TopicName.get(topic).isPersistent()) {
@@ -686,14 +689,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     : 1;
             final OpSendMsg op;
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
-                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msg.getMessageId(), msgMetadata,
+                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
                         encryptedPayload);
                 op = OpSendMsg.create(msg, cmd, sequenceId, callback);
             } else {
                 op = OpSendMsg.create(msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
-                    op.cmd = sendMessage(producerId, sequenceId, numMessages, msg.getMessageId(), finalMsgMetadata,
+                    op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, finalMsgMetadata,
                             encryptedPayload);
                 };
             }

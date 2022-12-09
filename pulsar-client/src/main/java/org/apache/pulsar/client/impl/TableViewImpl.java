@@ -67,7 +67,8 @@ public class TableViewImpl<T> implements TableView<T> {
                 .startMessageId(MessageId.earliest)
                 .autoUpdatePartitions(true)
                 .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
-                .poolMessages(true);
+                .poolMessages(true)
+                .subscriptionName(conf.getSubscriptionName());
         if (isPersistentTopic) {
             readerBuilder.readCompacted(true);
         }

@@ -240,3 +240,6 @@ class ContextImpl(pulsar.Context):
 
   def get_state(self, key):
     return self.state_context.get_value(key)
+
+  def get_pulsar_client(self):
+    return self.pulsar_client

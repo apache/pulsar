@@ -133,6 +133,11 @@
 
     <dependency>
       <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty.incubator</groupId>
       <artifactId>netty-incubator-transport-native-io_uring</artifactId>
       <classifier>linux-x86_64</classifier>
     </dependency>

@@ -29,6 +29,7 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.LongAdder;
@@ -193,7 +194,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     @Test
     public void testTopicToIndexName() throws IOException {
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
-                .setElasticSearchUrl("http://" + container.getHttpHostAddress())); ) {
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress()));) {
             assertEquals(client.topicToIndexName("data-ks1.table1"), "data-ks1.table1");
             assertEquals(client.topicToIndexName("persistent://public/default/testesjson"), "testesjson");
             assertEquals(client.topicToIndexName("default/testesjson"), "testesjson");
@@ -211,7 +212,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public void testMalformedDocFails() throws Exception {
         String index = "indexmalformed-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
-                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
                 .setBulkFlushIntervalInMs(-1L)
@@ -235,7 +236,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public void testMalformedDocIgnore() throws Exception {
         String index = "indexmalformed2-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
-                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
                 .setBulkFlushIntervalInMs(-1)
@@ -366,7 +367,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public void testBulkIndexAndDelete() throws Exception {
         final String index = "indexbulktest-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
-                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
                 .setBulkActions(10)
@@ -386,6 +387,32 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
             client.flush();
 
             assertEquals(mockRecord.getAcked(), 10);
+        }
+    }
+
+    @Test
+    public void testIndexKeepNulls() throws Exception {
+        final String index = "indexnulls";
+        ElasticSearchConfig config = new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index);
+
+        try (ElasticSearchClient client = new ElasticSearchClient(config)) {
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            client.indexDocument(mockRecord, Pair.of("key0", "{\"a\":1,\"b\":null}"));
+            final Map<String, Object> sourceAsMap;
+            if (elasticImageName.equals(ELASTICSEARCH_8)) {
+                final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient) client.getRestClient();
+                sourceAsMap =
+                        restClient.search(index, "*:*").hits().hits().get(0).source();
+            } else {
+                final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient) client.getRestClient();
+                sourceAsMap =
+                        restClient.search(index, "*:*").getHits().getHits()[0].getSourceAsMap();
+            }
+            assertEquals(sourceAsMap.get("a"), 1);
+            assertTrue(sourceAsMap.containsKey("b"));
+            assertNull(sourceAsMap.get("b"));
         }
     }
 

@@ -243,6 +243,9 @@ The Apache Software License, Version 2.0
     - netty-reactive-streams-2.0.6.jar
     - netty-resolver-4.1.77.Final.jar
     - netty-resolver-dns-4.1.77.Final.jar
+    - netty-resolver-dns-classes-macos-4.1.77.Final.jar
+    - netty-resolver-dns-native-macos-4.1.77.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.77.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.52.Final.jar
     - netty-tcnative-boringssl-static-2.0.52.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.52.Final-linux-x86_64.jar
