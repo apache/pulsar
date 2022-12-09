@@ -123,7 +123,7 @@ public class NamespaceService implements AutoCloseable {
     private final NamespaceBundleFactory bundleFactory;
     private final String host;
 
-    private static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
+    public static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN_V2 = Pattern.compile("pulsar/([^:]+:\\d+)");

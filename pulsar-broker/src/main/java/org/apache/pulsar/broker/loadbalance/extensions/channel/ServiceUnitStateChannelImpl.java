@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
@@ -33,6 +34,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -76,6 +78,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -526,13 +529,27 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
         NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
-
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+        final AtomicInteger counter = new AtomicInteger(NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT);
+        this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle, serviceUnit, data,
+                counter, startTime, completionFuture);
+        return completionFuture;
+    }
+
+    @VisibleForTesting
+    protected void splitServiceUnitOnceAndRetry(NamespaceService namespaceService,
+                                                NamespaceBundleFactory bundleFactory,
+                                                NamespaceBundle bundle,
+                                                String serviceUnit,
+                                                ServiceUnitStateData data,
+                                                AtomicInteger counter,
+                                                long startTime,
+                                                CompletableFuture<Void> completionFuture) {
         CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
 
-        getSplitBoundary(bundle).thenAccept(splittedBundles -> {
+        getSplitBoundary(bundle).thenAccept(splitBundles -> {
             // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
-            if (splittedBundles == null) {
+            if (splitBundles == null) {
                 String msg = format("Bundle %s not found under namespace", serviceUnit);
                 log.warn(msg);
                 updateFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
@@ -540,32 +557,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker());
-            for (NamespaceBundle sBundle : splittedBundles.getRight()) {
+            for (NamespaceBundle sBundle : splitBundles.getRight()) {
                 futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> {}));
             }
             NamespaceName nsname = bundle.getNamespaceObject();
-            FutureUtil.waitForAll(futures).thenRun(() -> {
-                namespaceService.updateNamespaceBundles(nsname, splittedBundles.getLeft()).thenCompose(__ ->
-                        namespaceService.updateNamespaceBundlesForPolicies(nsname, splittedBundles.getLeft()))
-                        .thenRun(() -> {
-                            bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
-                            updateFuture.complete(splittedBundles.getRight());
-                        }).exceptionally(ex1 -> {
-                            String msg = format("failed to update namespace policies [%s], "
-                                            + "NamespaceBundle: %s due to %s",
-                                    nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
-                            log.warn(msg);
-                            updateFuture.completeExceptionally(
-                                    new BrokerServiceException.ServiceUnitNotReadyException(msg, ex1.getCause()));
-                            return null;
-                        });
-            }).exceptionally(e -> {
-                updateFuture.completeExceptionally(e);
-                return null;
-            });
+            FutureUtil.waitForAll(futures).thenRun(() ->
+                    namespaceService.updateNamespaceBundles(nsname, splitBundles.getLeft()).thenCompose(__ ->
+                            namespaceService.updateNamespaceBundlesForPolicies(nsname, splitBundles.getLeft()))
+                    .thenRun(() -> {
+                        bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
+                        updateFuture.complete(splitBundles.getRight());
+                    }).exceptionally(ex -> {
+                        log.warn("Failed to update namespace policies [{}], NamespaceBundle: {} due to {}",
+                                nsname, bundle.getBundleRange(), ex.getMessage());
+                        updateFuture.completeExceptionally(ex);
+                        return null;
+                    })).exceptionally(e -> {
+                        updateFuture.completeExceptionally(e);
+                        return null;
+                    });
         }).exceptionally(e -> {
             updateFuture.completeExceptionally(e);
-           return null;
+            return null;
         });
 
         updateFuture.thenAccept(r -> {
@@ -573,27 +586,39 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             tombstoneAsync(serviceUnit).thenRun(() -> {
                 // Update bundled_topic cache for load-report-generation
                 pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
-                // TODO: Update the load data if needed.
+                // TODO: Update the load data immediately if needed.
                 completionFuture.complete(null);
                 double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
-                log.info("Successfully split {} namespace-bundle in {} ms", serviceUnit, splitBundleTime);
+                log.info("Successfully split {} parent namespace-bundle to {} in {} ms", serviceUnit, r,
+                        splitBundleTime);
             }).exceptionally(e -> {
-                String msg = format(
-                        "Failed to free bundle %s under namespace [%s] with error %s",
-                        bundle.getNamespaceObject().toString(), bundle.toString(), e.getMessage());
+                String msg = format("Failed to free bundle %s under namespace [%s] with error %s",
+                        bundle.getNamespaceObject().toString(), bundle, e.getMessage());
                 completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
                 double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
                 log.error("Failed to split {} namespace-bundle in {} ms", serviceUnit, splitBundleTime, e);
                 return null;
             });
         }).exceptionally(ex -> {
-            // TODO: Retry when have exception.
-            completionFuture.completeExceptionally(ex);
+            // Retry several times on BadVersion
+            if ((ex.getCause() instanceof MetadataStoreException.BadVersionException)
+                    && (counter.decrementAndGet() >= 0)) {
+                pulsar.getExecutor().schedule(() -> pulsar.getOrderedExecutor()
+                                .execute(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle,
+                                        serviceUnit, data, counter, startTime, completionFuture)),
+                        100, MILLISECONDS);
+            } else if (ex instanceof IllegalArgumentException) {
+                completionFuture.completeExceptionally(ex);
+            } else {
+                // Retry enough, or meet other exception
+                String msg2 = format("Bundle: %s not success update nsBundles, counter %d, reason %s",
+                        bundle.toString(), counter.get(), ex.getMessage());
+                log.warn(msg2);
+                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg2));
+            }
             return null;
         });
-        return completionFuture;
     }
-
     private CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> getSplitBoundary(NamespaceBundle bundle) {
         ServiceConfiguration config = pulsar.getConfig();
         NamespaceService namespaceService = pulsar.getNamespaceService();
