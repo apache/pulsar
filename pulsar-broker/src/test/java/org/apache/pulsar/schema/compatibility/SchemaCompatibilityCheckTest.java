@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -39,6 +40,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -240,13 +242,14 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                 (false).withSupportSchemaVersioning(true).
@@ -259,6 +262,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
+        Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
+        Assert.assertTrue(policies.is_allow_auto_update_schema);
+
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                         SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                         (false).withSupportSchemaVersioning(true).
@@ -320,7 +326,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -399,7 +405,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
         byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
                 .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
@@ -473,7 +479,41 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         consumerOne.close();
         producerOne.close();
+    }
 
+    @Test
+    public void testSchemaLedgerAutoRelease() throws Exception {
+        String namespaceName = PUBLIC_TENANT + "/default";
+        String topicName = "persistent://" + namespaceName + "/tp";
+        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        // Update schema 100 times.
+        for (int i = 0; i < 100; i++){
+            Schema schema = Schema.JSON(SchemaDefinition.builder()
+                    .withJsonDef(String.format("""
+                            {
+                            	"type": "record",
+                            	"name": "Test_Pojo",
+                            	"namespace": "org.apache.pulsar.schema.compatibility",
+                            	"fields": [{
+                            		"name": "prop_%s",
+                            		"type": ["null", "string"],
+                            		"default": null
+                            	}]
+                            }
+                            """, i))
+                    .build());
+            Producer producer = pulsarClient
+                    .newProducer(schema)
+                    .topic(topicName)
+                    .create();
+            producer.close();
+        }
+        // The other ledgers are about 5.
+        Assert.assertTrue(mockBookKeeper.getLedgerMap().values().stream()
+                .filter(ledger -> !ledger.isFenced())
+                .collect(Collectors.toList()).size() < 20);
+        admin.topics().delete(topicName, true);
     }
 
     @Test

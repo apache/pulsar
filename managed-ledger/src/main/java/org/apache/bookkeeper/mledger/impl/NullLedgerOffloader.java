@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
  * Null implementation that throws an error on any invokation.
  */
 public class NullLedgerOffloader implements LedgerOffloader {
-    public static NullLedgerOffloader instance_ = new NullLedgerOffloader();
+    public static final NullLedgerOffloader INSTANCE = new NullLedgerOffloader();
 
     @Override
     public String getOffloadDriverName() {

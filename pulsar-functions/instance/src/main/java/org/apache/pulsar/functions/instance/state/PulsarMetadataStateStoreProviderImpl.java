@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,7 +47,8 @@ public class PulsarMetadataStateStoreProviderImpl implements StateStoreProvider 
             shouldCloseStore = false;
         } else {
             String metadataUrl = (String) config.get(METADATA_URL);
-            store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
+            store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder()
+                    .metadataStoreName(MetadataStoreConfig.STATE_METADATA_STORE).build());
             shouldCloseStore = true;
         }
     }

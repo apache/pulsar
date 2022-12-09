@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -30,17 +29,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,9 +49,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import com.google.common.collect.Sets;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Test(groups = "broker-impl")
@@ -226,6 +225,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         final String topic = "testDoNotRedeliveryMarkDeleteMessages";
         final String subName = "my-sub";
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
@@ -233,6 +233,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .enableBatching(false)
@@ -257,4 +258,285 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNull(message);
     }
 
+    @Test(dataProvider = "enableBatch")
+    public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+        final String topic = "testRedeliveryAddEpoch";
+        final String subName = "my-sub";
+        @Cleanup
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        String test1 = "Pulsar1";
+        String test2 = "Pulsar2";
+        String test3 = "Pulsar3";
+
+        consumer.setConsumerEpoch(1);
+        producer.send(test1);
+        Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(message);
+        consumer.redeliverUnacknowledgedMessages();
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(message);
+        consumer.acknowledgeCumulativeAsync(message).get();
+        assertEquals(message.getValue(), test1);
+
+        consumer.setConsumerEpoch(3);
+
+        producer.send(test2);
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(message);
+
+        consumer.redeliverUnacknowledgedMessages();
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        consumer.acknowledgeCumulativeAsync(message).get();
+        consumer.redeliverUnacknowledgedMessages();
+        assertNotNull(message);
+        assertEquals(message.getValue(), test2);
+
+        consumer.setConsumerEpoch(6);
+        producer.send(test3);
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(message);
+
+        ConnectionHandler connectionHandler = consumer.getConnectionHandler();
+
+        connectionHandler.cnx().channel().close();
+
+        consumer.grabCnx();
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getValue(), test3);
+    }
+
+    @Test(dataProvider = "enableBatch")
+    public void testRedeliveryAddEpochAndPermits(boolean enableBatch) throws Exception {
+        final String topic = "testRedeliveryAddEpochAndPermits";
+        final String subName = "my-sub";
+        // set receive queue size is 4, and first send 4 messages,
+        // then call redeliver messages, assert receive msg num.
+        int receiveQueueSize = 4;
+
+        @Cleanup
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .receiverQueueSize(receiveQueueSize)
+                .autoScaledReceiverQueueSizeEnabled(false)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        consumer.setConsumerEpoch(1);
+        for (int i = 0; i < receiveQueueSize; i++) {
+            producer.send("pulsar" + i);
+        }
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        consumer.redeliverUnacknowledgedMessages();
+        for (int i = 0; i < receiveQueueSize; i++) {
+            Message<String> msg = consumer.receive();
+            assertEquals("pulsar" + i, msg.getValue());
+        }
+    }
+
+    @Test(dataProvider = "enableBatch")
+    public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+        final String topic = "testBatchReceiveRedeliveryAddEpoch";
+        final String subName = "my-sub";
+
+        @Cleanup
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(1000, TimeUnit.MILLISECONDS).build())
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        String test1 = "Pulsar1";
+        String test2 = "Pulsar2";
+        String test3 = "Pulsar3";
+
+        consumer.setConsumerEpoch(1);
+        producer.send(test1);
+
+        Messages<String> messages;
+        Message<String> message;
+
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 0);
+        consumer.redeliverUnacknowledgedMessages();
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 1);
+        message = messages.iterator().next();
+        consumer.acknowledgeCumulativeAsync(message).get();
+        assertEquals(message.getValue(), test1);
+
+        consumer.setConsumerEpoch(3);
+        producer.send(test2);
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 0);
+        consumer.redeliverUnacknowledgedMessages();
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 1);
+        message = messages.iterator().next();
+        assertEquals(message.getValue(), test2);
+        consumer.acknowledgeCumulativeAsync(message).get();
+
+        consumer.setConsumerEpoch(6);
+        producer.send(test3);
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 0);
+
+        ConnectionHandler connectionHandler = consumer.getConnectionHandler();
+        connectionHandler.cnx().channel().close();
+
+        consumer.grabCnx();
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 1);
+        message = messages.iterator().next();
+        assertEquals(message.getValue(), test3);
+    }
+
+    @DataProvider(name = "enableBatch")
+    public static Object[][] enableBatch() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+
+    @Test(dataProvider = "enableBatch")
+    public void testMultiConsumerRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+        final String topic = "testMultiConsumerRedeliveryAddEpoch";
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topic, 5);
+        final int messageNumber = 50;
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        for (int i = 0; i < messageNumber; i++) {
+            producer.send("" + i);
+        }
+
+        for (int i = 0; i < messageNumber; i++) {
+            consumer.receive();
+        }
+
+        // redeliverUnacknowledgedMessages once
+        consumer.redeliverUnacknowledgedMessages();
+
+        Message<String> message;
+        for (int i = 0; i < messageNumber; i++) {
+            message = consumer.receive();
+            // message consumer epoch is 1
+            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+        }
+
+        // can't receive message again
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        assertNull(message);
+
+        // redeliverUnacknowledgedMessages twice
+        consumer.redeliverUnacknowledgedMessages();
+
+        for (int i = 0; i < messageNumber; i++) {
+            message = consumer.receive();
+            // message consumer epoch is 2
+            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+        }
+
+        // can't receive message again
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        assertNull(message);
+    }
+
+    @Test(dataProvider = "enableBatch", invocationCount = 10)
+    public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+
+        final String topic = "testMultiConsumerBatchRedeliveryAddEpoch";
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topic, 5);
+        final int messageNumber = 50;
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(2, TimeUnit.SECONDS).build())
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        for (int i = 0; i < messageNumber; i++) {
+            producer.send("" + i);
+        }
+
+        int receiveNum = 0;
+        while (receiveNum < messageNumber) {
+            receiveNum += consumer.batchReceive().size();
+        }
+
+        // redeliverUnacknowledgedMessages once
+        consumer.redeliverUnacknowledgedMessages();
+
+        receiveNum = 0;
+        while (receiveNum < messageNumber) {
+            Messages<String> messages = consumer.batchReceive();
+            receiveNum += messages.size();
+            for (Message<String> message : messages) {
+                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+            }
+        }
+
+        // can't receive message again
+        assertEquals(consumer.batchReceive().size(), 0);
+
+        // redeliverUnacknowledgedMessages twice
+        consumer.redeliverUnacknowledgedMessages();
+
+        receiveNum = 0;
+        while (receiveNum < messageNumber) {
+            Messages<String> messages = consumer.batchReceive();
+            receiveNum += messages.size();
+            for (Message<String> message : messages) {
+                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+            }
+        }
+
+        // can't receive message again
+        assertEquals(consumer.batchReceive().size(), 0);
+    }
 }

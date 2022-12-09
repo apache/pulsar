@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -734,6 +735,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
     }
 
+    @Test
     public void testReadCompleteMessagesDuringTopicUnloading() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-" +
                 UUID.randomUUID();
@@ -743,6 +745,19 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .blockIfQueueFull(true)
                 .enableBatching(false)
+                .create();
+        // Create a consumer to generate a durable cursor, to avoid deleting the ledger before the reader receives.
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("sub_" + UUID.randomUUID())
+                .topic(topic)
+                .subscribe();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
                 .create();
         CompletableFuture<MessageId> lastMessage = null;
         for (int i = 0; i < numMessages; ++i) {
@@ -768,14 +783,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.flush();
         lastMessage.join();
         // For now the topic has 1000 messages in the compacted ledger and 1000 messages in the original topic.
-        @Cleanup
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageIdInclusive()
-                .startMessageId(MessageId.earliest)
-                .readCompacted(true)
-                .create();
-
         // Unloading the topic during reading the data to make sure the reader will not miss any messages.
         for (int i = 0; i < numMessages / 2; ++i) {
             Assert.assertEquals(reader.readNext().getValue(), String.format("msg [%d]", i));
@@ -788,5 +795,54 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < numMessages; ++i) {
             Assert.assertEquals(reader.readNext().getValue(), String.format("msg [%d]", i + numMessages));
         }
+    }
+
+    @Test
+    public void testReadCompactedLatestMessageWithInclusive() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
+                UUID.randomUUID();
+        final int numMessages = 1;
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .blockIfQueueFull(true)
+                .enableBatching(false)
+                .create();
+
+        CompletableFuture<MessageId> lastMessage = null;
+        for (int i = 0; i < numMessages; ++i) {
+            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
+        }
+        producer.flush();
+        lastMessage.join();
+        admin.topics().unload(topic);
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
+            Assert.assertEquals(stats.compactedLedger.entries, numMessages);
+            Assert.assertEquals(admin.topics().getStats(topic)
+                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+        });
+
+        Awaitility.await()
+                .pollInterval(3, TimeUnit.SECONDS)
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+                    admin.topics().unload(topic);
+                    Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
+                });
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.latest)
+                .readCompacted(true)
+                .create();
+
+        Assert.assertTrue(reader.hasMessageAvailable());
+        Assert.assertEquals(reader.readNext().getMessageId(), lastMessage.get());
     }
 }

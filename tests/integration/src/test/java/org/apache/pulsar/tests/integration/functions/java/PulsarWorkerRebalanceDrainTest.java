@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,7 +45,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
-public class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
+public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
 
     final String UrlProtocolPrefix = "http://";
     final String WorkerRebalanceUrlSuffix = "/admin/v2/worker/rebalance";

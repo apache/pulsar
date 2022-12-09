@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,6 +99,14 @@ public interface AuthenticationProvider extends Closeable {
                                              SSLSession sslSession)
         throws AuthenticationException {
         return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
+    }
+
+    /**
+     * Create an http authentication data State use passed in AuthenticationDataSource.
+     */
+    default AuthenticationState newHttpAuthState(HttpServletRequest request)
+            throws AuthenticationException {
+        return new OneStageAuthenticationState(request, this);
     }
 
     /**

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -51,7 +52,7 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void start() throws PulsarServerException {
-        lookupServiceAddress = getBrokerAddress();
+        lookupServiceAddress = pulsar.getLookupServiceAddress();
         localResourceUnit = new SimpleResourceUnit(String.format("http://%s", lookupServiceAddress),
                 new PulsarResourceDescription());
 
@@ -68,13 +69,6 @@ public class NoopLoadManager implements LoadManager {
         } catch (CompletionException ce) {
             throw new PulsarServerException(MetadataStoreException.unwrap(ce));
         }
-    }
-
-    private String getBrokerAddress() {
-        return String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                pulsar.getConfiguration().getWebServicePort().isPresent()
-                        ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override
@@ -130,6 +124,11 @@ public class NoopLoadManager implements LoadManager {
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
         return Collections.singleton(lookupServiceAddress);
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        return CompletableFuture.completedFuture(Collections.singleton(lookupServiceAddress));
     }
 
     @Override

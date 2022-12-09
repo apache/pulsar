@@ -1,7 +1,7 @@
 ---
 id: io-aerospike-sink
 title: Aerospike sink connector
-sidebar_label: Aerospike sink connector
+sidebar_label: "Aerospike sink connector"
 ---
 
 The Aerospike sink connector pulls messages from Pulsar topics to Aerospike clusters.
@@ -14,7 +14,7 @@ The configuration of the Aerospike sink connector has the following properties.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `seedHosts` |String| true | No default value| The comma-separated list of one or more Aerospike cluster hosts.<br><br>Each host can be specified as a valid IP address or hostname followed by an optional port number. | 
+| `seedHosts` |String| true | No default value| The comma-separated list of one or more Aerospike cluster hosts.<br /><br />Each host can be specified as a valid IP address or hostname followed by an optional port number. | 
 | `keyspace` | String| true |No default value |The Aerospike namespace. |
 | `columnName` | String | true| No default value|The Aerospike column name. |
 |`userName`|String|false|NULL|The Aerospike username.|

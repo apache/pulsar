@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -74,6 +74,13 @@ public interface SchemaDefinition<T> {
      * @return pojo schema
      */
     Class<T> getPojo();
+
+    /**
+     * Get pojo classLoader.
+     *
+     * @return pojo schema
+     */
+    ClassLoader getClassLoader();
 
     /**
      * Get supportSchemaVersioning schema definition.

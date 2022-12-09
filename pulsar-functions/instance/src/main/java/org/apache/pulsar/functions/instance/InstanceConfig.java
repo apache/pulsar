@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.util.Collections;
+import java.util.List;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -34,6 +33,7 @@ import java.util.List;
 public class InstanceConfig {
     private int instanceId;
     private String functionId;
+    private String transformFunctionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;

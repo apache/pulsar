@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
  * Provider of authorization mechanism.
@@ -66,6 +67,7 @@ public interface AuthorizationProvider extends Closeable {
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
      * and false if it is not
      */
+    @Deprecated
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
         return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
@@ -187,15 +189,18 @@ public interface AuthorizationProvider extends Closeable {
      *
      * Grant authorization-action permission on a namespace to the given client.
      *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission. This behavior is now deprecated.
+     * Please use the appropriate {@link MetadataStoreException}.
+     *
      * @param namespace
      * @param actions
      * @param role
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
-     *                IllegalStateException when failed to grant permission
+     * @completesWith null once the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
             String authDataJson);
@@ -226,14 +231,17 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Grant authorization-action permission on a topic to the given client.
      *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission. This behavior is now deprecated.
+     * Please use the appropriate {@link MetadataStoreException}.
+     *
      * @param topicName
      * @param role
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
-     *                IllegalStateException when failed to grant permission
+     * @completesWith null once the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);

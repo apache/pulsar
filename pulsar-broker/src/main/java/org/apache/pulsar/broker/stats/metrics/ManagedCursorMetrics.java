@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +38,8 @@ public class ManagedCursorMetrics extends AbstractMetrics {
 
     public ManagedCursorMetrics(PulsarService pulsar) {
         super(pulsar);
-        this.metricsCollection = Lists.newArrayList();
-        this.dimensionMap = Maps.newHashMap();
+        this.metricsCollection = new ArrayList<>();
+        this.dimensionMap = new HashMap<>();
     }
 
     @Override

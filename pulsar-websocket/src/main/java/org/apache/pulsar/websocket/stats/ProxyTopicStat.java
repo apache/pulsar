@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.websocket.stats;
 
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.websocket.ConsumerHandler;
@@ -66,7 +65,7 @@ public class ProxyTopicStat {
             this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
-        
+
         public ConsumerStats(ReaderHandler handler) {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();

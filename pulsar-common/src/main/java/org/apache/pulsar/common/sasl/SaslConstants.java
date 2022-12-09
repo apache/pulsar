@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.sasl;
 
 import javax.security.auth.login.AppConfigurationEntry;
@@ -33,6 +32,7 @@ public class SaslConstants {
     public static final String JAAS_SERVER_SECTION_NAME = "saslJaasServerSectionName";
     public static final String JAAS_DEFAULT_BROKER_SECTION_NAME = "PulsarBroker";
     public static final String JAAS_DEFAULT_PROXY_SECTION_NAME = "PulsarProxy";
+    public static final String JAAS_DEFAULT_FUNCTION_SECTION_NAME = "PulsarFunction";
 
     // Client principal
     public static final String JAAS_CLIENT_SECTION_NAME = "saslJaasClientSectionName";

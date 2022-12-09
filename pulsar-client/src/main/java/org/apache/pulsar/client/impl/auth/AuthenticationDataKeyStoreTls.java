@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 public class AuthenticationDataKeyStoreTls implements AuthenticationDataProvider {
 
     private static final long serialVersionUID = 1L;
-    private transient final KeyStoreParams keyStoreParams;
+    private final transient KeyStoreParams keyStoreParams;
 
     public AuthenticationDataKeyStoreTls(KeyStoreParams keyStoreParams) throws Exception {
         this.keyStoreParams = keyStoreParams;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public class FunctionAuthData {
      */
     private byte[] data;
     /**
-     * classname of the function auth provicer this data is relevant to
+     * classname of the function auth provicer this data is relevant to.
      */
     private String provider;
 }

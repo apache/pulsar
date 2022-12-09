@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 @Slf4j
 public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
@@ -80,8 +81,19 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         // Proceed
                         return internalGenerateShortLedgerId();
                     } else {
-                        return store.put(shortIdGenPath, new byte[0], Optional.empty())
-                                .thenCompose(__ -> internalGenerateShortLedgerId());
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        store.put(shortIdGenPath, new byte[0], Optional.of(-1L))
+                                .whenComplete((stat, throwable) -> {
+                                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                                    if (cause == null
+                                            || cause instanceof MetadataStoreException.BadVersionException) {
+                                        // creat shortIdGenPath success or it already created by others.
+                                        future.complete(null);
+                                    } else {
+                                        future.completeExceptionally(throwable);
+                                    }
+                                });
+                        return future.thenCompose(__ -> internalGenerateShortLedgerId());
                     }
                 });
     }
@@ -93,7 +105,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                 EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
                     // delete the znode for id generation
-                    store.delete(stat.getPath(), Optional.empty()).
+                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
                             exceptionally(ex -> {
                                 log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
@@ -187,8 +199,8 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         CompletableFuture<Long> future = new CompletableFuture<>();
         store.put(ledgerPrefix + formatHalfId(hob), new byte[0], Optional.empty())
                 .whenComplete((__, ex) -> {
-                    if (ex != null && !(ex.getCause()
-                            .getCause() instanceof MetadataStoreException.BadVersionException)) {
+                    ex = FutureUtil.unwrapCompletionException(ex);
+                    if (ex != null && !(ex instanceof MetadataStoreException.BadVersionException)) {
                         // BadVersion is OK here because we can have multiple threads (or nodes) trying to create the
                         // new HOB path
                         future.completeExceptionally(ex);
@@ -224,7 +236,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                 .put(prefix, new byte[0], Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
                     // delete the znode for id generation
-                    store.delete(stat.getPath(), Optional.empty()).
+                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
                             exceptionally(ex -> {
                                 log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
@@ -276,4 +288,16 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         return ledgerIdGenPath + "/" + "ID-";
     }
 
+    //If the config rootPath when use zk metadata store, it will append rootPath as the prefix of the path.
+    //So when we get the path from the stat, we should truncate the rootPath.
+    private String handleTheDeletePath(String path) {
+        if (store instanceof ZKMetadataStore) {
+            String rootPath = ((ZKMetadataStore) store).getRootPath();
+            if (rootPath == null) {
+                return path;
+            }
+            return path.replaceFirst(rootPath, "");
+        }
+        return path;
+    }
 }

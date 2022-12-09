@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.service.utils;
 
 import java.util.Queue;
 
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
@@ -149,6 +152,21 @@ public class ClientChannelHelper {
         @Override
         protected void handleLookupResponse(CommandLookupTopicResponse connection) {
             queue.offer(new CommandLookupTopicResponse().copyFrom(connection));
+        }
+
+        @Override
+        protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse response) {
+            queue.offer(new CommandGetTopicsOfNamespaceResponse().copyFrom(response));
+        }
+
+        @Override
+        protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
+            queue.offer(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
+        }
+
+        @Override
+        protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
+            queue.offer(new CommandPartitionedTopicMetadataResponse().copyFrom(response));
         }
     };
 

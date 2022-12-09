@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ public interface RawReader {
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
         RawReader r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);
-        return future.thenCompose(x -> x.seekAsync(MessageId.earliest)).thenApply(__ -> r);
+        return future.thenApply(__ -> r);
     }
 
     /**

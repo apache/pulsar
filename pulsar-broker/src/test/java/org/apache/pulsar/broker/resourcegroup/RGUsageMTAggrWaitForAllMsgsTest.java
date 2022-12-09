@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -84,6 +84,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         this.rgservice = new ResourceGroupService(pulsar, TimeUnit.SECONDS, transportMgr, dummyQuotaCalc);
 
         this.prepareRGs();
+        Thread.sleep(2000);
     }
 
     @AfterClass(alwaysRun = true)
@@ -164,22 +165,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                     sentNumBytes += mesg.length;
                     sentNumMsgs++;
                     log.debug("Producer={}, sent msg-ix={}, msgId={}", producerId, ix, msgId);
-                } catch (PulsarClientException p) {
+                } catch (PulsarClientException e) {
                     numExceptions++;
-                    log.info("Producer={} got exception while sending {}-th time: ex={}",
-                            producerId, ix, p.getMessage());
+                    log.error("Producer={} got exception while sending {}-th time: ex={}",
+                            producerId, ix, e.getMessage());
                 }
             }
             try {
                 producer.flush();
                 producer.close();
-            } catch (PulsarClientException p) {
+            } catch (PulsarClientException e) {
                 numExceptions++;
-                log.info("Producer={} got exception while closing producer: ex={}",
-                        producerId, p.getMessage());
+                log.error("Producer={} got exception while closing producer: ex={}",
+                        producerId, e.getMessage());
             }
 
-            log.debug("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
+            log.info("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
         }
     }
 
@@ -550,7 +551,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
 
-        // Pulsar runtime adds some additional bytes in the exchanges: a 45-byte per-message
+        // Pulsar runtime adds some additional bytes in the exchanges: a 42-byte per-message
         // metadata of some kind, plus more as the number of messages increases.
         // Hence the ">=" assertion with ExpectedNumBytesSent/Received in the following checks.
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
@@ -768,8 +769,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         Assert.assertNotEquals(ninthPercentileValue, 0);
     }
 
-    // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
-    private static final int PER_MESSAGE_METADATA_OHEAD = 45;
+    // Empirically, there appears to be a 31-byte overhead for metadata, imposed by Pulsar runtime.
+    private static final int PER_MESSAGE_METADATA_OHEAD = 31;
 
     private static final int PUBLISH_INTERVAL_SECS = 10;
     private static final int NUM_PRODUCERS = 4;
@@ -901,9 +902,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         final int NumProducerMessages = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
         Assert.assertTrue(NUM_MESSAGES_PER_CONSUMER > 0 && NumConsumerMessages == NumProducerMessages);
 
-        rgConfig.setPublishRateInBytes(1500);
+        rgConfig.setPublishRateInBytes(1500L);
         rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(4000);
+        rgConfig.setDispatchRateInBytes(4000L);
         rgConfig.setDispatchRateInMsgs(500);
 
         // Set up the RG names; creation of RGs will be done elsewhere.
