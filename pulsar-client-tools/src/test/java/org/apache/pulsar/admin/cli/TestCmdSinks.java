@@ -500,7 +500,10 @@ public class TestCmdSinks {
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setResources(null);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(expectedSinkConfig);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
+        SinkConfig expectedUpdatedSinkConfig = getSinkConfig();
+        expectedUpdatedSinkConfig.setResources(null);
+
+        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig, expectedUpdatedSinkConfig);
     }
 
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specified")
@@ -533,8 +536,11 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, null);
     }
 
-    private void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
-
+    private void testCmdSinkConfigFile(
+            SinkConfig testSinkConfig,
+            SinkConfig expectedSinkConfig,
+            SinkConfig expectedUpdatedSinkConfig
+    ) throws Exception {
         File file = Files.createTempFile("", "").toFile();
 
         new YAMLMapper().writeValue(file, testSinkConfig);
@@ -560,8 +566,12 @@ public class TestCmdSinks {
         localSinkRunner.runCmd();
 
         verify(createSink).validateSinkConfigs(eq(expectedSinkConfig));
-        verify(updateSink).validateSinkConfigs(eq(expectedSinkConfig));
+        verify(updateSink).validateSinkConfigs(eq(expectedUpdatedSinkConfig));
         verify(localSinkRunner).validateSinkConfigs(eq(expectedSinkConfig));
+    }
+
+    private void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
+        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig, expectedSinkConfig);
     }
 
 
@@ -773,7 +783,6 @@ public class TestCmdSinks {
                 .name(updateSink.name)
                 .archive(updateSink.archive)
                 .build();
-        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
         verify(sink).updateSink(eq(sinkConfig), eq(updateSink.archive), eq(new UpdateOptionsImpl()));
 
 
@@ -796,7 +805,6 @@ public class TestCmdSinks {
                 .name(updateSink.name)
                 .parallelism(2)
                 .build();
-        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
         verify(sink).updateSink(eq(sinkConfig), eq(null), eq(updateOptions));
     }
 

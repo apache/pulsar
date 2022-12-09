@@ -366,7 +366,10 @@ public class TestCmdSources {
         SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setResources(null);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(expectedSourceConfig);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
+        SourceConfig expectedUpdatedSourceConfig = getSourceConfig();
+        expectedUpdatedSourceConfig.setResources(null);
+
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig, expectedUpdatedSourceConfig);
     }
 
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
@@ -415,7 +418,14 @@ public class TestCmdSources {
     }
 
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
+        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig, expectedSourceConfig);
+    }
 
+    public void testCmdSourceConfigFile(
+            SourceConfig testSourceConfig,
+            SourceConfig expectedSourceConfig,
+            SourceConfig expectedUpdatedSourceConfig
+    ) throws Exception {
         File file = Files.createTempFile("", "").toFile();
 
         new YAMLMapper().writeValue(file, testSourceConfig);
@@ -441,7 +451,7 @@ public class TestCmdSources {
         localSourceRunner.runCmd();
 
         verify(createSource).validateSourceConfigs(eq(expectedSourceConfig));
-        verify(updateSource).validateSourceConfigs(eq(expectedSourceConfig));
+        verify(updateSource).validateSourceConfigs(eq(expectedUpdatedSourceConfig));
         verify(localSourceRunner).validateSourceConfigs(eq(expectedSourceConfig));
     }
 
@@ -626,7 +636,6 @@ public class TestCmdSources {
                 .name(updateSource.name)
                 .archive(updateSource.archive)
                 .build();
-        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
         verify(source).updateSource(eq(sourceConfig), eq(updateSource.archive), eq(new UpdateOptionsImpl()));
 
         updateSource.archive = null;
@@ -648,7 +657,6 @@ public class TestCmdSources {
                 .name(updateSource.name)
                 .parallelism(2)
                 .build();
-        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
         verify(source).updateSource(eq(sourceConfig), eq(null), eq(updateOptions));
     }
 
