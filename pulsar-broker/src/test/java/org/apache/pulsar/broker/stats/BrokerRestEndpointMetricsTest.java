@@ -37,6 +37,7 @@ public class BrokerRestEndpointMetricsTest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setExposePerRestEndpointMetricsInPrometheus(true);
         baseSetup();
     }
 
