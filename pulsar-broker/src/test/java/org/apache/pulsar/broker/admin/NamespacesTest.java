@@ -115,6 +115,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -204,7 +205,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private void initAndStartBroker() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
-        conf.setSystemTopicEnabled(true);
+        conf.setSystemTopicEnabled(false);
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
@@ -2100,12 +2101,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(maxConsumerPerTopic, 5);
         admin.topics().delete(systemTopic, true);
-        try {
-            pulsar.getTopicPoliciesService()
-                    .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (TimeoutException ignored) {
-
-        }
+        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
+        assertNull(topicPolicies);
     }
 }
