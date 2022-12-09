@@ -63,7 +63,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         Collections.shuffle(list);
         for (InetSocketAddress candidate: list) {
             if (addressPredicate.test(candidate)) {
+                log.debug("Found reachable address {}.", candidate);
                 return candidate;
+            } else {
+                log.debug("Configured address {} is unreachable.", candidate);
             }
         }
 
