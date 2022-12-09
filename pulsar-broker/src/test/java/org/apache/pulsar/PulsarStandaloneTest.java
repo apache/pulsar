@@ -30,15 +30,13 @@ import java.io.File;
 import java.util.List;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
-import org.apache.pulsar.client.admin.Namespaces;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -50,24 +48,23 @@ public class PulsarStandaloneTest {
         final String cluster = "cluster1";
         final String tenant = "tenant1";
         final NamespaceName ns = NamespaceName.get(tenant, "ns1");
+
         ClusterResources cr = mock(ClusterResources.class);
         when(cr.clusterExists(cluster)).thenReturn(false).thenReturn(true);
         doNothing().when(cr).createCluster(eq(cluster), any());
+
         TenantResources tr = mock(TenantResources.class);
         when(tr.tenantExists(tenant)).thenReturn(false).thenReturn(true);
         doNothing().when(tr).createTenant(eq(tenant), any());
+
         NamespaceResources nsr = mock(NamespaceResources.class);
         when(nsr.namespaceExists(ns)).thenReturn(false).thenReturn(true);
         doNothing().when(nsr).createPolicies(eq(ns), any());
+
         PulsarResources resources = mock(PulsarResources.class);
         when(resources.getClusterResources()).thenReturn(cr);
         when(resources.getTenantResources()).thenReturn(tr);
         when(resources.getNamespaceResources()).thenReturn(nsr);
-
-        Namespaces namespaces = mock(Namespaces.class);
-        doNothing().when(namespaces).createNamespace(any());
-        PulsarAdmin admin = mock(PulsarAdmin.class);
-        when(admin.namespaces()).thenReturn(namespaces);
 
         PulsarService broker = mock(PulsarService.class);
         when(broker.getPulsarResources()).thenReturn(resources);
@@ -75,19 +72,19 @@ public class PulsarStandaloneTest {
         when(broker.getWebServiceAddressTls()).thenReturn(null);
         when(broker.getBrokerServiceUrl()).thenReturn("pulsar://localhost:6650");
         when(broker.getBrokerServiceUrlTls()).thenReturn(null);
-        when(broker.getAdminClient()).thenReturn(admin);
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName(cluster);
+
         PulsarStandalone standalone = new PulsarStandalone();
         standalone.setBroker(broker);
         standalone.setConfig(config);
+
         standalone.createNameSpace(cluster, tenant, ns);
         standalone.createNameSpace(cluster, tenant, ns);
         verify(cr, times(1)).createCluster(eq(cluster), any());
         verify(tr, times(1)).createTenant(eq(tenant), any());
-        verify(admin, times(1)).namespaces();
-        verify(admin.namespaces(), times(1)).createNamespace(eq(ns.toString()));
+        verify(nsr, times(1)).createPolicies(eq(ns), any());
     }
 
     @Test(groups = "broker")

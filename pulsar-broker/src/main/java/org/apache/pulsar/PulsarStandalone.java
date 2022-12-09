@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -39,6 +40,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -392,7 +394,9 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         if (!nsr.namespaceExists(ns)) {
-            broker.getAdminClient().namespaces().createNamespace(ns.toString());
+            Policies nsp = new Policies();
+            nsp.replication_clusters = Collections.singleton(config.getClusterName());
+            nsr.createPolicies(ns, nsp);
         }
     }
 
