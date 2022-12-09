@@ -24,15 +24,14 @@ import com.google.common.cache.LoadingCache;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
-import java.lang.reflect.Method;
-import javax.ws.rs.Path;
+import java.util.Stack;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.Response;
 import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
-import org.glassfish.jersey.server.model.Invocable;
+import org.glassfish.jersey.server.model.Resource;
 import org.glassfish.jersey.server.model.ResourceMethod;
 
 public class RestEndpointMetricsFilter implements ContainerResponseFilter, ContainerRequestFilter {
@@ -42,22 +41,7 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
             .build(new CacheLoader<>() {
                 @Override
                 public String load(ResourceMethod method) throws Exception {
-                    try {
-                        Invocable inv = method.getInvocable();
-                        Class<?> handlingClass = inv.getHandler().getHandlerClass();
-                        Method handlingMethod = inv.getHandlingMethod();
-
-                        Path parent = handlingClass.getDeclaredAnnotation(Path.class);
-                        Path child = handlingMethod.getDeclaredAnnotation(Path.class);
-                        String parent0 = parent == null ? "" : parent.value();
-                        String child0 = child == null ? "" : child.value()
-                                .replace("{", ":").replace("}", "");
-
-                        return parent0.endsWith("/") || child0.startsWith("/")
-                                ? parent0 + child0 : parent0 + "/" + child0;
-                    } catch (Exception ex) {
-                        return "UNKNOWN";
-                    }
+                    return getRestPath(method);
                 }
             });
 
@@ -100,5 +84,33 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
     public void filter(ContainerRequestContext req) throws IOException {
         // Set the request start time into properties.
         req.setProperty(REQUEST_START_TIME, System.currentTimeMillis());
+    }
+
+    private static String getRestPath(ResourceMethod method) {
+        try {
+            StringBuilder fullPath = new StringBuilder();
+            Stack<String> pathStack = new Stack<>();
+            Resource parent = method.getParent();
+
+            while (true) {
+                String path = parent.getPath();
+                parent = parent.getParent();
+                if (parent == null) {
+                    if (!path.endsWith("/") && !pathStack.peek().startsWith("/")) {
+                        pathStack.push("/");
+                    }
+                    pathStack.push(path);
+                    break;
+                }
+                pathStack.push(path);
+
+            }
+            while (!pathStack.isEmpty()) {
+                fullPath.append(pathStack.pop().replace("{", ":").replace("}", ""));
+            }
+            return fullPath.toString();
+        } catch (Exception ex) {
+            return "UNKNOWN";
+        }
     }
 }
