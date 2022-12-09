@@ -271,12 +271,7 @@ public class CmdSinks extends CmdBase {
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
-            if (sinkConfig.getTenant() == null) {
-                sinkConfig.setTenant(PUBLIC_TENANT);
-            }
-            if (sinkConfig.getNamespace() == null) {
-                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
-            }
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
         }
     }
 
@@ -614,7 +609,7 @@ public class CmdSinks extends CmdBase {
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
 
             if (isBlank(sinkConfig.getArchive())) {
-                throw new ParameterException("Sink archive not specfied");
+                throw new ParameterException("Sink archive not specified");
             }
 
             org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);

@@ -282,7 +282,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specified")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(null);
@@ -499,10 +499,11 @@ public class TestCmdSinks {
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setResources(null);
+        org.apache.pulsar.common.functions.Utils.inferMissingArguments(expectedSinkConfig);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specified")
     public void testCmdSinkConfigFileMissingJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(null);
@@ -766,12 +767,14 @@ public class TestCmdSinks {
 
         updateSink.runCmd();
 
-        verify(sink).updateSink(eq(SinkConfig.builder()
+        SinkConfig sinkConfig = SinkConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSink.name)
                 .archive(updateSink.archive)
-                .build()), eq(updateSink.archive), eq(new UpdateOptionsImpl()));
+                .build();
+        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        verify(sink).updateSink(eq(sinkConfig), eq(updateSink.archive), eq(new UpdateOptionsImpl()));
 
 
         updateSink.archive = null;
@@ -787,15 +790,14 @@ public class TestCmdSinks {
         UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
 
-        verify(sink).updateSink(eq(SinkConfig.builder()
+        sinkConfig = SinkConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSink.name)
                 .parallelism(2)
-                .build()), eq(null), eq(updateOptions));
-
-
-
+                .build();
+        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        verify(sink).updateSink(eq(sinkConfig), eq(null), eq(updateOptions));
     }
 
     @Test

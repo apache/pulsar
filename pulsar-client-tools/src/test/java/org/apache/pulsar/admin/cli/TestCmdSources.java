@@ -52,7 +52,7 @@ import org.testng.annotations.Test;
 
 public class TestCmdSources {
 
-            private static final String TENANT = "test-tenant";
+    private static final String TENANT = "test-tenant";
     private static final String NAMESPACE = "test-namespace";
     private static final String NAME = "test";
     private static final String TOPIC_NAME = "src_topic_1";
@@ -127,7 +127,7 @@ public class TestCmdSources {
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
         return sourceConfig;
     }
-    
+
     public BatchSourceConfig getBatchSourceConfig() {
     	return createSource.parseBatchSourceConfigs(BATCH_SOURCE_CONFIG_STRING);
     }
@@ -365,6 +365,7 @@ public class TestCmdSources {
 
         SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setResources(null);
+        org.apache.pulsar.common.functions.Utils.inferMissingArguments(expectedSourceConfig);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
@@ -392,12 +393,12 @@ public class TestCmdSources {
     public void testBatchSourceConfigCorrect() throws Exception {
     	SourceConfig testSourceConfig = getSourceConfig();
     	testSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
-    	
+
     	SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
-    
+
     /*
      * Test where the DiscoveryTriggererClassName is null
      */
@@ -407,12 +408,12 @@ public class TestCmdSources {
     	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
     	batchSourceConfig.setDiscoveryTriggererClassName(null);
     	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
-    	
+
     	SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
-    
+
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
@@ -619,13 +620,14 @@ public class TestCmdSources {
 
         updateSource.runCmd();
 
-        verify(source).updateSource(eq(SourceConfig.builder()
+        SourceConfig sourceConfig = SourceConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
-                .build()), eq(updateSource.archive), eq(new UpdateOptionsImpl()));
-
+                .build();
+        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+        verify(source).updateSource(eq(sourceConfig), eq(updateSource.archive), eq(new UpdateOptionsImpl()));
 
         updateSource.archive = null;
 
@@ -640,15 +642,14 @@ public class TestCmdSources {
 
         updateSource.runCmd();
 
-        verify(source).updateSource(eq(SourceConfig.builder()
+        sourceConfig = SourceConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .parallelism(2)
-                .build()), eq(null), eq(updateOptions));
-
-
-
+                .build();
+        org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+        verify(source).updateSource(eq(sourceConfig), eq(null), eq(updateOptions));
     }
 
     @Test
