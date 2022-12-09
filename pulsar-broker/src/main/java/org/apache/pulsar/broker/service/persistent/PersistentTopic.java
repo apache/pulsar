@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.service.BrokerService.isTopicPoliciesSystemTopic;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -1182,8 +1183,7 @@ public class PersistentTopic extends AbstractTopic
                         deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema ? deleteSchema() :
                                         CompletableFuture.completedFuture(null))
                                 .thenCompose(ignore -> {
-                                    if (!this.getBrokerService().getPulsar().getBrokerService()
-                                            .isSystemTopic(TopicName.get(topic))) {
+                                    if (!isTopicPoliciesSystemTopic(topic)) {
                                         return deleteTopicPolicies();
                                     } else {
                                         return CompletableFuture.completedFuture(null);
