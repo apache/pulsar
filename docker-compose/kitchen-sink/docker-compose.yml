@@ -377,6 +377,7 @@ services:
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
       configurationStoreServers: zk1:2181,zk2:2181,zk3:2181
       pulsar.zookeeper-uri: zk1:2181,zk2:2181,zk3:2181
+      pulsar.web-service-url: http://proxy1:8080
       coordinator: "true"
     volumes:
       - ./../../docker/pulsar/scripts/apply-config-from-env-with-prefix.py:/pulsar/bin/apply-config-from-env-with-prefix.py
