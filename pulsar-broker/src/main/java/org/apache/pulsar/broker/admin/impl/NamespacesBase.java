@@ -314,8 +314,8 @@ public abstract class NamespacesBase extends AdminResource {
                 asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
                 return;
             }
-            deleteSystemTopicFuture = internalDeletePartitionedTopicsAsync(allSystemTopics)
-                    .thenCompose(ignore -> internalDeleteTopicsAsync(allPartitionedSystemTopics))
+            deleteSystemTopicFuture = internalDeleteTopicsAsync(allSystemTopics)
+                    .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
                     .thenCompose(ignore -> internalDeleteTopicsAsync(topicPolicy))
                     .thenCompose(ignore__ -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
         } else {
@@ -544,8 +544,8 @@ public abstract class NamespacesBase extends AdminResource {
 
                 final CompletableFuture<Throwable> topicFutureEx =
                         FutureUtil.waitForAll(topicFutures)
-                                .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allSystemTopics))
-                                .thenCompose(ignore -> internalDeleteTopicsAsync(allPartitionedSystemTopics))
+                                .thenCompose(ignore -> internalDeleteTopicsAsync(allSystemTopics))
+                                .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
                                 .thenCompose(ignore -> internalDeleteTopicsAsync(topicPolicy))
                                 .thenCompose(ignore__ -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicy))
                                 .handle((result, exception) -> {
