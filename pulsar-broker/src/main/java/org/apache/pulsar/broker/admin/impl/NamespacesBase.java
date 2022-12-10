@@ -378,8 +378,11 @@ public abstract class NamespacesBase extends AdminResource {
                                                 } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                                                     replClusterUrl = new URL(replClusterData.getServiceUrlTls());
                                                 } else {
-                                                    throw new RestException(Status.PRECONDITION_FAILED,
+                                                    // CHECKSTYLE.OFF: LineLength
+                                                    throw new RestException(
+                                                            Status.PRECONDITION_FAILED,
                                                             "The replication cluster does not provide TLS encrypted service");
+                                                    // CHECKSTYLE.ON: LineLength
                                                 }
                                             } catch (MalformedURLException checkedEx) {
                                                 throw new RestException(checkedEx);
@@ -506,8 +509,8 @@ public abstract class NamespacesBase extends AdminResource {
                                         }
                                         deleteTopicsFuture = FutureUtil.waitForAll(futures);
                                     }
-                                    return deleteTopicsFuture.thenCompose(
-                                                    ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle))
+                                    return deleteTopicsFuture.thenCompose(___ ->
+                                                    pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle))
                                             .thenRun(() -> pulsar().getBrokerService().getBundleStats()
                                                     .remove(bundle.toString()));
                                 });
@@ -771,9 +774,10 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetAutoSubscriptionCreationAsync(AutoSubscriptionCreationOverride
-                                                                                       autoSubscriptionCreationOverride) {
-        // Force to read the data s.t. the watch to the cache content is setup.
+    protected CompletableFuture<Void> internalSetAutoSubscriptionCreationAsync(
+            AutoSubscriptionCreationOverride autoSubscriptionCreationOverride
+    ) {
+        // Force to read the data s.t. the watch to the cache content is set up.
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION,
                 PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
@@ -952,14 +956,18 @@ public abstract class NamespacesBase extends AdminResource {
                         isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
                                 .thenCompose(flag -> {
                                     if (!flag) {
-                                        log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(),
-                                                namespaceName, bundleRange);
+                                        log.info("[{}] Namespace bundle is not owned by any broker {}/{}",
+                                                clientAppId(), namespaceName, bundleRange);
                                         return CompletableFuture.completedFuture(null);
                                     }
-                                    return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                            authoritative, true)
-                                            .thenCompose(nsBundle ->
-                                                    pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
+                                    return validateNamespaceBundleOwnershipAsync(
+                                            namespaceName,
+                                            policies.bundles,
+                                            bundleRange,
+                                            authoritative,
+                                            true
+                                    ).thenCompose(nsBundle ->
+                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
                                 }));
     }
 
