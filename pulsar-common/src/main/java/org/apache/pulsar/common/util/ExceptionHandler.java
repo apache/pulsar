@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * Util class to place some special handling of exceptions.
  */
@@ -39,6 +41,8 @@ public class ExceptionHandler {
     public static void handleInterruptedException(Throwable throwable) {
         if (throwable instanceof InterruptedException) {
             Thread.currentThread().interrupt();
+        } else if (throwable instanceof ExecutionException) {
+            handleInterruptedException(throwable.getCause());
         }
     }
 }
