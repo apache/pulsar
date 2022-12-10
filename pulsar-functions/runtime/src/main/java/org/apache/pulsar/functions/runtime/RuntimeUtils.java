@@ -63,28 +63,30 @@ public class RuntimeUtils {
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
     public static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
-    public static List<String> composeCmd(InstanceConfig instanceConfig,
-                                          String instanceFile,
-                                          String extraDependenciesDir, /* extra dependencies for running instances */
-                                          String logDirectory,
-                                          String originalCodeFileName,
-                                          String originalTransformFunctionFileName,
-                                          String pulsarServiceUrl,
-                                          String stateStorageServiceUrl,
-                                          AuthenticationConfig authConfig,
-                                          String shardId,
-                                          Integer grpcPort,
-                                          Long expectedHealthCheckInterval,
-                                          String logConfigFile,
-                                          String secretsProviderClassName,
-                                          String secretsProviderConfig,
-                                          Boolean installUserCodeDependencies,
-                                          String pythonDependencyRepository,
-                                          String pythonExtraDependencyRepository,
-                                          String narExtractionDirectory,
-                                          String functionInstanceClassPath,
-                                          String pulsarWebServiceUrl) throws Exception {
-
+    public static List<String> composeCmd(
+            InstanceConfig instanceConfig,
+            String instanceFile,
+            String extraDependenciesDir, /* extra dependencies for running instances */
+            String logDirectory,
+            String originalCodeFileName,
+            String originalTransformFunctionFileName,
+            String pulsarServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String shardId,
+            Integer grpcPort,
+            Long expectedHealthCheckInterval,
+            String logConfigFile,
+            String secretsProviderClassName,
+            String secretsProviderConfig,
+            Boolean installUserCodeDependencies,
+            String pythonDependencyRepository,
+            String pythonExtraDependencyRepository,
+            String narExtractionDirectory,
+            String functionInstanceClassPath,
+            String pulsarWebServiceUrl,
+            int numListenerThreads
+    ) throws Exception {
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
         cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
@@ -93,7 +95,7 @@ public class RuntimeUtils {
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
                 pythonExtraDependencyRepository, narExtractionDirectory,
-                functionInstanceClassPath, false, pulsarWebServiceUrl));
+                functionInstanceClassPath, false, pulsarWebServiceUrl, numListenerThreads));
         return cmd;
     }
 
@@ -116,7 +118,7 @@ public class RuntimeUtils {
      * Different from python and java function, Go function uploads a complete executable file(including:
      * instance file + user code file). Its parameter list is provided to the broker in the form of a yaml file,
      * the advantage of this approach is that backward compatibility is guaranteed.
-     *
+     * <p>
      * In Java and Python the instance is managed by broker (or function worker) so the changes in command line
      * is under control; but in Go the instance is compiled with the user function, so pulsar doesn't have the
      * control what instance is used in the function. Hence in order to support BC for go function, we can't
@@ -260,28 +262,31 @@ public class RuntimeUtils {
         return args;
     }
 
-    public static List<String> getCmd(InstanceConfig instanceConfig,
-                                      String instanceFile,
-                                      String extraDependenciesDir, /* extra dependencies for running instances */
-                                      String logDirectory,
-                                      String originalCodeFileName,
-                                      String originalTransformFunctionFileName,
-                                      String pulsarServiceUrl,
-                                      String stateStorageServiceUrl,
-                                      AuthenticationConfig authConfig,
-                                      String shardId,
-                                      Integer grpcPort,
-                                      Long expectedHealthCheckInterval,
-                                      String logConfigFile,
-                                      String secretsProviderClassName,
-                                      String secretsProviderConfig,
-                                      Boolean installUserCodeDependencies,
-                                      String pythonDependencyRepository,
-                                      String pythonExtraDependencyRepository,
-                                      String narExtractionDirectory,
-                                      String functionInstanceClassPath,
-                                      boolean k8sRuntime,
-                                      String pulsarWebServiceUrl) throws Exception {
+    public static List<String> getCmd(
+            InstanceConfig instanceConfig,
+            String instanceFile,
+            String extraDependenciesDir, /* extra dependencies for running instances */
+            String logDirectory,
+            String originalCodeFileName,
+            String originalTransformFunctionFileName,
+            String pulsarServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String shardId,
+            Integer grpcPort,
+            Long expectedHealthCheckInterval,
+            String logConfigFile,
+            String secretsProviderClassName,
+            String secretsProviderConfig,
+            Boolean installUserCodeDependencies,
+            String pythonDependencyRepository,
+            String pythonExtraDependencyRepository,
+            String narExtractionDirectory,
+            String functionInstanceClassPath,
+            boolean k8sRuntime,
+            String pulsarWebServiceUrl,
+            int numListenerThreads
+    ) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
@@ -304,7 +309,7 @@ public class RuntimeUtils {
             }
 
             if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
-               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
             } else {
                 // add complete classpath for broker/worker so that the function instance can load
                 // the functions instance dependencies separately from user code dependencies
@@ -460,6 +465,8 @@ public class RuntimeUtils {
 
         args.add("--cluster_name");
         args.add(instanceConfig.getClusterName());
+        args.add("--num_listener_threads");
+        args.add(String.valueOf(numListenerThreads));
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             if (!StringUtils.isEmpty(narExtractionDirectory)) {

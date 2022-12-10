@@ -76,19 +76,22 @@ class ProcessRuntime implements Runtime {
     private static final long GRPC_TIMEOUT_SECS = 5;
     private final String funcLogDir;
 
-    ProcessRuntime(InstanceConfig instanceConfig,
-                   String instanceFile,
-                   String extraDependenciesDir,
-                   String narExtractionDirectory,
-                   String logDirectory,
-                   String codeFile,
-                   String transformFunctionFile,
-                   String pulsarServiceUrl,
-                   String stateStorageServiceUrl,
-                   AuthenticationConfig authConfig,
-                   SecretsProviderConfigurator secretsProviderConfigurator,
-                   Long expectedHealthCheckInterval,
-                   String pulsarWebServiceUrl) throws Exception {
+    ProcessRuntime(
+            InstanceConfig instanceConfig,
+            String instanceFile,
+            String extraDependenciesDir,
+            String narExtractionDirectory,
+            String logDirectory,
+            String codeFile,
+            String transformFunctionFile,
+            String pulsarServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            Long expectedHealthCheckInterval,
+            String pulsarWebServiceUrl,
+            int numListenerThreads
+    ) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.metricsPort = instanceConfig.getMetricsPort();
@@ -125,31 +128,38 @@ class ProcessRuntime implements Runtime {
         this.extraDependenciesDir = extraDependenciesDir;
         this.narExtractionDirectory = narExtractionDirectory;
         this.processArgs = RuntimeUtils.composeCmd(
-            instanceConfig,
-            instanceFile,
-            // DONT SET extra dependencies here (for python or go runtime),
-            // since process runtime is using Java ProcessBuilder,
-            // we have to set the environment variable via ProcessBuilder
-            FunctionDetails.Runtime.JAVA == instanceConfig.getFunctionDetails().getRuntime()
-                    ? extraDependenciesDir : null,
-            logDirectory,
-            codeFile,
-            transformFunctionFile,
-            pulsarServiceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            instanceConfig.getInstanceName(),
-            instanceConfig.getPort(),
-            expectedHealthCheckInterval,
-            logConfigFile,
-            secretsProviderClassName,
-            secretsProviderConfig,
-            false,
-            null,
-            null,
+                instanceConfig,
+                instanceFile,
+                resolvedExtraDependenciesDir(instanceConfig, extraDependenciesDir),
+                logDirectory,
+                codeFile,
+                transformFunctionFile,
+                pulsarServiceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                instanceConfig.getInstanceName(),
+                instanceConfig.getPort(),
+                expectedHealthCheckInterval,
+                logConfigFile,
+                secretsProviderClassName,
+                secretsProviderConfig,
+                false,
+                null,
+                null,
                 narExtractionDirectory,
                 null,
-                pulsarWebServiceUrl);
+                pulsarWebServiceUrl,
+                numListenerThreads);
+    }
+
+    // DON'T SET extra dependencies here (for python or go runtime),
+    // since process runtime is using Java ProcessBuilder,
+    // we have to set the environment variable via ProcessBuilder
+    private static String resolvedExtraDependenciesDir(InstanceConfig config, String extraDependenciesDir) {
+        if (config.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.JAVA) {
+            return extraDependenciesDir;
+        }
+        return null;
     }
 
     /**

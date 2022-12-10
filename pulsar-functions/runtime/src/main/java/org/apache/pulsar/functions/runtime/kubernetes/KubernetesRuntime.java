@@ -154,43 +154,46 @@ public class KubernetesRuntime implements Runtime {
     private String functionInstanceClassPath;
     private String downloadDirectory;
 
-    KubernetesRuntime(AppsV1Api appsClient,
-                      CoreV1Api coreClient,
-                      String jobNamespace,
-                      String jobName,
-                      Map<String, String> customLabels,
-                      Boolean installUserCodeDependencies,
-                      String pythonDependencyRepository,
-                      String pythonExtraDependencyRepository,
-                      String pulsarDockerImageName,
-                      Map<String, String> functionDockerImages,
-                      String imagePullPolicy,
-                      String pulsarRootDir,
-                      InstanceConfig instanceConfig,
-                      String instanceFile,
-                      String extraDependenciesDir,
-                      String logDirectory,
-                      String configAdminCLI,
-                      String userCodePkgUrl,
-                      String originalCodeFileName,
-                      String originalTransformFunctionFileName,
-                      String pulsarServiceUrl,
-                      String pulsarAdminUrl,
-                      String stateStorageServiceUrl,
-                      AuthenticationConfig authConfig,
-                      SecretsProviderConfigurator secretsProviderConfigurator,
-                      Integer expectedMetricsCollectionInterval,
-                      int percentMemoryPadding,
-                      double cpuOverCommitRatio,
-                      double memoryOverCommitRatio,
-                      int gracePeriodSeconds,
-                      Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
-                      boolean authenticationEnabled,
-                      Integer grpcPort,
-                      String narExtractionDirectory,
-                      Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functionInstanceClassPath,
-                      String downloadDirectory) throws Exception {
+    KubernetesRuntime(
+            AppsV1Api appsClient,
+            CoreV1Api coreClient,
+            String jobNamespace,
+            String jobName,
+            Map<String, String> customLabels,
+            Boolean installUserCodeDependencies,
+            String pythonDependencyRepository,
+            String pythonExtraDependencyRepository,
+            String pulsarDockerImageName,
+            Map<String, String> functionDockerImages,
+            String imagePullPolicy,
+            String pulsarRootDir,
+            InstanceConfig instanceConfig,
+            String instanceFile,
+            String extraDependenciesDir,
+            String logDirectory,
+            String configAdminCLI,
+            String userCodePkgUrl,
+            String originalCodeFileName,
+            String originalTransformFunctionFileName,
+            String pulsarServiceUrl,
+            String pulsarAdminUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            Integer expectedMetricsCollectionInterval,
+            int percentMemoryPadding,
+            double cpuOverCommitRatio,
+            double memoryOverCommitRatio,
+            int gracePeriodSeconds,
+            Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
+            boolean authenticationEnabled,
+            Integer grpcPort,
+            String narExtractionDirectory,
+            Optional<KubernetesManifestCustomizer> manifestCustomizer,
+            String functionInstanceClassPath,
+            String downloadDirectory,
+            int numListenerThreads
+    ) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -283,7 +286,8 @@ public class KubernetesRuntime implements Runtime {
                         narExtractionDirectory,
                         functionInstanceClassPath,
                         true,
-                        pulsarAdminUrl));
+                        pulsarAdminUrl,
+                        numListenerThreads));
 
         doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }
@@ -611,10 +615,10 @@ public class KubernetesRuntime implements Runtime {
                         // cannot use deleteNamespacedStatefulSet because of bug in kuberenetes
                         // https://github.com/kubernetes-client/java/issues/86
                         response = appsClient.deleteNamespacedStatefulSetCall(
-                                statefulSetName,
-                                jobNamespace, null, null,
-                                gracePeriodSeconds, null, "Foreground",
-                                options, null)
+                                        statefulSetName,
+                                        jobNamespace, null, null,
+                                        gracePeriodSeconds, null, "Foreground",
+                                        options, null)
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -854,7 +858,7 @@ public class KubernetesRuntime implements Runtime {
         if (isNotEmpty(originalTransformFunctionFileName)) {
             cmds.add("&&");
             cmds.addAll(getDownloadCommand(instanceConfig.getFunctionDetails(),
-                originalTransformFunctionFileName, true));
+                    originalTransformFunctionFileName, true));
         }
         cmds.add("&&");
         cmds.add(setShardIdEnvironmentVariableCommand());

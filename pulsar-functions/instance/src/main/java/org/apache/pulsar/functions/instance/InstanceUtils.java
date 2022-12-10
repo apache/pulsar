@@ -152,10 +152,13 @@ public class InstanceUtils {
         return properties;
     }
 
-    public static ClientBuilder createPulsarClientBuilder(String pulsarServiceUrl,
-                                                          AuthenticationConfig authConfig,
-                                                          Optional<Long> memoryLimit) throws PulsarClientException {
-        ClientBuilder clientBuilder = null;
+    public static ClientBuilder createPulsarClientBuilder(
+            String pulsarServiceUrl,
+            AuthenticationConfig authConfig,
+            Optional<Long> memoryLimit,
+            int numListenerThreads
+    ) throws PulsarClientException {
+        final ClientBuilder clientBuilder;
         if (isNotBlank(pulsarServiceUrl)) {
             clientBuilder = PulsarClient.builder()
                     .memoryLimit(0, SizeUnit.BYTES)
@@ -171,29 +174,17 @@ public class InstanceUtils {
                 clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
                 clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
             }
-            if (memoryLimit.isPresent()) {
-                clientBuilder.memoryLimit(memoryLimit.get(), SizeUnit.BYTES);
-            }
+            memoryLimit.ifPresent(aLong -> clientBuilder.memoryLimit(aLong, SizeUnit.BYTES));
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
+            clientBuilder.listenerThreads(numListenerThreads);
             return clientBuilder;
         }
         throw new PulsarClientException("pulsarServiceUrl cannot be null");
     }
 
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
-            throws PulsarClientException {
-        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
-    }
-
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
-                                                  AuthenticationConfig authConfig,
-                                                  Optional<Long> memoryLimit) throws PulsarClientException {
-        return createPulsarClientBuilder(pulsarServiceUrl, authConfig, memoryLimit).build();
-    }
-
     public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig)
             throws PulsarClientException {
-        PulsarAdminBuilder pulsarAdminBuilder = null;
+        final PulsarAdminBuilder pulsarAdminBuilder;
         if (isNotBlank(pulsarWebServiceUrl)) {
             pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (authConfig != null) {

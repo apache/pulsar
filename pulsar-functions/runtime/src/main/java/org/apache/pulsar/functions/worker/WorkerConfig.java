@@ -131,6 +131,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WORKER,
+            doc = "Number of threads to use for message listeners "
+    )
+    private int numListenerThreads = 1;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
         )
     private boolean httpRequestsLimitEnabled = false;

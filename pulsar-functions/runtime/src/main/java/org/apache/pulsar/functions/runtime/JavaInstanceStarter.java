@@ -139,6 +139,12 @@ public class JavaInstanceStarter implements AutoCloseable {
             + "extraction of nar packages happen", required = false)
     public String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
+    @Parameter(
+            names = "--num_listener_threads",
+            description = "Number of threads to use for message listeners, default is 1.",
+            required = false)
+    public int numListenerThreads = 1;
+
     @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance",
             required = false)
     public int maxPendingAsyncRequests = 1000;
@@ -230,7 +236,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl);
+                exposePulsarAdminClientEnabled, webServiceUrl, numListenerThreads);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

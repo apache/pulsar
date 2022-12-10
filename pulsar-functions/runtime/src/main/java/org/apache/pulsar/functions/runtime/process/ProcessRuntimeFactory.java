@@ -57,6 +57,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private String logDirectory;
     private String extraDependenciesDir;
     private String narExtractionDirectory;
+    private int numListenerThreads;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -79,13 +80,14 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String logDirectory,
                                  String extraDependenciesDir,
                                  String narExtractionDirectory,
+                                 int numListenerThreads,
                                  SecretsProviderConfigurator secretsProviderConfigurator,
                                  boolean authenticationEnabled,
                                  Optional<FunctionAuthProvider> functionAuthProvider,
                                  Optional<RuntimeCustomizer> runtimeCustomizer) {
 
         initialize(pulsarServiceUrl, pulsarWebServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
-                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,
+                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory, numListenerThreads,
                 secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
     }
 
@@ -108,25 +110,29 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 factoryConfig.getLogDirectory(),
                 factoryConfig.getExtraFunctionDependenciesDir(),
                 workerConfig.getNarExtractionDirectory(),
+                workerConfig.getNumListenerThreads(),
                 secretsProviderConfigurator,
                 workerConfig.isAuthenticationEnabled(),
                 authProvider,
                 runtimeCustomizer);
     }
 
-    private void initialize(String pulsarServiceUrl,
-                            String pulsarWebServiceUrl,
-                            String stateStorageServiceUrl,
-                            AuthenticationConfig authConfig,
-                            String javaInstanceJarFile,
-                            String pythonInstanceFile,
-                            String logDirectory,
-                            String extraDependenciesDir,
-                            String narExtractionDirectory,
-                            SecretsProviderConfigurator secretsProviderConfigurator,
-                            boolean authenticationEnabled,
-                            Optional<FunctionAuthProvider> functionAuthProvider,
-                            Optional<RuntimeCustomizer> runtimeCustomizer) {
+    private void initialize(
+            String pulsarServiceUrl,
+            String pulsarWebServiceUrl,
+            String stateStorageServiceUrl,
+            AuthenticationConfig authConfig,
+            String javaInstanceJarFile,
+            String pythonInstanceFile,
+            String logDirectory,
+            String extraDependenciesDir,
+            String narExtractionDirectory,
+            int numListenerThreads,
+            SecretsProviderConfigurator secretsProviderConfigurator,
+            boolean authenticationEnabled,
+            Optional<FunctionAuthProvider> functionAuthProvider,
+            Optional<RuntimeCustomizer> runtimeCustomizer
+    ) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarWebServiceUrl = pulsarWebServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
@@ -138,6 +144,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.narExtractionDirectory = narExtractionDirectory;
         this.logDirectory = logDirectory;
         this.authenticationEnabled = authenticationEnabled;
+        this.numListenerThreads = numListenerThreads;
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
@@ -219,19 +226,20 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         }
 
         return new ProcessRuntime(
-            instanceConfig,
-            instanceFile,
-            extraDependenciesDir,
-            narExtractionDirectory,
-            logDirectory,
-            codeFile,
-            transformFunctionFile,
-            pulsarServiceUrl,
-            stateStorageServiceUrl,
-            authConfig,
-            secretsProviderConfigurator,
-            expectedHealthCheckInterval,
-            pulsarWebServiceUrl);
+                instanceConfig,
+                instanceFile,
+                extraDependenciesDir,
+                narExtractionDirectory,
+                logDirectory,
+                codeFile,
+                transformFunctionFile,
+                pulsarServiceUrl,
+                stateStorageServiceUrl,
+                authConfig,
+                secretsProviderConfigurator,
+                expectedHealthCheckInterval,
+                pulsarWebServiceUrl,
+                numListenerThreads);
     }
 
     @Override

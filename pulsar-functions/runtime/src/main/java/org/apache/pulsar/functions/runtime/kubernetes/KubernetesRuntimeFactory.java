@@ -100,6 +100,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String narExtractionDirectory;
     private String functionInstanceClassPath;
     private String downloadDirectory;
+    private int numListenerThreads;
     private int gracePeriodSeconds;
 
     @ToString.Exclude
@@ -263,6 +264,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.metricsPort = factoryConfig.getMetricsPort();
         this.narExtractionDirectory = factoryConfig.getNarExtractionDirectory();
         this.functionInstanceClassPath = factoryConfig.getFunctionInstanceClassPath();
+        this.numListenerThreads = workerConfig.getNumListenerThreads();
     }
 
     @Override
@@ -308,44 +310,45 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
 
         return new KubernetesRuntime(
-            appsClient,
-            coreClient,
-            // get the namespace for this function
-            overriddenNamespace,
-            overriddenName,
-            customLabels,
-            installUserCodeDependencies,
-            pythonDependencyRepository,
-            pythonExtraDependencyRepository,
-            pulsarDockerImageName,
-            functionDockerImages,
-            imagePullPolicy,
-            pulsarRootDir,
-            instanceConfig,
-            instanceFile,
-            extraDependenciesDir,
-            logDirectory,
-            configAdminCLI,
-            codePkgUrl,
-            originalCodeFileName,
-            originalTransformFunctionFileName,
-            pulsarServiceUrl,
-            pulsarAdminUrl,
-            stateStorageServiceUri,
-            authConfig,
-            secretsProviderConfigurator,
-            expectedMetricsCollectionInterval,
-            percentMemoryPadding,
-            cpuOverCommitRatio,
-            memoryOverCommitRatio,
-            gracePeriodSeconds,
-            authProvider,
-            authenticationEnabled,
-            grpcPort,
-            narExtractionDirectory,
-            manifestCustomizer,
-            functionInstanceClassPath,
-            downloadDirectory);
+                appsClient,
+                coreClient,
+                // get the namespace for this function
+                overriddenNamespace,
+                overriddenName,
+                customLabels,
+                installUserCodeDependencies,
+                pythonDependencyRepository,
+                pythonExtraDependencyRepository,
+                pulsarDockerImageName,
+                functionDockerImages,
+                imagePullPolicy,
+                pulsarRootDir,
+                instanceConfig,
+                instanceFile,
+                extraDependenciesDir,
+                logDirectory,
+                configAdminCLI,
+                codePkgUrl,
+                originalCodeFileName,
+                originalTransformFunctionFileName,
+                pulsarServiceUrl,
+                pulsarAdminUrl,
+                stateStorageServiceUri,
+                authConfig,
+                secretsProviderConfigurator,
+                expectedMetricsCollectionInterval,
+                percentMemoryPadding,
+                cpuOverCommitRatio,
+                memoryOverCommitRatio,
+                gracePeriodSeconds,
+                authProvider,
+                authenticationEnabled,
+                grpcPort,
+                narExtractionDirectory,
+                manifestCustomizer,
+                functionInstanceClassPath,
+                downloadDirectory,
+                numListenerThreads);
     }
 
     @Override
@@ -353,7 +356,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public void doAdmissionChecks(Function.FunctionDetails functionDetails){
+    public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
