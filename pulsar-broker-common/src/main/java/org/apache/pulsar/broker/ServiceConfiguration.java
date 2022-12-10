@@ -1767,6 +1767,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
+            doc = "whether limit per_channel_bookie_client metrics of bookkeeper client stats"
+    )
+    private boolean bookkeeperClientLimitStatsLogging = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
             doc = "Throttle value for bookkeeper client"
     )
     private int bookkeeperClientThrottleValue = 0;
