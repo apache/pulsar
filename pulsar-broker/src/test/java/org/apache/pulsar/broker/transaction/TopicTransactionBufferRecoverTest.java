@@ -129,18 +129,18 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @DataProvider(name = "testTopic")
-    public Object[][] testTopic() {
-        return new Object[][] {
-                {RECOVER_ABORT},
-                {RECOVER_COMMIT}
+    public Object[] testTopic() {
+        return new Object[] {
+                RECOVER_ABORT,
+                RECOVER_COMMIT
         };
     }
 
     @DataProvider(name = "enableSnapshotSegment")
-    public Object[][] testSnapshot() {
-        return new Object[][] {
-                {true},
-                {false}
+    public Object[] testSnapshot() {
+        return new Boolean[] {
+                true,
+                false
         };
     }
 
