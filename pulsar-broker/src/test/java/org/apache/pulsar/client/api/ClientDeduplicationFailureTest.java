@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -48,12 +48,12 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -84,7 +84,7 @@ public class ClientDeduplicationFailureTest {
         config = spy(ServiceConfiguration.class);
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
@@ -96,7 +96,7 @@ public class ClientDeduplicationFailureTest {
         config.setLoadBalancerEnabled(false);
         config.setLoadBalancerAutoUnloadSplitBundlesEnabled(false);
 
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
 
         pulsar = new PulsarService(config);
@@ -415,11 +415,11 @@ public class ClientDeduplicationFailureTest {
             assertEquals(msgRecvd.get(i).getSequenceId(), i + 10);
         }
 
-        BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) lastMessageId;
+        MessageIdImpl lastMessageIdImpl = (MessageIdImpl) lastMessageId;
         MessageIdImpl messageId = (MessageIdImpl) consumer1.getLastMessageId();
 
-        assertEquals(messageId.getLedgerId(), batchMessageId.getLedgerId());
-        assertEquals(messageId.getEntryId(), batchMessageId.getEntryId());
+        assertEquals(messageId.getLedgerId(), lastMessageIdImpl.getLedgerId());
+        assertEquals(messageId.getEntryId(), lastMessageIdImpl.getEntryId());
         thread.interrupt();
     }
 }

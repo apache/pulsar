@@ -1,7 +1,7 @@
 ---
-id: version-2.7.0-concepts-topic-compaction
+id: concepts-topic-compaction
 title: Topic Compaction
-sidebar_label: Topic Compaction
+sidebar_label: "Topic Compaction"
 original_id: concepts-topic-compaction
 ---
 

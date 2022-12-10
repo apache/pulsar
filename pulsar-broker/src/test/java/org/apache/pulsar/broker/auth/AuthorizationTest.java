@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,28 +19,26 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.util.EnumSet;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import com.google.common.collect.Sets;
 
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
     public AuthorizationTest() {
@@ -232,7 +230,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetListWithoutGetBundleOp() throws Exception {
+    public void testGetListWithGetBundleOp() throws Exception {
         String tenant = "p1";
         String namespaceV1 = "p1/global/ns1";
         String namespaceV2 = "p1/ns2";
@@ -248,18 +246,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                 .authentication(new MockAuthentication("pass.pass2"))
                 .build();
         when(pulsar.getAdminClient()).thenReturn(admin2);
-        try {
-            admin2.topics().getList(namespaceV1, TopicDomain.non_persistent);
-        } catch (Exception ex) {
-            assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            assertEquals(ex.getMessage(), "Unauthorized to validateNamespaceOperation for operation [GET_BUNDLE] on namespace [p1/global/ns1]");
-        }
-        try {
-            admin2.topics().getList(namespaceV2, TopicDomain.non_persistent);
-        } catch (Exception ex) {
-            assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            assertEquals(ex.getMessage(), "Unauthorized to validateNamespaceOperation for operation [GET_BUNDLE] on namespace [p1/ns2]");
-        }
+        Assert.assertEquals(admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
+        Assert.assertEquals(admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
     }
 
     private static void waitForChange() {

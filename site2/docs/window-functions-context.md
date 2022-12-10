@@ -230,7 +230,7 @@ public class GetOutputSchemaTypeWindowFunction implements WindowFunction<String,
 
 ## Logger
 
-Pulsar window functions using Java SDK has access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level.
+Pulsar window functions using Java SDK have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level.
 
 This example logs either a `WARNING`-level or `INFO`-level log based on whether the incoming string contains the word `danger` or not in a Java function.
 
@@ -270,9 +270,11 @@ You can access all logs produced by `LoggingFunction` via the `persistent://publ
 
 Pulsar window functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
-> **Note**
->
-> If a Pulsar window function uses the language-native interface for Java, that function is not able to publish metrics and stats to Pulsar.
+:::note
+
+If a Pulsar window function uses the language-native interface for Java, that function is not able to publish metrics and stats to Pulsar.
+
+:::
 
 You can record metrics using the context object on a per-key basis. 
 
@@ -308,7 +310,7 @@ public class UserMetricWindowFunction implements WindowFunction<String, Void> {
 
 When you run or update Pulsar Functions that are created using SDK, you can pass arbitrary key/value pairs to them with the `--user-config` flag. Key/value pairs **must** be specified as JSON. 
 
-This example passes a user configured key/value to a function.
+This example passes a user-configured key/value to a function.
 
 ```bash
 bin/pulsar-admin functions create \
@@ -323,7 +325,6 @@ You can use the following APIs to get user-defined information for window functi
 
 `getUserConfigMap` API gets a map of all user-defined key/value configurations for the window function.
 
-
 ```java
 /**
      * Get a map of all user-defined key/value configs for the function.
@@ -332,7 +333,6 @@ You can use the following APIs to get user-defined information for window functi
      */
     Map<String, Object> getUserConfigMap();
 ```
-
 
 #### getUserConfigValue
 
@@ -367,9 +367,11 @@ This example demonstrates how to access key/value pairs provided to Pulsar windo
 
 Java SDK context object enables you to access key/value pairs provided to Pulsar window functions via the command line (as JSON). 
 
->**Tip**
->
-> For all key/value pairs passed to Java window functions, both the `key` and the `value` are `String`. To set the value to be a different type, you need to deserialize it from the `String` type.
+:::tip
+
+For all key/value pairs passed to Java window functions, both the `key` and the `value` are `String`. To set the value to be a different type, you need to deserialize it from the `String` type.
+
+:::
 
 This example passes a key/value pair in a Java window function.
 
@@ -377,7 +379,7 @@ This example passes a key/value pair in a Java window function.
 bin/pulsar-admin functions create \
    --user-config '{"word-of-the-day":"verdure"}' \
   # Other function configs
- ```
+```
 
 This example accesses values in a Java window function.
 
@@ -401,7 +403,6 @@ public class UserConfigWindowFunction implements WindowFunction<String, String> 
             return "Not a nice way";
         }
     }
-
 }
 ```
 
@@ -439,7 +440,7 @@ public class PublishWindowFunction implements WindowFunction<String, Void> {
 
 Pulsar window functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Apache Pulsar installation (including the standalone installation) includes the deployment of BookKeeper bookies.
 
-Apache Pulsar integrates with Apache BookKeeper `table service` to store the `state` for functions. For example, the `WordCount` function can store its `counters` state into BookKeeper table service via Pulsar Functions state APIs.
+Apache Pulsar integrates with Apache BookKeeper `table service` to store the `state` for functions. For example, the `WordCount` function can store its `counters` state into the BookKeeper table service via Pulsar Functions state APIs.
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data—counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function and shared between instances of that function.
 
@@ -461,7 +462,7 @@ Applications use the `incrCounter` API to change the counter of a given `key` by
 
 ```java
     /**
-     * Increment the builtin distributed counter referred by key
+     * Increment the built-in distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */

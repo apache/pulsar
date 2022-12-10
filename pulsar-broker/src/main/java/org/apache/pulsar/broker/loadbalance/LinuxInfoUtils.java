@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import com.google.common.base.Charsets;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,6 +35,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.broker.BitRateUnit;
 
 @Slf4j
 public class LinuxInfoUtils {
@@ -148,7 +149,7 @@ public class LinuxInfoUtils {
      */
     private static boolean isPhysicalNic(Path nicPath) {
         try {
-            if (nicPath.toRealPath().toString().contains("/virtual/")) {
+            if (nicPath.toString().contains("/virtual/")) {
                 return false;
             }
             // Check the type to make sure it's ethernet (type "1")
@@ -165,36 +166,36 @@ public class LinuxInfoUtils {
     /**
      * Get all physical nic limit.
      * @param nics All nic path
-     * @param nicUnit Nic speed unit
+     * @param bitRateUnit Bit rate unit
      * @return Total nic limit
      */
-    public static double getTotalNicLimit(List<String> nics, NICUnit nicUnit) {
-        return nicUnit.convertBy(nics.stream().mapToDouble(nicPath -> {
+    public static double getTotalNicLimit(List<String> nics, BitRateUnit bitRateUnit) {
+        return bitRateUnit.convert(nics.stream().mapToDouble(nicPath -> {
             try {
                 return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
             } catch (IOException e) {
                 log.error("[LinuxInfo] Failed to get total nic limit.", e);
                 return 0d;
             }
-        }).sum());
+        }).sum(), BitRateUnit.Megabit);
     }
 
     /**
      * Get all physical nic usage.
      * @param nics All nic path
      * @param type Nic's usage type:  transport, receive
-     * @param unit Nic usage unit
+     * @param bitRateUnit Bit rate unit
      * @return Total nic usage
      */
-    public static double getTotalNicUsage(List<String> nics, NICUsageType type, UsageUnit unit) {
-        return unit.convertBy(nics.stream().mapToDouble(nic -> {
+    public static double getTotalNicUsage(List<String> nics, NICUsageType type, BitRateUnit bitRateUnit) {
+        return bitRateUnit.convert(nics.stream().mapToDouble(nic -> {
             try {
                 return readDoubleFromFile(getReplacedNICPath(type.template, nic));
             } catch (IOException e) {
                 log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
                 return 0d;
             }
-        }).sum());
+        }).sum(), BitRateUnit.Byte);
     }
 
     /**
@@ -221,7 +222,7 @@ public class LinuxInfoUtils {
         if (CollectionUtils.isEmpty(physicalNICs)) {
             return false;
         }
-        double totalNicLimit = getTotalNicLimit(physicalNICs, NICUnit.Kbps);
+        double totalNicLimit = getTotalNicLimit(physicalNICs, BitRateUnit.Kilobit);
         return totalNicLimit > 0;
     }
 
@@ -230,7 +231,7 @@ public class LinuxInfoUtils {
     }
 
     private static String readTrimStringFromFile(Path path) throws IOException {
-        return new String(Files.readAllBytes(path), Charsets.UTF_8).trim();
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
     }
 
     private static long readLongFromFile(Path path) throws IOException {
@@ -239,28 +240,6 @@ public class LinuxInfoUtils {
 
     private static double readDoubleFromFile(Path path) throws IOException {
         return Double.parseDouble(readTrimStringFromFile(path));
-    }
-
-    @AllArgsConstructor
-    public enum NICUnit {
-        Kbps(1000);
-
-        private final int convertUnit;
-
-        public double convertBy(double usageBytes) {
-            return this.convertUnit * usageBytes;
-        }
-    }
-
-    @AllArgsConstructor
-    public enum UsageUnit {
-        Kbps(8d / 1000);
-
-        private final double convertUnit;
-
-        public double convertBy(double usageBytes) {
-            return this.convertUnit * usageBytes;
-        }
     }
 
     @AllArgsConstructor

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.Data;
@@ -44,7 +45,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -93,7 +93,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         try {
             testSource();
         } finally {
-            stopKafkaContainers(pulsarCluster);
+            stopKafkaContainers();
         }
     }
 
@@ -146,12 +146,12 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 );
     }
 
-    public void stopKafkaContainers(PulsarCluster cluster) {
+    public void stopKafkaContainers() {
         if (null != schemaRegistryContainer) {
-            cluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
+            PulsarCluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
         }
         if (null != kafkaContainer) {
-            cluster.stopService(kafkaContainerName, kafkaContainer);
+            PulsarCluster.stopService(kafkaContainerName, kafkaContainer);
         }
     }
 

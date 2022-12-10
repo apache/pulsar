@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,6 +47,9 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     public static final String REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldFunction";
+
+    public static final String REMOVE_AVRO_FIELD_RECORD_FUNCTION_JAVA_CLASS =
+        "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction";
 
     public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";

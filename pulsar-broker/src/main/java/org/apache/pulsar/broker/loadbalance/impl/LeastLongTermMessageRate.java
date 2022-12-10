@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,7 +42,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // Maintain this list to reduce object creation.
     private ArrayList<String> bestBrokers;
 
-    public LeastLongTermMessageRate(final ServiceConfiguration conf) {
+    public LeastLongTermMessageRate() {
         bestBrokers = new ArrayList<>();
     }
 

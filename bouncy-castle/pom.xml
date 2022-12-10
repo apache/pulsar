@@ -29,6 +29,20 @@
     <relativePath>..</relativePath>
   </parent>
 
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <release>${pulsar.client.compiler.release}</release>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
   <artifactId>bouncy-castle-parent</artifactId>
   <name>Apache Pulsar :: Bouncy Castle :: Parent</name>
 

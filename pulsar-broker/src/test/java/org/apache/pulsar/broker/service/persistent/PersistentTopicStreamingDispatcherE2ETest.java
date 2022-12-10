@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,5 +32,11 @@ public class PersistentTopicStreamingDispatcherE2ETest extends PersistentTopicE2
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setStreamingDispatch(true);
+    }
+
+    @Override
+    @Test
+    public void testMessageRedelivery() throws Exception {
+        super.testMessageRedelivery();
     }
 }

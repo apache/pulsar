@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -90,7 +90,6 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         authenticationParameters = jsonMapper.writeValueAsString(params);
 
-        conf.setSystemTopicEnabled(true);
         conf.setTransactionCoordinatorEnabled(true);
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);

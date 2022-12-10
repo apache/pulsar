@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
@@ -30,6 +29,8 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -109,7 +110,7 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
-        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
@@ -131,7 +132,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
-        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
@@ -224,8 +225,8 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        Set<String> brokers = Sets.newHashSet();
-        Map<String, String> brokerToDomainMap = Maps.newHashMap();
+        Set<String> brokers = new HashSet<>();
+        Map<String, String> brokerToDomainMap = new HashMap<>();
         brokers.add("brokerName-0");
         brokerToDomainMap.put("brokerName-0", "domain-0");
         brokers.add("brokerName-1");
@@ -235,7 +236,7 @@ public class AntiAffinityNamespaceGroupTest {
         brokers.add("brokerName-3");
         brokerToDomainMap.put("brokerName-3", "domain-1");
 
-        Set<String> candidate = Sets.newHashSet();
+        Set<String> candidate = new HashSet<>();
         ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange =
                 ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
 
@@ -321,8 +322,8 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        Set<String> brokers = Sets.newHashSet();
-        Set<String> candidate = Sets.newHashSet();
+        Set<String> brokers = new HashSet<>();
+        Set<String> candidate = new HashSet<>();
         ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange =
                 ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
         brokers.add("broker-0");
@@ -406,7 +407,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String broker1 = primaryHost;
         final String broker2 = secondaryHost;
         final String cluster = pulsar1.getConfiguration().getClusterName();
-        final String tenant = "tenant-" + UUID.randomUUID().toString();
+        final String tenant = "tenant-" + UUID.randomUUID();
         final String namespace1 = tenant + "/" + cluster + "/ns1";
         final String namespace2 = tenant + "/" + cluster + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
@@ -473,8 +474,8 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        Set<String> brokers = Sets.newHashSet();
-        Set<String> candidate = Sets.newHashSet();
+        Set<String> brokers = new HashSet<>();
+        Set<String> candidate = new HashSet<>();
         ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange =
                 ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
         brokers.add("broker-0");

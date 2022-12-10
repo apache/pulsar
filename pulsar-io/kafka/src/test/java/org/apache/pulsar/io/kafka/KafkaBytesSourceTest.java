@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -28,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.ByteBufferDeserializer;
@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.io.core.SourceContext;
+import org.bouncycastle.util.encoders.Base64;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -113,6 +114,64 @@ public class KafkaBytesSourceTest {
                 StringDeserializer.class.getName(), Schema.STRING,
                 ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10)),
                 ByteBuffer.wrap(new StringSerializer().serialize("test", "test")));
+    }
+
+    @Test
+    public void testCopyKafkaHeadersEnabled() throws Exception {
+        ByteBuffer key = ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10));
+        ByteBuffer value = ByteBuffer.wrap(new StringSerializer().serialize("test", "test"));
+        KafkaBytesSource source = new KafkaBytesSource();
+        Map<String, Object> config = new HashMap<>();
+        config.put("copyHeadersEnabled", true);
+        config.put("topic","test");
+        config.put("bootstrapServers","localhost:9092");
+        config.put("groupId", "test");
+        config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
+        config.put("keyDeserializationClass", StringDeserializer.class.getName());
+        config.put("consumerConfigProperties", ImmutableMap.builder()
+                .put("schema.registry.url", "http://localhost:8081")
+                .build());
+        source.open(config, Mockito.mock(SourceContext.class));
+        ConsumerRecord record = new ConsumerRecord<Object, Object>("test", 88, 99, key, value);
+        record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
+        record.headers().add("k2", new byte[]{0xF});
+
+        Map<String, String> props = source.copyKafkaHeaders(record);
+        assertEquals(props.size(), 5);
+        assertTrue(props.containsKey("__kafka_topic"));
+        assertTrue(props.containsKey("__kafka_partition"));
+        assertTrue(props.containsKey("__kafka_offset"));
+        assertTrue(props.containsKey("k1"));
+        assertTrue(props.containsKey("k2"));
+
+        assertEquals(props.get("__kafka_topic"), "test");
+        assertEquals(props.get("__kafka_partition"), "88");
+        assertEquals(props.get("__kafka_offset"), "99");
+        assertEquals(Base64.decode(props.get("k1")), "v1".getBytes(StandardCharsets.UTF_8));
+        assertEquals(Base64.decode(props.get("k2")), new byte[]{0xF});
+    }
+
+    @Test
+    public void testCopyKafkaHeadersDisabled() throws Exception {
+        ByteBuffer key = ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10));
+        ByteBuffer value = ByteBuffer.wrap(new StringSerializer().serialize("test", "test"));
+        KafkaBytesSource source = new KafkaBytesSource();
+        Map<String, Object> config = new HashMap<>();
+        config.put("topic","test");
+        config.put("bootstrapServers","localhost:9092");
+        config.put("groupId", "test");
+        config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
+        config.put("keyDeserializationClass", StringDeserializer.class.getName());
+        config.put("consumerConfigProperties", ImmutableMap.builder()
+                .put("schema.registry.url", "http://localhost:8081")
+                .build());
+        source.open(config, Mockito.mock(SourceContext.class));
+        ConsumerRecord record = new ConsumerRecord<Object, Object>("test", 88, 99, key, value);
+        record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
+        record.headers().add("k2", new byte[]{0xF});
+
+        Map<String, String> props = source.copyKafkaHeaders(record);
+        assertTrue(props.isEmpty());
     }
 
     private void validateSchemaKeyValue(String keyDeserializationClass, Schema expectedKeySchema,

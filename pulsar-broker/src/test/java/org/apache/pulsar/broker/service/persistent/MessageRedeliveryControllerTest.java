@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,14 +24,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -48,7 +46,8 @@ public class MessageRedeliveryControllerTest {
 
         Field messagesToRedeliverField = MessageRedeliveryController.class.getDeclaredField("messagesToRedeliver");
         messagesToRedeliverField.setAccessible(true);
-        LongPairSet messagesToRedeliver = (LongPairSet) messagesToRedeliverField.get(controller);
+        ConcurrentBitmapSortedLongPairSet messagesToRedeliver =
+                (ConcurrentBitmapSortedLongPairSet) messagesToRedeliverField.get(controller);
 
         Field hashesToBeBlockedField = MessageRedeliveryController.class.getDeclaredField("hashesToBeBlocked");
         hashesToBeBlockedField.setAccessible(true);
@@ -67,9 +66,8 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.size(), 0);
         }
 
-        assertTrue(controller.add(1, 1));
-        assertTrue(controller.add(1, 2));
-        assertFalse(controller.add(1, 1));
+        controller.add(1, 1);
+        controller.add(1, 2);
 
         assertFalse(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 2);
@@ -81,9 +79,8 @@ public class MessageRedeliveryControllerTest {
             assertFalse(hashesToBeBlocked.containsKey(1, 2));
         }
 
-        assertTrue(controller.remove(1, 1));
-        assertTrue(controller.remove(1, 2));
-        assertFalse(controller.remove(1, 1));
+        controller.remove(1, 1);
+        controller.remove(1, 2);
 
         assertTrue(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 0);
@@ -93,10 +90,9 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.size(), 0);
         }
 
-        assertTrue(controller.add(2, 1, 100));
-        assertTrue(controller.add(2, 2, 101));
-        assertTrue(controller.add(2, 3, 101));
-        assertFalse(controller.add(2, 1, 100));
+        controller.add(2, 1, 100);
+        controller.add(2, 2, 101);
+        controller.add(2, 3, 101);
 
         assertFalse(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 3);
@@ -167,18 +163,18 @@ public class MessageRedeliveryControllerTest {
         controller.add(2, 1, 104);
 
         if (allowOutOfOrderDelivery) {
-            assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(100)));
-            assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(101, 102, 103)));
-            assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(104, 105)));
+            assertFalse(controller.containsStickyKeyHashes(Set.of(100)));
+            assertFalse(controller.containsStickyKeyHashes(Set.of(101, 102, 103)));
+            assertFalse(controller.containsStickyKeyHashes(Set.of(104, 105)));
         } else {
-            assertTrue(controller.containsStickyKeyHashes(Sets.newHashSet(100)));
-            assertTrue(controller.containsStickyKeyHashes(Sets.newHashSet(101, 102, 103)));
-            assertTrue(controller.containsStickyKeyHashes(Sets.newHashSet(104, 105)));
+            assertTrue(controller.containsStickyKeyHashes(Set.of(100)));
+            assertTrue(controller.containsStickyKeyHashes(Set.of(101, 102, 103)));
+            assertTrue(controller.containsStickyKeyHashes(Set.of(104, 105)));
         }
 
-        assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet()));
-        assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(99)));
-        assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(105, 106)));
+        assertFalse(controller.containsStickyKeyHashes(Set.of()));
+        assertFalse(controller.containsStickyKeyHashes(Set.of(99)));
+        assertFalse(controller.containsStickyKeyHashes(Set.of(105, 106)));
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)

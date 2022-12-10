@@ -129,7 +129,6 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-transaction-common</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
@@ -151,6 +150,7 @@
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.dataformat</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>io.perfmark:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,6 +52,9 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private static final Logger log = LoggerFactory.getLogger(ThresholdShedder.class);
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
     private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
+
+    private static final double LOWER_BOUNDARY_THRESHOLD_MARGIN = 0.5;
+
     private static final double MB = 1024 * 1024;
     private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
 
@@ -100,17 +103,34 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                     broker, 100 * currentUsage, 100 * avgUsage, 100 * threshold, minimumThroughputToOffload / MB,
                     (brokerCurrentThroughput - minimumThroughputToOffload) / MB);
 
-            MutableDouble trafficMarkedToOffload = new MutableDouble(0);
-            MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
-
             if (localData.getBundles().size() > 1) {
-                loadData.getBundleDataForLoadShedding().entrySet().stream()
-                    .map((e) -> {
-                        String bundle = e.getKey();
-                        BundleData bundleData = e.getValue();
-                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
-                        return Pair.of(bundle, throughput);
+                filterAndSelectBundle(loadData, recentlyUnloadedBundles, broker, localData, minimumThroughputToOffload);
+            } else if (localData.getBundles().size() == 1) {
+                log.warn(
+                        "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
+                                + "No Load Shedding will be done on this broker",
+                        localData.getBundles().iterator().next(), broker);
+            } else {
+                log.warn("Broker {} is overloaded despite having no bundles", broker);
+            }
+        });
+        if (selectedBundlesCache.isEmpty() && conf.isLowerBoundarySheddingEnabled()) {
+            tryLowerBoundaryShedding(loadData, conf);
+        }
+        return selectedBundlesCache;
+    }
+
+    private void filterAndSelectBundle(LoadData loadData, Map<String, Long> recentlyUnloadedBundles, String broker,
+                                       LocalBrokerData localData, double minimumThroughputToOffload) {
+        MutableDouble trafficMarkedToOffload = new MutableDouble(0);
+        MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
+        loadData.getBundleDataForLoadShedding().entrySet().stream()
+                .map((e) -> {
+                    String bundle = e.getKey();
+                    BundleData bundleData = e.getValue();
+                    TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                    double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                    return Pair.of(bundle, throughput);
                 }).filter(e ->
                         !recentlyUnloadedBundles.containsKey(e.getLeft())
                 ).filter(e ->
@@ -125,17 +145,6 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                         atLeastOneBundleSelected.setTrue();
                     }
                 });
-            } else if (localData.getBundles().size() == 1) {
-                log.warn(
-                        "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                + "No Load Shedding will be done on this broker",
-                        localData.getBundles().iterator().next(), broker);
-            } else {
-                log.warn("Broker {} is overloaded despite having no bundles", broker);
-            }
-        });
-
-        return selectedBundlesCache;
     }
 
     private double getBrokerAvgUsage(final LoadData loadData, final double historyPercentage,
@@ -167,6 +176,62 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
         brokerAvgResourceUsage.put(broker, historyUsage);
         return historyUsage;
+    }
+
+    private void tryLowerBoundaryShedding(LoadData loadData, ServiceConfiguration conf) {
+        // Select the broker with the most resource usage.
+        final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
+        final double avgUsage = getBrokerAvgUsage(loadData, conf.getLoadBalancerHistoryResourcePercentage(), conf);
+        Pair<Boolean, String> result = getMaxUsageBroker(loadData, threshold, avgUsage);
+        boolean hasBrokerBelowLowerBound = result.getLeft();
+        String maxUsageBroker = result.getRight();
+        BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
+        if (brokerData == null) {
+            log.info("Load data is null or bundle <=1, skipping bundle unload.");
+            return;
+        }
+        if (!hasBrokerBelowLowerBound) {
+            log.info("No broker is below the lower bound, threshold is {}, "
+                            + "avgUsage usage is {}, max usage of Broker {} is {}",
+                    threshold, avgUsage, maxUsageBroker,
+                    brokerAvgResourceUsage.getOrDefault(maxUsageBroker, 0.0));
+            return;
+        }
+        LocalBrokerData localData = brokerData.getLocalData();
+        double brokerCurrentThroughput = localData.getMsgThroughputIn() + localData.getMsgThroughputOut();
+        double minimumThroughputToOffload = brokerCurrentThroughput * threshold * LOWER_BOUNDARY_THRESHOLD_MARGIN;
+        double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
+        if (minThroughputThreshold > minimumThroughputToOffload) {
+            log.info("broker {} in lower boundary shedding is planning to shed throughput {} MByte/s less than "
+                            + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
+                    maxUsageBroker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
+            return;
+        }
+        filterAndSelectBundle(loadData, loadData.getRecentlyUnloadedBundles(), maxUsageBroker, localData,
+                minimumThroughputToOffload);
+    }
+
+    private Pair<Boolean, String> getMaxUsageBroker(
+            LoadData loadData, double threshold, double avgUsage) {
+        String maxUsageBrokerName = "";
+        double maxUsage = avgUsage - threshold;
+        boolean hasBrokerBelowLowerBound = false;
+        for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+            String broker = entry.getKey();
+            BrokerData brokerData = entry.getValue();
+            double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
+            // Select the broker with the most resource usage.
+            if (currentUsage > maxUsage && brokerData.getLocalData() != null
+                    && brokerData.getLocalData().getBundles().size() > 1) {
+                maxUsage = currentUsage;
+                maxUsageBrokerName = broker;
+            }
+            // Whether any brokers with low usage in the cluster.
+            if (currentUsage < avgUsage - threshold) {
+                hasBrokerBelowLowerBound = true;
+            }
+        }
+        return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
     }
 
 }

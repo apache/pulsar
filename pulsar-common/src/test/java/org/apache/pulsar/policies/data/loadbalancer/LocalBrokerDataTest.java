@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 public class LocalBrokerDataTest {
 
@@ -32,5 +37,34 @@ public class LocalBrokerDataTest {
         Assert.assertEquals(localBrokerData.getMemory().limit, 1228.0d, 0.0001f);
         Assert.assertEquals(localBrokerData.getMemory().usage, 614.0d, 0.0001f);
         Assert.assertEquals(localBrokerData.getMemory().percentUsage(), ((float) localBrokerData.getMemory().usage) / ((float) localBrokerData.getMemory().limit) * 100, 0.0001f);
+    }
+
+    @Test
+    public void testMaxResourceUsage() {
+        LocalBrokerData data = new LocalBrokerData();
+        data.setCpu(new ResourceUsage(1.0, 100.0));
+        data.setMemory(new ResourceUsage(800.0, 200.0));
+        data.setDirectMemory(new ResourceUsage(2.0, 100.0));
+        data.setBandwidthIn(new ResourceUsage(3.0, 100.0));
+        data.setBandwidthOut(new ResourceUsage(4.0, 100.0));
+
+        double epsilon = 0.00001;
+        double weight = 0.5;
+        // skips memory usage
+        assertEquals(data.getMaxResourceUsage(), 0.04, epsilon);
+
+        assertEquals(
+                data.getMaxResourceUsageWithWeight(
+                        weight, weight, weight, weight, weight), 2.0, epsilon);
+    }
+
+    /*
+    Ensure that there is no bundleStats field in the json string serialized from LocalBrokerData.
+     */
+    @Test
+    public void testSerializeLocalBrokerData() throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        LocalBrokerData localBrokerData = new LocalBrokerData();
+        assertFalse(objectMapper.writeValueAsString(localBrokerData).contains("bundleStats"));
     }
 }
