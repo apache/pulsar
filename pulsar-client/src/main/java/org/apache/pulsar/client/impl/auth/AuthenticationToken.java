@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl.auth;
 
 import com.google.gson.Gson;
@@ -39,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
  * Token based authentication provider.
  */
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
+    static final String AUTH_METHOD_NAME = "token";
 
     private static final long serialVersionUID = 1L;
     private Supplier<String> tokenSupplier = null;
@@ -61,7 +61,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
 
     @Override
     public String getAuthMethodName() {
-        return "token";
+        return AUTH_METHOD_NAME;
     }
 
     @Override

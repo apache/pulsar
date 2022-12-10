@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
             throw new IllegalArgumentException();
         }
         this.request = request;
-        this.remoteAddress = new InetSocketAddress(request.getRemoteAddr(), request.getRemotePort());
+        this.remoteAddress = InetSocketAddress.createUnresolved(request.getRemoteAddr(), request.getRemotePort());
     }
 
     /*

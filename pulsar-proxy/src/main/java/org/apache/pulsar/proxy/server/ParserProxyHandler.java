@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.proxy.server;
 
 import io.netty.buffer.ByteBuf;
@@ -25,6 +24,7 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
 
-    private final Channel channel;
     //inbound
     protected static final String FRONTEND_CONN = "frontendconn";
     //outbound
@@ -53,6 +52,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
     private final String connType;
 
     private final int maxMessageSize;
+    private final ChannelId peerChannelId;
     private final ProxyService service;
 
 
@@ -66,11 +66,12 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
      */
     private static final Map<String, String> consumerHashMap = new ConcurrentHashMap<>();
 
-    public ParserProxyHandler(ProxyService service, Channel channel, String type, int maxMessageSize) {
+    public ParserProxyHandler(ProxyService service, String type, int maxMessageSize,
+                              ChannelId peerChannelId) {
         this.service = service;
-        this.channel = channel;
         this.connType = type;
         this.maxMessageSize = maxMessageSize;
+        this.peerChannelId = peerChannelId;
     }
 
     private void logging(Channel conn, BaseCommand.Type cmdtype, String info, List<RawMessage> messages) {
@@ -116,7 +117,11 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     ParserProxyHandler.producerHashMap.put(cmd.getProducer().getProducerId() + "," + ctx.channel().id(),
                             cmd.getProducer().getTopic());
 
-                    logging(ctx.channel(), cmd.getType(), "{producer:" + cmd.getProducer().getProducerName()
+                    String producerName = "";
+                    if (cmd.getProducer().hasProducerName()){
+                        producerName = cmd.getProducer().getProducerName();
+                    }
+                    logging(ctx.channel(), cmd.getType(), "{producer:" + producerName
                             + ",topic:" + cmd.getProducer().getTopic() + "}", null);
                     break;
 
@@ -154,7 +159,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         break;
                     }
                     topicName = TopicName.get(ParserProxyHandler.consumerHashMap.get(cmd.getMessage().getConsumerId()
-                            + "," + DirectProxyHandler.inboundOutboundChannelMap.get(ctx.channel().id())));
+                            + "," + peerChannelId));
                     msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName, -1L,
                             -1L, buffer, (message) -> {

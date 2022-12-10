@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,13 +34,14 @@ import org.testng.collections.Maps;
  * A tester used for testing a specific sink.
  */
 @Getter
-public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
+public abstract class SinkTester<ServiceContainerT extends GenericContainer> implements AutoCloseable {
 
     @Getter
     public enum SinkType {
         UNDEFINED("undefined"),
         CASSANDRA("cassandra"),
         KAFKA("kafka"),
+        KINESIS("kinesis"),
         JDBC_POSTGRES("jdbc-postgres"),
         HDFS("hdfs"),
         ELASTIC_SEARCH("elastic_search"),
@@ -88,9 +89,9 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         return serviceContainer;
     }
 
-    public void stopServiceContainer(PulsarCluster cluster) {
+    public void stopServiceContainer() {
         if (null != serviceContainer) {
-            cluster.stopService(networkAlias, serviceContainer);
+            PulsarCluster.stopService(networkAlias, serviceContainer);
         }
     }
 
@@ -126,6 +127,4 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
                     .send();
         }
     }
-
-
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,8 +32,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
-
-    private static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
 
     public LocalPoliciesResources(MetadataStore localStore, int operationTimeoutSec) {
         super(localStore, LocalPolicies.class, operationTimeoutSec);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,16 +26,13 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
-import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,9 +46,7 @@ import static org.testng.Assert.expectThrows;
 /**
  * Unit test of {@link SourceConfigUtilsTest}.
  */
-public class SourceConfigUtilsTest extends PowerMockTestCase {
-
-    private ConnectorDefinition defn;
+public class SourceConfigUtilsTest {
 
     @Data
     @Accessors(chain = true)
@@ -80,7 +75,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testConvertBackFidelity() throws IOException  {
+    public void testConvertBackFidelity() {
         SourceConfig sourceConfig = createSourceConfig();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
@@ -94,7 +89,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testConvertBackFidelityWithBatch() throws IOException  {
+    public void testConvertBackFidelityWithBatch() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
@@ -216,7 +211,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
                 mergedConfig.getParallelism(),
-                new Integer(101)
+                Integer.valueOf(101)
         );
         mergedConfig.setParallelism(sourceConfig.getParallelism());
         assertEquals(
@@ -230,8 +225,8 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         SourceConfig sourceConfig = createSourceConfig();
         Resources resources = new Resources();
         resources.setCpu(0.3);
-        resources.setRam(1232l);
-        resources.setDisk(123456l);
+        resources.setRam(1232L);
+        resources.setDisk(123456L);
         SourceConfig newSourceConfig = createUpdatedSourceConfig("resources", resources);
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
         assertEquals(
@@ -290,7 +285,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testValidateConfig() throws IOException {
+    public void testValidateConfig() {
         SourceConfig sourceConfig = createSourceConfig();
 
         // Good config

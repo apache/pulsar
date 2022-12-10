@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -24,13 +23,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import com.google.common.net.InetAddresses;
 import io.netty.resolver.AddressResolver;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.SucceededFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.ExecutionException;
-import org.apache.curator.shaded.com.google.common.net.InetAddresses;
 import org.testng.annotations.Test;
 
 public class BrokerProxyValidatorTest {
@@ -88,6 +87,26 @@ public class BrokerProxyValidatorTest {
                 , "*"
                 , "6650");
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+    }
+
+    @Test
+    public void shouldAllowIPv6Address() throws Exception {
+        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
+                createMockedAddressResolver("fd4d:801b:73fa:abcd:0000:0000:0000:0001"),
+                "*"
+                , "fd4d:801b:73fa:abcd::/64"
+                , "6650");
+        brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+    }
+
+    @Test
+    public void shouldAllowIPv6AddressNumeric() throws Exception {
+        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
+                createMockedAddressResolver("fd4d:801b:73fa:abcd:0000:0000:0000:0001"),
+                "*"
+                , "fd4d:801b:73fa:abcd::/64"
+                , "6650");
+        brokerProxyValidator.resolveAndCheckTargetAddress("fd4d:801b:73fa:abcd:0000:0000:0000:0001:6650").get();
     }
 
     private AddressResolver<InetSocketAddress> createMockedAddressResolver(String ipAddressResult) {

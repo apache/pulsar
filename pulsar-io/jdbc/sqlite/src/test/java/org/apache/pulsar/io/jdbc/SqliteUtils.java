@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 
@@ -49,9 +48,9 @@ public final class SqliteUtils {
 
     private final Path dbPath;
 
-    private Connection connection;
-
-    public Connection getConnection() {
+    public Connection getConnection(boolean autocommit) throws SQLException {
+        Connection connection = DriverManager.getConnection(sqliteUri());
+        connection.setAutoCommit(autocommit);
         return connection;
     }
 
@@ -65,12 +64,9 @@ public final class SqliteUtils {
 
     public void setUp() throws SQLException, IOException {
         Files.deleteIfExists(dbPath);
-        connection = DriverManager.getConnection(sqliteUri());
-        connection.setAutoCommit(false);
     }
 
     public void tearDown() throws SQLException, IOException {
-        connection.close();
         Files.deleteIfExists(dbPath);
     }
 
@@ -91,7 +87,8 @@ public final class SqliteUtils {
 
     public int select(final String query, final ResultSetReadCallback callback) throws SQLException {
         int count = 0;
-        try (Statement stmt = connection.createStatement()) {
+        try (Connection connection = getConnection(true);
+             Statement stmt = connection.createStatement()) {
             try (ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     callback.read(rs);
@@ -102,10 +99,27 @@ public final class SqliteUtils {
         return count;
     }
 
+    public String dump(final String query) throws SQLException {
+        StringBuilder builder = new StringBuilder();
+        try (Connection connection = getConnection(true);
+             Statement stmt = connection.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery(query)) {
+                while (rs.next()) {
+                    for (int i = 0; i < rs.getMetaData().getColumnCount(); i++) {
+                        builder.append(rs.getObject(i + 1));
+                        builder.append(";");
+                    }
+                    builder.append(System.lineSeparator());
+                }
+            }
+        }
+        return builder.toString();
+    }
+
     public void execute(String sql) throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
+        try (Connection connection = getConnection(true);
+                Statement stmt = connection.createStatement()) {
             stmt.executeUpdate(sql);
-            connection.commit();
         }
     }
 

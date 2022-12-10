@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,8 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.i
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,16 +40,19 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
 
 public class PulsarConfigurationLoaderTest {
-    public class MockConfiguration implements PulsarConfiguration {
+    public static class MockConfiguration implements PulsarConfiguration {
         private Properties properties = new Properties();
 
-        private String zookeeperServers = "localhost:2181";
-        private String configurationStoreServers = "localhost:2184";
+        private String metadataStoreUrl = "zk:localhost:2181";
+        private String configurationMetadataStoreUrl = "zk:localhost:2184";
         private Optional<Integer> brokerServicePort = Optional.of(7650);
         private Optional<Integer> brokerServicePortTls = Optional.of(7651);
         private Optional<Integer> webServicePort = Optional.of(9080);
         private Optional<Integer> webServicePortTls = Optional.of(9443);
-        private int notExistFieldInServiceConfig = 0;
+
+        // This unused field is intentionally included to test the ignoreNonExistentMember feature of
+        // PulsarConfigurationLoader.convertFrom()
+        private String A_FIELD_THAT_IS_NOT_DECLARED_IN_ServiceConfiguration = "x";
 
         @Override
         public Properties getProperties() {
@@ -63,37 +66,37 @@ public class PulsarConfigurationLoaderTest {
     }
 
     @Test
-    public void testConfigurationConverting() throws Exception {
+    public void testConfigurationConverting() {
         MockConfiguration mockConfiguration = new MockConfiguration();
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);
 
         // check whether converting correctly
-        assertEquals(serviceConfiguration.getMetadataStoreUrl(), "localhost:2181");
-        assertEquals(serviceConfiguration.getConfigurationMetadataStoreUrl(), "localhost:2184");
+        assertEquals(serviceConfiguration.getMetadataStoreUrl(), "zk:localhost:2181");
+        assertEquals(serviceConfiguration.getConfigurationMetadataStoreUrl(), "zk:localhost:2184");
         assertEquals(serviceConfiguration.getBrokerServicePort().get(), Integer.valueOf(7650));
         assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), Integer.valueOf((7651)));
         assertEquals(serviceConfiguration.getWebServicePort().get(), Integer.valueOf((9080)));
         assertEquals(serviceConfiguration.getWebServicePortTls().get(), Integer.valueOf((9443)));
-
-        // check whether exception causes
-        try {
-            PulsarConfigurationLoader.convertFrom(mockConfiguration, false);
-            fail();
-        } catch (Exception e) {
-            assertEquals(e.getClass(), IllegalArgumentException.class);
-        }
     }
 
     @Test
-    public void testPulsarConfiguraitonLoadingStream() throws Exception {
+    public void testConfigurationConverting_checkNonExistMember() {
+        assertThrows(IllegalArgumentException.class,
+                () -> PulsarConfigurationLoader.convertFrom(new MockConfiguration(), false));
+    }
+
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testPulsarConfigurationLoadingStream() throws Exception {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
             testConfigFile.delete();
         }
-        final String zkServer = "z1.example.com,z2.example.com,z3.example.com";
+        final String metadataStoreUrl = "zk:z1.example.com,z2.example.com,z3.example.com";
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=" + zkServer);
-        printWriter.println("configurationStoreServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("metadataStoreUrl=" + metadataStoreUrl);
+        printWriter.println("configurationMetadataStoreUrl=gz1.example.com,gz2.example.com,gz3.example.com/foo");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=true");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -118,8 +121,9 @@ public class PulsarConfigurationLoaderTest {
         InputStream stream = new FileInputStream(testConfigFile);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
-        assertEquals(serviceConfig.getMetadataStoreUrl(), zkServer);
+        assertEquals(serviceConfig.getMetadataStoreUrl(), metadataStoreUrl);
         assertTrue(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
+
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
@@ -136,27 +140,22 @@ public class PulsarConfigurationLoaderTest {
     }
 
     @Test
-    public void testPulsarConfiguraitonLoadingProp() throws Exception {
-        final String zk = "localhost:2184";
+    public void testPulsarConfigurationLoadingProp() throws Exception {
+        final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
-        prop.setProperty("zookeeperServers", zk);
+        prop.setProperty("metadataStoreUrl", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
         assertEquals(serviceConfig.getMetadataStoreUrl(), zk);
     }
 
     @Test
-    public void testPulsarConfiguraitonComplete() throws Exception {
-        final String zk = "localhost:2184";
+    public void testPulsarConfigurationComplete() throws Exception {
+        final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
-        prop.setProperty("zookeeperServers", zk);
+        prop.setProperty("metadataStoreUrl", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
-        try {
-            isComplete(serviceConfig);
-            fail("it should fail as config is not complete");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
+        assertThrows(IllegalArgumentException.class, () -> isComplete(serviceConfig));
     }
 
     @Test
@@ -221,43 +220,19 @@ public class PulsarConfigurationLoaderTest {
 
     @Test
     public void testComplete() throws Exception {
-        TestCompleteObject complete = this.new TestCompleteObject();
+        TestCompleteObject complete = new TestCompleteObject();
         assertTrue(isComplete(complete));
     }
 
     @Test
-    public void testInComplete() throws IllegalAccessException {
-
-        try {
-            isComplete(this.new TestInCompleteObjectRequired());
-            fail("Should fail w/ illegal argument exception");
-        } catch (IllegalArgumentException iae) {
-            // OK, expected
-        }
-
-        try {
-            isComplete(this.new TestInCompleteObjectMin());
-            fail("Should fail w/ illegal argument exception");
-        } catch (IllegalArgumentException iae) {
-            // OK, expected
-        }
-
-        try {
-            isComplete(this.new TestInCompleteObjectMax());
-            fail("Should fail w/ illegal argument exception");
-        } catch (IllegalArgumentException iae) {
-            // OK, expected
-        }
-
-        try {
-            isComplete(this.new TestInCompleteObjectMix());
-            fail("Should fail w/ illegal argument exception");
-        } catch (IllegalArgumentException iae) {
-            // OK, expected
-        }
+    public void testIncomplete() throws IllegalAccessException {
+        assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectRequired()));
+        assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectMin()));
+        assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectMax()));
+        assertThrows(IllegalArgumentException.class, () -> isComplete(new TestInCompleteObjectMix()));
     }
 
-    class TestCompleteObject {
+    static class TestCompleteObject {
         @FieldContext(required = true)
         String required = "I am not null";
         @FieldContext(required = false)
@@ -268,25 +243,24 @@ public class PulsarConfigurationLoaderTest {
         int minValue = 2;
         @FieldContext(minValue = 1, maxValue = 3)
         int minMaxValue = 2;
-
     }
 
-    class TestInCompleteObjectRequired {
+    static class TestInCompleteObjectRequired {
         @FieldContext(required = true)
         String inValidRequired;
     }
 
-    class TestInCompleteObjectMin {
+    static class TestInCompleteObjectMin {
         @FieldContext(minValue = 1, maxValue = 3)
         long inValidMin = 0;
     }
 
-    class TestInCompleteObjectMax {
+    static class TestInCompleteObjectMax {
         @FieldContext(minValue = 1, maxValue = 3)
         long inValidMax = 4;
     }
 
-    class TestInCompleteObjectMix {
+    static class TestInCompleteObjectMix {
         @FieldContext(required = true)
         String inValidRequired;
         @FieldContext(minValue = 1, maxValue = 3)

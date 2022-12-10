@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -71,4 +71,9 @@ public interface PublishRateLimiter extends AutoCloseable {
      * @param bytes
      */
     boolean tryAcquire(int numbers, long bytes);
+
+    /**
+     * Close the limiter.
+     */
+    void close();
 }

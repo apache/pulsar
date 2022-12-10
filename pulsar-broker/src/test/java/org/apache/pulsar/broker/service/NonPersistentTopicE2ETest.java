@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,11 +37,12 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -82,7 +83,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
     @Test(groups = "broker")
     public void testGCWillDeleteSchema() throws Exception {
         // 1. Simple successful GC
-        String topicName = "non-persistent://prop/ns-abc/topic-1";
+        final String topicName = "non-persistent://prop/ns-abc/topic-1";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
@@ -99,56 +100,57 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(topicHasSchema(topicName));
         runGC();
 
-        topic = getTopic(topicName);
-        assertFalse(topic.isPresent());
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(getTopic(topicName).isPresent());
+        });
         assertFalse(topicHasSchema(topicName));
 
         // 1a. Topic that add/removes subscription can be GC'd
-        topicName = "non-persistent://prop/ns-abc/topic-1a";
+        final String topicName2 = "non-persistent://prop/ns-abc/topic-1a";
         String subName = "sub1";
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
-        topic = getTopic(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName2).subscriptionName(subName).subscribe();
+        topic = getTopic(topicName2);
         assertTrue(topic.isPresent());
         topic.get().addSchema(schemaData).join();
-        assertTrue(topicHasSchema(topicName));
+        assertTrue(topicHasSchema(topicName2));
 
-        admin.topics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName2, subName);
         consumer.close();
 
         runGC();
-        topic = getTopic(topicName);
-        assertFalse(topic.isPresent());
-        assertFalse(topicHasSchema(topicName));
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(getTopic(topicName2).isPresent());
+        });
+        assertFalse(topicHasSchema(topicName2));
 
         // 2. Topic is not GCed with live connection
-        topicName = "non-persistent://prop/ns-abc/topic-2";
+        final String topicName3 = "non-persistent://prop/ns-abc/topic-2";
         subName = "sub1";
-        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
-        topic = getTopic(topicName);
+        consumer = pulsarClient.newConsumer().topic(topicName3).subscriptionName(subName).subscribe();
+        topic = getTopic(topicName3);
         assertTrue(topic.isPresent());
         topic.get().addSchema(schemaData).join();
-        assertTrue(topicHasSchema(topicName));
+        assertTrue(topicHasSchema(topicName3));
 
         runGC();
-        topic = getTopic(topicName);
-        assertTrue(topic.isPresent());
-        assertTrue(topicHasSchema(topicName));
+        assertTrue(getTopic(topicName3).isPresent());
+        assertTrue(topicHasSchema(topicName3));
 
         // 3. Topic with subscription is not GCed even with no connections
         consumer.close();
 
         runGC();
-        topic = getTopic(topicName);
-        assertTrue(topic.isPresent());
-        assertTrue(topicHasSchema(topicName));
+        assertTrue(getTopic(topicName3).isPresent());
+        assertTrue(topicHasSchema(topicName3));
 
         // 4. Topic can be GCed after unsubscribe
-        admin.topics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName3, subName);
 
         runGC();
-        topic = getTopic(topicName);
-        assertFalse(topic.isPresent());
-        assertFalse(topicHasSchema(topicName));
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(getTopic(topicName3).isPresent());
+        });
+        assertFalse(topicHasSchema(topicName3));
     }
 
     @Test(groups = "broker")
@@ -197,7 +199,9 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
+        );
 
         // 2. Topic is not GCed with live connection
         String subName = "sub1";
@@ -235,10 +239,11 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topicGc, partitions);
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicGc).create();
         producer3.close();
-        assertTrue(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
-                TopicName.get(topicGc)).join().partitions == partitions);
+        assertEquals(partitions, pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
+                TopicName.get(topicGc)).join().partitions);
         runGC();
-        assertTrue(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
-                TopicName.get(topicGc)).join().partitions == 0);
+        Awaitility.await().untilAsserted(()->
+                assertEquals(pulsar.getBrokerService().
+                        fetchPartitionedTopicMetadataAsync(TopicName.get(topicGc)).join().partitions, 0));
     }
 }
