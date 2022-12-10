@@ -37,9 +37,12 @@ public interface NamespaceUnloadStrategy {
      * @param context The context used for decisions.
      * @param recentlyUnloadedBundles
      *           The recently unloaded bundles.
+     * @param recentlyUnloadedBrokers
+     *           The recently unloaded brokers.
      * @return A list of the bundles that should be unloaded.
      */
     List<Unload> findBundlesForUnloading(LoadManagerContext context,
-                                         Map<String, Long> recentlyUnloadedBundles);
+                                         Map<String, Long> recentlyUnloadedBundles,
+                                         Map<String, Long> recentlyUnloadedBrokers);
 
 }

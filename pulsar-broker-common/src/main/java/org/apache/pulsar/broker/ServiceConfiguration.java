@@ -2450,6 +2450,53 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long namespaceBundleUnloadingTimeoutMs = 60000;
 
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Option to enable the debug mode for TransferShedder. The debug mode prints more logs. "
+                    + "(only used by TransferSheddeer)"
+    )
+    private boolean loadBalancerExtentionsTransferShedderDebugModeEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The target standard deviation of the resource usage across brokers "
+                    + "(100% resource usage is 1.0 load)."
+                    + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
+                    + "(only used by TransferSheddeer)"
+    )
+    private double loadBalancerExtentionsTransferShedderTargetLoadStd = 0.25;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Option to enable the bundle transfer mode. "
+                    + "The transfer mode transfers bundles from source brokers to destination brokers. "
+                    + "(only used by TransferSheddeer)"
+    )
+    private boolean loadBalancerExtentionsTransferShedderTransferEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "maximum number of brokers to transfer bundle load for each unloading cycle."
+                    + " (only used by TransferSheddeer)"
+    )
+    private int loadBalancerExtentionsTransferShedderMaxNumberOfBrokerTransfersPerCycle = 3;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "minimum waiting time (in seconds) to update the next broker load data after transfers. "
+                    + "The logic tries to give enough time for each broker to recompute its load after unloading. "
+                    + "(only used by TransferSheddeer)"
+    )
+    private long loadBalancerExtentionsTransferShedderBrokerLoadDataUpdateMinWaitingTimeAfterUnloadingInSeconds = 180;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "maximum waiting time (in seconds) to update the broker load data. "
+                    + "The logic tries to avoid outdated broker load data. "
+                    + "(only used by TransferSheddeer)"
+    )
+    private long loadBalancerExtentionsTransferShedderLoadUpdateMaxWaitingTimeInSeconds = 300;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
