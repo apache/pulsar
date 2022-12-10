@@ -342,7 +342,7 @@ public abstract class NamespacesBase extends AdminResource {
                     NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                                     .getBundles(namespaceName);
                     for (NamespaceBundle bundle : bundles.getBundles()) {
-                                // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
+                        // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
                         deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle)
                                 .thenCompose(ownership -> {
                                     if (ownership.isPresent()) {
