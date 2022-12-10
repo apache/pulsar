@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
@@ -54,6 +56,7 @@ import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -111,6 +114,9 @@ public class ProxyService implements Closeable {
     @Setter
     protected int proxyLogLevel;
 
+    @Getter
+    protected boolean proxyZeroCopyModeEnabled;
+
     private final ScheduledExecutorService statsExecutor;
 
     static final Gauge ACTIVE_CONNECTIONS = Gauge
@@ -140,6 +146,9 @@ public class ProxyService implements Closeable {
 
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
+
+    @Getter
+    private final ConnectionController connectionController;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
@@ -197,6 +206,9 @@ public class ProxyService implements Closeable {
         } else {
             proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
         }
+        this.connectionController = new ConnectionController.DefaultConnectionController(
+                proxyConfig.getMaxConcurrentInboundConnections(),
+                proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
     }
 
     public void start() throws Exception {
@@ -222,8 +234,15 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
-        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        Class<? extends ServerSocketChannel> serverSocketChannelClass =
+                EventLoopUtil.getServerSocketChannelClass(workerGroup);
+        bootstrap.channel(serverSocketChannelClass);
         EventLoopUtil.enableTriggeredMode(bootstrap);
+
+        if (proxyConfig.isProxyZeroCopyModeEnabled()
+                && EpollServerSocketChannel.class.isAssignableFrom(serverSocketChannelClass)) {
+            proxyZeroCopyModeEnabled = true;
+        }
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
@@ -428,12 +447,12 @@ public class ProxyService implements Closeable {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getMetadataStoreUrl(),
+        return PulsarResources.createLocalMetadataStore(proxyConfig.getMetadataStoreUrl(),
                 proxyConfig.getMetadataStoreSessionTimeoutMillis());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
+        return PulsarResources.createConfigMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
                 proxyConfig.getMetadataStoreSessionTimeoutMillis());
     }
 

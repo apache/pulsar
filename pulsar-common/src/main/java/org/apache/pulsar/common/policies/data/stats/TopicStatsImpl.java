@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -99,6 +101,10 @@ public class TopicStatsImpl implements TopicStats {
     /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
     public long lastOffloadFailureTimeStamp;
 
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -129,12 +135,20 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    public int delayedMessageIndexSizeInBytes;
+
     /** The compaction stats. */
     public CompactionStatsImpl compaction;
 
+    /** The broker that owns this topic. */
+    public String ownerBroker;
+
     public List<? extends PublisherStats> getPublishers() {
-        return Stream.concat(publishers.stream().sorted(Comparator.comparing(PublisherStatsImpl::getProducerName)),
-                publishersMap.values().stream().sorted(Comparator.comparing(PublisherStatsImpl::getProducerName)))
+        return Stream.concat(publishers.stream().sorted(
+                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
+                        publishersMap.values().stream().sorted(
+                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -145,9 +159,10 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     public void addPublisher(PublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer()) {
+        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
             publishersMap.put(stats.getProducerName(), stats);
         } else {
+            stats.setSupportsPartialProducer(false); // setter method with side effect
             publishers.add(stats);
         }
     }
@@ -195,7 +210,9 @@ public class TopicStatsImpl implements TopicStats {
         this.lastOffloadFailureTimeStamp = 0;
         this.lastOffloadSuccessTimeStamp = 0;
         this.publishRateLimitedTimes = 0L;
+        this.delayedMessageIndexSizeInBytes = 0;
         this.compaction.reset();
+        this.ownerBroker = null;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -221,9 +238,13 @@ public class TopicStatsImpl implements TopicStats {
         this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
+        this.ongoingTxnCount = stats.ongoingTxnCount;
+        this.abortedTxnCount = stats.abortedTxnCount;
+        this.committedTxnCount = stats.committedTxnCount;
 
         stats.getPublishers().forEach(s -> {
-           if (s.isSupportsPartialProducer()) {
+           if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
                    newStats.setSupportsPartialProducer(true);

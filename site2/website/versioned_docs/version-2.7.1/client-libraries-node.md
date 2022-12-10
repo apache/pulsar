@@ -1,7 +1,7 @@
 ---
-id: version-2.7.1-client-libraries-node
+id: client-libraries-node
 title: The Pulsar Node.js client
-sidebar_label: Node.js
+sidebar_label: "Node.js"
 original_id: client-libraries-node
 ---
 
@@ -34,12 +34,16 @@ If an incompatible version of the C++ client is installed, you may fail to build
 Install the `pulsar-client` library via [npm](https://www.npmjs.com/):
 
 ```shell
+
 $ npm install pulsar-client
+
 ```
 
-> #### Note
-> 
-> Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
+:::note
+
+Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
+
+:::
 
 ## Connection URLs
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
@@ -47,19 +51,25 @@ To connect to Pulsar using client libraries, you need to specify a [Pulsar proto
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here is an example for `localhost`:
 
 ```http
+
 pulsar://localhost:6650
+
 ```
 
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
+
 pulsar://pulsar.us-west.example.com:6650
+
 ```
 
 If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL will look like something like this:
 
 ```http
+
 pulsar+ssl://pulsar.us-west.example.com:6651
+
 ```
 
 ## Create a client
@@ -69,6 +79,7 @@ In order to interact with Pulsar, you will first need a client object. You can c
 Here is an example:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -78,6 +89,7 @@ const Pulsar = require('pulsar-client');
   
   await client.close();
 })();
+
 ```
 
 ### Client configuration
@@ -105,6 +117,7 @@ Pulsar producers publish messages to Pulsar topics. You can [configure](#produce
 Here is an example:
 
 ```JavaScript
+
 const producer = await client.createProducer({
   topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace
 });
@@ -114,6 +127,7 @@ await producer.send({
 });
 
 await producer.close();
+
 ```
 
 > #### Promise operation
@@ -154,6 +168,7 @@ Pulsar Node.js producers have the following methods available:
 This example creates a Node.js producer for the `my-topic` topic and sends 10 messages to that topic:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -180,6 +195,7 @@ const Pulsar = require('pulsar-client');
   await producer.close();
   await client.close();
 })();
+
 ```
 
 ## Consumers
@@ -189,6 +205,7 @@ Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming 
 Here is an example:
 
 ```JavaScript
+
 const consumer = await client.subscribe({
   topic: 'my-topic',
   subscription: 'my-subscription',
@@ -199,6 +216,7 @@ console.log(msg.getData().toString());
 consumer.acknowledge(msg);
 
 await consumer.close();
+
 ```
 
 > #### Promise operation
@@ -236,13 +254,14 @@ Pulsar Node.js consumers have the following methods available:
 | `consumerName` | The name of consumer. Currently(v2.4.1), [failover](concepts-messaging.md#failover) mode use consumer name in ordering. | |
 | `properties` | The metadata of consumer. | |
 | `listener`| A listener that is called for a message received. | |
-| `readCompacted`| If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br/><br/>A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br/><br/> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | false |
+| `readCompacted`| If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br /> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | false |
 
 ### Consumer example
 
 This example creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, receives messages, prints the content that arrive, and acknowledges each message to the Pulsar broker for 10 times:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -268,11 +287,13 @@ const Pulsar = require('pulsar-client');
   await consumer.close();
   await client.close();
 })();
+
 ```
 
 Instead a consumer can be created with `listener` to process messages.
 
 ```JavaScript
+
 // Create a consumer
 const consumer = await client.subscribe({
   topic: 'my-topic',
@@ -283,6 +304,7 @@ const consumer = await client.subscribe({
     msgConsumer.acknowledge(msg);
   },
 });
+
 ```
 
 ## Readers
@@ -292,6 +314,7 @@ Pulsar readers process messages from Pulsar topics. Readers are different from c
 Here is an example:
 
 ```JavaScript
+
 const reader = await client.createReader({
   topic: 'my-topic',
   startMessageId: Pulsar.MessageId.earliest(),
@@ -301,6 +324,7 @@ const msg = await reader.readNext();
 console.log(msg.getData().toString());
 
 await reader.close();
+
 ```
 
 ### Reader operations
@@ -323,7 +347,7 @@ Pulsar Node.js readers have the following methods available:
 | `receiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `readNext`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000 |
 | `readerName` | The name of the reader. |  |
 | `subscriptionRolePrefix` | The subscription role prefix. | |
-| `readCompacted` | If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br/><br/>A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br/><br/> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | `false` |
+| `readCompacted` | If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br /> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | `false` |
 
 
 ### Reader example
@@ -331,6 +355,7 @@ Pulsar Node.js readers have the following methods available:
 This example creates a Node.js reader with the `my-topic` topic, reads messages, and prints the content that arrive for 10 times:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -355,6 +380,7 @@ const Pulsar = require('pulsar-client');
   await reader.close();
   await client.close();
 })();
+
 ```
 
 ## Messages
@@ -364,6 +390,7 @@ In Pulsar Node.js client, you have to construct producer message object for prod
 Here is an example message:
 
 ```JavaScript
+
 const msg = {
   data: Buffer.from('Hello, Pulsar'),
   partitionKey: 'key1',
@@ -378,6 +405,7 @@ const msg = {
 }
 
 await producer.send(msg);
+
 ```
 
 The following keys are available for producer message objects:

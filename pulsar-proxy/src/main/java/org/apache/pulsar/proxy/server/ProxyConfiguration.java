@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -39,6 +40,7 @@ import org.apache.pulsar.common.configuration.PropertiesContext;
 import org.apache.pulsar.common.configuration.PropertyContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 @Getter
@@ -98,7 +100,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         deprecated = true,
-        doc = "Configuration store connection string (as a comma-separated list)"
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;
@@ -129,6 +132,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Metadata store cache expiry time in seconds."
     )
     private int metadataStoreCacheExpirySeconds = 300;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Max size of messages.",
+            maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     @Deprecated
     @FieldContext(
@@ -236,6 +245,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
+
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enables zero-copy transport of data across network interfaces using the spice. "
+                    + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")
+    private boolean proxyZeroCopyModeEnabled = true;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -379,6 +393,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentInboundConnections = 10000;
 
     @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int maxConcurrentInboundConnectionsPerIp = 0;
+
+
+    @FieldContext(
         category = CATEGORY_RATE_LIMITING,
         doc = "Max concurrent lookup requests. The proxy will reject requests beyond that"
     )
@@ -399,6 +420,17 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private String brokerClientTrustCertsFilePath;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_AUTHENTICATION,
+            doc = "The path to TLS private key used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientKeyFilePath;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_AUTHENTICATION,
+            doc = "The path to the TLS certificate used by the Pulsar proxy to authenticate with Pulsar brokers")
+    private String brokerClientCertificateFilePath;
 
     @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
@@ -540,6 +572,25 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String brokerClientSslProvider = null;
 
     // needed when client auth is required
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration for proxy: JKS, PKCS12 "
+                    + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStoreType = "JKS";
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path for internal client, "
+                    + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStore = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for proxy, "
+                    + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    @ToString.Exclude
+    private String brokerClientTlsKeyStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore type configuration for proxy: JKS, PKCS12 "

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -77,7 +77,7 @@ public class TopicLookup extends TopicLookupBase {
                     if (log.isDebugEnabled()) {
                         log.debug("Failed to check exist for topic {} when lookup", topicName, ex);
                     }
-                    completeLookupResponseExceptionally(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }

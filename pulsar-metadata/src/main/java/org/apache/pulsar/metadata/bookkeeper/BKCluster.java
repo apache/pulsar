@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static org.apache.commons.io.FileUtils.cleanDirectory;
 import java.io.File;
 import java.io.IOException;
 import java.net.NetworkInterface;
@@ -29,9 +30,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -56,8 +60,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 @Slf4j
 public class BKCluster implements AutoCloseable {
 
-    // Metadata service related variables
-    private final String metadataServiceUri;
+    private final BKClusterConf clusterConf;
 
     @Getter
     private final MetadataStoreExtended store;
@@ -65,21 +68,77 @@ public class BKCluster implements AutoCloseable {
     // BookKeeper related variables
     private final List<File> tmpDirs = new ArrayList<>();
     private final List<LifecycleComponentStack> bookieComponents = new ArrayList<>();
+    @Getter
     private final List<ServerConfiguration> bsConfs = new ArrayList<>();
 
-    protected final ServerConfiguration baseConf = newBaseServerConfiguration();
-    protected final ClientConfiguration baseClientConf = newBaseClientConfiguration();
+    protected final ServerConfiguration baseConf;
+    protected final ClientConfiguration baseClientConf;
 
+    public static class BKClusterConf {
 
-    public BKCluster(String metadataServiceUri, int numBookies) throws Exception {
-        this.metadataServiceUri = metadataServiceUri;
-        this.store = MetadataStoreExtended.create(metadataServiceUri, MetadataStoreConfig.builder().build());
+        private ServerConfiguration baseServerConfiguration;
+        private String metadataServiceUri;
+        private int numBookies = 1;
+        private String dataDir;
+        private int bkPort = 0;
+
+        private boolean clearOldData;
+
+        public BKClusterConf baseServerConfiguration(ServerConfiguration baseServerConfiguration) {
+            this.baseServerConfiguration = baseServerConfiguration;
+            return this;
+        }
+
+        public BKClusterConf metadataServiceUri(String metadataServiceUri) {
+            this.metadataServiceUri = metadataServiceUri;
+            return this;
+        }
+
+        public BKClusterConf numBookies(int numBookies) {
+            this.numBookies = numBookies;
+            return this;
+        }
+
+        public BKClusterConf dataDir(String dataDir) {
+            this.dataDir = dataDir;
+            return this;
+        }
+
+        public BKClusterConf bkPort(int bkPort) {
+            this.bkPort = bkPort;
+            return this;
+        }
+
+        public BKClusterConf clearOldData(boolean clearOldData) {
+            this.clearOldData = clearOldData;
+            return this;
+        }
+
+        public BKCluster build() throws Exception {
+            return new BKCluster(this);
+        }
+    }
+
+    public static BKClusterConf builder() {
+        return new BKClusterConf();
+    }
+
+    private BKCluster(BKClusterConf bkClusterConf) throws Exception {
+        this.clusterConf = bkClusterConf;
+
+        this.baseConf = bkClusterConf.baseServerConfiguration != null
+                ? bkClusterConf.baseServerConfiguration : newBaseServerConfiguration();
+        this.baseClientConf = newBaseClientConfiguration();
+
+        this.store =
+                MetadataStoreExtended.create(clusterConf.metadataServiceUri, MetadataStoreConfig.builder()
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         baseConf.setJournalRemovePagesFromCache(false);
         baseConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         baseClientConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
-        startBKCluster(numBookies);
+        startBKCluster(bkClusterConf.numBookies);
     }
 
     private final Map<BookieServer, AutoRecoveryMain> autoRecoveryProcesses = new HashMap<>();
@@ -121,12 +180,12 @@ public class BKCluster implements AutoCloseable {
         PulsarRegistrationManager rm = new PulsarRegistrationManager(store, "/ledgers", baseConf);
         rm.initNewCluster();
 
-        baseConf.setMetadataServiceUri("metadata-store:" + metadataServiceUri);
-        baseClientConf.setMetadataServiceUri("metadata-store:" + metadataServiceUri);
+        baseConf.setMetadataServiceUri("metadata-store:" + clusterConf.metadataServiceUri);
+        baseClientConf.setMetadataServiceUri("metadata-store:" + clusterConf.metadataServiceUri);
 
         // Create Bookie Servers (B1, B2, B3)
         for (int i = 0; i < numBookies; i++) {
-            startNewBookie();
+            startNewBookie(i);
         }
     }
 
@@ -151,21 +210,47 @@ public class BKCluster implements AutoCloseable {
         }
     }
 
-    private ServerConfiguration newServerConfiguration() throws Exception {
-        File f = createTempDir("bookie", "test");
+    private ServerConfiguration newServerConfiguration(int index) throws Exception {
+        File dataDir;
+        if (clusterConf.dataDir != null) {
+            if (index == 0) {
+                dataDir = new File(clusterConf.dataDir);
+            } else {
+                dataDir = new File(clusterConf.dataDir + "/" + index);
+            }
+        } else {
+            // Use temp dir and clean it up later
+            dataDir = createTempDir("bookie",  "test-" + index);
+        }
+
+        if (clusterConf.clearOldData && dataDir.exists()) {
+            cleanDirectory(dataDir);
+        }
 
         int port;
-        /*
+        if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts() || clusterConf.bkPort == 0) {
+            port = PortManager.nextFreePort();
+        } else {
             // bk 4.15 cookie validation finds the same ip:port in case of port 0
             // and 2nd bookie's cookie validation fails
-            if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
-                port = PortManager.nextFreePort();
-            } else {
-                port = 0;
+            port = clusterConf.bkPort;
+        }
+        File[] cookieDir = dataDir.listFiles((file) -> file.getName().equals("current"));
+        if (cookieDir != null && cookieDir.length > 0) {
+            String existBookieAddr = parseBookieAddressFromCookie(cookieDir[0]);
+            if (existBookieAddr != null) {
+                baseConf.setAdvertisedAddress(existBookieAddr.split(":")[0]);
+                port = Integer.parseInt(existBookieAddr.split(":")[1]);
             }
-        */
-        port = PortManager.nextFreePort();
-        return newServerConfiguration(port, f, new File[]{f});
+        }
+        return newServerConfiguration(port, dataDir, new File[]{dataDir});
+    }
+
+    private String parseBookieAddressFromCookie(File dir) throws IOException {
+        Cookie cookie = Cookie.readFromDirectory(dir);
+        Pattern pattern = Pattern.compile(".*bookieHost: \"(.*?)\".*", Pattern.DOTALL);
+        Matcher m = pattern.matcher(cookie.toString());
+        return m.find() ? m.group(1) : null;
     }
 
     private ClientConfiguration newClientConfiguration() {
@@ -206,12 +291,12 @@ public class BKCluster implements AutoCloseable {
      * Helper method to startup a new bookie server with the indicated port
      * number. Also, starts the auto recovery process, if the
      * isAutoRecoveryEnabled is set true.
-     *
+     * @param index Bookie index
      * @throws IOException
      */
-    public int startNewBookie()
+    public int startNewBookie(int index)
             throws Exception {
-        ServerConfiguration conf = newServerConfiguration();
+        ServerConfiguration conf = newServerConfiguration(index);
         bsConfs.add(conf);
         log.info("Starting new bookie on port: {}", conf.getBookiePort());
         LifecycleComponentStack server = startBookie(conf);
@@ -264,14 +349,15 @@ public class BKCluster implements AutoCloseable {
         }
     }
 
-    private static ServerConfiguration newBaseServerConfiguration() {
+    private ServerConfiguration newBaseServerConfiguration() {
         ServerConfiguration confReturn = new ServerConfiguration();
         confReturn.setTLSEnabledProtocols("TLSv1.2,TLSv1.1");
         confReturn.setJournalFlushWhenQueueEmpty(true);
         confReturn.setJournalFormatVersionToWrite(5);
         confReturn.setAllowEphemeralPorts(true);
         confReturn.setJournalWriteData(false);
-        confReturn.setBookiePort(0);
+        confReturn.setProperty("journalPreAllocSizeMB", 1);
+        confReturn.setBookiePort(clusterConf.bkPort);
         confReturn.setGcWaitTime(1000L);
         confReturn.setDiskUsageThreshold(0.999F);
         confReturn.setDiskUsageWarnThreshold(0.99F);

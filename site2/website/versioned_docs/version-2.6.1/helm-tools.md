@@ -1,7 +1,7 @@
 ---
-id: version-2.6.1-helm-tools
+id: helm-tools
 title: Required tools for deploying Pulsar Helm Chart
-sidebar_label: Required Tools
+sidebar_label: "Required Tools"
 original_id: helm-tools
 ---
 

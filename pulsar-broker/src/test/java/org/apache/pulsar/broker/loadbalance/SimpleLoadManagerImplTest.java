@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -29,7 +29,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
@@ -109,7 +108,7 @@ public class SimpleLoadManagerImplTest {
         ServiceConfiguration config1 = spy(ServiceConfiguration.class);
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
-        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
@@ -129,7 +128,7 @@ public class SimpleLoadManagerImplTest {
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
-        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
@@ -202,7 +201,7 @@ public class SimpleLoadManagerImplTest {
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
@@ -252,7 +251,7 @@ public class SimpleLoadManagerImplTest {
         rankings.put(ru1, ranking);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "resourceUnitRankings", rankings);
 
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "sortedRankings", sortedRankingsInstance);
 
@@ -278,7 +277,7 @@ public class SimpleLoadManagerImplTest {
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
@@ -336,7 +335,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
-        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgs(SimpleLoadManagerImpl.class, pulsar1);
+        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -349,7 +348,7 @@ public class SimpleLoadManagerImplTest {
         rus.add(ru1);
         rus.add(ru2);
         LoadRanker lr = new ResourceAvailabilityRanker();
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
@@ -359,7 +358,7 @@ public class SimpleLoadManagerImplTest {
         // inject the load report and rankings
         SystemResourceUsage systemResource = new SystemResourceUsage();
         systemResource.setBandwidthIn(new ResourceUsage(90, 100));
-        Map<String, NamespaceBundleStats> stats = Maps.newHashMap();
+        Map<String, NamespaceBundleStats> stats = new HashMap<>();
         NamespaceBundleStats nsb1 = new NamespaceBundleStats();
         nsb1.msgRateOut = 10000;
         NamespaceBundleStats nsb2 = new NamespaceBundleStats();
@@ -455,14 +454,14 @@ public class SimpleLoadManagerImplTest {
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
 
-        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager);
+        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null);
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
     }
 
     @Test
     public void testUsage() {
-        Map<String, Object> metrics = Maps.newHashMap();
+        Map<String, Object> metrics = new HashMap<>();
         metrics.put("brk_conn_cnt", 1L);
         metrics.put("brk_repl_conn_cnt", 1L);
         metrics.put("jvm_thread_cnt", 1L);

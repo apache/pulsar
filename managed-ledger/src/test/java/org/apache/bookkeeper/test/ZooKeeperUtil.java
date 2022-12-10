@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,7 @@
 
 package org.apache.bookkeeper.test;
 
-import static org.junit.Assert.assertTrue;
-
+import static org.testng.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -145,8 +144,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         if (0 == zooKeeperPort) {
             zooKeeperPort = serverFactory.getLocalPort();
-            zkaddr = new InetSocketAddress(zkaddr.getHostName(), zooKeeperPort);
-            connectString = zkaddr.getHostName() + ":" + zooKeeperPort;
+            zkaddr = new InetSocketAddress(zkaddr.getAddress().getHostAddress(), zooKeeperPort);
+            connectString = zkaddr.getAddress().getHostAddress() + ":" + zooKeeperPort;
         }
 
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(),
@@ -199,9 +198,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
         // shutdown ZK server
         if (serverFactory != null) {
             serverFactory.shutdown();
-            assertTrue("waiting for server down",
-                    ClientBase.waitForServerDown(getZooKeeperConnectString(),
-                            ClientBase.CONNECTION_TIMEOUT));
+            assertTrue(ClientBase.waitForServerDown(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT),
+                    "waiting for server down");
         }
         if (zks != null) {
             zks.getTxnLogFactory().close();

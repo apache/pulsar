@@ -159,7 +159,7 @@ functionRuntimeFactoryConfigs:
 #### Kubernetes Runtime ####
 # Pulsar function are deployed to Kubernetes
 
-# Upload the builtin sources/sinks to BookKeeper.
+# Upload the builtin sources/sinks/functions to BookKeeper.
 # True by default.
 # uploadBuiltinSinksSources: true
 #functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory
@@ -397,6 +397,26 @@ validateConnectorConfig: false
 # Whether to initialize distributed log metadata by runtime.
 # If it is set to true, you must ensure that it has been initialized by "bin/pulsar initialize-cluster-metadata" command.
 initializedDlogMetadata: false
+
+###########################
+# Arbitrary Configuration
+###########################
+# When a configuration parameter is not explicitly named in the WorkerConfig class, it is only accessible from the
+# properties map. This map can be configured by supplying values to the properties map in this config file.
+
+# Configure the DLog bookkeeper client by prefixing configurations with "bookkeeper_". Because these are arbitrary, they
+# must be added to the properties map to get correctly applied. This configuration applies to the Dlog bookkeeper client
+# in both the standalone function workers and function workers initialized in the broker.
+
+# You can add extra configuration options for the Pulsar Client and the Pulsar Admin Client
+# by prefixing them with "brokerClient_". These configurations are applied after hard coded configuration
+# and before the above brokerClient configurations named above.
+
+## For example, when using the token authentication provider (AuthenticationProviderToken), you must configure several
+## custom configurations. Here is a sample for configuring one of the necessary configs:
+#properties:
+#    tokenPublicKey: "file:///path/to/my/key"
+#    tokenPublicAlg: "RSA256"
 
 ### --- Deprecated settings --- ###
 configurationStoreServers: localhost:2181

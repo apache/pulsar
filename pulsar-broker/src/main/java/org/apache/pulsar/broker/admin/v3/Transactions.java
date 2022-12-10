@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -50,6 +51,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
 @Slf4j
 public class Transactions extends TransactionsBase {
+
+    @GET
+    @Path("/coordinators")
+    @ApiOperation(value = "List transaction coordinators.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true.")})
+    public void listCoordinators(@Suspended final AsyncResponse asyncResponse) {
+        checkTransactionCoordinatorEnabled();
+        internalListCoordinators(asyncResponse);
+    }
 
     @GET
     @Path("/coordinatorStats")
@@ -157,11 +169,13 @@ public class Transactions extends TransactionsBase {
                                           @DefaultValue("false") boolean authoritative,
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
-                                          @PathParam("topic") @Encoded String encodedTopic) {
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @QueryParam("lowWaterMarks") @DefaultValue("false")
+                                                      boolean lowWaterMarks) {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetTransactionBufferStats(authoritative)
+            internalGetTransactionBufferStats(authoritative, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (!isRedirectException(ex)) {
@@ -192,11 +206,12 @@ public class Transactions extends TransactionsBase {
                                    @PathParam("tenant") String tenant,
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic,
-                                   @PathParam("subName") String subName) {
+                                   @PathParam("subName") String subName,
+                                   @QueryParam("lowWaterMarks") @DefaultValue("false") boolean lowWaterMarks) {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPendingAckStats(authoritative, subName)
+            internalGetPendingAckStats(authoritative, subName, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (!isRedirectException(ex)) {
@@ -339,4 +354,45 @@ public class Transactions extends TransactionsBase {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
+
+    @GET
+    @Path("/positionStatsInPendingAck/{tenant}/{namespace}/{topic}/{subName}/{ledgerId}/{entryId}")
+    @ApiOperation(value = "Get position stats in pending ack.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or subscription name doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 405, message = "Pending ack handle don't use managedLedger!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getPositionStatsInPendingAck(@Suspended final AsyncResponse asyncResponse,
+                                             @QueryParam("authoritative")
+                                             @DefaultValue("false") boolean authoritative,
+                                             @PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace,
+                                             @PathParam("topic") @Encoded String encodedTopic,
+                                             @PathParam("subName") String subName,
+                                             @PathParam("ledgerId") Long ledgerId,
+                                             @PathParam("entryId") Long entryId,
+                                             @QueryParam("batchIndex") Integer batchIndex) {
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            PositionImpl position = new PositionImpl(ledgerId, entryId);
+            internalGetPositionStatsPendingAckStats(authoritative, subName, position, batchIndex)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
+                                clientAppId(), position, topicName, subName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            log.warn("Failed to get position stats in pending ack", ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
+    }
+
 }

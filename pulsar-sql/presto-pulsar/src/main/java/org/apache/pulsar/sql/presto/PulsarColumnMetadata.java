@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.Type;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.type.Type;
 import java.util.Objects;
 
 /**
@@ -128,7 +128,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
     /**
      * Decoder extra info for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
-     * used by {@link io.prestosql.decoder.RowDecoder}.
+     * used by {@link io.trino.decoder.RowDecoder}.
      */
     public static class DecoderExtraInfo {
 

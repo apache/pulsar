@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,8 +49,7 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
                                           AuthenticationDataProvider authData,
                                           Set<String> ciphers,
                                           Set<String> protocols,
-                                          long delayInSeconds)
-            throws IOException, GeneralSecurityException {
+                                          long delayInSeconds) {
         super(delayInSeconds);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);

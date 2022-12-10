@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -283,10 +283,11 @@ class AdminProxyHandler extends ProxyServlet {
                         );
                     }
 
-
-                    SslContextFactory contextFactory = new SslContextFactory.Client(true);
+                    SslContextFactory contextFactory = new SslContextFactory.Client();
                     contextFactory.setSslContext(sslCtx);
-
+                    if (!config.isTlsHostnameVerificationEnabled()) {
+                        contextFactory.setEndpointIdentificationAlgorithm(null);
+                    }
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
                     LOG.error("new jetty http client exception ", e);

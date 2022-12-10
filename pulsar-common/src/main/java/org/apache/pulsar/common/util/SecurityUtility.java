@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.BufferedReader;
@@ -57,7 +58,9 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -121,7 +124,12 @@ public class SecurityUtility {
             conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             conscryptClazz.getMethod("checkAvailability").invoke(null);
         } catch (Throwable e) {
-            log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            if (e.getCause() instanceof UnsatisfiedLinkError) {
+                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
+                        System.getProperty("os.name"), System.getProperty("os.arch"));
+            } else {
+                log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            }
             return null;
         }
 
@@ -246,8 +254,11 @@ public class SecurityUtility {
         if (allowInsecureConnection) {
             sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
-            TrustManagerProxy trustManager = new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
-            sslContexBuilder.trustManager(trustManager);
+            if (StringUtils.isNotBlank(trustCertsFilePath)) {
+                TrustManagerProxy trustManager =
+                        new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
+                sslContexBuilder.trustManager(trustManager);
+            }
         }
         return sslContexBuilder.build();
     }
@@ -546,6 +557,13 @@ public class SecurityUtility {
         } else {
             builder.clientAuth(ClientAuth.OPTIONAL);
         }
+    }
+
+    public static void configureSSLHandler(SslHandler handler) {
+        SSLEngine sslEngine = handler.engine();
+        SSLParameters sslParameters = sslEngine.getSSLParameters();
+        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+        sslEngine.setSSLParameters(sslParameters);
     }
 
     public static Provider resolveProvider(String providerName) throws NoSuchAlgorithmException {

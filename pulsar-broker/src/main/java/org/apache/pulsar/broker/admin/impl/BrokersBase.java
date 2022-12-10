@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -112,6 +112,20 @@ public class BrokersBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Get the list of active brokers (web service addresses) in the local cluster."
+                    + "If authorization is not enabled",
+            response = String.class,
+            responseContainer = "Set")
+    @ApiResponses(
+            value = {
+                    @ApiResponse(code = 401, message = "Authentication required"),
+                    @ApiResponse(code = 403, message = "This operation requires super-user access") })
+    public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse) throws Exception {
+        getActiveBrokers(asyncResponse, null);
     }
 
     @GET
