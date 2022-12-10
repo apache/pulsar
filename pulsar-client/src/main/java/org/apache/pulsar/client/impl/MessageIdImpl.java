@@ -25,6 +25,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -73,13 +74,7 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public String toString() {
-        return new StringBuilder()
-          .append(ledgerId)
-          .append(':')
-          .append(entryId)
-          .append(':')
-          .append(partitionIndex)
-          .toString();
+        return ledgerId + ":" + entryId + ":" + partitionIndex;
     }
 
     // / Serialization
@@ -208,10 +203,7 @@ public class MessageIdImpl implements MessageId {
     }
 
     @Override
-    public int compareTo(MessageId o) {
-        if (o == null) {
-            throw new UnsupportedOperationException("MessageId is null");
-        }
+    public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
             int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
@@ -228,16 +220,6 @@ public class MessageIdImpl implements MessageId {
 
     static int messageIdHashCode(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
         return (int) (31 * (ledgerId + 31 * entryId) + (31 * (long) partitionIndex) + batchIndex);
-    }
-
-    static boolean messageIdEquals(
-        long ledgerId1, long entryId1, int partitionIndex1, int batchIndex1,
-        long ledgerId2, long entryId2, int partitionIndex2, int batchIndex2
-    ) {
-        return ledgerId1 == ledgerId2
-            && entryId1 == entryId2
-            && partitionIndex1 == partitionIndex2
-            && batchIndex1 == batchIndex2;
     }
 
     static int messageIdCompare(

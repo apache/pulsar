@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
@@ -68,7 +69,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     }
 
     @Override
-    public int compareTo(MessageId o) {
+    public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
             int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
@@ -98,15 +99,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     @Override
     public String toString() {
-        return new StringBuilder()
-          .append(ledgerId)
-          .append(':')
-          .append(entryId)
-          .append(':')
-          .append(partitionIndex)
-          .append(':')
-          .append(batchIndex)
-          .toString();
+        return ledgerId + ":" + entryId + ":" + partitionIndex + ":" + batchIndex;
     }
 
     // Serialization
