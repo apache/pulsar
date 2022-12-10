@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,10 @@ package org.apache.pulsar.broker.admin.v3;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
@@ -45,14 +49,23 @@ public class PackagesApiNotEnabledTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 60000)
-    public void testPackagesOperationsWithoutPackagesServiceEnabled() {
+    public void testPackagesOperationsWithoutPackagesServiceEnabled() throws Exception {
         // download package api should return 503 Service Unavailable exception
         String unknownPackageName = "function://public/default/unknown@v1";
+        Path tmp = Files.createTempDirectory("package-test-tmp");
         try {
-            admin.packages().download(unknownPackageName, "/test/unknown");
+            admin.packages().download(unknownPackageName, tmp.toAbsolutePath().toString() + "/unknown");
             fail("should throw 503 error");
         } catch (PulsarAdminException e) {
             assertEquals(503, e.getStatusCode());
+        } finally {
+            Files.walk(tmp).sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
 
         // get metadata api should return 503 Service Unavailable exception

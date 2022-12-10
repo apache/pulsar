@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -81,7 +82,7 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
             log.error("The presto work container isn't exist.");
             return;
         }
-        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
+        String url = String.format("jdbc:trino://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
         connection = DriverManager.getConnection(url, "test", null);
     }
 

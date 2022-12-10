@@ -21,29 +21,15 @@ name: Pulsar Bot
 on:
   issue_comment:
     types: [created]
-  pull_request:
-    types: [closed]
-
-env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
-
-  action-runner:
-    name:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-
+  pulsarbot:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/pulsarbot')
     steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
       - name: Execute pulsarbot command
-        id:   pulsarbot
-        if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/pulsarbot')
+        id: pulsarbot
         env:
           GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master

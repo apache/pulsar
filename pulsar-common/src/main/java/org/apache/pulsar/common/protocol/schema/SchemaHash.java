@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,9 @@ package org.apache.pulsar.common.protocol.schema;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import java.util.Optional;
 import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -33,7 +33,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 @EqualsAndHashCode
 public class SchemaHash {
 
-    private static HashFunction hashFunction = Hashing.sha256();
+    private static final HashFunction hashFunction = Hashing.sha256();
+    private static final SchemaHash EMPTY_SCHEMA_HASH = new SchemaHash(hashFunction.hashBytes(new byte[0]), null);
 
     private final HashCode hash;
 
@@ -45,17 +46,30 @@ public class SchemaHash {
     }
 
     public static SchemaHash of(Schema schema) {
-        Optional<SchemaInfo> schemaInfo = Optional.ofNullable(schema).map(Schema::getSchemaInfo);
-        return of(schemaInfo.map(SchemaInfo::getSchema).orElseGet(() -> new byte[0]),
-                schemaInfo.map(SchemaInfo::getType).orElse(null));
+        if (schema == null || schema.getSchemaInfo() == null) {
+            return EMPTY_SCHEMA_HASH;
+        }
+        return ((SchemaInfoImpl) schema.getSchemaInfo()).getSchemaHash();
     }
 
     public static SchemaHash of(SchemaData schemaData) {
         return of(schemaData.getData(), schemaData.getType());
     }
 
-    private static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
-        return new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
+    public static SchemaHash of(SchemaInfo schemaInfo) {
+        if (schemaInfo == null) {
+            return EMPTY_SCHEMA_HASH;
+        }
+        return ((SchemaInfoImpl) schemaInfo).getSchemaHash();
+    }
+
+    public static SchemaHash empty() {
+        return EMPTY_SCHEMA_HASH;
+    }
+
+    // Shouldn't call this method frequently, otherwise will bring performance regression
+    public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
+        return new SchemaHash(hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
     }
 
     public byte[] asBytes() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,11 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.Maps;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -35,16 +35,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.slf4j.Logger;
@@ -74,9 +75,6 @@ public class LoadManagerShared {
             return new HashSet<>();
         }
     };
-
-    // update LoadReport at most every 5 seconds
-    public static final long LOAD_REPORT_UPDATE_MINIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
 
     private static final String DEFAULT_DOMAIN = "default";
 
@@ -225,7 +223,7 @@ public class LoadManagerShared {
 
         // Collect JVM direct memory
         systemResourceUsage.setDirectMemory(new ResourceUsage((double) (getJvmDirectMemoryUsed() / MIBI),
-                (double) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / MIBI)));
+                (double) (DirectMemoryUtils.jvmMaxDirectMemory() / MIBI)));
 
         return systemResourceUsage;
     }
@@ -391,7 +389,7 @@ public class LoadManagerShared {
             return;
         }
 
-        final Map<String, Integer> domainNamespaceCount = Maps.newHashMap();
+        final Map<String, Integer> domainNamespaceCount = new HashMap<>();
         int leastNamespaceCount = Integer.MAX_VALUE;
         candidates.forEach(broker -> {
             final String domain = brokerToDomainMap.getOrDefault(broker, DEFAULT_DOMAIN);
@@ -414,7 +412,6 @@ public class LoadManagerShared {
 
     /**
      * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given.
-     * {@param namespaceName}
      *
      * @param pulsar
      * @param namespaceName
@@ -436,7 +433,7 @@ public class LoadManagerShared {
             }
             final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
-            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
                 nsToBundleRange.forEach((ns, bundleRange) -> {
                     if (bundleRange.isEmpty()) {
@@ -533,7 +530,7 @@ public class LoadManagerShared {
 
     /**
      * It filters out brokers which owns topic higher than configured threshold at
-     * {@link ServiceConfiguration.loadBalancerBrokerMaxTopics}. <br/>
+     * ServiceConfiguration.loadBalancerBrokerMaxTopics. <br/>
      * if all the brokers own topic higher than threshold then it resets the list with original broker candidates
      *
      * @param brokerCandidateCache

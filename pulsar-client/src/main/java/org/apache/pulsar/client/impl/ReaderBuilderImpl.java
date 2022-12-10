@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -250,6 +250,24 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         if (interceptors != null) {
             this.conf.setReaderInterceptorList(Arrays.asList(interceptors));
         }
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage) {
+        conf.setMaxPendingChunkedMessage(maxPendingChunkedMessage);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull) {
+        conf.setAutoAckOldestChunkedMessageOnQueueFull(autoAckOldestChunkedMessageOnQueueFull);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
+        conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
         return this;
     }
 

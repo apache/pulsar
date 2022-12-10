@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Clusters;
@@ -35,6 +34,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
@@ -57,20 +57,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public CompletableFuture<List<String>> getClustersAsync() {
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(adminClusters,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> clusters) {
-                        future.complete(clusters);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        WebTarget path = this.adminClusters;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -81,20 +69,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<ClusterData> getClusterAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster);
-        final CompletableFuture<ClusterData> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<ClusterDataImpl>() {
-                    @Override
-                    public void completed(ClusterDataImpl clusterData) {
-                        future.complete(clusterData);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<ClusterDataImpl>(){})
+                .thenApply(clusterData -> clusterData);
     }
 
     @Override
@@ -132,6 +108,19 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
+    public void updateClusterMigration(String cluster, boolean isMigrated, ClusterUrl clusterUrl)
+            throws PulsarAdminException {
+        sync(() -> updateClusterMigrationAsync(cluster, isMigrated, clusterUrl));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateClusterMigrationAsync(String cluster, boolean isMigrated,
+            ClusterUrl clusterUrl) {
+        WebTarget path = adminClusters.path(cluster).path("migrate").queryParam("migrated", isMigrated);
+        return asyncPostRequest(path, Entity.entity(clusterUrl, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException {
         return sync(() -> getPeerClusterNamesAsync(cluster));
@@ -140,20 +129,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<Set<String>> getPeerClusterNamesAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster).path("peers");
-        final CompletableFuture<Set<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Set<String>>() {
-                    @Override
-                    public void completed(Set<String> clusterNames) {
-                        future.complete(clusterNames);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Set<String>>(){});
     }
 
     @Override
@@ -177,22 +153,9 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies");
-        final CompletableFuture<Map<String, NamespaceIsolationData>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, NamespaceIsolationDataImpl>>() {
-                    @Override
-                    public void completed(Map<String, NamespaceIsolationDataImpl> stringNamespaceIsolationDataMap) {
-                        Map<String, NamespaceIsolationData> result = new HashMap<>();
-                        stringNamespaceIsolationDataMap.forEach(result::put);
-                        future.complete(result);
-                    }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceIsolationDataImpl>>() {})
+                .thenApply(HashMap::new);
     }
 
     @Override
@@ -205,22 +168,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
-        final CompletableFuture<List<BrokerNamespaceIsolationData>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<BrokerNamespaceIsolationDataImpl>>() {
-                    @Override
-                    public void completed(List<BrokerNamespaceIsolationDataImpl> brokerNamespaceIsolationData) {
-                        List<BrokerNamespaceIsolationData> data =
-                                new ArrayList<>(brokerNamespaceIsolationData);
-                        future.complete(data);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<BrokerNamespaceIsolationDataImpl>>() {})
+                .thenApply(ArrayList::new);
     }
 
     @Override
@@ -233,20 +182,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker);
-        final CompletableFuture<BrokerNamespaceIsolationData> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BrokerNamespaceIsolationDataImpl>() {
-                    @Override
-                    public void completed(BrokerNamespaceIsolationDataImpl brokerNamespaceIsolationData) {
-                        future.complete(brokerNamespaceIsolationData);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<BrokerNamespaceIsolationDataImpl>(){})
+                .thenApply(brokerNamespaceIsolationData -> brokerNamespaceIsolationData);
     }
 
     @Override
@@ -305,20 +242,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(
             String cluster, String policyName) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
-        final CompletableFuture<NamespaceIsolationData> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<NamespaceIsolationDataImpl>() {
-                    @Override
-                    public void completed(NamespaceIsolationDataImpl namespaceIsolationData) {
-                        future.complete(namespaceIsolationData);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<NamespaceIsolationDataImpl>(){})
+                .thenApply(namespaceIsolationData -> namespaceIsolationData);
     }
 
     @Override
@@ -364,21 +289,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<Map<String, FailureDomain>> getFailureDomainsAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains");
-        final CompletableFuture<Map<String, FailureDomain>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, FailureDomainImpl>>() {
-                    @Override
-                    public void completed(Map<String, FailureDomainImpl> failureDomains) {
-                        Map<String, FailureDomain> result = new HashMap<>(failureDomains);
-                        future.complete(result);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, FailureDomainImpl>>() {})
+                .thenApply(HashMap::new);
     }
 
     @Override
@@ -389,20 +301,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains").path(domainName);
-        final CompletableFuture<FailureDomain> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<FailureDomainImpl>() {
-                    @Override
-                    public void completed(FailureDomainImpl failureDomain) {
-                        future.complete(failureDomain);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<FailureDomainImpl>(){})
+                .thenApply(failureDomain -> failureDomain);
     }
 
     private void setDomain(String cluster, String domainName,

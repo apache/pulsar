@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
         log.info("expectedRecordType {}", expectedRecordType);
         if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
-            throw new RuntimeException("Unexpected record type " + record.getSchema().getSchemaInfo().getType().name() + " is not " + expectedRecordType);
+            final String message = String.format(
+                    "Unexpected record type %s is not %s",
+                    record.getSchema().getSchemaInfo().getType().name(),
+                    expectedRecordType);
+            throw new RuntimeException(message);
         }
 
         log.info("value {}", record.getValue());
@@ -68,9 +72,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
             log.info("kvkey {}", keyValue.getKey());
             log.info("kvvalue {}", keyValue.getValue());
         }
-        log.info("value {}", record.getValue());
-        log.info("value schema type {}", record.getValue().getSchemaType());
-        log.info("value native object {} class {}", record.getValue().getNativeObject(), record.getValue().getNativeObject().getClass());
+
+        final GenericObject value = record.getValue();
+        log.info("value {}", value);
+        log.info("value schema type {}", value.getSchemaType());
+        log.info("value native object {} class {}", value.getNativeObject(), value.getNativeObject().getClass());
 
         String expectedSchemaDefinition = record.getProperties().getOrDefault("expectedSchemaDefinition", "");
         log.info("schemaDefinition {}", record.getSchema().getSchemaInfo().getSchemaDefinition());
@@ -78,7 +84,9 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         if (!expectedSchemaDefinition.isEmpty()) {
             String schemaDefinition = record.getSchema().getSchemaInfo().getSchemaDefinition();
             if (!expectedSchemaDefinition.equals(schemaDefinition)) {
-                throw new RuntimeException("Unexpected schema definition " + schemaDefinition + " is not " + expectedSchemaDefinition);
+                final String message = String.format(
+                        "Unexpected schema definition %s is not %s", schemaDefinition, expectedSchemaDefinition);
+                throw new RuntimeException(message);
             }
         }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,7 +52,8 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
      */
     T create(OffloadPoliciesImpl offloadPolicies,
              Map<String, String> userMetadata,
-             OrderedScheduler scheduler)
+             OrderedScheduler scheduler,
+             LedgerOffloaderStats offloaderStats)
         throws IOException;
 
     /**
@@ -68,8 +69,9 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
     default T create(OffloadPoliciesImpl offloadPolicies,
                      Map<String, String> userMetadata,
                      SchemaStorage schemaStorage,
-                     OrderedScheduler scheduler)
+                     OrderedScheduler scheduler,
+                     LedgerOffloaderStats offloaderStats)
             throws IOException {
-        return create(offloadPolicies, userMetadata, scheduler);
+        return create(offloadPolicies, userMetadata, scheduler, offloaderStats);
     }
 }

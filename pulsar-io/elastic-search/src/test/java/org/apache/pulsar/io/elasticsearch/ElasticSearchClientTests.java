@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,44 +18,53 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import eu.rekawek.toxiproxy.model.ToxicDirection;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.elasticsearch.testcontainers.ElasticToxiproxiContainer;
-import org.awaitility.Awaitility;
-import org.mockito.Mockito;
-import org.opensearch.action.delete.DeleteRequest;
-import org.opensearch.action.index.IndexRequest;
-import org.testcontainers.containers.Network;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.Optional;
-import java.util.UUID;
-
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import eu.rekawek.toxiproxy.model.ToxicDirection;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.LongAdder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestClient;
+import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
+import org.apache.pulsar.io.elasticsearch.testcontainers.ElasticToxiproxiContainer;
+import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.testcontainers.containers.Network;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 @Slf4j
-public class ElasticSearchClientTests extends ElasticSearchTestBase {
+public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
+    public final static String INDEX = "myindex";
 
     static ElasticsearchContainer container;
-    static Network network = Network.newNetwork();
+    static Network network;
 
-    @BeforeClass
-    public static final void initBeforeClass() throws IOException {
+    public ElasticSearchClientTests(String elasticImageName) {
+        super(elasticImageName);
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    public void initBeforeClass() throws IOException {
+        if (container != null) {
+            return;
+        }
+        network = Network.newNetwork();
         container = createElasticsearchContainer().withNetwork(network);
         container.start();
     }
@@ -63,12 +72,22 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
     @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
         network.close();
+        network = null;
     }
 
     static class MockRecord<T> implements Record<T> {
-        int acked = 0;
-        int failed = 0;
+        LongAdder acked = new LongAdder();
+        LongAdder failed = new LongAdder();
+
+        public int getAcked() {
+            return acked.intValue();
+        }
+
+        public int getFailed() {
+            return failed.intValue();
+        }
 
         @Override
         public T getValue() {
@@ -77,17 +96,30 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
 
         @Override
         public void ack() {
-            acked++;
+            acked.increment();
         }
 
         @Override
         public void fail() {
-            failed++;
+            failed.increment();
         }
     }
 
     @Test
-    public void testIndexRequest() throws Exception {
+    public void testClientInstance() throws Exception {
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(INDEX))) {
+            if (elasticImageName.equals(OPENSEARCH) || elasticImageName.equals(ELASTICSEARCH_7)) {
+                assertTrue(client.getRestClient() instanceof OpenSearchHighLevelRestClient);
+            } else {
+                assertTrue(client.getRestClient() instanceof ElasticSearchJavaRestClient);
+            }
+        }
+    }
+
+    @Test
+    public void testIndexName() throws Exception {
         String index = "myindex-" + UUID.randomUUID();
         Record<GenericObject> record = Mockito.mock(Record.class);
         String topicName = "topic-" + UUID.randomUUID();
@@ -95,13 +127,11 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index))) {
-            IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
-            assertEquals(request.index(), index);
+            assertEquals(client.indexName(record), index);
         }
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress()))) {
-            IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
-            assertEquals(request.index(), topicName);
+            assertEquals(client.indexName(record), topicName);
         }
         String indexBase = "myindex-" + UUID.randomUUID();
         index = indexBase + "-%{+yyyy-MM-dd}";
@@ -109,50 +139,14 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index))) {
             assertThrows(IllegalStateException.class, () -> {
-                client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
+                client.indexName(record);
             });
         }
-        when (record.getEventTime()).thenReturn(Optional.of(1645182000000L));
+        when(record.getEventTime()).thenReturn(Optional.of(1645182000000L));
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index))) {
-            IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
-            assertEquals(request.index(), indexBase + "-2022-02-18");
-        }
-    }
-
-    @Test
-    public void testDeleteRequest() throws Exception {
-        String index = "myindex-" + UUID.randomUUID();
-        Record<GenericObject> record = Mockito.mock(Record.class);
-        String topicName = "topic-" + UUID.randomUUID();
-        when(record.getTopicName()).thenReturn(Optional.of(topicName));
-        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
-                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
-                .setIndexName(index))) {
-            DeleteRequest request = client.makeDeleteRequest(record, "1");
-            assertEquals(request.index(), index);
-        }
-        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
-                .setElasticSearchUrl("http://" + container.getHttpHostAddress()))) {
-            DeleteRequest request = client.makeDeleteRequest(record, "1");
-            assertEquals(request.index(), topicName);
-        }
-        String indexBase = "myindex-" + UUID.randomUUID();
-        index = indexBase + "-%{+yyyy-MM-dd}";
-        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
-                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
-                .setIndexName(index))) {
-            assertThrows(IllegalStateException.class, () -> {
-                client.makeDeleteRequest(record, "1");
-            });
-        }
-        when (record.getEventTime()).thenReturn(Optional.of(1645182000000L));
-        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
-                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
-                .setIndexName(index))) {
-            DeleteRequest request = client.makeDeleteRequest(record, "1");
-            assertEquals(request.index(), indexBase + "-2022-02-18");
+            assertEquals(client.indexName(record), indexBase + "-2022-02-18");
         }
     }
 
@@ -166,16 +160,16 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
             try {
                 MockRecord<GenericObject> mockRecord = new MockRecord<>();
                 client.indexDocument(mockRecord, Pair.of("1", "{ \"a\":1}"));
-                assertEquals(mockRecord.acked, 1);
-                assertEquals(mockRecord.failed, 0);
-                assertEquals(client.totalHits(index), 1);
+                assertEquals(mockRecord.getAcked(), 1);
+                assertEquals(mockRecord.getFailed(), 0);
+                assertEquals(client.getRestClient().totalHits(index), 1);
 
                 client.deleteDocument(mockRecord, "1");
-                assertEquals(mockRecord.acked, 2);
-                assertEquals(mockRecord.failed, 0);
-                assertEquals(client.totalHits(index), 0);
+                assertEquals(mockRecord.getAcked(), 2);
+                assertEquals(mockRecord.getFailed(), 0);
+                assertEquals(client.getRestClient().totalHits(index), 0);
             } finally {
-                client.delete(index);
+                client.getRestClient().deleteIndex(index);
             }
         }
     }
@@ -192,7 +186,7 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                 assertTrue(client.indexExists(index));
                 assertFalse(client.createIndexIfNeeded(index));
             } finally {
-                client.delete(index);
+                client.getRestClient().deleteIndex(index);
             }
         }
     }
@@ -200,7 +194,7 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
     @Test
     public void testTopicToIndexName() throws IOException {
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
-                .setElasticSearchUrl("http://" + container.getHttpHostAddress())); ) {
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress()));) {
             assertEquals(client.topicToIndexName("data-ks1.table1"), "data-ks1.table1");
             assertEquals(client.topicToIndexName("persistent://public/default/testesjson"), "testesjson");
             assertEquals(client.topicToIndexName("default/testesjson"), "testesjson");
@@ -218,9 +212,10 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
     public void testMalformedDocFails() throws Exception {
         String index = "indexmalformed-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
-                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
+                .setBulkFlushIntervalInMs(-1L)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.FAIL);
         try (ElasticSearchClient client = new ElasticSearchClient(config);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -229,11 +224,11 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
             client.flush();
             assertNotNull(client.irrecoverableError.get());
             assertTrue(client.irrecoverableError.get().getMessage().contains("mapper_parsing_exception"));
-            assertEquals(mockRecord.acked, 1);
-            assertEquals(mockRecord.failed, 1);
+            assertEquals(mockRecord.getAcked(), 1);
+            assertEquals(mockRecord.getFailed(), 1);
             assertThrows(Exception.class, () -> client.bulkIndex(mockRecord, Pair.of("3", "{\"a\":3}")));
-            assertEquals(mockRecord.acked, 1);
-            assertEquals(mockRecord.failed, 2);
+            assertEquals(mockRecord.getAcked(), 1);
+            assertEquals(mockRecord.getFailed(), 2);
         }
     }
 
@@ -241,9 +236,10 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
     public void testMalformedDocIgnore() throws Exception {
         String index = "indexmalformed2-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
-                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
+                .setBulkFlushIntervalInMs(-1)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.IGNORE);
         try (ElasticSearchClient client = new ElasticSearchClient(config);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -251,8 +247,8 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
             client.bulkIndex(mockRecord, Pair.of("2", "{\"a\":\"toto\"}"));
             client.flush();
             assertNull(client.irrecoverableError.get());
-            assertEquals(mockRecord.acked, 1);
-            assertEquals(mockRecord.failed, 1);
+            assertEquals(mockRecord.getAcked(), 1);
+            assertEquals(mockRecord.getFailed(), 1);
         }
     }
 
@@ -278,9 +274,9 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                     MockRecord<GenericObject> mockRecord = new MockRecord<>();
                     client.bulkIndex(mockRecord, Pair.of("1", "{\"a\":1}"));
                     client.bulkIndex(mockRecord, Pair.of("2", "{\"a\":2}"));
-                    assertEquals(mockRecord.acked, 2);
-                    assertEquals(mockRecord.failed, 0);
-                    assertEquals(client.totalHits(index), 2);
+                    assertEquals(mockRecord.getAcked(), 2);
+                    assertEquals(mockRecord.getFailed(), 0);
+                    assertEquals(client.getRestClient().totalHits(index), 2);
 
                     log.info("starting the toxic");
                     toxiproxy.getProxy().setConnectionCut(false);
@@ -288,16 +284,16 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                     toxiproxy.removeToxicAfterDelay("elasticpause", 15000);
 
                     client.bulkIndex(mockRecord, Pair.of("3", "{\"a\":3}"));
-                    assertEquals(mockRecord.acked, 2);
-                    assertEquals(mockRecord.failed, 0);
-                    assertEquals(client.totalHits(index), 2);
+                    assertEquals(mockRecord.getAcked(), 2);
+                    assertEquals(mockRecord.getFailed(), 0);
+                    assertEquals(client.getRestClient().totalHits(index), 2);
 
                     client.flush();
-                    assertEquals(mockRecord.acked, 3);
-                    assertEquals(mockRecord.failed, 0);
-                    assertEquals(client.totalHits(index), 3);
+                    assertEquals(mockRecord.getAcked(), 3);
+                    assertEquals(mockRecord.getFailed(), 0);
+                    assertEquals(client.getRestClient().totalHits(index), 3);
                 } finally {
-                    client.delete(index);
+                    client.getRestClient().deleteIndex(index);
                 }
             }
         }
@@ -328,15 +324,15 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                     }
 
                     Awaitility.await().untilAsserted(() -> {
-                        assertThat("acked record", mockRecord.acked, greaterThanOrEqualTo(4));
-                        assertEquals(mockRecord.failed, 0);
-                        assertThat("totalHits", client.totalHits(index), greaterThanOrEqualTo(4L));
+                        assertThat("acked record", mockRecord.getAcked(), greaterThanOrEqualTo(4));
+                        assertEquals(mockRecord.getFailed(), 0);
+                        assertThat("totalHits", client.getRestClient().totalHits(index), greaterThanOrEqualTo(4L));
                     });
                     client.flush();
                     Awaitility.await().untilAsserted(() -> {
-                        assertEquals(mockRecord.failed, 0);
-                        assertEquals(mockRecord.acked, 5);
-                        assertEquals(client.totalHits(index), 5);
+                        assertEquals(mockRecord.getFailed(), 0);
+                        assertEquals(mockRecord.getAcked(), 5);
+                        assertEquals(client.getRestClient().totalHits(index), 5);
                     });
 
                     log.info("starting the toxic");
@@ -355,15 +351,68 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                     log.info("elapsed = {}", elapsed);
                     assertTrue(elapsed > 29000); // bulkIndex was blocking while elasticsearch was down or busy
 
-                    Thread.sleep(3000L);
-                    assertEquals(mockRecord.acked, 15);
-                    assertEquals(mockRecord.failed, 0);
-                    assertEquals(client.records.size(), 0);
+                    Awaitility.await().untilAsserted(() -> {
+                        assertEquals(mockRecord.getAcked(), 15);
+                        assertEquals(mockRecord.getFailed(), 0);
+                    });
 
                 } finally {
-                    client.delete(index);
+                    client.getRestClient().deleteIndex(index);
                 }
             }
+        }
+    }
+
+    @Test
+    public void testBulkIndexAndDelete() throws Exception {
+        final String index = "indexbulktest-" + UUID.randomUUID();
+        ElasticSearchConfig config = new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index)
+                .setBulkEnabled(true)
+                .setBulkActions(10)
+                .setBulkFlushIntervalInMs(-1L);
+
+        try (ElasticSearchClient client = new ElasticSearchClient(config)) {
+            assertTrue(client.createIndexIfNeeded(index));
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            for (int i = 0; i < 5; i++) {
+                client.bulkIndex(mockRecord, Pair.of("key" + i, "{\"a\":" + i + "}"));
+                client.bulkDelete(mockRecord, "key" + i);
+            }
+            assertEquals(mockRecord.getAcked(), 10);
+            assertEquals(mockRecord.getFailed(), 0);
+            assertEquals(client.getRestClient().totalHits(index), 0);
+            // no effect
+            client.flush();
+
+            assertEquals(mockRecord.getAcked(), 10);
+        }
+    }
+
+    @Test
+    public void testIndexKeepNulls() throws Exception {
+        final String index = "indexnulls";
+        ElasticSearchConfig config = new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index);
+
+        try (ElasticSearchClient client = new ElasticSearchClient(config)) {
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            client.indexDocument(mockRecord, Pair.of("key0", "{\"a\":1,\"b\":null}"));
+            final Map<String, Object> sourceAsMap;
+            if (elasticImageName.equals(ELASTICSEARCH_8)) {
+                final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient) client.getRestClient();
+                sourceAsMap =
+                        restClient.search(index, "*:*").hits().hits().get(0).source();
+            } else {
+                final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient) client.getRestClient();
+                sourceAsMap =
+                        restClient.search(index, "*:*").getHits().getHits()[0].getSourceAsMap();
+            }
+            assertEquals(sourceAsMap.get("a"), 1);
+            assertTrue(sourceAsMap.containsKey("b"));
+            assertNull(sourceAsMap.get("b"));
         }
     }
 

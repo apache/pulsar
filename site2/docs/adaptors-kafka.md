@@ -1,13 +1,13 @@
 ---
 id: adaptors-kafka
 title: Pulsar adaptor for Apache Kafka
-sidebar_label: Kafka client wrapper
+sidebar_label: "Kafka client wrapper"
 ---
 
 
 Pulsar provides an easy option for applications that are currently written using the [Apache Kafka](http://kafka.apache.org) Java client API.
 
-## Using the Pulsar Kafka compatibility wrapper
+## Use the Pulsar Kafka compatibility wrapper
 
 In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in `pom.xml`:
 
@@ -25,7 +25,7 @@ Then include this dependency for the Pulsar Kafka wrapper:
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka</artifactId>
-  <version>{{pulsar:version}}</version>
+  <version>@pulsar:version@</version>
 </dependency>
 ```
 
@@ -33,17 +33,17 @@ With the new dependency, the existing code works without any changes. You need t
 producers and consumers to Pulsar service rather than Kafka, and uses a particular
 Pulsar topic.
 
-## Using the Pulsar Kafka compatibility wrapper together with existing kafka client
+## Use the Pulsar Kafka compatibility wrapper together with existing Kafka client
 
-When migrating from Kafka to Pulsar, the application might use the original kafka client
-and the pulsar kafka wrapper together during migration. You should consider using the
-unshaded pulsar kafka client wrapper.
+When migrating from Kafka to Pulsar, the application might use the original Kafka client
+and the Pulsar Kafka wrapper together during migration. You should consider using the
+unshaded Pulsar Kafka client wrapper.
 
 ```xml
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka-original</artifactId>
-  <version>{{pulsar:version}}</version>
+  <version>@pulsar:version@</version>
 </dependency>
 ```
 
@@ -63,7 +63,7 @@ props.put("bootstrap.servers", "pulsar://localhost:6650");
 props.put("key.serializer", IntegerSerializer.class.getName());
 props.put("value.serializer", StringSerializer.class.getName());
 
-Producer<Integer, String> producer = new KafkaProducer<>(props);
+Producer<Integer, String> producer = new KafkaProducer(props);
 
 for (int i = 0; i < 10; i++) {
     producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i));
@@ -86,7 +86,7 @@ props.put("enable.auto.commit", "false");
 props.put("key.deserializer", IntegerDeserializer.class.getName());
 props.put("value.deserializer", StringDeserializer.class.getName());
 
-Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
+Consumer<Integer, String> consumer = new KafkaConsumer(props);
 consumer.subscribe(Arrays.asList(topic));
 
 while (true) {
@@ -102,12 +102,11 @@ while (true) {
 
 ## Complete Examples
 
-You can find the complete producer and consumer examples
-[here](https://github.com/apache/pulsar-adapters/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples).
+You can find the complete producer and consumer examples [here](https://github.com/apache/pulsar-adapters/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples).
 
 ## Compatibility matrix
 
-Currently the Pulsar Kafka wrapper supports most of the operations offered by the Kafka API.
+Currently, the Pulsar Kafka wrapper supports most of the operations offered by the Kafka API.
 
 ### Producer
 
@@ -224,43 +223,43 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 
 | Config property                        | Default | Notes                                                                                  |
 |:---------------------------------------|:--------|:---------------------------------------------------------------------------------------|
-| [`pulsar.authentication.class`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-org.apache.pulsar.client.api.Authentication-)          |         | Configure to auth provider. For example, `org.apache.pulsar.client.impl.auth.AuthenticationTls`.|
-| [`pulsar.authentication.params.map`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.util.Map-)          |         | Map which represents parameters for the Authentication-Plugin. |
-| [`pulsar.authentication.params.string`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.lang.String-)          |         | String which represents parameters for the Authentication-Plugin, for example, `key1:val1,key2:val2`. |
-| [`pulsar.use.tls`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-)                       | `false` | Enable TLS transport encryption.                                                        |
-| [`pulsar.tls.trust.certs.file.path`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-)   |         | Path for the TLS trust certificate store.                                               |
-| [`pulsar.tls.allow.insecure.connection`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-) | `false` | Accept self-signed certificates from brokers.                                           |
-| [`pulsar.operation.timeout.ms`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setOperationTimeout-int-java.util.concurrent.TimeUnit-) | `30000` | General operations timeout. |
-| [`pulsar.stats.interval.seconds`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setStatsInterval-long-java.util.concurrent.TimeUnit-) | `60` | Pulsar client lib stats printing interval. |
-| [`pulsar.num.io.threads`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setIoThreads-int-) | `1` | The number of Netty IO threads to use. |
-| [`pulsar.connections.per.broker`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-) | `1` | The maximum number of connection to each broker. |
-| [`pulsar.use.tcp.nodelay`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-) | `true` | TCP no-delay. |
-| [`pulsar.concurrent.lookup.requests`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-) | `50000` | The maximum number of concurrent topic lookups. |
-| [`pulsar.max.number.rejected.request.per.connection`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-) | `50` | The threshold of errors to forcefully close a connection. |
-| [`pulsar.keepalive.interval.ms`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientBuilder.html#keepAliveInterval-int-java.util.concurrent.TimeUnit-)| `30000` | Keep alive interval for each client-broker-connection.  |
+| [`pulsar.authentication.class`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-org.apache.pulsar.client.api.Authentication-)          |         | Configure to auth provider. For example, `org.apache.pulsar.client.impl.auth.AuthenticationTls`.|
+| [`pulsar.authentication.params.map`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.util.Map-)          |         | Map which represents parameters for the Authentication-Plugin. |
+| [`pulsar.authentication.params.string`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.lang.String-)          |         | String which represents parameters for the Authentication-Plugin, for example, `key1:val1,key2:val2`. |
+| [`pulsar.use.tls`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-)                       | `false` | Enable TLS transport encryption.                                                        |
+| [`pulsar.tls.trust.certs.file.path`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-)   |         | Path for the TLS trust certificate store.                                               |
+| [`pulsar.tls.allow.insecure.connection`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-) | `false` | Accept self-signed certificates from brokers.                                           |
+| [`pulsar.operation.timeout.ms`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setOperationTimeout-int-java.util.concurrent.TimeUnit-) | `30000` | General operations timeout. |
+| [`pulsar.stats.interval.seconds`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setStatsInterval-long-java.util.concurrent.TimeUnit-) | `60` | Pulsar client lib stats printing interval. |
+| [`pulsar.num.io.threads`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setIoThreads-int-) | `1` | The number of Netty IO threads to use. |
+| [`pulsar.connections.per.broker`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-) | `1` | The maximum number of connection to each broker. |
+| [`pulsar.use.tcp.nodelay`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-) | `true` | TCP no-delay. |
+| [`pulsar.concurrent.lookup.requests`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-) | `50000` | The maximum number of concurrent topic lookups. |
+| [`pulsar.max.number.rejected.request.per.connection`](/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-) | `50` | The threshold of errors to forcefully close a connection. |
+| [`pulsar.keepalive.interval.ms`](/api/client/org/apache/pulsar/client/api/ClientBuilder.html#keepAliveInterval-int-java.util.concurrent.TimeUnit-)| `30000` | Keep alive interval for each client-broker-connection.  |
 
 
 ### Pulsar producer properties
 
 | Config property                        | Default | Notes                                                                                  |
 |:---------------------------------------|:--------|:---------------------------------------------------------------------------------------|
-| [`pulsar.producer.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-) | | Specify the producer name. |
-| [`pulsar.producer.initial.sequence.id`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-) |  | Specify baseline for sequence ID of this producer. |
-| [`pulsar.producer.max.pending.messages`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-) | `1000` | Set the maximum size of the message queue pending to receive an acknowledgment from the broker.  |
-| [`pulsar.producer.max.pending.messages.across.partitions`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-) | `50000` | Set the maximum number of pending messages across all the partitions.  |
-| [`pulsar.producer.batching.enabled`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-) | `true` | Control whether automatic batching of messages is enabled for the producer. |
-| [`pulsar.producer.batching.max.messages`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-) | `1000` | The maximum number of messages in a batch. |
-| [`pulsar.block.if.producer.queue.full`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-) | | Specify the block producer if queue  is full. |
-| [`pulsar.crypto.reader.factory.class.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-) | | Specify the CryptoReader-Factory(`CryptoKeyReaderFactory`) classname which allows producer to create CryptoKeyReader. |
+| [`pulsar.producer.name`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-) | | Specify the producer name. |
+| [`pulsar.producer.initial.sequence.id`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-) |  | Specify baseline for sequence ID of this producer. |
+| [`pulsar.producer.max.pending.messages`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-) | `1000` | Set the maximum size of the message queue pending to receive an acknowledgment from the broker.  |
+| [`pulsar.producer.max.pending.messages.across.partitions`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-) | `50000` | Set the maximum number of pending messages across all the partitions.  |
+| [`pulsar.producer.batching.enabled`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-) | `true` | Control whether automatic batching of messages is enabled for the producer. |
+| [`pulsar.producer.batching.max.messages`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-) | `1000` | The maximum number of messages in a batch. |
+| [`pulsar.block.if.producer.queue.full`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-) | | Specify the block producer if queue  is full. |
+| [`pulsar.crypto.reader.factory.class.name`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-) | | Specify the CryptoReader-Factory(`CryptoKeyReaderFactory`) classname which allows producer to create CryptoKeyReader. |
 
 
 ### Pulsar consumer Properties
 
 | Config property                        | Default | Notes                                                                                  |
 |:---------------------------------------|:--------|:---------------------------------------------------------------------------------------|
-| [`pulsar.consumer.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-) | | Specify the consumer name. |
-| [`pulsar.consumer.receiver.queue.size`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-) | 1000 | Set the size of the consumer receiver queue. |
-| [`pulsar.consumer.acknowledgments.group.time.millis`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-) | 100 | Set the maximum amount of group time for consumers to send the acknowledgments to the broker. |
-| [`pulsar.consumer.total.receiver.queue.size.across.partitions`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-) | 50000 | Set the maximum size of the total receiver queue across partitions. |
-| [`pulsar.consumer.subscription.topics.mode`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-Mode-) | PersistentOnly | Set the subscription topic mode for consumers. |
-| [`pulsar.crypto.reader.factory.class.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-) | | Specify the CryptoReader-Factory(`CryptoKeyReaderFactory`) classname which allows consumer to create CryptoKeyReader. |
+| [`pulsar.consumer.name`](/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-) | | Specify the consumer name. |
+| [`pulsar.consumer.receiver.queue.size`](/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-) | 1000 | Set the size of the consumer receiver queue. |
+| [`pulsar.consumer.acknowledgments.group.time.millis`](/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-) | 100 | Set the maximum amount of group time for consumers to send the acknowledgments to the broker. |
+| [`pulsar.consumer.total.receiver.queue.size.across.partitions`](/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-) | 50000 | Set the maximum size of the total receiver queue across partitions. |
+| [`pulsar.consumer.subscription.topics.mode`](/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-Mode-) | PersistentOnly | Set the subscription topic mode for consumers. |
+| [`pulsar.crypto.reader.factory.class.name`](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-) | | Specify the CryptoReader-Factory(`CryptoKeyReaderFactory`) classname which allows consumer to create CryptoKeyReader. |

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -218,5 +218,17 @@ public interface LedgerOffloader {
      * Close the resources if necessary.
      */
     void close();
+
+    /**
+     * Scans all the ManagedLedgers stored on this Offloader (usually a Bucket).
+     * The callback should not modify/delete the ledgers.
+     * @param consumer receives the
+     * @param offloadDriverMetadata additional metadata
+     * @throws ManagedLedgerException
+     */
+    default void scanLedgers(OffloadedLedgerMetadataConsumer consumer,
+                             Map<String, String> offloadDriverMetadata) throws ManagedLedgerException {
+        throw ManagedLedgerException.getManagedLedgerException(new UnsupportedOperationException());
+    }
 }
 
