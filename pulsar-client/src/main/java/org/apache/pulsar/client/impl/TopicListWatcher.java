@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -211,7 +211,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
             cleanupAtClose(closeFuture, null);
         } else {
             BaseCommand cmd = Commands.newWatchTopicListClose(watcherId, requestId);
-            cnx.sendRequestWithId(Commands.serializeWithSize(cmd), requestId).handle((v, exception) -> {
+            cnx.newWatchTopicListClose(cmd, requestId).handle((v, exception) -> {
                 final ChannelHandlerContext ctx = cnx.ctx();
                 boolean ignoreException = ctx == null || !ctx.channel().isActive();
                 if (ignoreException && exception != null) {

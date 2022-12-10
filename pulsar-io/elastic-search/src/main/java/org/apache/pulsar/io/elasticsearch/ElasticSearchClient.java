@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -76,7 +76,7 @@ public class ElasticSearchClient implements AutoCloseable {
                     final Record record = bulkOperationList.get(index++).getPulsarRecord();
                     if (result.isError()) {
                         record.fail();
-                        checkForIrrecoverableError(result);
+                        checkForIrrecoverableError(record, result);
                     } else {
                         record.ack();
                     }
@@ -106,13 +106,15 @@ public class ElasticSearchClient implements AutoCloseable {
         return irrecoverableError.get() != null;
     }
 
-    void checkForIrrecoverableError(BulkProcessor.BulkOperationResult result) {
+    void checkForIrrecoverableError(Record<?> record, BulkProcessor.BulkOperationResult result) {
         if (!result.isError()) {
             return;
         }
         final String errorCause = result.getError();
+        boolean isMalformed = false;
         for (String error : MALFORMED_ERRORS) {
             if (errorCause.contains(error)) {
+                isMalformed = true;
                 switch (config.getMalformedDocAction()) {
                     case IGNORE:
                         break;
@@ -131,6 +133,13 @@ public class ElasticSearchClient implements AutoCloseable {
                         break;
                 }
             }
+        }
+        if (!isMalformed) {
+            log.warn("Bulk request failed, message id=[{}] index={} error={}",
+                    record.getMessage()
+                            .map(m -> m.getMessageId().toString())
+                            .orElse(""),
+                    result.getIndex(), result.getError());
         }
     }
 
@@ -245,6 +254,11 @@ public class ElasticSearchClient implements AutoCloseable {
             client.close();
             client = null;
         }
+    }
+
+    @VisibleForTesting
+    void setClient(RestClient client) {
+        this.client = client;
     }
 
     private void checkNotFailed() throws Exception {

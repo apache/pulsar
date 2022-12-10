@@ -26,6 +26,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | namespace            | String                     | `--namespace`              | The namespace of a function.|
 | name                 | String                     | `--name`                   | The name of a function.|
 | className            | String                     | `--classname`              | The class name of a function. |
+| functionType         | String                     | `--function-type`          | The built-in function type. |
 | inputs               | List`<String>`               | `-i`, `--inputs`           | The input topics of a function. Multiple topics can be specified as a comma-separated list. |
 | customSerdeInputs    | Map`<String,String>`         | `--custom-serde-inputs`    | The mapping from input topics to SerDe class names. |
 | topicsPattern        | String                     | `--topics-pattern`         | The topic pattern to consume from a list of topics under a namespace. <br />**Note:** `--input` and `--topic-pattern` are mutually exclusive. For Java functions, you need to add the SerDe class name for a pattern in `--custom-serde-inputs`. |
@@ -33,11 +34,11 @@ You can configure a function by using a predefined YAML file. The following tabl
 | customSchemaOutputs  | Map`<String,String>`         | `--custom-schema-outputs`  | The mapping from output topics to schema properties.|
 | inputSpecs           | Map`<String,`[ConsumerConfig](#consumerconfig)`>` | `--input-specs` | The mapping from inputs to custom configurations.|
 | output               | String                     | `-o`, `--output`           | The output topic of a function. If none is specified, no output is written.  |
-| producerConfig       | [ProducerConfig](#produceconfig)  | `--producer-config` | The custom configurations for producers.  |
+| producerConfig       | [ProducerConfig](#producerconfig)  | `--producer-config` | The custom configurations for producers.  |
 | outputSchemaType     | String                     | `-st`, `--schema-type`     | The built-in schema type or custom schema class name used for message outputs.   |
 | outputSerdeClassName | String                     | `--output-serde-classname` | The SerDe class used for message outputs. |
 | logTopic             | String                     | `--log-topic`              | The topic that the logs of a function are produced to.  |
-| processingGuarantees | String | `--processing-guarantees` | The processing guarantees (delivery semantics) applied to a function. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.|
+| processingGuarantees | String | `--processing-guarantees` | The processing guarantees (delivery semantics) applied to a function. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`, `MANUAL`.|
 | retainOrdering       | Boolean                    | `--retain-ordering`	     | Whether functions consume and process messages in order or not. |
 | retainKeyOrdering    | Boolean                    | `--retain-key-ordering`    | Whether functions consume and process messages in key order or not. |
 | batchBuilder         | String           | `--batch-builder` | Use `producerConfig.batchBuilder` instead. <br />**Note**: `batchBuilder` will be deprecated in code soon. |
@@ -45,7 +46,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | userConfig           | Map`<String,Object>`         | `--user-config`         	 | User-defined config key/values. |
 | secrets       | Map`<String,Object>` | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
 | runtime       | String             | N/A          | The runtime of a function. Available values: `java`,`python`, `go`. |
-| autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. |
+| autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. <br /><br />**Note**: This configuration will be deprecated in future releases. If you specify a delivery semantic, the framework automatically acknowledges messages. If you do not want the framework to auto-ack messages, set the `processingGuarantees` to `MANUAL`. |
 | maxMessageRetries    | Int      |	`--max-message-retries` | The number of retries to process a message before giving up. |
 | deadLetterTopic      | String   | `--dead-letter-topic`   | The topic used for storing messages that are not processed successfully. |
 | subName              | String   | `--subs-name`           | The name of Pulsar source subscription used for input-topic consumers if required.|
@@ -79,7 +80,7 @@ The following table outlines the nested fields and related arguments under the `
 | cryptoConfig         | [CryptoConfig](#cryptoconfig)   | N/A                   |Refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/common/functions/CryptoConfig.java). |
 | poolMessages         | Boolean                    | N/A                        | N/A |
 
-###### ProducerConfig
+##### ProducerConfig
 
 The following table outlines the nested fields and related arguments under the `producerConfig` field.
 

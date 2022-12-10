@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -337,9 +337,9 @@ public class PulsarSinkTest {
         pulsarConfig.setTopic(defaultTopic);
         PulsarClient pulsarClient;
 
-        /** test At-least-once **/
+        /** test MANUAL **/
         pulsarClient = getPulsarClient();
-        pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        pulsarConfig.setProcessingGuarantees(ProcessingGuarantees.MANUAL);
         PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
@@ -362,6 +362,46 @@ public class PulsarSinkTest {
 
             pulsarSink.write(record);
 
+            Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkManualProcessor);
+            PulsarSink.PulsarSinkManualProcessor pulsarSinkManualProcessor
+                    = (PulsarSink.PulsarSinkManualProcessor) pulsarSink.pulsarSinkProcessor;
+            if (topic != null) {
+                Assert.assertTrue(pulsarSinkManualProcessor.publishProducers.containsKey(topic));
+            } else {
+                Assert.assertTrue(pulsarSinkManualProcessor.publishProducers.containsKey(defaultTopic));
+            }
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(otherTopic -> {
+                if (topic != null) {
+                    return topic.equals(otherTopic);
+                } else {
+                    return defaultTopic.equals(otherTopic);
+                }
+            }));
+        }
+
+        /** test At-least-once **/
+        pulsarClient = getPulsarClient();
+        pulsarConfig.setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE);
+        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+
+        pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
+
+        for (String topic : topics) {
+
+            SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
+
+                @Override
+                public String getValue() {
+                    return "in1";
+                }
+
+                @Override
+                public Optional<String> getDestinationTopic() {
+                    return getTopicOptional(topic);
+                }
+            }, "out1");
+            pulsarSink.write(record);
+
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtLeastOnceProcessor);
             PulsarSink.PulsarSinkAtLeastOnceProcessor pulsarSinkAtLeastOnceProcessor
                     = (PulsarSink.PulsarSinkAtLeastOnceProcessor) pulsarSink.pulsarSinkProcessor;
@@ -381,7 +421,7 @@ public class PulsarSinkTest {
 
         /** test At-most-once **/
         pulsarClient = getPulsarClient();
-        pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
+        pulsarConfig.setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE);
         pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
                 Thread.currentThread().getContextClassLoader());
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -125,11 +125,9 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     @Override
     public void close() {
-        if (pulsarCluster != null) {
-            if (debeziumMySqlContainer != null) {
-                pulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
-                debeziumMySqlContainer = null;
-            }
+        if (debeziumMySqlContainer != null) {
+            PulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+            debeziumMySqlContainer = null;
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,34 +198,6 @@ public class DispatchRateLimiter {
                 this.topicName, type, dispatchRate);
         }
         updateDispatchRate(dispatchRate);
-    }
-
-    @SuppressWarnings("deprecation")
-    public static DispatchRateImpl getPoliciesDispatchRate(final String cluster,
-                                                           Optional<Policies> policies,
-                                                           Type type) {
-        // return policy-dispatch rate only if it's enabled in policies
-        return policies.map(p -> {
-            DispatchRateImpl dispatchRate;
-            switch (type) {
-                case TOPIC:
-                    dispatchRate = p.topicDispatchRate.get(cluster);
-                    if (dispatchRate == null) {
-                        dispatchRate = p.clusterDispatchRate.get(cluster);
-                    }
-                    break;
-                case SUBSCRIPTION:
-                    dispatchRate = p.subscriptionDispatchRate.get(cluster);
-                    break;
-                case REPLICATOR:
-                    dispatchRate = p.replicatorDispatchRate.get(cluster);
-                    break;
-                default:
-                    log.error("error DispatchRateLimiter type: {} ", type);
-                    return null;
-            }
-            return isDispatchRateEnabled(dispatchRate) ? dispatchRate : null;
-        }).orElse(null);
     }
 
     public static CompletableFuture<Optional<Policies>> getPoliciesAsync(BrokerService brokerService,

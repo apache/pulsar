@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -101,6 +101,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 } catch (Exception e) {
                     log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
                 }
+            }
+            if (service.getCryptoKeyReader().isPresent()) {
+                builder.cryptoKeyReader(service.getCryptoKeyReader().get());
             }
 
             this.reader = builder.create();

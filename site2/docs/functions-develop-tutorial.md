@@ -15,7 +15,6 @@ The following example is a stateful function. By default, the state of a functio
 1. Write the function in Java using the [SDK for Java](functions-develop-api.md).
 
    ```java
-
     package org.example.functions;
 
     import org.apache.pulsar.functions.api.Context;
@@ -34,14 +33,12 @@ The following example is a stateful function. By default, the state of a functio
             return null;
         }
     }
-
    ```
 
 2. Bundle and build the JAR file, and then deploy it in your Pulsar cluster using the `pulsar-admin` command.
 
    ```bash
-
-    bin/pulsar-admin functions create \
+   bin/pulsar-admin functions create \
       --jar target/my-jar-with-dependencies.jar \
       --classname org.example.functions.WordCountFunction \
       --tenant public \
@@ -56,7 +53,6 @@ The following example is a stateful function. By default, the state of a functio
 1. Write the function in Python using the [SDK for Python](functions-develop-api.md).
 
    ```python
-
     from pulsar import Function
 
     class RoutingFunction(Function):
@@ -78,37 +74,33 @@ The following example is a stateful function. By default, the state of a functio
             else:
                 warning = "The item {0} is neither a fruit nor a vegetable".format(item)
                 context.get_logger().warn(warning)
-
    ```
 
 2. Suppose this code is stored in `~/router.py`, then you can deploy it in your Pulsar cluster using the `pulsar-admin` command.
 
    ```bash
-
-    bin/pulsar-admin functions create \
+   bin/pulsar-admin functions create \
       --py ~/router.py \
       --classname router.RoutingFunction \
       --tenant public \
       --namespace default \
       --name route-fruit-veg \
       --inputs persistent://public/default/basket-items
-
    ```
 
 ## Write a window function for word count
 
 :::note
 
-Currently, window function is only available in Java. 
+Currently, window functions are only available in Java. 
 
 :::
 
 This example demonstrates how to use the [language-native interface](functions-develop-api.md) to write a window function in Java. 
 
-Each input message is a sentence that is split into words and each word counted. The built-in counter state is used to keep track of the word count in a persistent and consistent manner.
+Each input message is a sentence that is split into words and each word is counted. The built-in counter state is used to keep track of the word count in a persistent and consistent manner.
 
 ```java
-
 public class WordCountFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
@@ -116,5 +108,4 @@ public class WordCountFunction implements Function<String, Void> {
         return null;
     }
 }
-
 ```

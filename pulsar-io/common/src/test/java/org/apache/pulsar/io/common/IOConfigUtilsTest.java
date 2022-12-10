@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -43,9 +44,77 @@ import java.util.concurrent.CompletableFuture;
 public class IOConfigUtilsTest {
 
     @Data
-    static class TestConfig {
+    static class TestDefaultConfig {
+
         @FieldDoc(
                 required = true,
+                defaultValue = "",
+                sensitive = true,
+                help = "testRequired"
+        )
+        protected String testRequired;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "defaultStr",
+                sensitive = false,
+                help = "defaultStr"
+        )
+        protected String defaultStr;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "true",
+                sensitive = false,
+                help = "defaultBool"
+        )
+        protected boolean defaultBool;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100",
+                sensitive = false,
+                help = "defaultInt"
+        )
+        protected int defaultInt;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100",
+                sensitive = false,
+                help = "defaultLong"
+        )
+        protected long defaultLong;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100.12",
+                sensitive = false,
+                help = "defaultDouble"
+        )
+        protected double defaultDouble;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100.10",
+                sensitive = false,
+                help = "defaultFloat"
+        )
+        protected float defaultFloat;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "",
+                sensitive = false,
+                help = "noDefault"
+        )
+        protected int noDefault;
+    }
+
+    @Data
+    static class TestConfig {
+        @FieldDoc(
+                required = false,
                 defaultValue = "",
                 sensitive = true,
                 help = "password"
@@ -64,7 +133,7 @@ public class IOConfigUtilsTest {
          * Non-string secrets are not supported at this moment
          */
         @FieldDoc(
-                required = true,
+                required = false,
                 defaultValue = "",
                 sensitive = true,
                 help = ""
@@ -120,6 +189,11 @@ public class IOConfigUtilsTest {
 
         @Override
         public String getOutputTopic() {
+            return null;
+        }
+
+        @Override
+        public SourceConfig getSourceConfig() {
             return null;
         }
 
@@ -210,6 +284,28 @@ public class IOConfigUtilsTest {
         public PulsarClient getPulsarClient() {
             return null;
         }
+    }
+
+    @Test
+    public void testDefaultValue() {
+
+        // test required field.
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> IOConfigUtils.loadWithSecrets(new HashMap<>(), TestDefaultConfig.class, new TestSinkContext()));
+
+
+        // test all default value.
+        Map<String, Object> configMap = new HashMap<>();
+        configMap.put("testRequired", "test");
+        TestDefaultConfig testDefaultConfig =
+                IOConfigUtils.loadWithSecrets(configMap, TestDefaultConfig.class, new TestSinkContext());
+        Assert.assertEquals(testDefaultConfig.getDefaultStr(), "defaultStr");
+        Assert.assertEquals(testDefaultConfig.isDefaultBool(), true);
+        Assert.assertEquals(testDefaultConfig.getDefaultInt(), 100);
+        Assert.assertEquals(testDefaultConfig.getDefaultLong(), 100);
+        Assert.assertEquals(testDefaultConfig.getDefaultDouble(), 100.12,0.00001);
+        Assert.assertEquals(testDefaultConfig.getDefaultFloat(), 100.10,0.00001);
+        Assert.assertEquals(testDefaultConfig.getNoDefault(), 0);
     }
 
     @Test

@@ -26,7 +26,6 @@
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
     <version>23</version>
-    <relativePath></relativePath>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
@@ -36,20 +35,23 @@
   <name>Pulsar Build Tools</name>
 
   <properties>
+    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.0.0-M3</surefire.version>
-    <log4j2.version>2.17.1</log4j2.version>
+    <log4j2.version>2.18.0</log4j2.version>
     <slf4j.version>1.7.32</slf4j.version>
-    <testng.version>7.3.0</testng.version>
+    <testng.version>7.6.1</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
-    <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+    <license-maven-plugin.version>4.1</license-maven-plugin.version>
+    <maven-shade-plugin.version>3.4.0</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <netty.version>4.1.77.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>
-    <snakeyaml.version>1.30</snakeyaml.version>
+    <snakeyaml.version>1.32</snakeyaml.version>
     <mockito.version>3.12.4</mockito.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -130,7 +132,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.77.Final</version>
+      <version>${netty.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -150,7 +152,7 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>4.0.rc2</version>
+        <version>${license-maven-plugin.version}</version>
         <configuration>
           <licenseSets>
             <licenseSet>
@@ -158,7 +160,7 @@
             </licenseSet>
           </licenseSets>
           <mapping>
-            <java>JAVADOC_STYLE</java>
+            <java>SLASHSTAR_STYLE</java>
           </mapping>
         </configuration>
       </plugin>
@@ -200,6 +202,14 @@
               <shadedPattern>org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3</shadedPattern>
             </relocation>
           </relocations>
+          <filters>
+            <filter>
+              <artifact>org.apache.commons:commons-lang3</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+            </filter>
+          </filters>
         </configuration>
         <executions>
           <execution>

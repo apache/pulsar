@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 import java.util.function.Function;
@@ -93,20 +92,20 @@ public class BaseJdbcAutoSchemaSinkTest {
     @Test(expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesBytes() {
-        BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
                 builder.name("field").type().bytesType().noDefault()));
     }
 
     @Test(expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesFixed() {
-        BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
                 builder.name("field").type().fixed("fix").size(16).noDefault()));
     }
     @Test(expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesRecord() {
-        BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
                 builder.name("field").type()
                         .record("myrecord").fields()
                         .name("f1").type().intType().noDefault()
@@ -116,7 +115,7 @@ public class BaseJdbcAutoSchemaSinkTest {
     @Test(expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesMap() {
-        BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
                 builder.name("field").type().map().values().stringType().noDefault()));
     }
 
@@ -124,8 +123,16 @@ public class BaseJdbcAutoSchemaSinkTest {
     @Test(expectedExceptions = UnsupportedOperationException.class,
             expectedExceptionsMessageRegExp = "Unsupported avro schema type.*")
     public void testNotSupportedAvroTypesArray() {
-        BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
+        BaseJdbcAutoSchemaSink.convertAvroField(new Object(), createFieldAndGetSchema((builder) ->
                 builder.name("field").type().array().items().stringType().noDefault()));
+    }
+
+
+    @Test
+    public void testConvertAvroNullValue() {
+        Object converted = BaseJdbcAutoSchemaSink.convertAvroField(null, createFieldAndGetSchema((builder) ->
+                builder.name("field").type().stringType().noDefault()));
+        Assert.assertNull(converted);
     }
 
 

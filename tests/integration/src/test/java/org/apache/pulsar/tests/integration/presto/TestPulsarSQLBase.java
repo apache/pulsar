@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,7 +56,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected void pulsarSQLBasicTest(TopicName topic,
                                       boolean isBatch,
                                       boolean useNsOffloadPolices,
-                                      Schema schema,
+                                      Schema<?> schema,
                                       CompressionType compressionType) throws Exception {
         log.info("Pulsar SQL basic test. topic: {}", topic);
 
@@ -112,6 +112,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                 && pulsarCluster.getSqlFollowWorkerContainers().size() > 0) {
             OkHttpClient okHttpClient = new OkHttpClient();
             Request request = new Request.Builder()
+                    .header("X-Trino-User", "test-user")
                     .url("http://" + pulsarCluster.getPrestoWorkerContainer().getUrl() + "/v1/node")
                     .build();
             do {
@@ -133,7 +134,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
@@ -159,11 +160,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
     }
 
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) throws Exception {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) throws Exception {
         throw new Exception("Unsupported operation validateContent.");
     }
 
-    private void validateData(TopicName topicName, int messageNum, Schema schema) throws Exception {
+    private void validateData(TopicName topicName, int messageNum, Schema<?> schema) throws Exception {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 

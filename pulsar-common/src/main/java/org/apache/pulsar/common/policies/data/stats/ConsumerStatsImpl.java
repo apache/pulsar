@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,7 +46,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public double msgRateRedeliver;
 
     /**
-     * Total rate of message ack(msg/s).
+     * Total rate of message ack (msg/s).
      */
     public double messageAckRate;
 
@@ -97,6 +97,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
+
+    public long lastConsumedFlowTimestamp;
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     public List<String> keyHashRanges;

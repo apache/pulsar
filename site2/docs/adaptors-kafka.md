@@ -7,50 +7,44 @@ sidebar_label: "Kafka client wrapper"
 
 Pulsar provides an easy option for applications that are currently written using the [Apache Kafka](http://kafka.apache.org) Java client API.
 
-## Using the Pulsar Kafka compatibility wrapper
+## Use the Pulsar Kafka compatibility wrapper
 
 In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in `pom.xml`:
 
 ```xml
-
 <dependency>
   <groupId>org.apache.kafka</groupId>
   <artifactId>kafka-clients</artifactId>
   <version>0.10.2.1</version>
 </dependency>
-
 ```
 
 Then include this dependency for the Pulsar Kafka wrapper:
 
 ```xml
-
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka</artifactId>
   <version>@pulsar:version@</version>
 </dependency>
-
 ```
 
 With the new dependency, the existing code works without any changes. You need to adjust the configuration, and make sure it points the
 producers and consumers to Pulsar service rather than Kafka, and uses a particular
 Pulsar topic.
 
-## Using the Pulsar Kafka compatibility wrapper together with existing kafka client
+## Use the Pulsar Kafka compatibility wrapper together with existing Kafka client
 
-When migrating from Kafka to Pulsar, the application might use the original kafka client
-and the pulsar kafka wrapper together during migration. You should consider using the
-unshaded pulsar kafka client wrapper.
+When migrating from Kafka to Pulsar, the application might use the original Kafka client
+and the Pulsar Kafka wrapper together during migration. You should consider using the
+unshaded Pulsar Kafka client wrapper.
 
 ```xml
-
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka-original</artifactId>
   <version>@pulsar:version@</version>
 </dependency>
-
 ```
 
 When using this dependency, construct producers using `org.apache.kafka.clients.producer.PulsarKafkaProducer`
@@ -59,7 +53,6 @@ instead of `org.apache.kafka.clients.producer.KafkaProducer` and `org.apache.kaf
 ## Producer example
 
 ```java
-
 // Topic needs to be a regular Pulsar topic
 String topic = "persistent://public/default/my-topic";
 
@@ -78,13 +71,11 @@ for (int i = 0; i < 10; i++) {
 }
 
 producer.close();
-
 ```
 
 ## Consumer example
 
 ```java
-
 String topic = "persistent://public/default/my-topic";
 
 Properties props = new Properties();
@@ -107,7 +98,6 @@ while (true) {
     // Commit last offset
     consumer.commitSync();
 }
-
 ```
 
 ## Complete Examples
@@ -116,7 +106,7 @@ You can find the complete producer and consumer examples [here](https://github.c
 
 ## Compatibility matrix
 
-Currently the Pulsar Kafka wrapper supports most of the operations offered by the Kafka API.
+Currently, the Pulsar Kafka wrapper supports most of the operations offered by the Kafka API.
 
 ### Producer
 

@@ -10,15 +10,17 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-> **Important**
->
-> This page only shows **some frequently used operations**.
->
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
-> 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
-> 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+:::tip
+
+ This page only shows **some frequently used operations**.
+
+ - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+ 
+ - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+ 
+ - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+ 
+:::
 
 **Pulsar Functions** are lightweight compute processes that
 
@@ -53,16 +55,14 @@ Use the [`create`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions create \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --inputs test-input-topic \
-  --output persistent://public/default/test-output-topic \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --jar /examples/api-examples.jar
-
+pulsar-admin functions create \
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
+    --inputs test-input-topic \
+    --output persistent://public/default/test-output-topic \
+    --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+    --jar /examples/api-examples.jar
 ```
 
 </TabItem>
@@ -74,7 +74,6 @@ $ pulsar-admin functions create \
 <TabItem value="Java Admin API">
 
 ```java
-
 FunctionConfig functionConfig = new FunctionConfig();
 functionConfig.setTenant(tenant);
 functionConfig.setNamespace(namespace);
@@ -88,7 +87,6 @@ functionConfig.setSubName(subscriptionName);
 functionConfig.setAutoAck(true);
 functionConfig.setOutput(sinkTopic);
 admin.functions().createFunction(functionConfig, fileName);
-
 ```
 
 </TabItem>
@@ -111,14 +109,12 @@ Use the [`update`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions update \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --output persistent://public/default/update-output-topic \
-  # other options
-
+pulsar-admin functions update \
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
+    --output persistent://public/default/update-output-topic \
+    # other options
 ```
 
 </TabItem>
@@ -130,7 +126,6 @@ $ pulsar-admin functions update \
 <TabItem value="Java Admin API">
 
 ```java
-
 FunctionConfig functionConfig = new FunctionConfig();
 functionConfig.setTenant(tenant);
 functionConfig.setNamespace(namespace);
@@ -141,7 +136,6 @@ functionConfig.setClassName("org.apache.pulsar.functions.api.examples.Exclamatio
 UpdateOptions updateOptions = new UpdateOptions();
 updateOptions.setUpdateAuthData(updateAuthData);
 admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
-
 ```
 
 </TabItem>
@@ -162,13 +156,11 @@ You can start a stopped function instance with `instance-id` using Admin CLI, RE
 Use the [`start`](/tools/pulsar-admin/) subcommand. 
 
 ```shell
-
-$ pulsar-admin functions start \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --instance-id 1
-
+pulsar-admin functions start \
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
+    --instance-id 1
 ```
 
 </TabItem>
@@ -180,9 +172,7 @@ $ pulsar-admin functions start \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
-
 ```
 
 </TabItem>
@@ -205,12 +195,10 @@ Use the [`start`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions start \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-
+pulsar-admin functions start \
+    --tenant public \
+    --namespace default \
+    --name (the name of Pulsar Functions) \
 ```
 
 </TabItem>
@@ -222,9 +210,7 @@ $ pulsar-admin functions start \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().startFunction(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -247,13 +233,11 @@ Use the [`stop`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions stop \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --instance-id 1
-
+pulsar-admin functions stop \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -265,9 +249,7 @@ $ pulsar-admin functions stop \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
-
 ```
 
 </TabItem>
@@ -290,12 +272,10 @@ Use the [`stop`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions stop \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-
+pulsar-admin functions stop \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -307,9 +287,7 @@ $ pulsar-admin functions stop \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().stopFunction(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -332,13 +310,11 @@ Use the [`restart`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions restart \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --instance-id 1
-
+pulsar-admin functions restart \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -350,9 +326,7 @@ $ pulsar-admin functions restart \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
-
 ```
 
 </TabItem>
@@ -375,12 +349,10 @@ Use the [`restart`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions restart \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-
+pulsar-admin functions restart \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -392,9 +364,7 @@ $ pulsar-admin functions restart \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().restartFunction(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -417,11 +387,9 @@ Use the [`list`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions list \
-  --tenant public \
-  --namespace default
-
+pulsar-admin functions list \
+	--tenant public \
+	--namespace default
 ```
 
 </TabItem>
@@ -433,9 +401,7 @@ $ pulsar-admin functions list \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunctions(tenant, namespace);
-
 ```
 
 </TabItem>
@@ -458,12 +424,10 @@ Use the [`delete`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions delete \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions)
-
+pulsar-admin functions delete \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -475,9 +439,7 @@ $ pulsar-admin functions delete \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().deleteFunction(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -500,12 +462,10 @@ Use the [`get`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions get \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions)
-
+pulsar-admin functions get \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -517,9 +477,7 @@ $ pulsar-admin functions get \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunction(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -541,13 +499,11 @@ Use the [`status`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions status \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --instance-id 1
-
+pulsar-admin functions status \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -559,9 +515,7 @@ $ pulsar-admin functions status \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId));
-
 ```
 
 </TabItem>
@@ -584,12 +538,10 @@ Use the [`status`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions status \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions)
-
+pulsar-admin functions status \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -601,9 +553,7 @@ $ pulsar-admin functions status \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunctionStatus(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -614,6 +564,7 @@ admin.functions().getFunctionStatus(tenant, namespace, functionName);
 ### Get stats of an instance of a function
 
 You can get the current stats of a Pulsar Function instance with `instance-id` using Admin CLI, REST API or Java admin API.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="Admin CLI"
@@ -625,13 +576,11 @@ Use the [`stats`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions stats \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --instance-id 1
-
+pulsar-admin functions stats \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--instance-id 1
 ```
 
 </TabItem>
@@ -643,9 +592,7 @@ $ pulsar-admin functions stats \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId));
-
 ```
 
 </TabItem>
@@ -668,12 +615,10 @@ Use the [`stats`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions stats \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions)
-
+pulsar-admin functions stats \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions)
 ```
 
 </TabItem>
@@ -685,9 +630,7 @@ $ pulsar-admin functions stats \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunctionStats(tenant, namespace, functionName);
-
 ```
 
 </TabItem>
@@ -710,15 +653,13 @@ Use the [`trigger`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions trigger \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --topic (the name of input topic) \
-  --trigger-value \"hello pulsar\"
-  # or --trigger-file (the path of trigger file)
-
+pulsar-admin functions trigger \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--topic (the name of input topic) \
+	--trigger-value \"hello pulsar\"
+	# or --trigger-file (the path of trigger file)
 ```
 
 </TabItem>
@@ -730,9 +671,7 @@ $ pulsar-admin functions trigger \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
-
 ```
 
 </TabItem>
@@ -755,13 +694,11 @@ Use the [`putstate`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions putstate \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}"
-
+pulsar-admin functions putstate \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}"
 ```
 
 </TabItem>
@@ -773,11 +710,9 @@ $ pulsar-admin functions putstate \
 <TabItem value="Java Admin API">
 
 ```java
-
 TypeReference<FunctionState> typeRef = new TypeReference<FunctionState>() {};
 FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
 admin.functions().putFunctionState(tenant, namespace, functionName, stateRepr);
-
 ```
 
 </TabItem>
@@ -800,13 +735,11 @@ Use the [`querystate`](/tools/pulsar-admin/) subcommand.
 **Example**
 
 ```shell
-
-$ pulsar-admin functions querystate \
-  --tenant public \
-  --namespace default \
-  --name (the name of Pulsar Functions) \
-  --key (the key of state)
-
+pulsar-admin functions querystate \
+	--tenant public \
+	--namespace default \
+	--name (the name of Pulsar Functions) \
+	--key (the key of state)
 ```
 
 </TabItem>
@@ -818,9 +751,7 @@ $ pulsar-admin functions querystate \
 <TabItem value="Java Admin API">
 
 ```java
-
 admin.functions().getFunctionState(tenant, namespace, functionName, key);
-
 ```
 
 </TabItem>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -130,7 +130,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
         @Cleanup
         Consumer<Stock> consumer = pulsarClient.newConsumer(JSONSchema.of(Stock.class))
@@ -217,7 +217,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     }
 
     @Override
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) {
         for (int i = 0; i < messageNum; ++i) {
             assertThat(contentArr).contains("\"" + i + "\"");
             assertThat(contentArr).contains("\"" + "STOCK_" + i + "\"");

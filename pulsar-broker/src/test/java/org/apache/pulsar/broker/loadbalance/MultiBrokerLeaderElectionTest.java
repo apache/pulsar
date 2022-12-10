@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,53 +34,19 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.MultiBrokerBaseTest;
+import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.metadata.TestZKServer;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
+public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
     @Override
     protected int numberOfAdditionalBrokers() {
         return 9;
-    }
-
-    TestZKServer testZKServer;
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        testZKServer = new TestZKServer();
-    }
-
-    @Override
-    protected void onCleanup() {
-        super.onCleanup();
-        if (testZKServer != null) {
-            try {
-                testZKServer.close();
-            } catch (Exception e) {
-                log.error("Error in stopping ZK server", e);
-            }
-        }
-    }
-
-    @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
-    }
-
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
     }
 
     @Test

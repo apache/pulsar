@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
 import java.util.List;
@@ -87,6 +88,8 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -104,7 +107,7 @@ import org.slf4j.LoggerFactory;
 public class ClientCnx extends PulsarHandler {
 
     protected final Authentication authentication;
-    private State state;
+    protected State state;
 
     @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
@@ -141,6 +144,9 @@ public class ClientCnx extends PulsarHandler {
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
+
+    @VisibleForTesting
+    @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
@@ -155,7 +161,7 @@ public class ClientCnx extends PulsarHandler {
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
-    private final int protocolVersion;
+    protected final int protocolVersion;
     private final long operationTimeoutMs;
 
     protected String proxyToTargetBrokerAddress = null;
@@ -172,7 +178,14 @@ public class ClientCnx extends PulsarHandler {
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
 
-    enum State {
+    /** Idle stat. **/
+    @Getter
+    private final ClientCnxIdleState idleState;
+
+    @Getter
+    private long lastDisconnectedTimestamp;
+
+    protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
@@ -229,6 +242,7 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.protocolVersion = protocolVersion;
+        this.idleState = new ClientCnxIdleState(this);
     }
 
     @Override
@@ -276,6 +290,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {
             connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
@@ -285,7 +300,11 @@ public class ClientCnx extends PulsarHandler {
                 "Disconnected from server at " + ctx.channel().remoteAddress());
 
         // Fail out all the pending ops
-        pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingRequests.forEach((key, future) -> {
+            if (pendingRequests.remove(key, future) && !future.isDone()) {
+                future.completeExceptionally(e);
+            }
+        });
         waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
@@ -294,7 +313,6 @@ public class ClientCnx extends PulsarHandler {
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
         topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
 
-        pendingRequests.clear();
         waitingLookupRequests.clear();
 
         producers.clear();
@@ -644,6 +662,26 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    @Override
+    protected void handleTopicMigrated(CommandTopicMigrated commandTopicMigrated) {
+        final long resourceId = commandTopicMigrated.getResourceId();
+        final String serviceUrl = commandTopicMigrated.getBrokerServiceUrl();
+        final String serviceUrlTls = commandTopicMigrated.getBrokerServiceUrlTls();
+
+        HandlerState resource = commandTopicMigrated.getResourceType() == ResourceType.Producer
+                ? producers.get(resourceId)
+                : consumers.get(resourceId);
+        log.info("{} is migrated to {}/{}", commandTopicMigrated.getResourceType().name(), serviceUrl, serviceUrlTls);
+        if (resource != null) {
+            try {
+                resource.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
+            } catch (URISyntaxException e) {
+                log.info("[{}] Invalid redirect url {}/{} for {}", remoteAddress, serviceUrl, serviceUrlTls,
+                        resourceId);
+            }
+        }
+    }
+
     // caller of this method needs to be protected under pendingLookupRequestSemaphore
     private void addPendingLookupRequests(long requestId, TimedCompletableFuture<LookupDataResult> future) {
         pendingRequests.put(requestId, future);
@@ -768,6 +806,12 @@ public class ClientCnx extends PulsarHandler {
         TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
         if (pendingLookupRequestSemaphore.tryAcquire()) {
+            future.whenComplete((lookupDataResult, throwable) -> {
+                if (throwable instanceof ConnectException
+                        || throwable instanceof PulsarClientException.LookupException) {
+                    pendingLookupRequestSemaphore.release();
+                }
+            });
             addPendingLookupRequests(requestId, future);
             ctx.writeAndFlush(request).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
@@ -791,7 +835,7 @@ public class ClientCnx extends PulsarHandler {
                 future.completeExceptionally(new PulsarClientException.TooManyRequestsException(String.format(
                     "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests"
                             + " pending.",
-                    pendingLookupRequestSemaphore.availablePermits(),
+                    pendingLookupRequestSemaphore.getQueueLength(),
                     waitingLookupRequests.size())));
             }
         }
@@ -895,8 +939,7 @@ public class ClientCnx extends PulsarHandler {
         if (flush) {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
-                    CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
-                    if (newFuture != null && !newFuture.isDone()) {
+                    if (pendingRequests.remove(requestId, future) && !future.isDone()) {
                         log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
                                 requestType.getDescription(), writeFuture.cause().getMessage());
                         future.completeExceptionally(writeFuture.cause());
@@ -1064,6 +1107,13 @@ public class ClientCnx extends PulsarHandler {
                 RequestType.Command, true);
     }
 
+    public CompletableFuture<CommandSuccess> newWatchTopicListClose(
+            BaseCommand commandWatchTopicListClose, long requestId) {
+        return sendRequestAndHandleTimeout(
+                Commands.serializeWithSize(commandWatchTopicListClose), requestId, RequestType.Command, true);
+    }
+
+    @Override
     protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
         checkArgument(state == State.Ready);
 
@@ -1082,6 +1132,7 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    @Override
     protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
         checkArgument(state == State.Ready);
 
@@ -1230,6 +1281,13 @@ public class ClientCnx extends PulsarHandler {
        }
     }
 
+    protected void closeWithException(Throwable e) {
+       if (ctx != null) {
+           connectionFuture.completeExceptionally(e);
+           ctx.close();
+       }
+    }
+
     private void checkRequestTimeout() {
         while (!requestTimeoutQueue.isEmpty()) {
             RequestTime request = requestTimeoutQueue.peek();
@@ -1237,7 +1295,10 @@ public class ClientCnx extends PulsarHandler {
                 // if there is no request that is timed out then exit the loop
                 break;
             }
-            request = requestTimeoutQueue.poll();
+            if (!requestTimeoutQueue.remove(request)) {
+                // the request has been removed by another thread
+                continue;
+            }
             TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
                     && !requestFuture.hasGotResponse()) {
@@ -1259,4 +1320,27 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
+
+    /**
+     * Check client connection is now free. This method will not change the state to idle.
+     * @return true if the connection is eligible.
+     */
+    public boolean idleCheck() {
+        if (pendingRequests != null && !pendingRequests.isEmpty()) {
+            return false;
+        }
+        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()) {
+            return false;
+        }
+        if (!consumers.isEmpty()) {
+            return false;
+        }
+        if (!producers.isEmpty()) {
+            return false;
+        }
+        if (!transactionMetaStoreHandlers.isEmpty()) {
+            return false;
+        }
+        return true;
+    }
 }

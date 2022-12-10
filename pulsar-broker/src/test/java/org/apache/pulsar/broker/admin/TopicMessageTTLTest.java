@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.Sets;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -36,7 +36,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker-admin")
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -48,14 +48,13 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
         admin.clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testCluster));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testCluster));
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
         producer.close();
@@ -125,15 +124,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
-        super.internalCleanup();
+        cleanup();
         this.conf.setTopicLevelPoliciesEnabled(false);
-        super.internalSetup();
-
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic(testTopic, 2);
+        setup();
 
         try {
             admin.topics().getMessageTTL(testTopic);
@@ -183,7 +176,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "isV1")
     public void testNamespaceTTL(boolean isV1) throws Exception {
         String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1"+isV1;
-        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet(testCluster));
+        admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
         Awaitility.await().untilAsserted(()

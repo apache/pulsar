@@ -6,12 +6,6 @@ sidebar_label: "Pulsar Manager"
 
 Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments.
 
-:::note
-
-If you are monitoring your current stats with Pulsar dashboard, we recommend you use Pulsar Manager instead. Pulsar dashboard is deprecated.
-
-:::
-
 ## Install
 
 ### Quick Install
@@ -34,7 +28,7 @@ docker run -it \
 ### Configure Database or JWT authentication
 ####  Configure Database (optional)
 
-If you have a large amount of data, you can use a custom database, otherwise, some display errors may occur, such as the topic information cannot be displayed when the topic exceeds 10000.
+If you have a large amount of data, you can use a custom database. Otherwise, some display errors may occur. For example, the topic information cannot be displayed when the topic exceeds 10000.
 The following is an example of PostgreSQL.
 
 1. Initialize database and table structures using the [file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/META-INF/sql/postgresql-schema.sql).

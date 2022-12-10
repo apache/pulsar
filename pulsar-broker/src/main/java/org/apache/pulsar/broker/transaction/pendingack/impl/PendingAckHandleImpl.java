@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
-import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,11 +44,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -96,7 +98,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      *     <p>
      *         If it does not exits the map, the position will be added to the map.
      */
-    private Map<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions;
+    private ConcurrentSkipListMap<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions;
 
     /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
@@ -128,6 +130,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
+    private final PendingAckHandleStats handleStats;
+
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
 
@@ -142,6 +146,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .getPulsar()
                 .getTransactionExecutorProvider()
                 .getExecutor(this);
+
+        ServiceConfiguration config = persistentSubscription.getTopic().getBrokerService().pulsar().getConfig();
+        boolean exposeTopicLevelMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+        this.handleStats = PendingAckHandleStats.create(topicName, subName, exposeTopicLevelMetrics);
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
@@ -484,6 +492,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark) {
+        long start = System.nanoTime();
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -508,7 +517,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             }
             internalCommitTxn(txnID, properties, lowWaterMark, commitFuture);
         });
-        return commitFuture;
+        return commitFuture.whenComplete((__, t) ->
+                this.handleStats.recordCommitTxn(t == null, System.nanoTime() - start)
+        );
     }
 
     private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
@@ -528,9 +539,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
                         }
-                        //TODO: pendingAck handle next pr will fix
-                        persistentSubscription.redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
                         abortFuture.complete(null);
+
+                        // in cumulative ack with transaction, don't depend on server redeliver message,
+                        // it will cause the messages to be out of order
                     }).exceptionally(e -> {
                         log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
                                 topicName, txnId, e);
@@ -575,7 +587,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             abortFuture.complete(null);
         }
-        return abortFuture;
+        return abortFuture.whenComplete((__, t) -> this.handleStats.recordAbortTxn(t == null));
     }
 
     @Override
@@ -884,12 +896,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             individualAckPositions.remove(position);
         }
 
-        individualAckPositions.forEach((persistentPosition, positionIntegerMutablePair) -> {
-            if (persistentPosition.compareTo((PositionImpl) persistentSubscription
+        while (individualAckPositions.firstEntry() != null) {
+            if (individualAckPositions.firstKey().compareTo((PositionImpl) persistentSubscription
                     .getCursor().getMarkDeletedPosition()) < 0) {
-                individualAckPositions.remove(persistentPosition);
+                individualAckPositions.remove(individualAckPositions.firstKey());
+            } else {
+                break;
             }
-        });
+        }
     }
 
     @Override
@@ -1012,6 +1026,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
+    }
+
+    @VisibleForTesting
+    public Map<PositionImpl, MutablePair<PositionImpl, Integer>> getIndividualAckPositions() {
+        return individualAckPositions;
     }
 
     @Override

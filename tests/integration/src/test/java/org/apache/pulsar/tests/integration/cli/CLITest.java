@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,6 +83,7 @@ public class CLITest extends PulsarTestSuite {
         final String namespace = "public/" + namespaceLocalName;
         assertEquals(0, result.getExitCode());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
         final String persistentTopicName = TopicName.get(
@@ -526,7 +527,7 @@ public class CLITest extends PulsarTestSuite {
         testPublishAndConsume("persistent://public/default/pojo-json", "json", Schema.JSON(Tick.class));
     }
 
-    private void testPublishAndConsume(String topic, String sub, Schema type) throws PulsarClientException {
+    private void testPublishAndConsume(String topic, String sub, Schema<Tick> type) throws PulsarClientException {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
@@ -590,7 +591,7 @@ public class CLITest extends PulsarTestSuite {
             ContainerExecResult result = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
                     "documents", "generate", moduleNames[i]);
-            Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
+            Assert.assertTrue(result.getStdout().contains("# " + moduleNames[i]));
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,8 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
     }
 
     public abstract boolean shouldAlwaysSetMessageProperties();
+
+    public abstract boolean shouldSetSchema();
 
     public Record<?> getSourceRecord() {
         return sourceRecord;

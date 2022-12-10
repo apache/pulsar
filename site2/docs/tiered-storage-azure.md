@@ -13,59 +13,11 @@ Follow the steps below to install the Azure BlobStore offloader.
 ### Prerequisite
 
 - Pulsar: 2.6.2 or later versions
-  
-### Step
 
-This example uses Pulsar 2.6.2.
+### Steps
 
-1. Download the Pulsar tarball using one of the following ways:
-
-   * Download from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz)
-
-   * Download from the Pulsar [downloads page](/download)
-
-   * Use [wget](https://www.gnu.org/software/wget):
-
-    ```shell
-    
-    wget https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz
-    
-    ```
-
-2. Download and untar the Pulsar offloaders package. 
-
-   ```bash
-   
-   wget https://downloads.apache.org/pulsar/pulsar-2.6.2/apache-pulsar-offloaders-2.6.2-bin.tar.gz
-   tar xvfz apache-pulsar-offloaders-2.6.2-bin.tar.gz
-   
-   ```
-
-3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
-
-   ```
-   
-   mv apache-pulsar-offloaders-2.6.2/offloaders apache-pulsar-2.6.2/offloaders
-
-   ls offloaders
-   
-   ```
-
-   **Output**
-
-   ```
-   
-   tiered-storage-file-system-2.6.2.nar
-   tiered-storage-jcloud-2.6.2.nar
-   
-   ```
-
-   :::note
-
-   * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
@@ -82,7 +34,7 @@ Besides, you can also configure the Azure BlobStore offloader to run it automati
 You can configure the Azure BlobStore offloader driver in the configuration file `broker.conf` or `standalone.conf`.
 
 - **Required** configurations are as below.
-  
+
   Required configuration | Description | Example value
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name | azureblob
@@ -107,9 +59,7 @@ A bucket is a basic container that holds your data. Everything you store in Azur
 This example names the bucket as _pulsar-topic-offload_.
 
 ```conf
-
 managedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 #### Authentication (required)
@@ -121,15 +71,13 @@ To be able to access Azure BlobStore, you need to authenticate with Azure BlobSt
   "export" is important so that the variables are made available in the environment of spawned processes.
 
   ```bash
-  
   export AZURE_STORAGE_ACCOUNT=ABC123456789
   export AZURE_STORAGE_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-  
   ```
 
 #### Size of block read/write
 
-You can configure the size of a request sent to or read from Azure BlobStore in the configuration file `broker.conf` or `standalone.conf`. 
+You can configure the size of a request sent to or read from Azure BlobStore in the configuration file `broker.conf` or `standalone.conf`.
 
 Configuration|Description|Default value
 |---|---|---
@@ -138,7 +86,7 @@ Configuration|Description|Default value
 
 ### Configure Azure BlobStore offloader to run automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically.
 
 Threshold value|Action
 |---|---
@@ -151,20 +99,18 @@ Automatic offloading runs when a new segment is added to a topic log. If you set
 You can configure the threshold size using CLI tools, such as pulsar-admin.
 
 The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace level offload policies. Each namespace can have its own offload policy. If you want to set offload policy for each namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](/tools/pulsar-admin/)) command.
- 
+
 #### Example
 
 This example sets the Azure BlobStore offloader threshold size to 10 MB using pulsar-admin.
 
 ```bash
-
 bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
-
 ```
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -174,7 +120,7 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 
 - Use REST endpoint.
 
-- Use CLI tools (such as pulsar-admin). 
+- Use CLI tools (such as pulsar-admin).
 
   To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Azure BlobStore until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -183,79 +129,63 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 - This example triggers the Azure BlobStore offloader to run manually using pulsar-admin.
 
   ```bash
-  
   bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
-  
   ```
 
   **Output**
 
   ```bash
-  
   Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-  
   ```
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
 - This example checks the Azure BlobStore offloader status using pulsar-admin.
 
   ```bash
-  
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-  
   ```
 
   **Output**
 
   ```bash
-  
   Offload is currently running
-  
   ```
 
   To wait for the Azure BlobStore offloader to complete the job, add the `-w` flag.
 
   ```bash
-  
   bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-  
   ```
 
   **Output**
 
   ```
-  
   Offload was a success
-  
   ```
 
   If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
   ```bash
-  
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-  
   ```
 
   **Output**
 
   ```
-  
   Error in offload
   null
 
   Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException:
-  
   ```
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 

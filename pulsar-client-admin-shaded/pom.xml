@@ -125,6 +125,7 @@
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>com.yahoo.datasketches:sketches-core</include>

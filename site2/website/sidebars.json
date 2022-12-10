@@ -7,6 +7,10 @@
     {
       "type": "category",
       "label": "Get Started",
+      "link": {
+        "type": "doc",
+        "id": "getting-started-home"
+      },
       "items": [
         "getting-started-standalone",
         "getting-started-docker",
@@ -22,6 +26,7 @@
         "concepts-architecture-overview",
         "concepts-clients",
         "concepts-replication",
+        "concepts-cluster-level-failover",
         "concepts-multi-tenancy",
         "concepts-authentication",
         "concepts-topic-compaction",
@@ -33,10 +38,10 @@
       "type": "category",
       "label": "Pulsar Schema",
       "items": [
-        "schema-get-started",
+        "schema-overview",
         "schema-understand",
-        "schema-evolution-compatibility",
-        "schema-manage"
+        "schema-get-started",
+        "schema-evolution-compatibility"
       ]
     },
     {
@@ -56,7 +61,7 @@
           "items": [
             "functions-worker-corun",
             "functions-worker-run-separately",
-            "functions-worker-tmp-file-path",
+            "functions-worker-temp-file-path",
             "functions-worker-stateful",
             "functions-worker-for-geo-replication",
             "functions-worker-troubleshooting"
@@ -97,7 +102,8 @@
                 "functions-deploy-cluster-resource",
                 "functions-deploy-cluster-parallelism",
                 "functions-deploy-cluster-encryption",
-                "functions-deploy-cluster-package"
+                "functions-deploy-cluster-package",
+                "functions-deploy-cluster-builtin"
               ]
             },
             "functions-deploy-trigger"
@@ -194,26 +200,36 @@
     {
       "type": "category",
       "label": "Transactions",
-      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
-    },
-    {
-      "type": "category",
-      "label": "Kubernetes (Helm)",
       "items": [
-        "helm-overview",
-        "helm-prepare",
-        "helm-install",
-        "helm-deploy",
-        "helm-upgrade",
-        "helm-tools"
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
       ]
     },
     {
       "type": "category",
       "label": "Deployment",
+      "link": {
+        "type": "doc",
+        "id": "install-deploy-upgrade-landing"
+      },
       "items": [
         "deploy-aws",
-        "deploy-kubernetes",
+        {
+          "type": "category",
+          "label": "Kubernetes",
+          "link": {
+            "type": "doc",
+            "id": "deploy-kubernetes"
+          },
+          "items": [
+            "helm-prepare",
+            "helm-deploy",
+            "helm-upgrade"
+          ]
+        },
         "deploy-bare-metal",
         "deploy-bare-metal-multi-cluster",
         "deploy-docker",
@@ -225,13 +241,26 @@
       "label": "Administration",
       "items": [
         "administration-zk-bk",
+        "administration-metadata-store",
         "administration-geo",
         "administration-pulsar-manager",
+        "administration-pulsar-shell",
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",
         "administration-upgrade",
-        "administration-isolation"
+        {
+          "type": "category",
+          "label": "Pulsar isolation",
+          "link": {
+            "type": "doc",
+            "id": "administration-isolation"
+          },
+          "items": [
+            "administration-isolation-broker",
+            "administration-isolation-bookie"
+          ]
+        }
       ]
     },
     {
@@ -239,25 +268,38 @@
       "label": "Security",
       "items": [
         "security-overview",
-        "security-policy-and-supported-versions",
-        "security-tls-transport",
-        "security-tls-authentication",
-        "security-tls-keystore",
-        "security-jwt",
-        "security-athenz",
-        "security-kerberos",
-        "security-oauth2",
-        "security-basic-auth",
+        {
+          "type": "category",
+          "label": "Encryption",
+          "items": [
+            "security-encryption",
+            "security-tls-transport",
+            "security-bouncy-castle"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Authentication",
+          "items": [
+            "security-tls-authentication",
+            "security-jwt",
+            "security-athenz",
+            "security-kerberos",
+            "security-oauth2",
+            "security-basic-auth"
+          ]
+        },
         "security-authorization",
-        "security-encryption",
         "security-extending",
-        "security-bouncy-castle"
+        "security-policy-and-supported-versions"
       ]
     },
     {
       "type": "category",
       "label": "Performance",
-      "items": ["performance-pulsar-perf"]
+      "items": [
+        "performance-pulsar-perf"
+      ]
     },
     {
       "type": "category",
@@ -279,6 +321,7 @@
       "label": "Admin API",
       "items": [
         "admin-api-overview",
+        "admin-api-get-started",
         "admin-api-clusters",
         "admin-api-tenants",
         "admin-api-brokers",
@@ -286,13 +329,19 @@
         "admin-api-permissions",
         "admin-api-topics",
         "admin-api-functions",
-        "admin-api-packages"
+        "admin-api-packages",
+        "admin-api-schemas",
+        "admin-api-transactions"
       ]
     },
     {
       "type": "category",
       "label": "Adaptors",
-      "items": ["adaptors-kafka", "adaptors-spark", "adaptors-storm"]
+      "items": [
+        "adaptors-kafka",
+        "adaptors-spark",
+        "adaptors-storm"
+      ]
     },
     {
       "type": "category",
@@ -302,7 +351,6 @@
         "cookbooks-deduplication",
         "cookbooks-non-persistent",
         "cookbooks-retention-expiry",
-        "cookbooks-encryption",
         "cookbooks-message-queue",
         "cookbooks-bookkeepermetadata"
       ]
@@ -310,6 +358,10 @@
     {
       "type": "category",
       "label": "Development",
+      "link": {
+        "type": "doc",
+        "id": "developers-landing"
+      },
       "items": [
         "develop-tools",
         "developing-binary-protocol",
@@ -320,12 +372,21 @@
     {
       "type": "category",
       "label": "Reference",
+      "link": {
+        "type": "doc",
+        "id": "reference-landing"
+      },
       "items": [
         "reference-terminology",
         "reference-cli-tools",
         "reference-configuration",
         "reference-metrics",
-        "reference-rest-api-overview"
+        "reference-rest-api-overview",
+        {
+          "type": "link",
+          "href": "/release-notes/",
+          "label": "Release notes"
+        }
       ]
     }
   ]

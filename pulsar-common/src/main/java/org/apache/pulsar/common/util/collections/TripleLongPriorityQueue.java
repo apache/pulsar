@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.annotations.VisibleForTesting;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 
 /**
  * Provides a priority-queue implementation specialized on items composed by 3 longs.
@@ -29,33 +26,28 @@ import io.netty.buffer.PooledByteBufAllocator;
  * <p>This class is not thread safe and the items are stored in direct memory.
  */
 public class TripleLongPriorityQueue implements AutoCloseable {
-
-    private static final int SIZE_OF_LONG = 8;
     private static final int DEFAULT_INITIAL_CAPACITY = 16;
     private static final float DEFAULT_SHRINK_FACTOR = 0.5f;
 
     // Each item is composed of 3 longs
     private static final int ITEMS_COUNT = 3;
 
-    private static final int TUPLE_SIZE = ITEMS_COUNT * SIZE_OF_LONG;
-
     /**
      * Reserve 10% of the capacity when shrinking to avoid frequent expansion and shrinkage.
      */
     private static final float RESERVATION_FACTOR = 0.9f;
 
-    private ByteBuf buffer;
+    private final SegmentedLongArray array;
 
-    private final int initialCapacity;
+    // Count of how many (long,long,long) tuples are currently inserted
+    private long tuplesCount;
 
-    private int capacity;
-    private int size;
     /**
      * When size < capacity * shrinkFactor, may trigger shrinking.
      */
     private final float shrinkFactor;
 
-    private float shrinkThreshold;
+    private long shrinkThreshold;
 
     /**
      * Create a new priority queue with default initial capacity.
@@ -64,13 +56,12 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
-    public TripleLongPriorityQueue(int initialCapacity, float shrinkFactor) {
+    public TripleLongPriorityQueue(long initialCapacity, float shrinkFactor) {
+        checkArgument(initialCapacity > 0);
         checkArgument(shrinkFactor > 0);
-        this.initialCapacity = initialCapacity;
-        this.capacity = initialCapacity;
-        this.shrinkThreshold = this.capacity * shrinkFactor;
-        this.buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * TUPLE_SIZE);
-        this.size = 0;
+        this.array = new SegmentedLongArray(initialCapacity * ITEMS_COUNT);
+        this.tuplesCount = 0;
+        this.shrinkThreshold = (long) (initialCapacity * shrinkFactor);
         this.shrinkFactor = shrinkFactor;
     }
 
@@ -87,7 +78,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      */
     @Override
     public void close() {
-        buffer.release();
+        array.close();
     }
 
     /**
@@ -98,13 +89,14 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      * @param n3
      */
     public void add(long n1, long n2, long n3) {
-        if (size == capacity) {
-            increaseCapacity();
+        long arrayIdx = tuplesCount * ITEMS_COUNT;
+        if ((arrayIdx + 2) >= array.getCapacity()) {
+            array.increaseCapacity();
         }
 
-        put(size, n1, n2, n3);
-        siftUp(size);
-        ++size;
+        put(tuplesCount, n1, n2, n3);
+        siftUp(tuplesCount);
+        ++tuplesCount;
     }
 
     /**
@@ -113,8 +105,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      * <p>The tuple will not be extracted
      */
     public long peekN1() {
-        checkArgument(size != 0);
-        return buffer.getLong(0);
+        checkArgument(tuplesCount != 0);
+        return array.readLong(0);
     }
 
     /**
@@ -123,8 +115,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      * <p>The tuple will not be extracted
      */
     public long peekN2() {
-        checkArgument(size != 0);
-        return buffer.getLong(0 + 1 * SIZE_OF_LONG);
+        checkArgument(tuplesCount != 0);
+        return array.readLong(1);
     }
 
     /**
@@ -133,17 +125,17 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      * <p>The tuple will not be extracted
      */
     public long peekN3() {
-        checkArgument(size != 0);
-        return buffer.getLong(0 + 2 * SIZE_OF_LONG);
+        checkArgument(tuplesCount != 0);
+        return array.readLong(2);
     }
 
     /**
      * Removes the first item from the queue.
      */
     public void pop() {
-        checkArgument(size != 0);
-        swap(0, size - 1);
-        size--;
+        checkArgument(tuplesCount != 0);
+        swap(0, tuplesCount - 1);
+        tuplesCount--;
         siftDown(0);
         shrinkCapacity();
     }
@@ -152,132 +144,125 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      * Returns whether the priority queue is empty.
      */
     public boolean isEmpty() {
-        return size == 0;
+        return tuplesCount == 0;
     }
 
     /**
      * Returns the number of tuples in the priority queue.
      */
-    public int size() {
-        return size;
+    public long size() {
+        return tuplesCount;
+    }
+
+    /**
+     * The amount of memory used to back the priority queue.
+     */
+    public long bytesCapacity() {
+        return array.bytesCapacity();
     }
 
     /**
      * Clear all items.
      */
     public void clear() {
-        this.buffer.clear();
-        this.size = 0;
+        this.tuplesCount = 0;
         shrinkCapacity();
     }
 
-    private void increaseCapacity() {
-        // For bigger sizes, increase by 50%
-        this.capacity += (capacity <= 256 ? capacity : capacity / 2);
-        this.shrinkThreshold = this.capacity * shrinkFactor;
-        buffer.capacity(this.capacity * TUPLE_SIZE);
-    }
-
     private void shrinkCapacity() {
-        if (capacity > initialCapacity &&  size < shrinkThreshold) {
-            int decreasingSize = (int) (capacity * shrinkFactor * RESERVATION_FACTOR);
-            if (decreasingSize <= 0) {
+        if (tuplesCount <= shrinkThreshold && array.getCapacity() > array.getInitialCapacity()) {
+            long sizeToShrink = (long) (array.getCapacity() * shrinkFactor * RESERVATION_FACTOR);
+            if (sizeToShrink == 0) {
                 return;
             }
-            if (capacity - decreasingSize <= initialCapacity) {
-                this.capacity = initialCapacity;
-            } else {
-                this.capacity = capacity - decreasingSize;
-            }
-            this.shrinkThreshold = this.capacity * shrinkFactor;
 
-            ByteBuf newBuffer = PooledByteBufAllocator.DEFAULT.directBuffer(this.capacity * TUPLE_SIZE);
-            buffer.getBytes(0, newBuffer, size * TUPLE_SIZE);
-            buffer.release();
-            this.buffer = newBuffer;
+            long newCapacity;
+            if (array.getCapacity() - sizeToShrink <= array.getInitialCapacity()) {
+                newCapacity = array.getInitialCapacity();
+            } else {
+                newCapacity = array.getCapacity() - sizeToShrink;
+            }
+
+            array.shrink(newCapacity);
+            this.shrinkThreshold = (long) (array.getCapacity() / (double) ITEMS_COUNT * shrinkFactor);
         }
     }
 
-    private void siftUp(int idx) {
-        while (idx > 0) {
-            int parentIdx = (idx - 1) / 2;
-            if (compare(idx, parentIdx) >= 0) {
+    private void siftUp(long tupleIdx) {
+        while (tupleIdx > 0) {
+            long parentIdx = (tupleIdx - 1) / 2;
+            if (compare(tupleIdx, parentIdx) >= 0) {
                 break;
             }
 
-            swap(idx, parentIdx);
-            idx = parentIdx;
+            swap(tupleIdx, parentIdx);
+            tupleIdx = parentIdx;
         }
     }
 
-    private void siftDown(int idx) {
-        int half = size / 2;
-        while (idx < half) {
-            int left = 2 * idx + 1;
-            int right = 2 * idx + 2;
+    private void siftDown(long tupleIdx) {
+        long half = tuplesCount / 2;
+        while (tupleIdx < half) {
+            long left = 2 * tupleIdx + 1;
+            long right = 2 * tupleIdx + 2;
 
-            int swapIdx = idx;
+            long swapIdx = tupleIdx;
 
-            if (compare(idx, left) > 0) {
+            if (compare(tupleIdx, left) > 0) {
                 swapIdx = left;
             }
 
-            if (right < size && compare(swapIdx, right) > 0) {
+            if (right < tuplesCount && compare(swapIdx, right) > 0) {
                 swapIdx = right;
             }
 
-            if (swapIdx == idx) {
+            if (swapIdx == tupleIdx) {
                 return;
             }
 
-            swap(idx, swapIdx);
-            idx = swapIdx;
+            swap(tupleIdx, swapIdx);
+            tupleIdx = swapIdx;
         }
     }
 
-    private void put(int idx, long n1, long n2, long n3) {
-        int i = idx * TUPLE_SIZE;
-        buffer.setLong(i, n1);
-        buffer.setLong(i + 1 * SIZE_OF_LONG, n2);
-        buffer.setLong(i + 2 * SIZE_OF_LONG, n3);
+    private void put(long tupleIdx, long n1, long n2, long n3) {
+        long idx = tupleIdx * ITEMS_COUNT;
+        array.writeLong(idx, n1);
+        array.writeLong(idx + 1, n2);
+        array.writeLong(idx + 2, n3);
     }
 
-    private int compare(int idx1, int idx2) {
-        int i1 = idx1 * TUPLE_SIZE;
-        int i2 = idx2 * TUPLE_SIZE;
+    private int compare(long tupleIdx1, long tupleIdx2) {
+        long idx1 = tupleIdx1 * ITEMS_COUNT;
+        long idx2 = tupleIdx2 * ITEMS_COUNT;
 
-        int c1 = Long.compare(buffer.getLong(i1), buffer.getLong(i2));
+        int c1 = Long.compare(array.readLong(idx1), array.readLong(idx2));
         if (c1 != 0) {
             return c1;
         }
 
-        int c2 = Long.compare(buffer.getLong(i1 + SIZE_OF_LONG), buffer.getLong(i2 + SIZE_OF_LONG));
+        int c2 = Long.compare(array.readLong(idx1 + 1), array.readLong(idx2 + 1));
         if (c2 != 0) {
             return c2;
         }
 
-        return Long.compare(buffer.getLong(i1 + 2 * SIZE_OF_LONG), buffer.getLong(i2 + 2 * SIZE_OF_LONG));
+        return Long.compare(array.readLong(idx1 + 2), array.readLong(idx2 + 2));
     }
 
-    private void swap(int idx1, int idx2) {
-        int i1 = idx1 * TUPLE_SIZE;
-        int i2 = idx2 * TUPLE_SIZE;
+    private void swap(long tupleIdx1, long tupleIdx2) {
+        long idx1 = tupleIdx1 * ITEMS_COUNT;
+        long idx2 = tupleIdx2 * ITEMS_COUNT;
 
-        long tmp1 = buffer.getLong(i1);
-        long tmp2 = buffer.getLong(i1 + 1 * SIZE_OF_LONG);
-        long tmp3 = buffer.getLong(i1 + 2 * SIZE_OF_LONG);
+        long tmp1 = array.readLong(idx1);
+        long tmp2 = array.readLong(idx1 + 1);
+        long tmp3 = array.readLong(idx1 + 2);
 
-        buffer.setLong(i1, buffer.getLong(i2));
-        buffer.setLong(i1 + 1 * SIZE_OF_LONG, buffer.getLong(i2 + 1 * SIZE_OF_LONG));
-        buffer.setLong(i1 + 2 * SIZE_OF_LONG, buffer.getLong(i2 + 2 * SIZE_OF_LONG));
+        array.writeLong(idx1, array.readLong(idx2));
+        array.writeLong(idx1 + 1, array.readLong(idx2 + 1));
+        array.writeLong(idx1 + 2, array.readLong(idx2 + 2));
 
-        buffer.setLong(i2, tmp1);
-        buffer.setLong(i2 + 1 * SIZE_OF_LONG, tmp2);
-        buffer.setLong(i2 + 2 * SIZE_OF_LONG, tmp3);
-    }
-
-    @VisibleForTesting
-    ByteBuf getBuffer() {
-        return buffer;
+        array.writeLong(idx2, tmp1);
+        array.writeLong(idx2 + 1, tmp2);
+        array.writeLong(idx2 + 2, tmp3);
     }
 }

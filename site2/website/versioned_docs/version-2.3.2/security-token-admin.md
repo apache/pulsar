@@ -162,7 +162,7 @@ tokenSecretKey=file:///path/to/secret.key
 To configure proxies to authenticate clients, put the following in `proxy.conf`:
 
 The proxy will have its own token used when talking to brokers. The role token for this
-key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization) for more details.
+key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 

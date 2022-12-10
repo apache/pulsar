@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,13 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.exit;
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ProxyProtocol;
 
 
 public abstract class PerformanceBaseArguments {
@@ -81,6 +84,16 @@ public abstract class PerformanceBaseArguments {
             + " to be used for message listeners")
     public int listenerThreads = 1;
 
+    @Parameter(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
+            + "on each broker connection to prevent overloading a broker")
+    public int maxLookupRequest = 50000;
+
+    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    String proxyServiceURL = null;
+
+    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    ProxyProtocol proxyProtocol = null;
+
     public abstract void fillArgumentsFromProperties(Properties prop);
 
     @SneakyThrows
@@ -129,6 +142,26 @@ public abstract class PerformanceBaseArguments {
                     .getProperty("tlsEnableHostnameVerification", ""));
 
         }
+
+        if (proxyServiceURL == null) {
+            proxyServiceURL = StringUtils.trimToNull(prop.getProperty("proxyServiceUrl"));
+        }
+
+        if (proxyProtocol == null) {
+            String proxyProtocolString = null;
+            try {
+                proxyProtocolString = StringUtils.trimToNull(prop.getProperty("proxyProtocol"));
+                if (proxyProtocolString != null) {
+                    proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
+                e.printStackTrace();
+                exit(-1);
+            }
+
+        }
+
         fillArgumentsFromProperties(prop);
     }
 

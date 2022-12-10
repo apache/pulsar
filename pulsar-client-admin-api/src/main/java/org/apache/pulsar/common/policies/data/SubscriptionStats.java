@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -126,4 +126,12 @@ public interface SubscriptionStats {
 
     /** The serialized size of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRangesSerializedSize();
+
+    long getFilterProcessedMsgCount();
+
+    long getFilterAcceptedMsgCount();
+
+    long getFilterRejectedMsgCount();
+
+    long getFilterRescheduledMsgCount();
 }

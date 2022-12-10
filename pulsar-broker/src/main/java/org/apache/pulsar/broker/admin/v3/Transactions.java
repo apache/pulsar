@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,6 +51,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
 @Slf4j
 public class Transactions extends TransactionsBase {
+
+    @GET
+    @Path("/coordinators")
+    @ApiOperation(value = "List transaction coordinators.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "This Broker is not "
+                    + "configured with transactionCoordinatorEnabled=true.")})
+    public void listCoordinators(@Suspended final AsyncResponse asyncResponse) {
+        checkTransactionCoordinatorEnabled();
+        internalListCoordinators(asyncResponse);
+    }
 
     @GET
     @Path("/coordinatorStats")
@@ -345,7 +356,7 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
-    @Path("/pendingAckStats/{tenant}/{namespace}/{topic}/{subName}/{ledgerId}/{entryId}")
+    @Path("/positionStatsInPendingAck/{tenant}/{namespace}/{topic}/{subName}/{ledgerId}/{entryId}")
     @ApiOperation(value = "Get position stats in pending ack.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "

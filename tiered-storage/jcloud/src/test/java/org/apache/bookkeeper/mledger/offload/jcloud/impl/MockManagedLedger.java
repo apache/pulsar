@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import com.google.common.base.Predicate;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -355,6 +356,12 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
+        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        return Optional.of(build);
+    }
+
+    @Override
     public CompletableFuture<Void> asyncTruncate() {
         return CompletableFuture.completedFuture(null);
     }
@@ -367,5 +374,22 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public void checkInactiveLedgerAndRollOver() {
 
+    }
+
+    @Override
+    public void checkCursorsToCacheEntries() {
+        // no-op
+    }
+
+    @Override
+    public CompletableFuture<Position> asyncMigrate() {
+        // no-op
+        return null;
+    }
+
+    @Override
+    public boolean isMigrated() {
+        // no-op
+        return false;
     }
 }

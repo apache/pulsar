@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,8 @@ package org.apache.pulsar.common.util.collections;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,30 +37,15 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
+// Deprecation warning suppressed as this test targets deprecated class
+@SuppressWarnings("deprecation")
 public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testConstructor() {
-        try {
-            new ConcurrentOpenHashSet<String>(0);
-            fail("should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
-
-        try {
-            new ConcurrentOpenHashSet<String>(16, 0);
-            fail("should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
-
-        try {
-            new ConcurrentOpenHashSet<String>(4, 8);
-            fail("should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
+        assertThrows(IllegalArgumentException.class, () -> new ConcurrentOpenHashSet<String>(0));
+        assertThrows(IllegalArgumentException.class, () -> new ConcurrentOpenHashSet<String>(16, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ConcurrentOpenHashSet<String>(4, 8));
     }
 
     @Test
@@ -120,15 +105,15 @@ public class ConcurrentOpenHashSetTest {
                 .autoShrink(true)
                 .mapIdleFactor(0.25f)
                 .build();
-        assertTrue(set.capacity() == 4);
+        assertEquals(set.capacity(), 4);
 
         assertTrue(set.add("k1"));
         assertTrue(set.add("k2"));
         assertTrue(set.add("k3"));
 
-        assertTrue(set.capacity() == 8);
+        assertEquals(set.capacity(), 8);
         set.clear();
-        assertTrue(set.capacity() == 4);
+        assertEquals(set.capacity(), 4);
     }
 
     @Test
@@ -140,6 +125,42 @@ public class ConcurrentOpenHashSetTest {
                 .autoShrink(true)
                 .mapIdleFactor(0.25f)
                 .build();
+        assertEquals(map.capacity(), 4);
+
+        assertTrue(map.add("k1"));
+        assertTrue(map.add("k2"));
+        assertTrue(map.add("k3"));
+
+        // expand hashmap
+        assertEquals(map.capacity(), 8);
+
+        assertTrue(map.remove("k1"));
+        // not shrink
+        assertEquals(map.capacity(), 8);
+        assertTrue(map.remove("k2"));
+        // shrink hashmap
+        assertEquals(map.capacity(), 4);
+
+        // expand hashmap
+        assertTrue(map.add("k4"));
+        assertTrue(map.add("k5"));
+        assertEquals(map.capacity(), 8);
+
+        //verify that the map does not keep shrinking at every remove() operation
+        assertTrue(map.add("k6"));
+        assertTrue(map.remove("k6"));
+        assertEquals(map.capacity(), 8);
+    }
+
+    @Test
+    public void testExpandShrinkAndClear() {
+        ConcurrentOpenHashSet<String> map = ConcurrentOpenHashSet.<String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        final long initCapacity = map.capacity();
         assertTrue(map.capacity() == 4);
 
         assertTrue(map.add("k1"));
@@ -156,15 +177,13 @@ public class ConcurrentOpenHashSetTest {
         // shrink hashmap
         assertTrue(map.capacity() == 4);
 
-        // expand hashmap
-        assertTrue(map.add("k4"));
-        assertTrue(map.add("k5"));
-        assertTrue(map.capacity() == 8);
-
-        //verify that the map does not keep shrinking at every remove() operation
-        assertTrue(map.add("k6"));
-        assertTrue(map.remove("k6"));
-        assertTrue(map.capacity() == 8);
+        assertTrue(map.remove("k3"));
+        // Will not shrink the hashmap again because shrink capacity is less than initCapacity
+        // current capacity is equal than the initial capacity
+        assertTrue(map.capacity() == initCapacity);
+        map.clear();
+        // after clear, because current capacity is equal than the initial capacity, so not shrinkToInitCapacity
+        assertTrue(map.capacity() == initCapacity);
     }
 
     @Test

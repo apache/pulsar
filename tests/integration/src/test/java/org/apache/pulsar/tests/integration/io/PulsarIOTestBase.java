@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,14 @@ import org.apache.pulsar.tests.integration.io.sinks.PulsarIOSinkRunner;
 import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.io.sources.PulsarIOSourceRunner;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testcontainers.containers.GenericContainer;
 
 public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
+
+    public PulsarIOTestBase(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -37,7 +42,7 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
             try {
                 tester.close();
             } finally {
-                tester.stopServiceContainer(pulsarCluster);
+                tester.stopServiceContainer();
             }
         }
     }
@@ -63,7 +68,7 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
             try {
                 sinkTester.close();
             } finally {
-                sinkTester.stopServiceContainer(pulsarCluster);
+                sinkTester.stopServiceContainer();
             }
         }
     }

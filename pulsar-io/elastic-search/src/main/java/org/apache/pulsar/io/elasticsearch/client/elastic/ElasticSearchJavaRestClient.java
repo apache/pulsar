@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,10 +36,13 @@ import co.elastic.clients.elasticsearch.indices.RefreshRequest;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
@@ -52,9 +55,21 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticSearchJavaRestClient extends RestClient {
 
     private final ElasticsearchClient client;
-    private final ElasticsearchTransport transport;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final BulkProcessor bulkProcessor;
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(SerializationFeature.INDENT_OUTPUT, false)
+            .setSerializationInclusion(JsonInclude.Include.ALWAYS);
+    private BulkProcessor bulkProcessor;
+    private ElasticsearchTransport transport;
+
+    @VisibleForTesting
+    public void setBulkProcessor(BulkProcessor bulkProcessor) {
+        this.bulkProcessor = bulkProcessor;
+    }
+
+    @VisibleForTesting
+    public void setTransport(ElasticsearchTransport transport) {
+        this.transport = transport;
+    }
 
     public ElasticSearchJavaRestClient(ElasticSearchConfig elasticSearchConfig,
                                        BulkProcessor.Listener bulkProcessorListener) {
@@ -75,9 +90,8 @@ public class ElasticSearchJavaRestClient extends RestClient {
                         log.warn("Node host={} failed", node.getHost());
                     }
                 });
-        transport = new RestClientTransport(builder.build(),
-                new JacksonJsonpMapper());
-        this.client = new ElasticsearchClient(transport);
+        transport = new RestClientTransport(builder.build(), new JacksonJsonpMapper(objectMapper));
+        client = new ElasticsearchClient(transport);
         if (elasticSearchConfig.isBulkEnabled()) {
             bulkProcessor = new ElasticBulkProcessor(elasticSearchConfig, client, bulkProcessorListener);
         } else {
@@ -105,14 +119,15 @@ public class ElasticSearchJavaRestClient extends RestClient {
                 .build();
         try {
             final CreateIndexResponse createIndexResponse = client.indices().create(createIndexRequest);
-            if ((createIndexResponse.acknowledged() != null && createIndexResponse.acknowledged())
+            if ((createIndexResponse.acknowledged())
                     && createIndexResponse.shardsAcknowledged()) {
                 return true;
             }
             throw new IOException("Unable to create index, acknowledged: " + createIndexResponse.acknowledged()
                     + " shardsAcknowledged: " + createIndexResponse.shardsAcknowledged());
         } catch (ElasticsearchException ex) {
-            if (ex.response().error().type().contains("resource_already_exists_exception")) {
+            final String errorType = Objects.requireNonNull(ex.response().error().type());
+            if (errorType.contains("resource_already_exists_exception")) {
                 return false;
             }
             throw ex;
@@ -133,11 +148,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                 .build();
 
         DeleteResponse deleteResponse = client.delete(req);
-        if (deleteResponse.result().equals(Result.Deleted) || deleteResponse.result().equals(Result.NotFound)) {
-            return true;
-        } else {
-            return false;
-        }
+        return deleteResponse.result().equals(Result.Deleted) || deleteResponse.result().equals(Result.NotFound);
     }
 
     @Override
@@ -150,11 +161,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                 .build();
         final IndexResponse indexResponse = client.index(indexRequest);
 
-        if (indexResponse.result().equals(Result.Created) || indexResponse.result().equals(Result.Updated)) {
-            return true;
-        } else {
-            return false;
-        }
+        return indexResponse.result().equals(Result.Created) || indexResponse.result().equals(Result.Updated);
     }
 
     public SearchResponse<Map> search(String indexName) throws IOException {
@@ -200,7 +207,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
         try {
             transport.close();
         } catch (IOException e) {
-            log.warn("error while closing the client: {}", e);
+            log.warn("error while closing the client", e);
         }
     }
 

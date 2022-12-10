@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -130,6 +130,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
+    @Deprecated
     <X> CompletableFuture<Void> publish(String topicName, X object, String schemaOrSerdeClassName);
 
     /**
@@ -140,6 +141,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
+    @Deprecated
     <X> CompletableFuture<Void> publish(String topicName, X object);
 
     /**
@@ -167,8 +169,10 @@ public interface Context extends BaseContext {
      * Creates a FunctionRecordBuilder initialized with values from this Context.
      * It can be used in Functions to prepare a Record to return with default values taken from the Context and the
      * input Record.
-     *
+
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <X> the message type of record builder
      * @return the record builder instance
      */
-    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder();
+    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema);
 }

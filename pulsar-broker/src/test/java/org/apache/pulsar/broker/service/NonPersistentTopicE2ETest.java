@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -199,7 +199,9 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
+        );
 
         // 2. Topic is not GCed with live connection
         String subName = "sub1";

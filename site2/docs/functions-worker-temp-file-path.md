@@ -1,5 +1,5 @@
 ---
-id: functions-worker-tmp-file-path
+id: functions-worker-temp-file-path
 title: Configure temporary file path
 sidebar_label: "Configure temporary file path"
 ---
@@ -10,5 +10,5 @@ If you want to change the default extraction file path for NAR packages to anoth
 
 | Function runtime | Configuration for temporary file path |
 |:------------------------|:-------------------------------------------------|
-| [Thread runtime](functions-runtime-thread.md)<br /> [Process runtime](functions-runtime-process) | `narExtractionDirectory` |
-| [Kubernetes runtime](functions-runtime-kubernetes) | `functionRuntimeFactoryConfigs.narExtractionDirectory` |
+| [Thread runtime](functions-runtime-thread.md)<br /> [Process runtime](functions-runtime-process.md) | `narExtractionDirectory` |
+| [Kubernetes runtime](functions-runtime-kubernetes.md) | `functionRuntimeFactoryConfigs.narExtractionDirectory` |

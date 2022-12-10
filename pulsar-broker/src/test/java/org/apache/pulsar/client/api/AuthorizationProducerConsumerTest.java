@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +118,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
         setup();
 
@@ -177,7 +178,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setEnablePackagesManagement(true);
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
@@ -367,7 +368,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testClearBacklogPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -466,7 +467,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSchemaCompatibilityStrategyPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAnonymousUserRole("superUser");
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
@@ -549,9 +550,66 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testUpdateTopicPropertiesAuthorization() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        cleanup();
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        setup();
+
+        final String tenantRole = "tenant-role";
+        final String generalRole = "general-role";
+        final String namespace = "my-property/my-ns-sub-auth";
+        final String topicName = "persistent://" + namespace + "/my-topic";
+        clientAuthProviderSupportedRoles.add(generalRole);
+
+        Authentication superUserAuthentication = new ClientAuthentication("superUser");
+        @Cleanup
+        PulsarAdmin superAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(superUserAuthentication).build());
+
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
+        Authentication generalAuthentication = new ClientAuthentication(generalRole);
+        @Cleanup
+        PulsarAdmin generalAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(generalAuthentication).build());
+
+        superAdmin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        superAdmin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
+        superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        superAdmin.topics().createPartitionedTopic(topicName, 1);
+
+        Map<String, String> topicProperties = new HashMap();
+        topicProperties.put("key1", "value1");
+        // superUser and tenantAdminatrator have authorization to operate topic's properties
+        superAdmin.topics().updateProperties(topicName, topicProperties);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                superAdmin.topics().getProperties(topicName).get("key1"), "value1"));
+        topicProperties.put("key1", "value2");
+        tenantAdmin.topics().updateProperties(topicName, topicProperties);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                tenantAdmin.topics().getProperties(topicName).get("key1"), "value2"));
+
+        // generalRole doesn't have authorization to update topic's properties so it will fail
+        try {
+            generalAdmin.topics().updateProperties(topicName, topicProperties);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateTopicOperation for operation [UPDATE_METADATA]"));
+        }
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+    @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProviderWithSubscriptionPrefix.class.getName());
         setup();
 
@@ -593,7 +651,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testGrantPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProviderWithGrantPermission.class.getName());
         setup();
 
@@ -612,7 +670,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(TestAuthorizationProviderWithGrantPermission.class.getName());
         setup();
 
@@ -635,7 +693,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testPermissionForProducerCreateInitialSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -952,7 +1010,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
     public static class TestAuthorizationProviderWithGrantPermission extends TestAuthorizationProvider {
 
-        private Set<String> grantRoles = Sets.newHashSet();
+        private Set<String> grantRoles = new HashSet<>();
         static AuthenticationDataSource authenticationData;
         static String authDataJson;
 

@@ -12,7 +12,7 @@ import TabItem from '@theme/TabItem';
 
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar integrates with BookKeeper [table service](https://docs.google.com/document/d/155xAwWv5IdOitHh1NVMEwCMGgB28M3FyMiQSxEpjE-Y/edit#heading=h.56rbh52koe3f) to store state for functions. For example, a `WordCount` function can store the state of its counters into BookKeeper table service via [State APIs](#call-state-apis).
 
-States are key-value pairs, where a key is a string and its value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual function, and shared between instances of that function.
+States are key-value pairs, where a key is a string and its value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual function and shared between instances of that function.
 
 :::note
 
@@ -48,49 +48,33 @@ If the `key` does not exist, a new key is created.
 <TabItem value="Java">
 
 ```java
-
     /**
-     * Increment the builtin distributed counter referred by key
+     * Increment the built-in distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
-
 ```
-
-</TabItem>
-<TabItem value="Python">
-
-```python
-
-  def incr_counter(self, key, amount):
-    """incr the counter of a given key in the managed state"""
-
-```
-
-</TabItem>
-</Tabs>
-````
 
 To asynchronously increment the counter, you can use `incrCounterAsync`.
 
-````mdx-code-block
-<Tabs groupId="lang-choice"
-  defaultValue="Java"
-  values={[{"label":"Java","value":"Java"}]}>
-<TabItem value="Java">
-
 ```java
-
      /**
-     * Increment the builtin distributed counter referred by key
+     * Increment the built-in distributed counter referred by key
      * but dont wait for the completion of the increment operation
      *
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
     CompletableFuture<Void> incrCounterAsync(String key, long amount);
+```
 
+</TabItem>
+<TabItem value="Python">
+
+```python
+  def incr_counter(self, key, amount):
+    """incr the counter of a given key in the managed state"""
 ```
 
 </TabItem>
@@ -108,7 +92,6 @@ You can use `getCounter` to retrieve the counter of a given `key` mutated by `in
 <TabItem value="Java">
 
 ```java
-
     /**
      * Retrieve the counter value for the key.
      *
@@ -116,33 +99,12 @@ You can use `getCounter` to retrieve the counter of a given `key` mutated by `in
      * @return the amount of the counter value for this key
      */
     long getCounter(String key);
-
 ```
-
-</TabItem>
-<TabItem value="Python">
-
-```python
-
-  def get_counter(self, key):
-    """get the counter of a given key in the managed state"""
-
-```
-
-</TabItem>
-</Tabs>
-````
 
 To asynchronously retrieve the counter mutated by `incrCounterAsync`, you can use `getCounterAsync`.
 
-````mdx-code-block
-<Tabs groupId="lang-choice"
-  defaultValue="Java"
-  values={[{"label":"Java","value":"Java"}]}>
-<TabItem value="Java">
 
 ```java
-
      /**
      * Retrieve the counter value for the key, but don't wait
      * for the operation to be completed
@@ -151,7 +113,14 @@ To asynchronously retrieve the counter mutated by `incrCounterAsync`, you can us
      * @return the amount of the counter value for this key
      */
     CompletableFuture<Long> getCounterAsync(String key);
+```
 
+</TabItem>
+<TabItem value="Python">
+
+```python
+  def get_counter(self, key):
+    """get the counter of a given key in the managed state"""
 ```
 
 </TabItem>
@@ -169,7 +138,6 @@ Besides the `counter` API, Pulsar also exposes a general key/value API for funct
 <TabItem value="Java">
 
 ```java
-
     /**
      * Update the state value for the key.
      *
@@ -177,33 +145,11 @@ Besides the `counter` API, Pulsar also exposes a general key/value API for funct
      * @param value state value of the key
      */
     void putState(String key, ByteBuffer value);
-
 ```
-
-</TabItem>
-<TabItem value="Python">
-
-```python
-
-  def put_state(self, key, value):
-    """update the value of a given key in the managed state"""
-
-```
-
-</TabItem>
-</Tabs>
-````
 
 To asynchronously update the state of a given `key`, you can use `putStateAsync`.
 
-````mdx-code-block
-<Tabs groupId="lang-choice"
-  defaultValue="Java"
-  values={[{"label":"Java","value":"Java"}]}>
-<TabItem value="Java">
-
 ```java
-
     /**
      * Update the state value for the key, but don't wait for the operation to be completed
      *
@@ -211,7 +157,14 @@ To asynchronously update the state of a given `key`, you can use `putStateAsync`
      * @param value state value of the key
      */
     CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
+```
 
+</TabItem>
+<TabItem value="Python">
+
+```python
+  def put_state(self, key, value):
+    """update the value of a given key in the managed state"""
 ```
 
 </TabItem>
@@ -229,7 +182,6 @@ You can use `getState` to retrieve the state of a given `key`.
 <TabItem value="Java">
 
 ```java
-
     /**
      * Retrieve the state value for the key.
      *
@@ -237,33 +189,11 @@ You can use `getState` to retrieve the state of a given `key`.
      * @return the state value for the key.
      */
     ByteBuffer getState(String key);
-
 ```
-
-</TabItem>
-<TabItem value="Python">
-
-```python
-
-  def get_state(self, key):
-    """get the value of a given key in the managed state"""
-
-```
-
-</TabItem>
-</Tabs>
-````
 
 To asynchronously retrieve the state of a given `key`, you can use `getStateAsync`.
 
-````mdx-code-block
-<Tabs groupId="lang-choice"
-  defaultValue="Java"
-  values={[{"label":"Java","value":"Java"}]}>
-<TabItem value="Java">
-
 ```java
-
     /**
      * Retrieve the state value for the key, but don't wait for the operation to be completed
      *
@@ -271,7 +201,14 @@ To asynchronously retrieve the state of a given `key`, you can use `getStateAsyn
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getStateAsync(String key);
+```
 
+</TabItem>
+<TabItem value="Python">
+
+```python
+  def get_state(self, key):
+    """get the value of a given key in the managed state"""
 ```
 
 </TabItem>
@@ -293,14 +230,12 @@ Both counters and binary values share the same keyspace, so this API deletes eit
 <TabItem value="Java">
 
 ```java
-
     /**
      * Delete the state value for the key.
      *
      * @param key   name of the key
      */
     void deleteState(String key);
-
 ```
 
 </TabItem>
@@ -313,7 +248,6 @@ Both counters and binary values share the same keyspace, so this API deletes eit
 Besides using the [State APIs](#call-state-apis) to store the state of functions in Pulsar's state storage and retrieve it back from the storage, you can use CLI commands to query the state of functions.
 
 ```bash
-
 bin/pulsar-admin functions querystate \
     --tenant <tenant> \
     --namespace <namespace> \
@@ -321,7 +255,6 @@ bin/pulsar-admin functions querystate \
     --state-storage-url <bookkeeper-service-url> \
     --key <state-key> \
     [---watch]
-
 ```
 
 If `--watch` is specified, the CLI tool keeps running to get the latest value of the provided `state-key`.
@@ -338,13 +271,12 @@ The example of `WordCountFunction` demonstrates how `state` is stored within Pul
 <TabItem value="Java">
 
 
-The logic of {@inject: github:`WordCountFunction`:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is simple and straightforward:
+The logic of {@inject:github:WordCountFunction:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is simple and straightforward:
 
 1. The function splits the received `String` into multiple words using regex `\\.`.
 2. For each `word`, the function increments `counter` by 1 via `incrCounter(key, amount)`.
 
    ```java
-
    import org.apache.pulsar.functions.api.Context;
    import org.apache.pulsar.functions.api.Function;
 
@@ -357,7 +289,6 @@ The logic of {@inject: github:`WordCountFunction`:/pulsar-functions/java-example
            return null;
        }
    }
-
    ```
 
 </TabItem>
@@ -369,14 +300,12 @@ The logic of this `WordCount` function is simple and straightforward:
 2. For each `word`, the function increments `counter` by 1 via `incr_counter(key, amount)`.
 
    ```python
-
    from pulsar import Function
 
    class WordCount(Function):
        def process(self, item, context):
            for word in item.split():
                context.incr_counter(word, 1)
-
    ```
 
 </TabItem>

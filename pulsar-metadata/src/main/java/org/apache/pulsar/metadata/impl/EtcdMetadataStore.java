@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -126,7 +126,8 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     private Client newEtcdClient(String metadataURL, MetadataStoreConfig conf) throws IOException {
         String etcdUrl = metadataURL.replaceFirst(ETCD_SCHEME_IDENTIFIER, "");
-        ClientBuilder clientBuilder = Client.builder().endpoints(etcdUrl);
+        ClientBuilder clientBuilder = Client.builder()
+                .endpoints(etcdUrl.split(","));
 
         if (StringUtils.isNotEmpty(conf.getConfigFilePath())) {
             try (InputStream inputStream = Files.newInputStream(Paths.get(conf.getConfigFilePath()))) {
@@ -384,11 +385,12 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     case GET_CHILDREN: {
                         OpGetChildren getChildren = op.asGetChildren();
                         GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
-                        String basePath = getChildren.getPath() + "/";
+                        String basePath =
+                                getChildren.getPath().equals("/") ? "/" : getChildren.getPath() + "/";
 
                         Set<String> children = gr.getKvs().stream()
                                 .map(kv -> kv.getKey().toString(StandardCharsets.UTF_8))
-                                .map(p -> p.replace(basePath, ""))
+                                .map(p -> p.replaceFirst(basePath, ""))
                                 // Only return first-level children
                                 .map(k -> k.split("/", 2)[0])
                                 .collect(Collectors.toCollection(TreeSet::new));

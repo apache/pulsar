@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -33,6 +35,21 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 
 public interface Transactions {
+
+    /**
+     * List transaction coordinators.
+     *
+     * @return the transaction coordinators list.
+     */
+    List<TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException;
+
+    /**
+     * List transaction coordinators.
+     *
+     * @return the future of the transaction coordinators list.
+     */
+    CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync();
+
 
     /**
      * Get transaction metadataStore stats.
@@ -308,8 +325,7 @@ public interface Transactions {
     CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
 
     /**
-     * Check whether the position is in pending ack stats.
-     *
+     * Get the position stats in transaction pending ack.
      * @param topic the topic of checking position in pending ack state
      * @param subName the subscription name of this pending ack
      * @param ledgerId the ledger id of the message position.
@@ -317,11 +333,11 @@ public interface Transactions {
      * @param batchIndex the batch index of the message position, `null` means not batch message.
      * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
-    PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId, Long entryId,
-                                                             Integer batchIndex) throws PulsarAdminException;
+    PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId, Long entryId,
+                                                           Integer batchIndex) throws PulsarAdminException;
 
     /**
-     * Check whether the position is in pending ack stats.
+     * Get the position stats in transaction pending ack.
      *
      * @param topic the topic of checking position in pending ack state
      * @param subName the subscription name of this pending ack
@@ -330,7 +346,7 @@ public interface Transactions {
      * @param batchIndex the batch index of the message position, `null` means not batch message.
      * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
-    CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic, String subName,
-                                                                                     Long ledgerId, Long entryId,
-                                                                                     Integer batchIndex);
+    CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic, String subName,
+                                                                                   Long ledgerId, Long entryId,
+                                                                                   Integer batchIndex);
 }

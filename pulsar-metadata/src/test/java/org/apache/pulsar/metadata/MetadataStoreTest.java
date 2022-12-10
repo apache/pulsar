@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -38,6 +39,7 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -82,6 +84,26 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertTrue(NotFoundException.class.isInstance(e.getCause()) || BadVersionException.class.isInstance(
                     e.getCause()));
         }
+    }
+
+    @Test(dataProvider = "impl")
+    public void concurrentPutTest(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String data = "data";
+        String path = "/non-existing-key";
+        int concurrent = 50;
+        List<CompletableFuture<Stat>> futureList = new ArrayList<>();
+        for (int i = 0; i < concurrent; i++) {
+            futureList.add(store.put(path, data.getBytes(), Optional.empty()).exceptionally(ex -> {
+                fail("fail to execute concurrent put", ex);
+                return null;
+            }));
+        }
+        FutureUtil.waitForAll(futureList).join();
+
+        assertEquals(store.get(path).join().get().getValue(), data.getBytes());
     }
 
     @Test(dataProvider = "impl")
@@ -478,5 +500,33 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
         assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
                 ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        List<String> subPaths = store.getChildren("/").get();
+        Set<String> expectedSet = "ZooKeeper".equals(provider) ? Set.of("a", "b", "zookeeper") : Set.of("a", "b");
+        for (String subPath : subPaths) {
+            assertTrue(expectedSet.contains(subPath));
+        }
+
+        List<String> subPaths2 = store.getChildren("/a").get();
+        Set<String> expectedSet2 = Set.of("a-1", "a-2");
+        for (String subPath : subPaths2) {
+            assertTrue(expectedSet2.contains(subPath));
+        }
+
+        List<String> subPaths3 = store.getChildren("/b").get();
+        Set<String> expectedSet3 = Set.of("c");
+        for (String subPath : subPaths3) {
+            assertTrue(expectedSet3.contains(subPath));
+        }
     }
 }

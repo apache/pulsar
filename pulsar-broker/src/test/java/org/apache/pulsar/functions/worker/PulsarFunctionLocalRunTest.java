@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -47,7 +46,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -81,6 +79,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
@@ -209,7 +208,7 @@ public class PulsarFunctionLocalRunTest {
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
@@ -235,7 +234,7 @@ public class PulsarFunctionLocalRunTest {
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setBrokerClientTlsEnabled(true);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         workerConfig = createWorkerConfig(config);
 
@@ -449,6 +448,7 @@ public class PulsarFunctionLocalRunTest {
 
         functionConfig.setJar(jarFilePathUrl);
         functionConfig.setParallelism(parallelism);
+        functionConfig.setRetainOrdering(true);
         int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
@@ -897,6 +897,11 @@ public class PulsarFunctionLocalRunTest {
     }
 
     private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism, String className) throws Exception {
+        testPulsarSinkLocalRun(jarFilePathUrl, parallelism, className, null, null);
+    }
+
+    private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism, String className,
+                                        String transformFunction, String transformFunctionClassName) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -922,6 +927,9 @@ public class PulsarFunctionLocalRunTest {
 
         sinkConfig.setArchive(jarFilePathUrl);
         sinkConfig.setParallelism(parallelism);
+        sinkConfig.setTransformFunction(transformFunction);
+        sinkConfig.setTransformFunctionClassName(transformFunctionClassName);
+
         int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
@@ -934,6 +942,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsHostNameVerificationEnabled(false)
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
                 .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .functionsDirectory(workerConfig.getFunctionsDirectory())
                 .metricsPortStart(metricsPort)
                 .build();
 
@@ -987,7 +996,7 @@ public class PulsarFunctionLocalRunTest {
                 assertFalse(metrics.isEmpty());
                 PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
                 if (m == null) {
-                    m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+                    m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
                 }
                 assertEquals(m.value, 0);
             }
@@ -1083,6 +1092,12 @@ public class PulsarFunctionLocalRunTest {
     @Test
     public void testPulsarSinkStatsByteBufferType() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName()));
+    }
+
+    //@Test(timeOut = 20000, groups = "builtin")
+    @Test(groups = "builtin")
+    public void testPulsarSinkWithFunction() throws Throwable {
+        testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName(), "builtin://exclamation", "org.apache.pulsar.functions.api.examples.RecordFunction");
     }
     
     public static class TestErrorSink implements Sink<byte[]> {

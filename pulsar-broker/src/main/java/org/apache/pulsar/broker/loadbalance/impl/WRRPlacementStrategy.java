@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import java.util.Map;
 import java.util.Random;
@@ -69,7 +68,11 @@ public class WRRPlacementStrategy implements PlacementStrategy {
         if (totalAvailability <= 0) {
             // todo: this means all the brokers are overloaded and we can't assign this namespace to any broker
             // for now, pick anyone and return that one, because when we don't have ranking we put O for each broker
-            return Iterables.get(finalCandidates.get(0L), rand.nextInt(finalCandidates.size()));
+            return finalCandidates.get(0L)
+                    .stream()
+                    .skip(rand.nextInt(finalCandidates.size()))
+                    .findFirst()
+                    .orElse(null);
         }
         int weightedSelector = rand.nextInt(totalAvailability);
         log.debug("Generated Weighted Selector Number - [{}] ", weightedSelector);

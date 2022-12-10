@@ -33,7 +33,6 @@ DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
-DEFAULT_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
 DEFAULT_FUNCTIONS_LOG_CONF=$PULSAR_HOME/conf/functions_log4j2.xml
 
 # functions related variables
@@ -46,7 +45,8 @@ PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR=$PULSAR_HOME/instances/deps
 FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR}"}
 SQL_HOME=$PULSAR_HOME/pulsar-sql
-PRESTO_HOME=${PULSAR_HOME}/lib/presto
+TRINO_HOME=${PULSAR_HOME}/trino
+DEFAULT_PULSAR_TRINO_CONF=${TRINO_HOME}/conf
 
 pulsar_help() {
     cat <<EOF
@@ -90,11 +90,13 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
-   PULSAR_PRESTO_CONF            Configuration directory for Pulsar Presto (default: $DEFAULT_PULSAR_PRESTO_CONF)
+   PULSAR_TRINO_CONF             Configuration directory for Pulsar SQL (default: $DEFAULT_PULSAR_TRINO_CONF)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
    PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
+   PULSAR_LOG_LEVEL              Log level for the command run (default: info)
+   PULSAR_LOG_ROOT_LEVEL         Log root level for the command run (default: \$PULSAR_LOG_LEVEL)
 
 These variable can also be set in conf/pulsar_env.sh
 EOF
@@ -177,17 +179,17 @@ if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
 fi
 
-# find pulsar sql presto distribution location
-check_presto_libraries() {
-    if [ ! -d "${PRESTO_HOME}" ]; then
-
-        BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
-        if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
-            echo "\nCouldn't find presto distribution.";
+# find pulsar sql trino distribution location
+check_trino_libraries() {
+    if [ ! -d "${TRINO_HOME}" ]; then
+        BUILT_TRINO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
+        if [ ! -d "${BUILT_TRINO_HOME}" ]; then
+            echo "\nCouldn't find trino distribution.";
             echo "Make sure you've run 'mvn package'\n";
             exit 1;
         fi
-        PRESTO_HOME=${BUILT_PRESTO_HOME}
+        TRINO_HOME=${BUILT_TRINO_HOME}
+        PULSAR_TRINO_CONF=${BUILT_TRINO_HOME}/conf
     fi
 }
 
@@ -257,8 +259,19 @@ if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
 
-if [ -z "$PULSAR_PRESTO_CONF" ]; then
-    PULSAR_PRESTO_CONF=$DEFAULT_PULSAR_PRESTO_CONF
+if [ -z "$PULSAR_TRINO_CONF" ]; then
+    # TODO: As PIP-200 accepted, this compatibility is not promised. Refactor when we drop this b/w compatibility.
+    if [ -z "$PULSAR_PRESTO_CONF" ]; then
+      PULSAR_TRINO_CONF=$DEFAULT_PULSAR_TRINO_CONF
+    else
+      PULSAR_TRINO_CONF=$PULSAR_PRESTO_CONF
+    fi
+    if [ ! -d "${PULSAR_TRINO_CONF}" ]; then
+      FALLBACK_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
+      if [ -d "${FALLBACK_PULSAR_PRESTO_CONF}" ]; then
+        PULSAR_TRINO_CONF=$FALLBACK_PULSAR_PRESTO_CONF
+      fi
+    fi
 fi
 
 if [ -z "$FUNCTIONS_LOG_CONF"]; then
@@ -289,8 +302,11 @@ if [[ -z "$IS_JAVA_8" ]]; then
   # https://github.com/netty/netty/issues/12265
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
   # netty.DnsResolverUtil
-  # JvmDefaultGCMetricsLogger
-  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED"
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED"
+  # JvmDefaultGCMetricsLogger & MBeanStatsGenerator
+  OPTS="$OPTS --add-opens java.management/sun.management=ALL-UNNAMED"
+  # MBeanStatsGenerator
+  OPTS="$OPTS --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
@@ -309,18 +325,17 @@ PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 if [ ! -d "$PULSAR_LOG_DIR" ]; then
   mkdir -p "$PULSAR_LOG_DIR"
 fi
+PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
+OPTS="$OPTS -Dpulsar.log.immediateFlush=$PULSAR_LOG_IMMEDIATE_FLUSH"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
-
-
 # Configure log4j2 to disable servlet webapp detection so that Garbage free logging can be used
-PULSAR_LOG4J_CONF=${PULSAR_LOG4J_CONF:-"-Dlog4j2.is.webapp=false  -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector -Dlog4j2.enableThreadlocals=true -Dlog4j2.enableDirectEncoders=true"}
-OPTS="$OPTS $PULSAR_LOG4J_CONF"
+OPTS="$OPTS -Dlog4j2.is.webapp=false"
 
 # Functions related logging
 OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"
@@ -335,9 +350,13 @@ ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
 
-# Adding pulsar metadata as a recognized provider
-BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
-OPTS="$OPTS $BK_METADATA_OPTIONS"
+# By default, Pulsar Metadata driver will be used for Bookkeeper client and server metadata operations
+# This can be disabled by setting BK_METADATA_OPTIONS=none
+if [[ "$BK_METADATA_OPTIONS" != "none" ]]; then
+  # Adding pulsar metadata as a recognized provider
+  BK_METADATA_OPTIONS="${BK_METADATA_OPTIONS:-"-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"}"
+  OPTS="$OPTS $BK_METADATA_OPTIONS"
+fi
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
@@ -371,7 +390,7 @@ elif [ $COMMAND == "functions-worker" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE -Dpulsar.config.file=$PULSAR_STANDALONE_CONF org.apache.pulsar.PulsarStandaloneStarter $@
 elif [ ${COMMAND} == "autorecovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-autorecovery.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.replication.AutoRecoveryMain --conf $PULSAR_BOOKKEEPER_CONF $@
@@ -390,11 +409,11 @@ elif [ $COMMAND == "broker-tool" ]; then
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "sql" ]; then
-    check_presto_libraries
-    exec $JAVA -cp "${PRESTO_HOME}/lib/*" io.prestosql.cli.Presto --server localhost:8081 "${@}"
+    check_trino_libraries
+    exec $JAVA -cp "${TRINO_HOME}/lib/*" io.trino.cli.Trino --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
-    check_presto_libraries
-    exec python3 ${PRESTO_HOME}/bin/launcher.py --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
+    check_trino_libraries
+    exec python3 ${TRINO_HOME}/bin/launcher.py --etc-dir ${PULSAR_TRINO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
     exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
 elif [ $COMMAND == "version" ]; then

@@ -29,7 +29,7 @@ superUserRoles=my-super-user-1,my-super-user-2
 > A full list of parameters available in the `conf/broker.conf` file,
 > as well as the default values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker) 
 
-Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](concepts-replication), every broker needs to be able to publish to all the other clusters' topics.
+Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other clusters' topics.
 
 Authorization can also be enabled for the proxy the proxy configuration file (`conf/proxy.conf`). If it is enabled on the proxy, the proxy will do an additional authorization check before forwarding the request to a broker. The broker will still check the authorization of the request when it receives the forwarded request.
 
@@ -62,7 +62,7 @@ superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
 
 A Pulsar [tenant](reference-terminology.md#tenant) is typically provisioned by Pulsar [instance](reference-terminology.md#instance) administrators or by some kind of self-service portal.
 
-Tenants are managed using the [`pulsar-admin`](reference-pulsar-admin) tool. Here's an example tenant creation command:
+Tenants are managed using the [`pulsar-admin`](reference-pulsar-admin.md) tool. Here's an example tenant creation command:
 
 ```shell
 
@@ -86,7 +86,7 @@ persistent://tenant/namespace/topic
 
 ### Managing permissions
 
-You can use [Pulsar Admin Tools](admin-api-permissions) for managing permission in Pulsar.
+You can use [Pulsar Admin Tools](admin-api-permissions.md) for managing permission in Pulsar.
 
 ### Pulsar admin authentication
 

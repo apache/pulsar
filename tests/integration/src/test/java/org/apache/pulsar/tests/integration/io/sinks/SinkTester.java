@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,9 +89,9 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> imp
         return serviceContainer;
     }
 
-    public void stopServiceContainer(PulsarCluster cluster) {
+    public void stopServiceContainer() {
         if (null != serviceContainer) {
-            cluster.stopService(networkAlias, serviceContainer);
+            PulsarCluster.stopService(networkAlias, serviceContainer);
         }
     }
 

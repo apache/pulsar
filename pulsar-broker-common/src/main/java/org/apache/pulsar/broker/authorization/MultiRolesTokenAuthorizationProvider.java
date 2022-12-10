@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,9 +26,12 @@ import io.jsonwebtoken.RequiredTypeException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -38,9 +41,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,21 +86,75 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         super.initialize(conf, pulsarResources);
     }
 
-    private List<String> getRoles(AuthenticationDataSource authData) {
+    @Override
+    public CompletableFuture<Boolean> isSuperUser(String role, AuthenticationDataSource authenticationData,
+                                                  ServiceConfiguration serviceConfiguration) {
+        Set<String> roles = getRoles(authenticationData);
+        if (roles.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+        if (superUserRoles.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return CompletableFuture.completedFuture(roles.stream().anyMatch(superUserRoles::contains));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName, String role,
+                                                                AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf)
+                .thenCompose(isSuperUser -> {
+                    if (isSuperUser) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    Set<String> roles = getRoles(authData);
+                    if (roles.isEmpty()) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+
+                    return pulsarResources.getTenantResources()
+                            .getTenantAsync(tenantName)
+                            .thenCompose(op -> {
+                                if (op.isPresent()) {
+                                    TenantInfo tenantInfo = op.get();
+                                    if (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()) {
+                                        return CompletableFuture.completedFuture(false);
+                                    }
+
+                                    return CompletableFuture.completedFuture(roles.stream()
+                                            .anyMatch(n -> tenantInfo.getAdminRoles().contains(n)));
+                                } else {
+                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
+                                }
+                            }).exceptionally(ex -> {
+                                Throwable cause = ex.getCause();
+                                if (cause instanceof MetadataStoreException.NotFoundException) {
+                                    log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
+                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
+                                }
+                                log.error("Failed to get tenant {}", tenantName, cause);
+                                throw new RestException(cause);
+                            });
+                });
+    }
+
+    private Set<String> getRoles(AuthenticationDataSource authData) {
         String token = null;
 
         if (authData.hasDataFromCommand()) {
             // Authenticate Pulsar binary connection
             token = authData.getCommandData();
             if (StringUtils.isBlank(token)) {
-                return Collections.emptyList();
+                return Collections.emptySet();
             }
         } else if (authData.hasDataFromHttp()) {
             // The format here should be compliant to RFC-6750
             // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
             String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                return Collections.emptyList();
+                return Collections.emptySet();
             }
 
             // Remove prefix
@@ -102,36 +162,36 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         }
 
         if (token == null) {
-            return Collections.emptyList();
+            return Collections.emptySet();
         }
 
         String[] splitToken = token.split("\\.");
         if (splitToken.length < 2) {
             log.warn("Unable to extract additional roles from JWT token");
-            return Collections.emptyList();
+            return Collections.emptySet();
         }
         String unsignedToken = splitToken[0] + "." + splitToken[1] + ".";
 
         Jwt<?, Claims> jwt = parser.parseClaimsJwt(unsignedToken);
         try {
-            return Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
+            return new HashSet<>(Collections.singletonList(jwt.getBody().get(roleClaim, String.class)));
         } catch (RequiredTypeException requiredTypeException) {
             try {
                 List list = jwt.getBody().get(roleClaim, List.class);
                 if (list != null) {
-                    return list;
+                    return new HashSet<String>(list);
                 }
             } catch (RequiredTypeException requiredTypeException1) {
-                return Collections.emptyList();
+                return Collections.emptySet();
             }
         }
 
-        return Collections.emptyList();
+        return Collections.emptySet();
     }
 
     public CompletableFuture<Boolean> authorize(AuthenticationDataSource authenticationData, Function<String,
             CompletableFuture<Boolean>> authorizeFunc) {
-        List<String> roles = getRoles(authenticationData);
+        Set<String> roles = getRoles(authenticationData);
         if (roles.isEmpty()) {
             return CompletableFuture.completedFuture(false);
         }

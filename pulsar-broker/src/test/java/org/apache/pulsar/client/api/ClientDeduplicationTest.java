@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -40,7 +40,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker-api")
 public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @DataProvider
@@ -361,8 +361,10 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         for (int i = 0; i < 5; i++) {
             // Currently sending a duplicated message won't throw an exception. Instead, an invalid result is returned.
             final MessageId messageId = producer.newMessage().value("msg").sequenceId(i).send();
-            assertTrue(messageId instanceof BatchMessageIdImpl);
-            final BatchMessageIdImpl messageIdImpl = (BatchMessageIdImpl) messageId;
+            // a duplicated message will send in a single batch, that will perform as a non-batched sending
+            assertTrue(messageId instanceof MessageIdImpl);
+            assertFalse(messageId instanceof BatchMessageIdImpl);
+            final MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
             assertEquals(messageIdImpl.getLedgerId(), -1L);
             assertEquals(messageIdImpl.getEntryId(), -1L);
         }
