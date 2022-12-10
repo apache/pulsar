@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,6 +52,11 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
     public CompletableFuture<Void> setDynamicConfigurationWithCreateAsync(
             Function<Optional<Map<String, String>>, Map<String, String>> createFunction) {
         return super.setWithCreateAsync(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
+    }
+
+    public CompletableFuture<Void> setDynamicConfigurationAsync(
+            Function<Map<String, String>, Map<String, String>> updateFunction){
+        return super.setAsync(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
     }
 
     public void setDynamicConfiguration(

@@ -1,7 +1,7 @@
 ---
-id: version-2.2.0-sql-overview
+id: sql-overview
 title: Pulsar SQL Overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: sql-overview
 ---
 
@@ -12,7 +12,7 @@ By leveraging [Presto](https://prestosql.io/), we have created a method for user
 At the core of this Pulsar SQL is the Presto Pulsar connector which allows Presto workers within a Presto cluster to query data from Pulsar.
 
 
-![The Pulsar consumer and reader interfaces](assets/pulsar-sql-arch-2.png)
+![The Pulsar consumer and reader interfaces](/assets/pulsar-sql-arch-2.png)
 
 
 ## Performance
@@ -22,4 +22,4 @@ The reason why query performance is very efficient and highly scalable because o
 Topics in Pulsar are stored as segments in [Apache Bookkeeper](https://bookkeeper.apache.org/). Each topic segment is also replicated to a configurable (default 3) number of Bookkeeper nodes which allows for concurrent reads and high read throughput. In the Presto Pulsar connector, we read data directly from Bookkeeper to take advantage of the Pulsar's segment based architecture.  Thus, Presto workers can read concurrently from horizontally scalable number bookkeeper nodes.
 
 
-![The Pulsar consumer and reader interfaces](assets/pulsar-sql-arch-1.png)
+![The Pulsar consumer and reader interfaces](/assets/pulsar-sql-arch-1.png)

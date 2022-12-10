@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,10 +23,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -65,9 +65,9 @@ public class ManagedCursorIndividualDeletedMessagesTest {
         recoverMethod.setAccessible(true);
 
         // (1) [(1:5..1:10]]
-        List<MessageRange> messageRangeList = Lists.newArrayList();
+        List<MessageRange> messageRangeList = new ArrayList();
         messageRangeList.add(createMessageRange(1, 5, 1, 10));
-        List<Range<PositionImpl>> expectedRangeList = Lists.newArrayList();
+        List<Range<PositionImpl>> expectedRangeList = new ArrayList();
         expectedRangeList.add(createPositionRange(1, 5, 1, 10));
         recoverMethod.invoke(cursor, messageRangeList);
         assertEquals(deletedMessages.size(), 1);

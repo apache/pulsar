@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,7 +39,8 @@ public class Worker {
     private final WorkerService workerService;
     private WorkerServer server;
 
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
+    private final OrderedExecutor orderedExecutor =
+            OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private final ErrorNotifier errorNotifier;
@@ -55,7 +56,7 @@ public class Worker {
         workerService.start(getAuthenticationService(), getAuthorizationService(), errorNotifier);
         server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
-        log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
+        log.info("/** Started worker server **/");
 
         try {
             errorNotifier.waitForError();
@@ -73,9 +74,9 @@ public class Worker {
 
             log.info("starting configuration cache service");
             try {
-                configMetadataStore = PulsarResources.createMetadataStore(
+                configMetadataStore = PulsarResources.createConfigMetadataStore(
                         workerConfig.getConfigurationMetadataStoreUrl(),
-                        (int) workerConfig.getZooKeeperSessionTimeoutMillis());
+                        (int) workerConfig.getMetadataStoreSessionTimeoutMillis());
             } catch (IOException e) {
                 throw new PulsarServerException(e);
             }
@@ -95,7 +96,7 @@ public class Worker {
                 this.server.stop();
             }
             workerService.stop();
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.warn("Failed to gracefully stop worker service ", e);
         }
 

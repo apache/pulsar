@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,12 +24,12 @@ import java.util.Map;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,9 +114,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently
                     return !recentlyUnloadedBundles.containsKey(e.getLeft());
-                }).filter(e ->
-                        localData.getBundles().contains(e.getLeft())
-                ).sorted((e1, e2) -> {
+                }).sorted((e1, e2) -> {
                     // Sort by throughput in reverse order
                     return Double.compare(e2.getRight(), e1.getRight());
                 }).forEach(e -> {

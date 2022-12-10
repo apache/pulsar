@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -170,11 +170,11 @@ public class KeyValueSchemaInfoTest {
             KeyValueEncodingType.SEPARATED
         );
 
-        SchemaInfo oldSchemaInfo = new SchemaInfoImpl()
-            .setName("")
-            .setType(SchemaType.KEY_VALUE)
-            .setSchema(kvSchema.getSchemaInfo().getSchema())
-            .setProperties(Collections.emptyMap());
+        SchemaInfo oldSchemaInfo = SchemaInfoImpl.builder()
+            .name("")
+            .type(SchemaType.KEY_VALUE)
+            .schema(kvSchema.getSchemaInfo().getSchema())
+            .properties(Collections.emptyMap()).build();
 
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(oldSchemaInfo),

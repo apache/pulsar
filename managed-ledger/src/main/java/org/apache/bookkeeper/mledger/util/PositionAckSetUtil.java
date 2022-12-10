@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
@@ -62,9 +61,7 @@ public class PositionAckSetUtil {
             throw new IllegalArgumentException("Two positions can't be null! "
                     + "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
         }
-        int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),
-                otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
-                .result();
+        int result = currentPosition.compareTo(otherPosition);
         if (result == 0) {
             BitSetRecyclable otherAckSet;
             BitSetRecyclable currentAckSet;

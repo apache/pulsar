@@ -1,7 +1,7 @@
 ---
 id: adaptors-spark
 title: Pulsar adaptor for Apache Spark
-sidebar_label: Apache Spark
+sidebar_label: "Apache Spark"
 ---
 
 ## Spark Streaming receiver
@@ -19,7 +19,7 @@ If you're using Maven, add this to your `pom.xml`:
 
 ```xml
 <!-- in your <properties> block -->
-<pulsar.version>{{pulsar:version}}</pulsar.version>
+<pulsar.version>@pulsar:version@</pulsar.version>
 
 <!-- in your <dependencies> block -->
 <dependency>
@@ -34,7 +34,7 @@ If you're using Maven, add this to your `pom.xml`:
 If you're using Gradle, add this to your `build.gradle` file:
 
 ```groovy
-def pulsarVersion = "{{pulsar:version}}"
+def pulsarVersion = "@pulsar:version@"
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-spark', version: pulsarVersion
@@ -56,7 +56,7 @@ Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` metho
 
     ConsumerConfigurationData<byte[]> pulsarConf = new ConsumerConfigurationData();
 
-    Set<String> set = new HashSet<>();
+    Set<String> set = new HashSet();
     set.add(topic);
     pulsarConf.setTopicNames(set);
     pulsarConf.setSubscriptionName(subs);
@@ -71,10 +71,12 @@ Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` metho
 
 For a complete example, click [here](https://github.com/apache/pulsar-adapters/blob/master/examples/spark/src/main/java/org/apache/spark/streaming/receiver/example/SparkStreamingPulsarReceiverExample.java). In this example, the number of messages that contain the string "Pulsar" in received messages is counted.
 
-Note that if needed, other Pulsar authentication classes can be used. For example, in order to use a token during authentication the following parameters for the `SparkStreamingPulsarReceiver` constructor can be set:
+Note that if needed, other Pulsar authentication classes can be used. For example, to use a token during authentication the following parameters for the `SparkStreamingPulsarReceiver` constructor can be set:
+
 ```java
 SparkStreamingPulsarReceiver pulsarReceiver = new SparkStreamingPulsarReceiver(
         serviceUrl,
         pulsarConf,
         new AuthenticationToken("token:<secret-JWT-token>"));
 ```
+

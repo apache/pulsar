@@ -1,9 +1,15 @@
 ---
-id: version-2.5.0-cookbooks-deduplication
+id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication
+sidebar_label: "Message deduplication"
 original_id: cookbooks-deduplication
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 When **Message deduplication** is enabled, it ensures that each message produced on Pulsar topics is persisted to disk *only once*, even if the message is produced more than once. Message deduplication is handled automatically on the server side. 
 
@@ -40,9 +46,11 @@ Even if you set the value for `brokerDeduplicationEnabled`, enabling or disablin
 Though message deduplication is disabled by default at broker-level, you can enable message deduplication for specific namespaces using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. The following is an example with `<tenant>/<namespace>`:
 
 ```bash
+
 $ bin/pulsar-admin namespaces set-deduplication \
   public/default \
   --enable # or just -e
+
 ```
 
 ### Disable message deduplication
@@ -50,9 +58,11 @@ $ bin/pulsar-admin namespaces set-deduplication \
 Even if you enable message deduplication at broker-level, you can disable message deduplication for a specific namespace using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. Use the `--disable`/`-d` flag and specify the namespace. The following is an example with `<tenant>/<namespace>`:
 
 ```bash
+
 $ bin/pulsar-admin namespaces set-deduplication \
   public/default \
   --disable # or just -d
+
 ```
 
 ## Pulsar clients
@@ -64,12 +74,16 @@ If you enable message deduplication in Pulsar brokers, you need complete the fol
 
 The instructions for Java, Python, and C++ clients are different.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java clients-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java clients"
+  values={[{"label":"Java clients","value":"Java clients"},{"label":"Python clients","value":"Python clients"},{"label":"C++ clients","value":"C++ clients"}]}>
+<TabItem value="Java clients">
 
 To enable message deduplication on a [Java producer](client-libraries-java.md#producers), set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
 
 ```java
+
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import java.util.concurrent.TimeUnit;
@@ -82,13 +96,16 @@ Producer producer = pulsarClient.newProducer()
         .topic("persistent://public/default/topic-1")
         .sendTimeout(0, TimeUnit.SECONDS)
         .create();
+
 ```
 
-<!--Python clients-->
+</TabItem>
+<TabItem value="Python clients">
 
 To enable message deduplication on a [Python producer](client-libraries-python.md#producers), set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```python
+
 import pulsar
 
 client = pulsar.Client("pulsar://localhost:6650")
@@ -96,12 +113,16 @@ producer = client.create_producer(
     "persistent://public/default/topic-1",
     producer_name="producer-1",
     send_timeout_millis=0)
+
 ```
-<!--C++ clients-->
+
+</TabItem>
+<TabItem value="C++ clients">
 
 To enable message deduplication on a [C++ producer](client-libraries-cpp.md#producer), set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```cpp
+
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
@@ -117,5 +138,10 @@ producerConfig.setProducerName(producerName);
 Producer producer;
 
 Result result = client.createProducer(topic, producerConfig, producer);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````

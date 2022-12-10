@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -48,6 +48,7 @@ public class SubscriptionOption {
     private boolean replicatedSubscriptionStateArg;
     private KeySharedMeta keySharedMeta;
     private Optional<Map<String, String>> subscriptionProperties;
+    private long consumerEpoch;
 
     public static Optional<Map<String, String>> getPropertiesMap(List<KeyValue> list) {
         if (list == null) {

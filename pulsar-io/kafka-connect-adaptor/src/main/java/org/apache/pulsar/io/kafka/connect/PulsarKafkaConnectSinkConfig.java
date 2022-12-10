@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,6 +71,28 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             defaultValue = "true",
             help = "In case of Record<KeyValue<>> data use key from KeyValue<> instead of one from Record.")
     private boolean unwrapKeyValueIfAvailable = true;
+
+    @FieldDoc(
+            defaultValue = "true",
+            help = "Allows use of message index instead of message sequenceId as offset, if available.\n"
+                    + "Requires AppendIndexMetadataInterceptor and "
+                    + "exposingBrokerEntryMetadataToClientEnabled=true on brokers.")
+    private boolean useIndexAsOffset = true;
+
+    @FieldDoc(
+            defaultValue = "12",
+            help = "Number of bits (0 to 20) to use for index of message in the batch for translation into an offset.\n"
+                    + "0 to disable this behavior (Messages from the same batch will have the same "
+                    + "offset which can affect some connectors.)")
+    private int maxBatchBitsForOffset = 12;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Some connectors cannot handle pulsar topic names like persistent://a/b/topic"
+                    + " and do not sanitize the topic name themselves. \n"
+                    + "If enabled, all non alpha-digital characters in topic name will be replaced with underscores. \n"
+                    + "In some cases it may result in topic name collisions (topic_a and topic.a will become the same)")
+    private boolean sanitizeTopicName = false;
 
     public static PulsarKafkaConnectSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

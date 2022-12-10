@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -55,6 +53,8 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -299,7 +299,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
                 .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
-        List<MessageId> receivedMessageIds = Lists.newArrayList();
+        List<MessageId> receivedMessageIds = new ArrayList<>();
 
         while (reader.hasMessageAvailable()) {
             Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
@@ -600,6 +600,24 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
             return topicStats.getSubscriptions().size() == 1;
         });
+    }
+
+    @Test
+    public void testReaderCursorStatsCorrect() throws Exception {
+        final String readerNotAckTopic = "persistent://my-property/my-ns/testReaderCursorStatsCorrect";
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(readerNotAckTopic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(readerNotAckTopic);
+        Assert.assertEquals(internalStats.cursors.size(), 1);
+        String key = new ArrayList<>(internalStats.cursors.keySet()).get(0);
+        ManagedLedgerInternalStats.CursorStats cursor = internalStats.cursors.get(key);
+        Assert.assertEquals(cursor.state, "Open");
+        reader.close();
+        internalStats = admin.topics().getInternalStats(readerNotAckTopic);
+        Assert.assertEquals(internalStats.cursors.size(), 0);
     }
 
 }

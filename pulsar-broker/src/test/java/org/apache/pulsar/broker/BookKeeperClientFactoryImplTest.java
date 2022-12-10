@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,9 +31,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.channel.EventLoopGroup;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -152,7 +156,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                 .getDiskWeightBasedPlacementEnabled());
         conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
@@ -164,7 +168,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetExplicitLacInterval() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
                 0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
@@ -177,7 +181,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetMetadataServiceUriZookkeeperServers() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         try {
             {
                 final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
@@ -205,8 +209,8 @@ public class BookKeeperClientFactoryImplTest {
                         .getMetadataServiceUri(), expectedUri);
             }
             {
-                conf.setMetadataStoreUrl("localhost:2181/chroot");
-                final String expectedUri = "metadata-store:localhost:2181/chroot/ledgers";
+                conf.setMetadataStoreUrl("zk:localhost:2181/chroot");
+                final String expectedUri = "metadata-store:zk:localhost:2181/chroot/ledgers";
                 assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                         .getMetadataServiceUri(), expectedUri);
             }
@@ -219,8 +223,8 @@ public class BookKeeperClientFactoryImplTest {
             }
 
             {
-                conf.setMetadataStoreUrl("localhost:2181");
-                final String expectedUri = "metadata-store:localhost:2181/ledgers";
+                conf.setMetadataStoreUrl("zk:localhost:2181");
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
                 assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                         .getMetadataServiceUri(), expectedUri);
             }
@@ -276,4 +280,45 @@ public class BookKeeperClientFactoryImplTest {
 
     }
 
+    @Test
+    public void testBookKeeperIoThreadsConfiguration() throws Exception {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getNumIOThreads(), Runtime.getRuntime().availableProcessors() * 2);
+        conf.setBookkeeperClientNumIoThreads(1);
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getNumIOThreads(), 1);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
+                mock(StatsLogger.class), mock(ClientConfiguration.class));
+        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
+                mock(StatsLogger.class), mock(ClientConfiguration.class));
+        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+    }
+
+    @Test
+    public void testBookKeeperLimitStatsLoggingConfiguration() throws Exception {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertFalse(
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getLimitStatsLogging());
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        ClientConfiguration clientConfiguration =
+                (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
+        assertFalse(clientConfiguration.getLimitStatsLogging());
+
+        conf.setBookkeeperClientLimitStatsLogging(true);
+        assertTrue(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getLimitStatsLogging());
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        clientConfiguration =
+                (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
+        assertTrue(clientConfiguration.getLimitStatsLogging());
+    }
 }

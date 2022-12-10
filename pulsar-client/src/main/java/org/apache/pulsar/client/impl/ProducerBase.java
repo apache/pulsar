@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         this.conf = conf;
         this.schema = schema;
         this.interceptors = interceptors;
-        this.schemaCache = new ConcurrentOpenHashMap<>();
+        this.schemaCache =
+                ConcurrentOpenHashMap.<SchemaHash, byte[]>newBuilder().build();
         if (!conf.isMultiSchema()) {
             multiSchemaMode = MultiSchemaMode.Disabled;
         }
@@ -88,11 +89,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public TypedMessageBuilder<T> newMessage(Transaction txn) {
         checkArgument(txn instanceof TransactionImpl);
 
-        // check the producer has proper settings to send transactional messages
-        if (conf.getSendTimeoutMs() > 0) {
-            throw new IllegalArgumentException("Only producers disabled sendTimeout are allowed to"
-                + " produce transactional messages");
-        }
 
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }

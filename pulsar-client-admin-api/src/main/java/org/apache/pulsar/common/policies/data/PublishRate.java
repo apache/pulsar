@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,16 @@ public class PublishRate {
         super();
         this.publishThrottlingRateInMsg = dispatchThrottlingRateInMsg;
         this.publishThrottlingRateInByte = dispatchThrottlingRateInByte;
+    }
+
+    public static PublishRate normalize(PublishRate publishRate) {
+        if (publishRate != null
+            && (publishRate.publishThrottlingRateInMsg > 0
+            || publishRate.publishThrottlingRateInByte > 0)) {
+            return publishRate;
+        } else {
+            return null;
+        }
     }
 
     @Override

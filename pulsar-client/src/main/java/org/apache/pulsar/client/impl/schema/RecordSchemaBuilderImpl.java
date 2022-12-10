@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -108,6 +108,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
             name,
             baseSchema.toString().getBytes(UTF_8),
             schemaType,
+            System.currentTimeMillis(),
             properties
         );
     }
