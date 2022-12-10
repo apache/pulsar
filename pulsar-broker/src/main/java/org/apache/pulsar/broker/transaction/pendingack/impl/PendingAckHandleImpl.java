@@ -163,6 +163,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     }
                 })
                 .exceptionally(t -> {
+                    changeToErrorState();
                     exceptionHandleFuture(t);
                     return null;
                 });
