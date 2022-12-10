@@ -40,6 +40,10 @@ public abstract class CmdBase {
     @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
     private boolean help = false;
 
+    public boolean isHelp() {
+        return help;
+    }
+
     public CmdBase(String cmdName, Supplier<PulsarAdmin> adminSupplier) {
         this.adminSupplier = adminSupplier;
         jcommander = new JCommander(this);
