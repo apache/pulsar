@@ -178,7 +178,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
-    private Consumer consumerMock;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -203,8 +202,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
         doReturn(mock(PulsarClientImpl.class)).when(pulsar).getClient();
-
-        consumerMock = mock(Consumer.class);
 
         doAnswer(invocationOnMock -> CompletableFuture.completedFuture(null))
                 .when(mlFactoryMock).getManagedLedgerPropertiesAsync(any());
@@ -2370,6 +2367,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCompactorSubscriptionMarkDeleteComplete() throws Exception {
+
+        Consumer consumerMock = mock(Consumer.class);
+
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
         PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
