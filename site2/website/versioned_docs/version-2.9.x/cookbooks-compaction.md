@@ -126,11 +126,11 @@ PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
 
-        Producer<byte[]> compactedTopicProducer = client.newProducer()
+Producer<byte[]> compactedTopicProducer = client.newProducer()
         .topic("some-compacted-topic")
         .create();
 
-        compactedTopicProducer.newMessage()
+compactedTopicProducer.newMessage()
         .key("some-key")
         .value(someByteArray)
         .send();
