@@ -20,6 +20,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.service.BrokerService.isTopicPoliciesSystemTopic;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
@@ -279,21 +280,46 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
+        CompletableFuture<Void> deleteSystemTopicFuture = null;
         if (!isEmpty) {
             if (log.isDebugEnabled()) {
                 log.debug("Found topics on namespace {}", namespaceName);
             }
+            List<String> allSystemTopics = new ArrayList<>();
+            List<String> allPartitionedSystemTopics = new ArrayList<>();
+            List<String> topicPolicy = new ArrayList<>();
+            List<String> partitionedTopicPolicy = new ArrayList<>();
             boolean hasNonSystemTopic = false;
             for (String topic : topics) {
                 if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                     hasNonSystemTopic = true;
                     break;
                 }
+                TopicName topicName = TopicName.get(topic);
+                if (topicName.isPartitioned()) {
+                    if (isTopicPoliciesSystemTopic(topic)) {
+                        partitionedTopicPolicy.add(topic);
+                    } else {
+                        allPartitionedSystemTopics.add(topic);
+                    }
+                } else {
+                    if (isTopicPoliciesSystemTopic(topic)) {
+                        topicPolicy.add(topic);
+                    } else {
+                        allSystemTopics.add(topic);
+                    }
+                }
             }
             if (hasNonSystemTopic) {
                 asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
                 return;
             }
+            deleteSystemTopicFuture = internalDeleteTopicsAsync(allSystemTopics)
+                    .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
+                    .thenCompose(ignore -> internalDeleteTopicsAsync(topicPolicy))
+                    .thenCompose(ignore__ -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
+        } else {
+            deleteSystemTopicFuture = CompletableFuture.completedFuture(null);
         }
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
@@ -308,21 +334,7 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        // remove from owned namespace map and ephemeral node from ZK
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        // remove system topics first.
-        if (!topics.isEmpty()) {
-            for (String topic : topics) {
-                try {
-                    futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
-                } catch (Exception ex) {
-                    log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, ex));
-                    return;
-                }
-            }
-        }
-        FutureUtil.waitForAll(futures).thenCompose(__ -> {
+        deleteSystemTopicFuture.thenCompose(__ -> {
             List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                             .getBundles(namespaceName);
@@ -473,17 +485,23 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
-                Set<String> partitionedTopics = new HashSet<>();
-                Set<String> nonPartitionedTopics = new HashSet<>();
-                Set<String> allSystemTopics = new HashSet<>();
-                Set<String> allPartitionedSystemTopics = new HashSet<>();
+                List<String> partitionedTopics = new ArrayList<>();
+                List<String> nonPartitionedTopics = new ArrayList<>();
+                List<String> allSystemTopics = new ArrayList<>();
+                List<String> allPartitionedSystemTopics = new ArrayList<>();
+                List<String> topicPolicy = new ArrayList<>();
+                List<String> partitionedTopicPolicy = new ArrayList<>();
 
                 for (String topic : topics) {
                     try {
                         TopicName topicName = TopicName.get(topic);
                         if (topicName.isPartitioned()) {
                             if (pulsar().getBrokerService().isSystemTopic(topicName)) {
-                                allPartitionedSystemTopics.add(topic);
+                                if (isTopicPoliciesSystemTopic(topic)) {
+                                    partitionedTopicPolicy.add(topic);
+                                } else {
+                                    allPartitionedSystemTopics.add(topic);
+                                }
                                 continue;
                             }
                             String partitionedTopic = topicName.getPartitionedTopicName();
@@ -495,7 +513,11 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                         } else {
                             if (pulsar().getBrokerService().isSystemTopic(topicName)) {
-                                allSystemTopics.add(topic);
+                                if (isTopicPoliciesSystemTopic(topic)) {
+                                    topicPolicy.add(topic);
+                                } else {
+                                    allSystemTopics.add(topic);
+                                }
                                 continue;
                             }
                             topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
@@ -522,8 +544,10 @@ public abstract class NamespacesBase extends AdminResource {
 
                 final CompletableFuture<Throwable> topicFutureEx =
                         FutureUtil.waitForAll(topicFutures)
-                                .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
                                 .thenCompose(ignore -> internalDeleteTopicsAsync(allSystemTopics))
+                                .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
+                                .thenCompose(ignore -> internalDeleteTopicsAsync(topicPolicy))
+                                .thenCompose(ignore__ -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicy))
                                 .handle((result, exception) -> {
                                     if (exception != null) {
                                         if (exception.getCause() instanceof PulsarAdminException) {
@@ -582,7 +606,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(Set<String> topicNames) {
+    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -601,7 +625,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
         return FutureUtil.waitForAll(futures);
     }
-    private CompletableFuture<Void> internalDeleteTopicsAsync(Set<String> topicNames) {
+    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
