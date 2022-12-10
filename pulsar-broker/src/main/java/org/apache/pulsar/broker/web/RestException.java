@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,10 +38,9 @@ public class RestException extends WebApplicationException {
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
         if (t != null) {
             writer.append("Message: ").append(t.getMessage()).append("\n\n");
+            writer.append("Stacktrace:\n\n");
+            t.printStackTrace(new PrintWriter(writer));
         }
-        writer.append("Stacktrace:\n\n");
-
-        t.printStackTrace(new PrintWriter(writer));
         return writer.toString();
     }
 
@@ -50,7 +49,11 @@ public class RestException extends WebApplicationException {
     }
 
     public RestException(int code, String message) {
-        super(message, Response.status(code).entity(new ErrorData(message)).type(MediaType.APPLICATION_JSON).build());
+        super(message, Response
+                .status(code, message)
+                .entity(new ErrorData(message))
+                .type(MediaType.APPLICATION_JSON)
+                .build());
     }
 
     public RestException(Throwable t) {
@@ -77,9 +80,9 @@ public class RestException extends WebApplicationException {
             return e.getResponse();
         } else {
             return Response
-                .status(Status.INTERNAL_SERVER_ERROR)
-                .entity(getExceptionData(t))
-                .type(MediaType.TEXT_PLAIN)
+                .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
+                .entity(new ErrorData(getExceptionData(t)))
+                .type(MediaType.APPLICATION_JSON)
                 .build();
         }
     }

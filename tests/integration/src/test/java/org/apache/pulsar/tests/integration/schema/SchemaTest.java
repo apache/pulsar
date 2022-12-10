@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,6 @@ import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
 import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
@@ -274,7 +273,7 @@ public class SchemaTest extends PulsarTestSuite {
 
     @Test
     public void testPrimitiveSchemaTypeCompatibilityCheck() {
-        List<Schema> schemas = new ArrayList<>();
+        List<Schema<?>> schemas = new ArrayList<>();
 
         schemas.add(Schema.STRING);
         schemas.add(Schema.INT8);

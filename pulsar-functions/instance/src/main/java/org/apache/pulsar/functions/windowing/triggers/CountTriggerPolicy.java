@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.functions.windowing.triggers;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.functions.windowing.DefaultEvictionContext;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
 import org.apache.pulsar.functions.windowing.TriggerHandler;
 import org.apache.pulsar.functions.windowing.TriggerPolicy;
-
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A trigger that tracks event counts and calls back {@link TriggerHandler#onTrigger()}

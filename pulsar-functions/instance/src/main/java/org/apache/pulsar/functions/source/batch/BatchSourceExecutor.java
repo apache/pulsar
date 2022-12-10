@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,12 @@ package org.apache.pulsar.functions.source.batch;
 
 import com.google.gson.Gson;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -38,13 +44,6 @@ import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * BatchSourceExecutor wraps BatchSource as Source. Thus from Pulsar IO perspective, it is running a regular
@@ -101,7 +100,8 @@ public class BatchSourceExecutor<T> implements Source<T> {
       if (retval == null) {
         // signals end if this batch
         intermediateTopicConsumer.acknowledgeAsync(currentTask.getMessageId()).exceptionally(throwable -> {
-          log.error("Encountered error when acknowledging completed task with id {}", currentTask.getMessageId(), throwable);
+          log.error("Encountered error when "
+                  + "acknowledging completed task with id {}", currentTask.getMessageId(), throwable);
           setCurrentError(throwable);
           return null;
         });
@@ -120,7 +120,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
 
     String batchSourceConfigJson = (String) config.get(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY);
     this.batchSourceConfig = new Gson().fromJson(batchSourceConfigJson, BatchSourceConfig.class);
-    this.batchSourceClassName = (String)config.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY);
+    this.batchSourceClassName = (String) config.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY);
   }
 
   private void initializeBatchSource() {
@@ -167,7 +167,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       discoverInProgress = true;
     }
     // Run this code asynchronous so it doesn't block processing of the tasks
-    discoveryThread.submit(() -> {
+    discoveryThread.execute(() -> {
       try {
         batchSource.discover(task -> taskEater(discoveredEvent, task));
       } catch (Exception e) {
@@ -188,7 +188,8 @@ public class BatchSourceExecutor<T> implements Source<T> {
       properties.put("produceTime", String.valueOf(System.currentTimeMillis()));
       TypedMessageBuilder<byte[]> message = sourceContext.newOutputMessage(intermediateTopicName, Schema.BYTES);
       message.value(task).properties(properties);
-      // Note: we can only make this send async if the api returns a future to the connector so that errors can be handled by the connector
+      // Note: we can only make this send async if the api returns a future to
+      // the connector so that errors can be handled by the connector
       message.send();
     } catch (Exception e) {
       log.error("error writing discovered task to intermediate topic", e);
@@ -269,8 +270,8 @@ public class BatchSourceExecutor<T> implements Source<T> {
       Actions.newBuilder()
         .addAction(
           Actions.Action.builder()
-            .actionName(String.format("Setting up instance consumer for BatchSource intermediate " +
-              "topic for function %s", fqfn))
+            .actionName(String.format("Setting up instance consumer for BatchSource intermediate "
+                    + "topic for function %s", fqfn))
             .numRetries(10)
             .sleepBetweenInvocationsMs(1000)
             .supplier(() -> {
@@ -302,7 +303,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
   }
 
   private Message<byte[]> retrieveNextTask() throws Exception {
-    while(true) {
+    while (true) {
       if (currentError != null) {
         throw currentError;
       }

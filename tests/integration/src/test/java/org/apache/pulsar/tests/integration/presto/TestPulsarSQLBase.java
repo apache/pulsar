@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,6 @@ package org.apache.pulsar.tests.integration.presto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Stopwatch;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -30,8 +28,12 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -41,9 +43,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarSQLTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.okhttp3.OkHttpClient;
-import org.testcontainers.shaded.okhttp3.Request;
-import org.testcontainers.shaded.okhttp3.Response;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 
@@ -57,7 +56,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected void pulsarSQLBasicTest(TopicName topic,
                                       boolean isBatch,
                                       boolean useNsOffloadPolices,
-                                      Schema schema,
+                                      Schema<?> schema,
                                       CompressionType compressionType) throws Exception {
         log.info("Pulsar SQL basic test. topic: {}", topic);
 
@@ -113,6 +112,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                 && pulsarCluster.getSqlFollowWorkerContainers().size() > 0) {
             OkHttpClient okHttpClient = new OkHttpClient();
             Request request = new Request.Builder()
+                    .header("X-Trino-User", "test-user")
                     .url("http://" + pulsarCluster.getPrestoWorkerContainer().getUrl() + "/v1/node")
                     .build();
             do {
@@ -134,7 +134,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
@@ -160,11 +160,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
     }
 
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) throws Exception {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) throws Exception {
         throw new Exception("Unsupported operation validateContent.");
     }
 
-    private void validateData(TopicName topicName, int messageNum, Schema schema) throws Exception {
+    private void validateData(TopicName topicName, int messageNum, Schema<?> schema) throws Exception {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 
@@ -196,9 +196,6 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
 
         // test predicate pushdown
-        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
-        Connection connection = DriverManager.getConnection(url, "test", null);
-
         String query = String.format("select * from pulsar" +
                 ".\"%s\".\"%s\" order by __publish_time__", namespace, topic);
         log.info("Executing query: {}", query);
@@ -267,25 +264,38 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(0);
 
-        query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, topic);
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-        res.next();
-        int count = res.getInt("_col0");
+        int count = selectCount(namespace, topic);
         assertThat(count).isGreaterThan(messageNum - 2);
     }
 
     public ContainerExecResult execQuery(final String query) throws Exception {
+        return execQuery(query, null);
+    }
+
+    public ContainerExecResult execQuery(final String query, Map<String, String> extraCredentials) throws Exception {
         ContainerExecResult containerExecResult;
 
+        StringBuilder extraCredentialsString = new StringBuilder(" ");
+
+        if (extraCredentials != null) {
+            for (Map.Entry<String, String> entry : extraCredentials.entrySet()) {
+                extraCredentialsString.append(
+                        String.format("--extra-credential %s=%s ", entry.getKey(), entry.getValue()));
+            }
+        }
+
         containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+                .execCmd("/bin/bash", "-c",
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql" + extraCredentialsString + "--execute " + "'"
+                                + query + "'");
 
         Stopwatch sw = Stopwatch.createStarted();
         while (containerExecResult.getExitCode() != 0 && sw.elapsed(TimeUnit.SECONDS) < 120) {
             TimeUnit.MILLISECONDS.sleep(500);
             containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                    .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+                    .execCmd("/bin/bash", "-c",
+                            PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql" + extraCredentialsString + "--execute " + "'"
+                                    + query + "'");
         }
 
         return containerExecResult;
@@ -304,5 +314,12 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
     }
 
+    protected int selectCount(String namespace, String tableName) throws SQLException {
+        String query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, tableName);
+        log.info("Executing count query: {}", query);
+        ResultSet res = connection.createStatement().executeQuery(query);
+        res.next();
+        return res.getInt("_col0");
+    }
 
 }

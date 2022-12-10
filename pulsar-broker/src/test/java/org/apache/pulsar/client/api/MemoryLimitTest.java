@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,29 +18,31 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
-import java.util.concurrent.CountDownLatch;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.api.PulsarClientException.MemoryBufferIsFullError;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarTestClient;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
 @Test(groups = "broker-api")
 public class MemoryLimitTest extends ProducerConsumerBase {
 
-    @DataProvider(name = "batching")
+    @DataProvider(name = "batchingAndMemoryLimit")
     public Object[][] provider() {
         return new Object[][] {
-                // "Batching"
-                { false },
-                { true },
+                // "Batching, memoryLimit in kilo bytes"
+                {false, 100},
+                {true, 201} // batching need n(batches)*1024(allocated size) capacity, that is 100+101*1024 bytes
         };
     }
 
@@ -57,33 +59,45 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testRejectMessages()
+    @Test(dataProvider = "batchingAndMemoryLimit")
+    public void testRejectMessages(boolean batching, int memoryLimit)
             throws Exception {
         String topic = newTopicName();
 
-        @Cleanup
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+        ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .memoryLimit(100, SizeUnit.KILO_BYTES)
-                .build();
+                .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
         @Cleanup
-        Producer<byte[]> producer = client.newProducer()
+        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
                 .topic(topic)
+                .enableBatching(batching)
+                .batchingMaxMessages(1)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
                 .blockIfQueueFull(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
+        // make sure all message pending at pendingMessages queue
+        // connection with broker can not be established, so handleSendReceipt will not be invoked while sending message
+        client.dropOpSendMessages();
         final int n = 101;
-        CountDownLatch latch = new CountDownLatch(n);
-
         for (int i = 0; i < n; i++) {
-            producer.sendAsync(new byte[1024]).thenRun(() -> {
-                latch.countDown();
-            });
+            producer.sendAsync(new byte[1024]);
         }
-
-        assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(5))
+                .until(() -> producer.getPendingQueueSize() == n);
+        if (batching) {
+            // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
+        } else {
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        }
 
         try {
             producer.send(new byte[1024]);
@@ -92,55 +106,69 @@ public class MemoryLimitTest extends ProducerConsumerBase {
             // Expected
         }
 
-        latch.await();
-
+        client.allowReconnecting();
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .until(() -> producer.getPendingQueueSize() == 0);
         assertEquals(client.getMemoryLimitController().currentUsage(), 0);
 
         // We should now be able to send again
         producer.send(new byte[1024]);
     }
 
-    @Test
-    public void testRejectMessagesOnMultipleTopics() throws Exception {
+    @Test(dataProvider = "batchingAndMemoryLimit")
+    public void testRejectMessagesOnMultipleTopics(boolean batching, int memoryLimit) throws Exception {
         String t1 = newTopicName();
         String t2 = newTopicName();
 
-        @Cleanup
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+        ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .memoryLimit(100, SizeUnit.KILO_BYTES)
-                .build();
+                .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
         @Cleanup
-        Producer<byte[]> p1 = client.newProducer()
+        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+
+        @Cleanup
+        ProducerImpl<byte[]> p1 = (ProducerImpl<byte[]>) client.newProducer()
                 .topic(t1)
+                .enableBatching(batching)
+                .batchingMaxMessages(1)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
                 .blockIfQueueFull(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
         @Cleanup
-        Producer<byte[]> p2 = client.newProducer()
+        ProducerImpl<byte[]> p2 = (ProducerImpl<byte[]>) client.newProducer()
                 .topic(t2)
+                .enableBatching(batching)
+                .batchingMaxMessages(1)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
                 .blockIfQueueFull(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
+        client.dropOpSendMessages();
         final int n = 101;
-        CountDownLatch latch = new CountDownLatch(n);
-
         for (int i = 0; i < n / 2; i++) {
-            p1.sendAsync(new byte[1024]).thenRun(() -> {
-                latch.countDown();
-            });
-            p2.sendAsync(new byte[1024]).thenRun(() -> {
-                latch.countDown();
-            });
+            p1.sendAsync(new byte[1024]);
+            p2.sendAsync(new byte[1024]);
         }
 
         // Last message in order to reach the limit
-        p1.sendAsync(new byte[1024]).thenRun(() -> {
-            latch.countDown();
-        });
+        p1.sendAsync(new byte[1024]);
 
-        assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(5))
+                .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == n);
+        if (batching) {
+            // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
+        } else {
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        }
 
         try {
             p1.send(new byte[1024]);
@@ -156,8 +184,10 @@ public class MemoryLimitTest extends ProducerConsumerBase {
             // Expected
         }
 
-        latch.await();
-
+        client.allowReconnecting();
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == 0);
         assertEquals(client.getMemoryLimitController().currentUsage(), 0);
 
         // We should now be able to send again

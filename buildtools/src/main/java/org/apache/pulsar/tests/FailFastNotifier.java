@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,7 +41,7 @@ import org.testng.SkipException;
  */
 public class FailFastNotifier
         implements IInvokedMethodListener, ITestListener {
-    private static final boolean FAIL_FAST_ENABLED = Boolean.valueOf(
+    private static final boolean FAIL_FAST_ENABLED = Boolean.parseBoolean(
             System.getProperty("testFailFast", "true"));
 
     static class FailFastEventsSingleton {

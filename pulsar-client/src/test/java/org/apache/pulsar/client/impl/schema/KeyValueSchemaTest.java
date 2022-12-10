@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 
-import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -30,13 +33,12 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Color;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Map;
-
+import java.util.TreeMap;
 
 @Slf4j
 public class KeyValueSchemaTest {
@@ -68,11 +70,11 @@ public class KeyValueSchemaTest {
 
     @Test
     public void testFillParametersToSchemainfo() {
-        Map<String, String> keyProperties = Maps.newTreeMap();
+        Map<String, String> keyProperties = new TreeMap<>();
         keyProperties.put("foo.key1", "value");
         keyProperties.put("foo.key2", "value");
 
-        Map<String, String> valueProperties = Maps.newTreeMap();
+        Map<String, String> valueProperties = new TreeMap<>();
         valueProperties.put("bar.key", "key");
 
         AvroSchema<Foo> fooSchema = AvroSchema.of(
@@ -401,5 +403,23 @@ public class KeyValueSchemaTest {
         KeyValueSchemaImpl<String, String> keyValueSchema2 = (KeyValueSchemaImpl<String,String>)
                 AutoConsumeSchema.getSchema(keyValueSchema.getSchemaInfo());
         assertEquals(keyValueSchema.getKeyValueEncodingType(), keyValueSchema2.getKeyValueEncodingType());
+    }
+
+    @Test
+    public void testKeyValueSchemaCache() {
+        Schema<Foo> keySchema = spy(Schema.AVRO(Foo.class));
+        Schema<Foo> valueSchema = spy(Schema.AVRO(Foo.class));
+        KeyValueSchemaImpl<Foo, Foo> keyValueSchema = (KeyValueSchemaImpl<Foo,Foo>)
+                KeyValueSchemaImpl.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
+
+        KeyValueSchemaImpl<Foo, Foo> schema1 =
+                (KeyValueSchemaImpl<Foo, Foo>) keyValueSchema.atSchemaVersion(new byte[0]);
+        KeyValueSchemaImpl<Foo, Foo> schema2 =
+                (KeyValueSchemaImpl<Foo, Foo>) keyValueSchema.atSchemaVersion(new byte[0]);
+
+        assertSame(schema1, schema2);
+
+        verify(((AbstractSchema)keySchema), times(1)).atSchemaVersion(new byte[0]);
+        verify(((AbstractSchema)valueSchema), times(1)).atSchemaVersion(new byte[0]);
     }
 }

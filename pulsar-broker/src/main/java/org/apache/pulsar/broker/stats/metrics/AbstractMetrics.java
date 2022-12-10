@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -188,7 +187,7 @@ abstract class AbstractMetrics {
      * @return
      */
     protected Metrics createMetricsByDimension(String namespace) {
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
 
         dimensionMap.put("namespace", namespace);
 
@@ -204,7 +203,7 @@ abstract class AbstractMetrics {
      * @return
      */
     protected Metrics createMetricsByDimension(String namespace, String fromClusterName, String toClusterName) {
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
 
         dimensionMap.put("namespace", namespace);
         dimensionMap.put("from_cluster", fromClusterName);
@@ -214,11 +213,7 @@ abstract class AbstractMetrics {
     }
 
     protected void populateAggregationMap(Map<String, List<Double>> map, String mkey, double value) {
-        if (!map.containsKey(mkey)) {
-            map.put(mkey, Lists.newArrayList(value));
-        } else {
-            map.get(mkey).add(value);
-        }
+        map.computeIfAbsent(mkey, __ -> new ArrayList<>()).add(value);
     }
 
     protected void populateAggregationMapWithSum(Map<String, Double> map, String mkey, double value) {
@@ -242,24 +237,11 @@ abstract class AbstractMetrics {
      */
     protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
             ManagedLedgerImpl ledger) {
-        if (!ledgersByDimensionMap.containsKey(metrics)) {
-            // create new list
-            ledgersByDimensionMap.put(metrics, Lists.newArrayList(ledger));
-        } else {
-            // add to collection
-            ledgersByDimensionMap.get(metrics).add(ledger);
-        }
+        ledgersByDimensionMap.computeIfAbsent(metrics, __ -> new ArrayList<>()).add(ledger);
     }
 
     protected void populateDimensionMap(Map<Metrics, List<TopicStats>> topicsStatsByDimensionMap,
             Metrics metrics, TopicStats destStats) {
-        if (!topicsStatsByDimensionMap.containsKey(metrics)) {
-            // create new list
-            topicsStatsByDimensionMap.put(metrics, Lists.newArrayList(destStats));
-        } else {
-            // add to collection
-            topicsStatsByDimensionMap.get(metrics).add(destStats);
-        }
-
+        topicsStatsByDimensionMap.computeIfAbsent(metrics, __ -> new ArrayList<>()).add(destStats);
     }
 }

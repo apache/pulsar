@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -73,6 +73,18 @@ public interface PulsarAdmin extends Closeable {
      * @return the topics management object
      */
     Topics topics();
+
+    /**
+     * Get the topic policies management object.
+     * @return the topic policies management object
+     */
+    TopicPolicies topicPolicies();
+
+    /**
+     * Get the local/global topic policies management object.
+     * @return the topic policies management object
+     */
+    TopicPolicies topicPolicies(boolean isGlobal);
 
     /**
      * @return the bookies management object

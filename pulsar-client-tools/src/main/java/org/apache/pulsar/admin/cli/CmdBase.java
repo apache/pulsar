@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,12 +23,13 @@ import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
-
-import java.util.function.Supplier;
 
 public abstract class CmdBase {
     protected final JCommander jcommander;
@@ -111,5 +112,26 @@ public abstract class CmdBase {
             admin = adminSupplier.get();
         }
         return admin;
+    }
+
+
+    static Map<String, String> parseListKeyValueMap(List<String> metadata) {
+        Map<String, String> map = null;
+        if (metadata != null && !metadata.isEmpty()) {
+            map = new HashMap<>();
+            for (String property : metadata) {
+                int pos = property.indexOf('=');
+                if (pos <= 0) {
+                    throw new ParameterException(String.format("Invalid key value pair '%s', "
+                            + "valid format like 'a=b'.", property));
+                }
+                map.put(property.substring(0, pos), property.substring(pos + 1));
+            }
+        }
+        return map;
+    }
+
+    public JCommander getJcommander() {
+        return jcommander;
     }
 }

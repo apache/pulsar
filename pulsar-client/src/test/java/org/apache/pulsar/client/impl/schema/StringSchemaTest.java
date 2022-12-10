@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
@@ -87,11 +86,11 @@ public class StringSchemaTest {
 
     @Test
     public void testSchemaInfoWithoutCharset() {
-        SchemaInfo si = new SchemaInfoImpl()
-            .setName("test-schema-info-without-charset")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0])
-            .setProperties(Collections.emptyMap());
+        SchemaInfo si = SchemaInfoImpl.builder()
+            .name("test-schema-info-without-charset")
+            .type(SchemaType.STRING)
+            .schema(new byte[0])
+            .properties(Collections.emptyMap()).build();
         StringSchema schema = StringSchema.fromSchemaInfo(si);
 
         String myString = "my string for test";
@@ -122,11 +121,11 @@ public class StringSchemaTest {
     public void testSchemaInfoWithCharset(Charset charset) {
         Map<String, String> properties = new HashMap<>();
         properties.put(StringSchema.CHARSET_KEY, charset.name());
-        SchemaInfo si = new SchemaInfoImpl()
-            .setName("test-schema-info-without-charset")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0])
-            .setProperties(properties);
+        SchemaInfo si = SchemaInfoImpl.builder()
+            .name("test-schema-info-without-charset")
+            .type(SchemaType.STRING)
+            .schema(new byte[0])
+            .properties(properties).build();
         StringSchema schema = StringSchema.fromSchemaInfo(si);
 
         String myString = "my string for test";

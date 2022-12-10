@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,11 @@
  */
 package org.apache.pulsar.compaction;
 
-import org.apache.pulsar.broker.service.BrokerService;
-import org.mockito.Mockito;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
-import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-compaction")
 public class CompactorMXBeanImplTest {
@@ -36,15 +32,38 @@ public class CompactorMXBeanImplTest {
         CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
         String topic = "topic1";
         mxBean.addCompactionStartOp(topic);
-        assertEquals(mxBean.getLastCompactionRemovedEventCount(topic), 0, 0);
+        CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
+        assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
         mxBean.addCompactionRemovedEvent(topic);
-        assertEquals(mxBean.getLastCompactionRemovedEventCount(topic), 0, 0);
+        assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
         mxBean.addCompactionEndOp(topic, true);
+        assertEquals(compaction.getLastCompactionRemovedEventCount(), 1, 0);
+        assertTrue(compaction.getLastCompactionSucceedTimestamp() > 0L);
+        assertTrue(compaction.getLastCompactionDurationTimeInMills() >= 0L);
+        assertEquals(compaction.getLastCompactionFailedTimestamp(), 0, 0);
+        assertEquals(compaction.getCompactionRemovedEventCount(), 1, 0);
+        assertEquals(compaction.getCompactionSucceedCount(), 1, 0);
+        assertEquals(compaction.getCompactionFailedCount(), 0, 0);
+        assertTrue(compaction.getCompactionDurationTimeInMills() >= 0L);
+        mxBean.addCompactionStartOp(topic);
+        mxBean.addCompactionRemovedEvent(topic);
         mxBean.addCompactionEndOp(topic, false);
-        assertEquals(mxBean.getLastCompactionRemovedEventCount(topic), 1, 0);
-        assertTrue(mxBean.getLastCompactionSucceedTimestamp(topic) > 0L);
-        assertTrue(mxBean.getLastCompactionFailedTimestamp(topic) > 0L);
-        assertTrue(mxBean.getLastCompactionDurationTimeInMills(topic) >= 0L);
+        assertEquals(compaction.getCompactionRemovedEventCount(), 2, 0);
+        assertEquals(compaction.getCompactionFailedCount(), 1, 0);
+        assertEquals(compaction.getCompactionSucceedCount(), 1, 0);
+        assertTrue(compaction.getLastCompactionFailedTimestamp() > 0L);
+        assertTrue(compaction.getCompactionDurationTimeInMills() >= 0L);
+        mxBean.addCompactionReadOp(topic, 22);
+        assertTrue(compaction.getCompactionReadThroughput() > 0L);
+        mxBean.addCompactionWriteOp(topic, 33);
+        assertTrue(compaction.getCompactionWriteThroughput() > 0L);
+        mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
+        assertTrue(compaction.getCompactionLatencyBuckets()[0] > 0L);
+        mxBean.reset();
+        assertEquals(compaction.getCompactionRemovedEventCount(), 0, 0);
+        assertEquals(compaction.getCompactionSucceedCount(), 0, 0);
+        assertEquals(compaction.getCompactionFailedCount(), 0, 0);
+        assertEquals(compaction.getCompactionDurationTimeInMills(), 0, 0);
     }
 
 }

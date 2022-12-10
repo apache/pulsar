@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -98,5 +98,18 @@ public class TestStatsBuckets {
         assertEquals(stats.getSum(), 90);
         assertEquals(stats.getCount(), 3);
         assertEquals(stats.getBuckets(), new long[] { 1, 0, 1, 1 });
+    }
+
+    @Test
+    public void testAddAll() {
+        StatsBuckets stats = new StatsBuckets(10, 20, 30);
+        stats.addValue(1);
+        stats.addValue(2);
+        stats.refresh();
+        StatsBuckets stats2 = new StatsBuckets(10, 20, 30);
+        stats2.addAll(stats);
+        stats2.refresh();
+        assertEquals(stats2.getSum(),3);
+        assertEquals(stats2.getCount(),2);
     }
 }

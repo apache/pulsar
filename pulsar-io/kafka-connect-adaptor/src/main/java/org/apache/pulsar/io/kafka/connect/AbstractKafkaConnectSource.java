@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,8 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.TaskConfig;
@@ -40,7 +39,6 @@ import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
@@ -49,12 +47,8 @@ import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
 import org.apache.pulsar.kafka.shade.io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import org.apache.pulsar.kafka.shade.io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
-
 /**
- * A pulsar source that runs
+ * A pulsar source that runs.
  */
 @Slf4j
 public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
@@ -75,7 +69,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     @Getter
     public OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
-    private AtomicInteger outstandingRecords = new AtomicInteger(0);
+    private final AtomicInteger outstandingRecords = new AtomicInteger(0);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -87,19 +81,19 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         });
 
         // get the source class name from config and create source task from reflection
-        sourceTask = ((Class<? extends SourceTask>) Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
+        sourceTask = Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG))
                 .asSubclass(SourceTask.class)
                 .getDeclaredConstructor()
                 .newInstance();
 
-        topicNamespace = stringConfig.get(TOPIC_NAMESPACE_CONFIG);
+        topicNamespace = stringConfig.get(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG);
 
         // initialize the key and value converter
-        keyConverter = ((Class<? extends Converter>) Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
+        keyConverter = Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG))
                 .asSubclass(Converter.class)
                 .getDeclaredConstructor()
                 .newInstance();
-        valueConverter = ((Class<? extends Converter>) Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG)))
+        valueConverter = Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG))
                 .asSubclass(Converter.class)
                 .getDeclaredConstructor()
                 .newInstance();
@@ -168,6 +162,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
                 } catch (ExecutionException ex) {
                     // log the error, continue execution
                     log.error("execution exception while get flushFuture", ex);
+                    throw new Exception("Flush failed", ex.getCause());
                 } finally {
                     flushFuture = null;
                     currentBatch = null;
@@ -180,14 +175,19 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     public void close() {
         if (sourceTask != null) {
             sourceTask.stop();
+            sourceTask = null;
+        }
+
+        if (offsetStore != null) {
+            offsetStore.stop();
+            offsetStore = null;
         }
     }
 
-    public abstract AbstractKafkaSourceRecord<T> processSourceRecord(final SourceRecord srcRecord);
+    public abstract AbstractKafkaSourceRecord<T> processSourceRecord(SourceRecord srcRecord);
 
-    private static Map<String, String> PROPERTIES = Collections.emptyMap();
-    private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
-    private static long FLUSH_TIMEOUT_MS = 60000;
+    private static final Map<String, String> PROPERTIES = Collections.emptyMap();
+    private static final Optional<Long> RECORD_SEQUENCE = Optional.empty();
 
     public abstract class AbstractKafkaSourceRecord<T> implements Record {
         @Getter
@@ -210,13 +210,8 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         KafkaSchemaWrappedSchema valueSchema;
 
         AbstractKafkaSourceRecord(SourceRecord srcRecord) {
-            this.destinationTopic = Optional.of("persistent://"+topicNamespace + "/" + srcRecord.topic());
+            this.destinationTopic = Optional.of("persistent://" + topicNamespace + "/" + srcRecord.topic());
             this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
-        }
-
-        @Override
-        public Schema getSchema() {
-            return null;
         }
 
         @Override
@@ -248,8 +243,15 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
                     flushFuture.complete(null);
                 } catch (InterruptedException exception) {
                     log.warn("Flush of {} offsets interrupted, cancelling", this);
+                    Thread.currentThread().interrupt();
                     offsetWriter.cancelFlush();
-                    flushFuture.completeExceptionally(new Exception("Failed to commit offsets"));
+                    flushFuture.completeExceptionally(new Exception("Failed to commit offsets", exception));
+                } catch (Throwable t) {
+                    // SourceTask can throw unchecked ConnectException/KafkaException.
+                    // Make sure the future is cancelled in that case
+                    log.warn("Flush of {} offsets failed, cancelling", this);
+                    offsetWriter.cancelFlush();
+                    flushFuture.completeExceptionally(new Exception("Failed to commit offsets", t));
                 }
             }
         }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -36,21 +43,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
     static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
 
-    private ProxyServiceStarter serviceStarter;
+    protected ProxyServiceStarter serviceStarter;
+    protected String serviceUrl;
 
     @Override
     @BeforeClass
@@ -59,9 +57,12 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter = new ProxyServiceStarter(ARGS);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
-        serviceStarter.getConfig().setServicePort(Optional.of(11000));
+        serviceStarter.getConfig().setWebServicePort(Optional.of(0));
+        serviceStarter.getConfig().setServicePort(Optional.of(0));
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
+        serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
         serviceStarter.start();
+        serviceUrl = serviceStarter.getProxyService().getServiceUrl();
     }
 
     @Override
@@ -71,14 +72,19 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.close();
     }
 
+    private String computeWsBasePath() {
+        return String.format("ws://localhost:%d/ws", serviceStarter.getServer().getListenPortHTTP().get());
+    }
+
     @Test
     public void testEnableWebSocketServer() throws Exception {
         HttpClient httpClient = new HttpClient();
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);
         webSocketClient.start();
         MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = "ws://localhost:8080/ws/pingpong";
+        String webSocketUri = computeWsBasePath() + "/pingpong";
         Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
+        System.out.println("uri" + webSocketUri);
         sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
         assertTrue(myWebSocket.getResponse().contains("ping"));
     }
@@ -86,7 +92,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:11000")
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl)
                 .build();
 
         @Cleanup
@@ -105,7 +111,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
-        String produceUri = "ws://localhost:8080/ws/producer/persistent/sample/test/local/websocket-topic";
+        String produceUri = computeWsBasePath() + "/producer/persistent/sample/test/local/websocket-topic";
         Future<Session> producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
 
         ProducerMessage produceRequest = new ProducerMessage();
@@ -116,7 +122,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();
-        String consumeUri = "ws://localhost:8080/ws/consumer/persistent/sample/test/local/websocket-topic/my-sub";
+        String consumeUri = computeWsBasePath() + "/consumer/persistent/sample/test/local/websocket-topic/my-sub";
         Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
         producerSession.get().getRemote().sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(produceRequest));

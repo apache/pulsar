@@ -1,7 +1,7 @@
 ---
-id: version-2.7.1-admin-api-non-partitioned-topics
+id: admin-api-non-partitioned-topics
 title: Managing non-partitioned topics
-sidebar_label: Non-partitioned topics
+sidebar_label: "Non-partitioned topics"
 original_id: admin-api-non-partitioned-topics
 ---
 

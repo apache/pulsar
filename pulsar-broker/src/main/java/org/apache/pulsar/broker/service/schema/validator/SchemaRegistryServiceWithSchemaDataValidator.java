@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,8 +97,8 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
-        return service.deleteSchema(schemaId, user);
+    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+        return service.deleteSchema(schemaId, user, force);
     }
 
     @Override

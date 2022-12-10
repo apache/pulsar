@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.mongodb;
 
 import com.mongodb.MongoBulkWriteException;
@@ -27,14 +26,11 @@ import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bson.BsonDocument;
-import org.bson.Document;
 import org.mockito.Mock;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -43,13 +39,13 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+
+
 public class MongoSinkTest {
 
     @Mock
@@ -76,15 +72,10 @@ public class MongoSinkTest {
     @Mock
     private Publisher mockPublisher;
 
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
-
     @BeforeMethod
     public void setUp() {
 
-        map = TestHelper.createMap(true);
+        map = TestHelper.createCommonConfigMap();
 
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);

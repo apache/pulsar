@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,8 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
-import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Enumeration;
 import org.apache.bookkeeper.stats.Counter;
 
 /**
@@ -59,39 +54,39 @@ public class PrometheusTextFormatUtil {
 
     static void writeOpStat(Writer w, String name, String cluster, DataSketchesOpStatsLogger opStat) {
         // Example:
-        // # TYPE pulsar_bookie_client_bookkeeper_ml_workers_task_queued summary
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // # TYPE pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued summary
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="0.5"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="0.75"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="0.95"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="0.99"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="0.999"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="0.9999"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="false",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
         // quantile="1.0"} -Infinity
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_count{cluster="pulsar", success="false"} 0
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_sum{cluster="pulsar", success="false"} 0.0
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_count{cluster="pulsar", success="false"} 0
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_sum{cluster="pulsar", success="false"} 0.0
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="0.5"} 0.031
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="0.75"} 0.043
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="0.95"} 0.061
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="0.99"} 0.064
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="0.999"} 0.073
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="0.9999"} 0.073
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{cluster="pulsar", success="true",
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
         // quantile="1.0"} 0.552
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_count{cluster="pulsar", success="true"} 40911432
-        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_sum{cluster="pulsar", success="true"} 527.0
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_count{cluster="pulsar", success="true"} 40911432
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_sum{cluster="pulsar", success="true"} 527.0
         try {
             w.append("# TYPE ").append(name).append(" summary\n");
             writeQuantile(w, opStat, name, cluster, false, 0.5);
@@ -139,32 +134,5 @@ public class PrometheusTextFormatUtil {
         w.append(name).append("_sum{cluster=\"").append(cluster).append("\", success=\"")
                 .append(success.toString()).append("\"} ")
                 .append(Double.toString(opStat.getSum(success))).append('\n');
-    }
-
-    public static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry)
-            throws IOException {
-        Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
-        while (metricFamilySamples.hasMoreElements()) {
-            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
-
-            for (int i = 0; i < metricFamily.samples.size(); i++) {
-                Sample sample = metricFamily.samples.get(i);
-                w.write(sample.name);
-                w.write('{');
-                for (int j = 0; j < sample.labelNames.size(); j++) {
-                    if (j != 0) {
-                        w.write(", ");
-                    }
-                    w.write(sample.labelNames.get(j));
-                    w.write("=\"");
-                    w.write(sample.labelValues.get(j));
-                    w.write('"');
-                }
-
-                w.write("} ");
-                w.write(Collector.doubleToGoString(sample.value));
-                w.write('\n');
-            }
-        }
     }
 }

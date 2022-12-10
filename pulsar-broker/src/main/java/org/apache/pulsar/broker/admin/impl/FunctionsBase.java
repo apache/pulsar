@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -55,7 +56,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class FunctionsBase extends AdminResource {
 
     Functions<? extends WorkerService> functions() {
-        return pulsar().getWorkerService().getFunctions();
+        return validateAndGetWorkerService().getFunctions();
     }
 
     @POST
@@ -79,7 +80,10 @@ public class FunctionsBase extends AdminResource {
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting configuration payload of a Pulsar Function."
+                    value = "You can submit a function (in any languages that you are familiar with) \n"
+                            + "to a Pulsar cluster. Follow the steps below. \n"
+                            + "1. Create a JSON object using some of the following parameters.\n"
+                            + "A JSON value presenting configuration payload of a Pulsar Function.\n"
                             + " An example of the expected Pulsar Function can be found here.\n"
                             + "- **autoAck**\n"
                             + "  Whether or not the framework acknowledges messages automatically.\n"
@@ -163,23 +167,32 @@ public class FunctionsBase extends AdminResource {
                             + "  SecretProviderConfigurator.getSecretObjectType() method. \n"
                             + "- **cleanupSubscription**\n"
                             + "  Whether the subscriptions of a Pulsar Function created or used should be deleted"
-                            + " when the Pulsar Function is deleted.\n",
+                            + " when the Pulsar Function is deleted.\n"
+                            + "2. Encapsulate the JSON object to a multipart object.",
                     examples = @Example(
-                            value = @ExampleProperty(
-                                    mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
-                                            + "  \"parallelism\": 4\n"
-                                            + "  \"output\": persistent://public/default/output-topic\n"
-                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
-                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
-                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
-                                            + "}\n"
-                            )
+                            value = {
+                                @ExampleProperty(
+                                    mediaType = MediaType.TEXT_PLAIN,
+                                        value = """
+                                            Examples
+                                            1. Create a JSON object
+                                             {
+                                               "inputs": "persistent://public/default/input-topic",
+                                               "parallelism": "4",
+                                               "output": "persistent://public/default/output-topic",
+                                               "log-topic": "persistent://public/default/log-topic",
+                                               "classname": "org.example.test.ExclamationFunction",
+                                               "jar": "java-function-1.0-SNAPSHOT.jar"
+                                             }
+                                            2. Encapsulate the JSON object to a multipart object (in Python)
+                                            from requests_toolbelt.multipart.encoder import MultipartEncoders
+                                            mp_encoder = MultipartEncoder([('functionConfig',(None, json.dumps(config),\
+                                             'application/json'))])"""
+                                )
+                            }
                     )
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
-
         functions().registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
             functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
     }
@@ -291,14 +304,16 @@ public class FunctionsBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
-                                            + "  \"parallelism\": 4\n"
-                                            + "  \"output\": persistent://public/default/output-topic\n"
-                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
-                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
-                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
-                                            + "}\n"
+                                    value = """
+                                            {
+                                              "inputs": "persistent://public/default/input-topic",
+                                              "parallelism": 4,
+                                              "output": "persistent://public/default/output-topic",
+                                              "log-topic": "persistent://public/default/log-topic",
+                                              "classname": "org.example.test.ExclamationFunction",
+                                              "jar": "java-function-1.0-SNAPSHOT.jar"
+                                            }
+                                            """
                             )
                     )
             )
@@ -693,9 +708,12 @@ public class FunctionsBase extends AdminResource {
             @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
-            final @PathParam("functionName") String functionName) {
+            final @PathParam("functionName") String functionName,
+            @ApiParam(value = "Whether to download the transform-function")
+            final @QueryParam("transform-function") boolean transformFunction) {
 
-        return functions().downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions()
+                .downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData(), transformFunction);
     }
 
     @GET
@@ -715,6 +733,37 @@ public class FunctionsBase extends AdminResource {
      */
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions().getListOfConnectors();
+    }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the built-in Functions"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/builtins/reload")
+    public void reloadBuiltinFunctions() throws IOException {
+        functions().reloadBuiltinFunctions(clientAppId(), clientAuthData());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches the list of built-in Pulsar functions",
+            response = FunctionDefinition.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/builtins")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<FunctionDefinition> getBuiltinFunction() {
+        return functions().getBuiltinFunctions(clientAppId(), clientAuthData());
     }
 
     @PUT

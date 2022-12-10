@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,12 +23,12 @@ import java.io.Serializable;
 /**
  * Interface to be implemented for extracting timestamp from a tuple.
  */
-public interface TimestampExtractor<I> extends Serializable {
+public interface TimestampExtractor<T> extends Serializable {
     /**
      * Return the tuple timestamp indicating the time when the event happened.
      *
      * @param input
      * @return the timestamp
      */
-    long extractTimestamp(I input);
+    long extractTimestamp(T input);
 }

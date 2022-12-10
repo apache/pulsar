@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,20 +21,23 @@ package org.apache.pulsar;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.common.base.Strings;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class PulsarStandaloneStarter extends PulsarStandalone {
+
+    private static final String PULSAR_CONFIG_FILE = "pulsar.config.file";
+
     @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarStandaloneStarter.class);
 
     public PulsarStandaloneStarter(String[] args) throws Exception {
 
@@ -42,9 +45,18 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         try {
             jcommander.addObject(this);
             jcommander.parse(args);
-            if (this.isHelp() || isBlank(this.getConfigFile())) {
+            if (this.isHelp()) {
                 jcommander.usage();
-                return;
+                System.exit(0);
+            }
+            if (Strings.isNullOrEmpty(this.getConfigFile())) {
+                String configFile = System.getProperty(PULSAR_CONFIG_FILE);
+                if (Strings.isNullOrEmpty(configFile)) {
+                    throw new IllegalArgumentException(
+                            "Config file not specified. Please use -c, --config-file or -Dpulsar.config.file to "
+                                    + "specify the config file.");
+                }
+                this.setConfigFile(configFile);
             }
             if (this.generateDocs) {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
@@ -61,7 +73,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         } catch (Exception e) {
             jcommander.usage();
             log.error(e.getMessage());
-            return;
+            System.exit(1);
         }
 
         try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
@@ -69,12 +81,9 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                     inputStream, ServiceConfiguration.class);
         }
 
-        String zkServers = "127.0.0.1";
-
         if (this.getAdvertisedAddress() != null) {
             // Use advertised address from command line
             config.setAdvertisedAddress(this.getAdvertisedAddress());
-            zkServers = this.getAdvertisedAddress();
         } else if (isBlank(config.getAdvertisedAddress()) && isBlank(config.getAdvertisedListeners())) {
             // Use advertised address as local hostname
             config.setAdvertisedAddress("localhost");
@@ -84,47 +93,48 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if (argsContains(args, "--zookeeper-port")) {
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        } else {
-            if (config.getZookeeperServers() != null) {
-                this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
-            }
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        }
-
-        config.setRunningStandalone(true);
-
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                try {
-                    if (fnWorkerService != null) {
-                        fnWorkerService.stop();
+        if (!argsContains(args, "--zookeeper-port")) {
+            if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
+                String[] metadataStoreUrl = config.getMetadataStoreUrl().split(",")[0].split(":");
+                if (metadataStoreUrl.length == 2) {
+                    this.setZkPort(Integer.parseInt(metadataStoreUrl[1]));
+                } else if ((metadataStoreUrl.length == 3)){
+                    String zkPort = metadataStoreUrl[2];
+                    if (zkPort.contains("/")) {
+                        this.setZkPort(Integer.parseInt(zkPort.substring(0, zkPort.lastIndexOf("/"))));
+                    } else {
+                        this.setZkPort(Integer.parseInt(zkPort));
                     }
-
-                    if (broker != null) {
-                        broker.close();
-                    }
-
-                    if (bkEnsemble != null) {
-                        bkEnsemble.stop();
-                    }
-
-                    LogManager.shutdown();
-                } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
             }
-        });
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                if (fnWorkerService != null) {
+                    fnWorkerService.stop();
+                }
+
+                if (broker != null) {
+                    broker.close();
+                }
+
+                if (bkEnsemble != null) {
+                    bkEnsemble.stop();
+                }
+            } catch (Exception e) {
+                log.error("Shutdown failed: {}", e.getMessage(), e);
+            } finally {
+                LogManager.shutdown();
+            }
+        }));
     }
 
     private static boolean argsContains(String[] args, String arg) {
         return Arrays.asList(args).contains(arg);
     }
 
-    public static void main(String args[]) throws Exception {
+    public static void main(String[] args) throws Exception {
         // Start standalone
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         try {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,17 +19,17 @@
 package org.apache.pulsar.metadata.api.extended;
 
 /**
- * An event regarding a session of MetadataStore
+ * An event regarding a session of MetadataStore.
  */
 public enum SessionEvent {
 
     /**
-     * The client is temporarily disconnected, although the session is still valid
+     * The client is temporarily disconnected, although the session is still valid.
      */
     ConnectionLost,
 
     /**
-     * The client was able to successfully reconnect
+     * The client was able to successfully reconnect.
      */
     Reconnected,
 
@@ -40,7 +40,23 @@ public enum SessionEvent {
     SessionLost,
 
     /**
-     * The session was established
+     * The session was established.
      */
-    SessionReestablished,
+    SessionReestablished;
+
+    /**
+     * Check whether the state represents a connected or not-connected state.
+     */
+    public boolean isConnected() {
+        switch (this) {
+            case Reconnected:
+            case SessionReestablished:
+                return true;
+
+            case ConnectionLost:
+            case SessionLost:
+            default:
+                return false;
+        }
+    }
 }

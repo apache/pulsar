@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import lombok.Getter;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
@@ -75,6 +77,7 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    @Deprecated
     public static class AddEntryMetadataException extends BrokerServiceException {
         public AddEntryMetadataException(Throwable t) {
             super(t);
@@ -93,6 +96,16 @@ public class BrokerServiceException extends Exception {
         }
 
         public TopicTerminatedException(Throwable t) {
+            super(t);
+        }
+    }
+
+    public static class TopicMigratedException extends BrokerServiceException {
+        public TopicMigratedException(String msg) {
+            super(msg);
+        }
+
+        public TopicMigratedException(Throwable t) {
             super(t);
         }
     }
@@ -188,6 +201,16 @@ public class BrokerServiceException extends Exception {
     public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
         public TopicPoliciesCacheNotInitException() {
             super("Topic policies cache have not init.");
+        }
+    }
+
+    public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
+        @Getter
+        private final BacklogQuota.RetentionPolicy retentionPolicy;
+
+        public TopicBacklogQuotaExceededException(BacklogQuota.RetentionPolicy retentionPolicy) {
+            super("Cannot create producer on topic with backlog quota exceeded");
+            this.retentionPolicy = retentionPolicy;
         }
     }
 

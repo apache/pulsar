@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -68,6 +69,7 @@ import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl;
 import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.schema.ShortSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
@@ -240,10 +242,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return KeyValueSchemaImpl.kvBytes();
     }
 
-    public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
-        return KeyValueSchemaImpl.of(keySchema, valueSchema);
-    }
-
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                     KeyValueEncodingType keyValueEncodingType) {
         return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
@@ -357,7 +355,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param kvSchemaInfo the key/value schema info
      * @return the convert key/value schema data string
      */
-    public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+    public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo)
+            throws IOException {
         return SchemaUtils.convertKeyValueSchemaInfoDataToString(kvSchemaInfo);
     }
 
@@ -367,7 +366,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+    public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes)
+            throws IOException {
         return SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(keyValueSchemaInfoDataJsonBytes);
     }
 
@@ -379,4 +379,12 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new KeyBasedBatcherBuilder();
     }
 
+    public MessagePayloadFactory newDefaultMessagePayloadFactory() {
+        return new MessagePayloadFactoryImpl();
+    }
+
+    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                        Map<String, String> propertiesValue) {
+        return new SchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
+    }
 }

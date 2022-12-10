@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.Beta;
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.util.Reflections;
 
 /**
  * A provider that provides {@link TransactionBuffer}.
@@ -37,15 +36,10 @@ public interface TransactionBufferProvider {
      * @return an instance of transaction buffer provider.
      */
     static TransactionBufferProvider newProvider(String providerClassName) throws IOException {
-        Class<?> providerClass;
         try {
-            providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
-            checkArgument(obj instanceof TransactionBufferProvider,
-                "The factory has to be an instance of "
-                    + TransactionBufferProvider.class.getName());
-
-            return (TransactionBufferProvider) obj;
+            TransactionBufferProvider transactionBufferProvider = Reflections.createInstance(providerClassName,
+                    TransactionBufferProvider.class, Thread.currentThread().getContextClassLoader());
+            return transactionBufferProvider;
         } catch (Exception e) {
             throw new IOException(e);
         }
@@ -55,8 +49,7 @@ public interface TransactionBufferProvider {
      * Open the persistent transaction buffer.
      *
      * @param originTopic
-     * @param transactionBufferFuture the transaction buffer future
      * @return
      */
-    TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture);
+    TransactionBuffer newTransactionBuffer(Topic originTopic);
 }

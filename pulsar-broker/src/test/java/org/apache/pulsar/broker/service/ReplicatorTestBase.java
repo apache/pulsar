@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,7 +49,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
@@ -160,19 +160,19 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin1.clusters().createCluster("r1", ClusterData.builder()
                 .serviceUrl(url1.toString())
                 .serviceUrlTls(urlTls1.toString())
-                .brokerServiceUrl(pulsar1.getSafeBrokerServiceUrl())
+                .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                 .build());
         admin1.clusters().createCluster("r2", ClusterData.builder()
                 .serviceUrl(url2.toString())
                 .serviceUrlTls(urlTls2.toString())
-                .brokerServiceUrl(pulsar2.getSafeBrokerServiceUrl())
+                .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
                 .build());
         admin1.clusters().createCluster("r3", ClusterData.builder()
                 .serviceUrl(url3.toString())
                 .serviceUrlTls(urlTls3.toString())
-                .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
                 .build());
 
@@ -184,9 +184,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
         assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
-        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getSafeBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getSafeBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getSafeBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()
@@ -220,12 +220,13 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAdvertisedAddress("localhost");
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
-        config.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
+        config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
         config.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -233,11 +234,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config.setDefaultNumberOfNamespaceBundles(1);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
-        config.setSystemTopicEnabled(true);
-        config.setTopicLevelPoliciesEnabled(true);
     }
 
     public void resetConfig1() {

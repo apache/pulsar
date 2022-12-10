@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,8 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
-
+import static org.testng.Assert.assertNull;
 import java.time.Duration;
-import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -29,10 +28,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -106,7 +108,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = getTopicWithRandomSuffix("non-durable");
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -155,7 +157,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = getTopicWithRandomSuffix("durable");
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -197,7 +199,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = getTopicWithRandomSuffix("encryption");
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
@@ -232,6 +234,115 @@ public class PulsarClientToolTest extends BrokerTestBase {
         } catch (Exception e) {
             Assert.fail("consumer was unable to decrypt messages", e);
         }
+    }
+
+    @Test(timeOut = 20000)
+    public void testDisableBatching() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("disable-batching");
+        // `numberOfMessages` should be an even number, because we set `batchNum` as 2, make sure batch and non batch
+        // messages in the same batch
+        final int numberOfMessages = 6;
+        final int batchNum = 2;
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+
+        PulsarClientTool pulsarClientTool1 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
+        String[] args1 = {"produce", "-m", "batched", "-n", Integer.toString(numberOfMessages), topicName};
+        Assert.assertEquals(pulsarClientTool1.run(args1), 0);
+
+        PulsarClientTool pulsarClientTool2 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
+        String[] args2 = {"produce", "-m", "non-batched", "-n", Integer.toString(numberOfMessages), "-db", topicName};
+        Assert.assertEquals(pulsarClientTool2.run(args2), 0);
+
+        for (int i = 0; i < numberOfMessages * 2; i++) {
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg);
+            if (i < numberOfMessages) {
+                Assert.assertEquals(new String(msg.getData()), "batched");
+                Assert.assertTrue(msg.getMessageId() instanceof BatchMessageIdImpl);
+            } else {
+                Assert.assertEquals(new String(msg.getData()), "non-batched");
+                Assert.assertFalse(msg.getMessageId() instanceof BatchMessageIdImpl);
+            }
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testArgs() throws Exception {
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
+        final String url = "pulsar+ssl://localhost:6651";
+        final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        final String authParams = "tlsCertFile:pulsar-broker/src/test/resources/authentication/tls/client-cert.pem," +
+                "tlsKeyFile:pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
+        final String tlsTrustCertsFilePath = "pulsar/pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
+        final String message = "test msg";
+        final int numberOfMessages = 1;
+        final String topicName = getTopicWithRandomSuffix("test-topic");
+
+        String[] args = {"--url", url,
+                "--auth-plugin", authPlugin,
+                "--auth-params", authParams,
+                "--tlsTrustCertsFilePath", tlsTrustCertsFilePath,
+                "produce", "-m", message,
+                "-n", Integer.toString(numberOfMessages), topicName};
+        pulsarClientTool.jcommander.parse(args);
+        assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), tlsTrustCertsFilePath);
+        assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
+        assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
+        assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+        assertNull(pulsarClientTool.rootParams.getProxyServiceURL());
+        assertNull(pulsarClientTool.rootParams.getProxyProtocol());
+    }
+
+    @Test
+    public void testParsingProxyServiceUrlAndProxyProtocolFromProperties() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("proxyServiceUrl", "pulsar+ssl://my-proxy-pulsar:4443");
+        properties.setProperty("proxyProtocol", "SNI");
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(properties);
+        final String url = "pulsar+ssl://localhost:6651";
+        final String message = "test msg";
+        final int numberOfMessages = 1;
+        final String topicName = getTopicWithRandomSuffix("test-topic");
+
+        String[] args = {"--url", url,
+                "produce", "-m", message,
+                "-n", Integer.toString(numberOfMessages), topicName};
+        pulsarClientTool.jcommander.parse(args);
+        assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+        assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
+        assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);
+    }
+    
+    @Test
+    public void testSendMultipleMessage() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("test-multiple-msg");
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(properties);
+        String[] args1 = {"produce", "-m", "msg0", "-m", "msg1,msg2", topicName};
+        Assert.assertEquals(pulsarClientTool.run(args1), 0);
+
+        for (int i = 0; i < 3; i++) {
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg);
+            Assert.assertEquals(new String(msg.getData()), "msg" + i);
+        }
+    }
+
+    private static String getTopicWithRandomSuffix(String localNameBase) {
+        return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
 
 }

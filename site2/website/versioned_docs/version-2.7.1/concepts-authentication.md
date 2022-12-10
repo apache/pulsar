@@ -1,7 +1,7 @@
 ---
-id: version-2.7.1-concepts-authentication
+id: concepts-authentication
 title: Authentication and Authorization
-sidebar_label: Authentication and Authorization
+sidebar_label: "Authentication and Authorization"
 original_id: concepts-authentication
 ---
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,7 +42,7 @@ import org.testng.Assert;
 public class BufferedOffloadStreamTest {
     final Random random = new Random();
 
-    public void testWithPadding(int paddingLen) throws Exception {
+    private void testWithPadding(int paddingLen) throws Exception {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         List<Entry> entryBuffer = new LinkedList<>();
         final UUID uuid = UUID.randomUUID();

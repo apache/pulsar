@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.twitter;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -30,15 +29,12 @@ import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
 import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -72,7 +68,8 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
-        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config, TwitterFireHoseConfig.class, sourceContext);
+        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config,
+                TwitterFireHoseConfig.class, sourceContext);
         hoseConfig.validate();
         waitObject = new Object();
         startThread(hoseConfig);

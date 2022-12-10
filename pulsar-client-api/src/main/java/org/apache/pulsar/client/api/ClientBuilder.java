@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -125,6 +125,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder listenerName(String name);
+
+    /**
+     * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * @return the client builder instance
+     */
+    ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
@@ -263,7 +269,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * Increasing this parameter may improve throughput when using many producers over a high latency connection.
      *
      * @param connectionsPerBroker
-     *            max number of connections per broker (needs to be greater than 0)
+     *            max number of connections per broker (needs to be greater than or equal to 0)
      * @return the client builder instance
      */
     ClientBuilder connectionsPerBroker(int connectionsPerBroker);
@@ -293,6 +299,22 @@ public interface ClientBuilder extends Serializable, Cloneable {
      */
     @Deprecated
     ClientBuilder enableTls(boolean enableTls);
+
+    /**
+     * Set the path to the TLS key file.
+     *
+     * @param tlsKeyFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyFilePath(String tlsKeyFilePath);
+
+    /**
+     * Set the path to the TLS certificate file.
+     *
+     * @param tlsCertificateFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath);
 
     /**
      * Set the path to the trusted TLS certificate file.
@@ -339,6 +361,30 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the key store file.
+     *
+     * @param tlsKeyStoreType
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStoreType(String tlsKeyStoreType);
+
+    /**
+     * The location of the key store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsKeyStorePassword
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword);
 
     /**
      * The file format of the trust store file.
@@ -443,7 +489,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder maxLookupRedirects(int maxLookupRedirects);
 
     /**
-     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+     * Set max number of broker-rejected requests in a certain time-frame (60 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>.
      *
@@ -537,6 +583,14 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
+
+    /**
+     * Set dns lookup bind address and port.
+     * @param address dnsBindAddress
+     * @param port dnsBindPort
+     * @return
+     */
+    ClientBuilder dnsLookupBind(String address, int port);
 
     /**
      *  Set socks5 proxy address.

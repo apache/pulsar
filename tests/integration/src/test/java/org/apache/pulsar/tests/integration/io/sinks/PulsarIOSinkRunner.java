@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -55,7 +55,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 		super(cluster, functionRuntimeType);
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	public <T extends GenericContainer> void runSinkTester(SinkTester<T> tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -85,7 +85,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
             // produce messages
             Map<String, String> kvs;
-            if (tester instanceof JdbcPostgresSinkTester) {
+            if (tester instanceof JdbcPostgresSinkTester && !((JdbcPostgresSinkTester)tester).isKeyValueSchema()) {
                 kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
                 // wait for sink to process messages
                 Failsafe.with(statusRetryPolicy).run(() ->
@@ -155,7 +155,8 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--name", sinkName,
                     "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
-                    "--inputs", inputTopicName
+                    "--inputs", inputTopicName,
+                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
             };
         } else {
             commands = new String[] {
@@ -167,13 +168,14 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--archive", tester.getSinkArchive(),
                     "--classname", tester.getSinkClassName(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
-                    "--inputs", inputTopicName
+                    "--inputs", inputTopicName,
+                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
             };
         }
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-            result.getStdout().contains("\"Created successfully\""),
+            result.getStdout().contains("Created successfully"),
             result.getStdout());
     }
 
@@ -193,12 +195,13 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
-                    "--parallelism", "2"
+                    "--parallelism", "2",
+                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
             };
         } else {
             commands = new String[] {
                     PulsarCluster.ADMIN_SCRIPT,
-                    "sink", "create",
+                    "sink", "update",
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,
@@ -206,13 +209,14 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--classname", tester.getSinkClassName(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
-                    "--parallelism", "2"
+                    "--parallelism", "2",
+                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
             };
         }
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Updated successfully\""),
+                result.getStdout().contains("Updated successfully"),
                 result.getStdout());
     }
 
@@ -337,7 +341,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
         assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
         assertEquals(sinkStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
-    
+
     // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaInsertMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
