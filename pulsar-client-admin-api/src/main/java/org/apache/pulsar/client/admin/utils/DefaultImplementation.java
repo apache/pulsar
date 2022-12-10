@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,7 +40,7 @@ public class DefaultImplementation {
                     LongRunningProcessStatus.Status.class, String.class, MessageId.class);
 
     public static PulsarAdminBuilder newAdminClientBuilder() {
-        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
+        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.getDeclaredConstructor().newInstance());
     }
 
     public static OffloadProcessStatus newOffloadProcessStatus(LongRunningProcessStatus.Status status, String lastError

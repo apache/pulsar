@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,6 +108,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
             name,
             baseSchema.toString().getBytes(UTF_8),
             schemaType,
+            System.currentTimeMillis(),
             properties
         );
     }

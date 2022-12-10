@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,12 +27,11 @@ import io.kubernetes.client.openapi.models.V1EnvVar;
 import io.kubernetes.client.openapi.models.V1EnvVarSource;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1SecretKeySelector;
+import java.lang.reflect.Type;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
-
-import java.lang.reflect.Type;
-import java.util.Map;
 
 /**
  * This file defines the SecretsProviderConfigurator that will be used by default for running in Kubernetes.
@@ -42,8 +41,9 @@ import java.util.Map;
  * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables.
  */
 public class KubernetesSecretsProviderConfigurator implements SecretsProviderConfigurator {
-    private static String ID_KEY = "path";
-    private static String KEY_KEY = "key";
+    private static String idKey = "path";
+    private static String keyKey = "key";
+
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
         switch (functionDetails.getRuntime()) {
@@ -64,11 +64,14 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
         return null;
     }
 
-    // Kubernetes secrets can be exposed as volume mounts or as environment variables in the pods. We are currently using the
-    // environment variables way. Essentially the secretName/secretPath is attached as secretRef to the environment variables
+    // Kubernetes secrets can be exposed as volume mounts or as
+    // environment variables in the pods. We are currently using the
+    // environment variables way. Essentially the secretName/secretPath
+    // is attached as secretRef to the environment variables
     // of a pod and kubernetes magically makes the secret pointed to by this combination available as a env variable.
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
+                                                          Function.FunctionDetails functionDetails) {
         V1Container container = null;
         for (V1Container v1Container : podSpec.getContainers()) {
             if (v1Container.getName().equals(functionsContainerName)) {
@@ -89,26 +92,29 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
                 secretEnv.name(entry.getKey())
                         .valueFrom(new V1EnvVarSource()
                                 .secretKeyRef(new V1SecretKeySelector()
-                                        .name(kv.get(ID_KEY))
-                                        .key(kv.get(KEY_KEY))));
+                                        .name(kv.get(idKey))
+                                        .key(kv.get(keyKey))));
                 container.addEnvItem(secretEnv);
             }
         }
     }
 
     @Override
-    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
+    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
+                                                       Function.FunctionDetails functionDetails) {
         throw new RuntimeException("KubernetesSecretsProviderConfigurator should only be setup for Kubernetes Runtime");
     }
 
     @Override
     public Type getSecretObjectType() {
-        return new TypeToken<Map<String, String>>() {}.getType();
+        return new TypeToken<Map<String, String>>() {
+        }.getType();
     }
 
     // The secret object should be of type Map<String, String> and it should contain "id" and "key"
     @Override
-    public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, Function.FunctionDetails functionDetails) {
+    public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName,
+                                  Function.FunctionDetails functionDetails) {
         if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {
             }.getType();
@@ -120,10 +126,10 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
                     if (kubernetesSecret.size() < 2) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain id and key");
                     }
-                    if (!kubernetesSecret.containsKey(ID_KEY)) {
+                    if (!kubernetesSecret.containsKey(idKey)) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain id information");
                     }
-                    if (!kubernetesSecret.containsKey(KEY_KEY)) {
+                    if (!kubernetesSecret.containsKey(keyKey)) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain key information");
                     }
                 } else {

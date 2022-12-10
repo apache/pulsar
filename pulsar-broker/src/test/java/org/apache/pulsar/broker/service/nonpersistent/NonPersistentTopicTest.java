@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -63,7 +63,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         // stats are at zero before any activity
-        TopicStats stats = topic.getStats(false, false);
+        TopicStats stats = topic.getStats(false, false, false);
         assertEquals(stats.getBytesInCounter(), 0);
         assertEquals(stats.getMsgInCounter(), 0);
         assertEquals(stats.getBytesOutCounter(), 0);
@@ -77,7 +77,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
 
         // send/receive result in non-zero stats
-        TopicStats statsBeforeUnsubscribe = topic.getStats(false, false);
+        TopicStats statsBeforeUnsubscribe = topic.getStats(false, false, false);
         assertTrue(statsBeforeUnsubscribe.getBytesInCounter() > 0);
         assertTrue(statsBeforeUnsubscribe.getMsgInCounter() > 0);
         assertTrue(statsBeforeUnsubscribe.getBytesOutCounter() > 0);
@@ -90,7 +90,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertEquals(topic.getProducers().size(), 0);
 
         // consumer unsubscribe/producer removal does not result in stats loss
-        TopicStats statsAfterUnsubscribe = topic.getStats(false, false);
+        TopicStats statsAfterUnsubscribe = topic.getStats(false, false, false);
         assertEquals(statsAfterUnsubscribe.getBytesInCounter(), statsBeforeUnsubscribe.getBytesInCounter());
         assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
         assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,8 +29,11 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 
 import java.time.Clock;
-import java.util.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;

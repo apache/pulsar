@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,9 +47,8 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -59,8 +58,6 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -69,7 +66,6 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test(timeOut = 10000)
@@ -106,7 +102,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
-        List<Consumer<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
+        List<Consumer<?>> consumers = List.of(consumer1, consumer2, consumer3);
         waitCacheInit(topicName);
         admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
         Awaitility.await().untilAsserted(()
@@ -121,7 +117,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
 
         // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
         Message<?> msg = null;
-        Map<Message<?>, Consumer<?>> messages = Maps.newHashMap();
+        Map<Message<?>, Consumer<?>> messages = new HashMap<>();
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
@@ -206,6 +202,13 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         waitCacheInit(topicName);
         Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
         assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
+
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 15);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace).intValue(), 15));
+        admin.namespaces().removeMaxUnackedMessagesPerConsumer(myNamespace);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace), null));
 
         admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
         Awaitility.await().untilAsserted(()
@@ -333,7 +336,5 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private void waitCacheInit(String topicName) throws Exception {
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
         TopicName topic = TopicName.get(topicName);
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(topic));
     }
 }

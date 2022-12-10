@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.schema;
 
+import java.util.Collections;
 import java.util.Map;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.classification.InterfaceAudience;
@@ -47,5 +48,62 @@ public interface SchemaInfo {
      */
     Map<String, String> getProperties();
 
+    /**
+     * The created time of schema.
+     */
+    long getTimestamp();
+
     String getSchemaDefinition();
+
+    static SchemaInfoBuilder builder() {
+        return new SchemaInfoBuilder();
+    }
+
+    class SchemaInfoBuilder {
+        private String name;
+        private byte[] schema;
+        private SchemaType type;
+        private Map<String, String> properties;
+        private boolean propertiesSet;
+        private long timestamp;
+
+        SchemaInfoBuilder() {
+        }
+
+        public SchemaInfoBuilder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public SchemaInfoBuilder schema(byte[] schema) {
+            this.schema = schema;
+            return this;
+        }
+
+        public SchemaInfoBuilder type(SchemaType type) {
+            this.type = type;
+            return this;
+        }
+
+        public SchemaInfoBuilder properties(Map<String, String> properties) {
+            this.properties = properties;
+            this.propertiesSet = true;
+            return this;
+        }
+
+        public SchemaInfoBuilder timestamp(long timestamp) {
+            this.timestamp = timestamp;
+            return this;
+        }
+
+        public SchemaInfo build() {
+            Map<String, String> propertiesValue = this.properties;
+            if (!this.propertiesSet) {
+                propertiesValue = Collections.emptyMap();
+            }
+            return DefaultImplementation
+                    .getDefaultImplementation()
+                    .newSchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
+        }
+    }
 }

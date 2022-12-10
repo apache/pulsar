@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.websocket.stats;
 
+import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.websocket.ConsumerHandler;
 import org.apache.pulsar.websocket.ProducerHandler;
 import org.apache.pulsar.websocket.ReaderHandler;
-
-import com.google.common.collect.Sets;
 
 /**
  * Stats of topic served by web-socket proxy. It shows current stats of producers and consumers connected to proxy for a
@@ -38,8 +36,8 @@ public class ProxyTopicStat {
     public final Set<ConsumerStats> consumerStats;
 
     public ProxyTopicStat() {
-        this.producerStats = Sets.newHashSet();
-        this.consumerStats = Sets.newHashSet();
+        this.producerStats = new HashSet<>();
+        this.consumerStats = new HashSet<>();
     }
 
     public static class ProducerStats {
@@ -67,7 +65,7 @@ public class ProxyTopicStat {
             this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
-        
+
         public ConsumerStats(ReaderHandler handler) {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();

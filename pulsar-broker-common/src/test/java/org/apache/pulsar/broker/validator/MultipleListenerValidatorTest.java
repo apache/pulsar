@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.validator;
 
+import java.net.InetAddress;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.testng.annotations.Test;
@@ -31,33 +32,48 @@ import static org.testng.AssertJUnit.assertEquals;
  */
 public class MultipleListenerValidatorTest {
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testAppearTogether() {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setAdvertisedAddress("127.0.0.1");
-        config.setAdvertisedListeners("internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651");
-        config.setInternalListenerName("internal");
-        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-    }
-
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetAppliedAdvertised() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setBrokerServicePortTls(Optional.of(6651));
         config.setAdvertisedListeners("internal:pulsar://192.0.0.1:6660, internal:pulsar+ssl://192.0.0.1:6651");
         config.setInternalListenerName("internal");
-        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config), "192.0.0.1");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false),
+                "192.0.0.1");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                InetAddress.getLocalHost().getCanonicalHostName());
 
         config = new ServiceConfiguration();
         config.setBrokerServicePortTls(Optional.of(6651));
         config.setAdvertisedAddress("192.0.0.2");
-        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config), "192.0.0.2");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false),
+                "192.0.0.2");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                "192.0.0.2");
 
         config.setAdvertisedAddress(null);
-        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false),
+                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                 ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
     }
 
+    @Test
+    public void testListenerDefaulting() {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setAdvertisedListeners(" internal:pulsar://127.0.0.1:6660, internal:pulsar+ssl://127.0.0.1:6651");
+        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+        assertEquals("internal", config.getInternalListenerName());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testMalformedListener() {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setAdvertisedListeners(":pulsar://127.0.0.1:6660");
+        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+    }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testListenerDuplicate_1() {
@@ -77,6 +93,14 @@ public class MultipleListenerValidatorTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testListenerDuplicate_3() {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setAdvertisedListeners(" internal:pulsar+ssl://127.0.0.1:6661," + " internal:pulsar+ssl://192.168.1.11:6661");
+        config.setInternalListenerName("internal");
+        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testDifferentListenerWithSameHostPort() {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedListeners(" internal:pulsar://127.0.0.1:6660," + " external:pulsar://127.0.0.1:6660");
@@ -85,35 +109,8 @@ public class MultipleListenerValidatorTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testListenerWithoutTLSPort() {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setAdvertisedListeners(" internal:pulsar://127.0.0.1:6660, internal:pulsar+ssl://127.0.0.1:6651");
-        config.setInternalListenerName("internal");
-        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-    }
-
-    @Test
-    public void testListenerWithTLSPort() {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerServicePortTls(Optional.of(6651));
-        config.setAdvertisedListeners(" internal:pulsar://127.0.0.1:6660, internal:pulsar+ssl://127.0.0.1:6651");
-        config.setInternalListenerName("internal");
-        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testListenerWithoutNonTLSAddress() {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerServicePortTls(Optional.of(6651));
-        config.setAdvertisedListeners(" internal:pulsar+ssl://127.0.0.1:6651");
-        config.setInternalListenerName("internal");
-        MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testWithoutListenerNameInAdvertisedListeners() {
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerServicePortTls(Optional.of(6651));
         config.setAdvertisedListeners(" internal:pulsar://127.0.0.1:6660, internal:pulsar+ssl://127.0.0.1:6651");
         config.setInternalListenerName("external");
         MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);

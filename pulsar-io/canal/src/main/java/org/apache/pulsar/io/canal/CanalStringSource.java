@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.io.canal;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.protocol.FlatMessage;
 import com.alibaba.otter.canal.protocol.Message;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import com.alibaba.fastjson.JSON;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
@@ -55,7 +55,8 @@ public class CanalStringSource extends CanalAbstractSource<CanalMessage> {
         String messages = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
         CanalMessage canalMessage = new CanalMessage();
         Date date = new Date();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        SimpleDateFormat dateFormat = new SimpleDateFormat(
+            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         canalMessage.setTimestamp(dateFormat.format(date));
         canalMessage.setId(this.messageId);
         canalMessage.setMessage(messages);

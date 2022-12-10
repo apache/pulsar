@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * From Apache HTTP client
  */
@@ -36,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * An up-to-date list of suffixes can be obtained from
  * <a href="http://publicsuffix.org/">publicsuffix.org</a>
  *
- * @see org.apache.pulsar.client.impl.tls.PublicSuffixList
+ * @see org.apache.pulsar.common.tls.PublicSuffixList
  *
  * @since 4.4
  */
@@ -87,7 +86,10 @@ public final class PublicSuffixMatcher {
         }
     }
 
-    private static boolean hasEntry(final Map<String, DomainType> map, final String rule, final DomainType expectedType) {
+    private static boolean hasEntry(
+            final Map<String, DomainType> map,
+            final String rule,
+            final DomainType expectedType) {
         if (map == null) {
             return false;
         }

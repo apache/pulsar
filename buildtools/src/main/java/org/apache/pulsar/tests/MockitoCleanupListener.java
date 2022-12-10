@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests;
 
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,15 +32,32 @@ import org.slf4j.LoggerFactory;
  */
 public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(MockitoCleanupListener.class);
-    private static final boolean
-            MOCKITO_CLEANUP_ENABLED = Boolean.valueOf(System.getProperty("testMockitoCleanup", "true"));
+    private static final boolean MOCKITO_CLEANUP_ENABLED = Boolean.parseBoolean(
+            System.getProperty("testMockitoCleanup", "true"));
+
+    private static final String MOCKITO_CLEANUP_INFO =
+            "Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.";
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
-        if (MOCKITO_CLEANUP_ENABLED && MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
-            LOG.info("Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.");
-            MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
+        if (MOCKITO_CLEANUP_ENABLED) {
+            try {
+                if (MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
+                    LOG.info(MOCKITO_CLEANUP_INFO);
+                    MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
+                }
+            } finally {
+                cleanupMockitoInline();
+            }
         }
     }
 
+    /**
+     * Mockito-inline can leak mocked objects, we need to clean up the inline mocks after every test.
+     * See <a href="https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html#47"}>
+     * mockito docs</a>.
+     */
+    private void cleanupMockitoInline() {
+        Mockito.framework().clearInlineMocks();
+    }
 }

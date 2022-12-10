@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ public interface PackagesStorageProvider {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
+            Object obj = providerClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof PackagesStorageProvider,
                 "The package storage provider has to be an instance of " + PackagesStorageProvider.class.getName());
             return (PackagesStorageProvider) obj;

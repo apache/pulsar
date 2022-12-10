@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.io.kafka.connect;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
@@ -35,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.util.Callback;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -58,12 +58,8 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.producerBaseSetup();
 
         this.topicName = "persistent://my-property/my-ns/offset-topic";
-        this.defaultProps.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
-        this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
-        this.offsetBackingStore = new PulsarOffsetBackingStore();
-        this.offsetBackingStore.configure(distributedConfig);
-        this.offsetBackingStore.start();
+        this.offsetBackingStore = new PulsarOffsetBackingStore(pulsarClient);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -77,37 +73,56 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testGetFromEmpty() throws Exception {
-        assertTrue(offsetBackingStore.get(
-            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8))),
-            null
-        ).get().isEmpty());
+    private void testOffsetBackingStore(boolean testWithReaderConfig) throws Exception {
+        if (testWithReaderConfig) {
+            this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG,
+                    "{\"subscriptionName\":\"my-subscription\"}");
+        }
+        this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
+        this.offsetBackingStore.configure(distributedConfig);
+        this.offsetBackingStore.start();
     }
 
     @Test
-    public void testGetFromEmptyCallback() throws Exception {
-        CompletableFuture<Map<ByteBuffer, ByteBuffer>> callbackFuture = new CompletableFuture<>();
+    public void testGetFromEmpty() throws Exception {
+        testOffsetBackingStore(false);
         assertTrue(offsetBackingStore.get(
-            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8))),
-            (error, result) -> {
-                if (null != error) {
-                    callbackFuture.completeExceptionally(error);
-                } else {
-                    callbackFuture.complete(result);
-                }
-            }
+            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8)))
         ).get().isEmpty());
-        assertTrue(callbackFuture.get().isEmpty());
+    }
+
+    @Test(timeOut = 60000)
+    public void testGetSetNullValue() throws Exception {
+        testOffsetBackingStore(false);
+        Map<ByteBuffer, ByteBuffer> kvs = new HashMap<>();
+        ByteBuffer keyToSet = ByteBuffer.wrap(("test-key").getBytes(UTF_8));
+        kvs.put(keyToSet, null);
+        offsetBackingStore.set(kvs, null).get();
+
+        final List<ByteBuffer> keys = new ArrayList<>();
+        keys.add(keyToSet);
+
+        Map<ByteBuffer, ByteBuffer> result =
+                offsetBackingStore.get(keys).get();
+        assertEquals(1, result.size());
+
+        result.forEach((key, value) -> {
+            byte[] keyData = ByteBufUtil.getBytes(Unpooled.wrappedBuffer(key));
+            assertEquals(new String(keyData, UTF_8), "test-key");
+            byte[] valData = ByteBufUtil.getBytes(Unpooled.wrappedBuffer(value));
+            assertEquals(valData, MessageId.earliest.toByteArray());
+        });
     }
 
     @Test
     public void testGetSet() throws Exception {
+        testOffsetBackingStore(false);
         testGetSet(false);
     }
 
     @Test
     public void testGetSetCallback() throws Exception {
+        testOffsetBackingStore(false);
         testGetSet(true);
     }
 
@@ -138,7 +153,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         }
 
         Map<ByteBuffer, ByteBuffer> result =
-            offsetBackingStore.get(keys, null).get();
+            offsetBackingStore.get(keys).get();
         assertEquals(numKeys, result.size());
         AtomicInteger count = new AtomicInteger();
         new TreeMap<>(result).forEach((key, value) -> {
@@ -148,5 +163,13 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
             byte[] valData = ByteBufUtil.getBytes(Unpooled.wrappedBuffer(value));
             assertEquals(new String(valData, UTF_8), "test-val-" + idx);
         });
+    }
+
+    @Test
+    public void testWithReaderConfig() throws Exception {
+        testOffsetBackingStore(true);
+        testGetSet(false);
+        List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+        assertTrue(subscriptions.contains("my-subscription"));
     }
 }

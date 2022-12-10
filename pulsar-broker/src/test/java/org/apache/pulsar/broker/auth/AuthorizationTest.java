@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,27 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Sets;
 import java.util.EnumSet;
-
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
     public AuthorizationTest() {
@@ -201,7 +201,12 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         // tests for subscription auth mode
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "*", EnumSet.of(AuthAction.consume));
+        admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.None);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
+                SubscriptionAuthMode.None);
         admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.Prefix);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
+                SubscriptionAuthMode.Prefix);
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null));
@@ -222,6 +227,27 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("c1");
+    }
+
+    @Test
+    public void testGetListWithGetBundleOp() throws Exception {
+        String tenant = "p1";
+        String namespaceV1 = "p1/global/ns1";
+        String namespaceV2 = "p1/ns2";
+        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
+        admin.namespaces().createNamespace(namespaceV1, Sets.newHashSet("c1"));
+        admin.namespaces().grantPermissionOnNamespace(namespaceV1, "pass.pass2", EnumSet.of(AuthAction.produce));
+        admin.namespaces().createNamespace(namespaceV2, Sets.newHashSet("c1"));
+        admin.namespaces().grantPermissionOnNamespace(namespaceV2, "pass.pass2", EnumSet.of(AuthAction.produce));
+        PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+                        ? brokerUrl.toString()
+                        : brokerUrlTls.toString())
+                .authentication(new MockAuthentication("pass.pass2"))
+                .build();
+        when(pulsar.getAdminClient()).thenReturn(admin2);
+        Assert.assertEquals(admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
+        Assert.assertEquals(admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
     }
 
     private static void waitForChange() {

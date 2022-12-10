@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,46 +18,51 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.common.util.Reflections;
-
-import java.util.Optional;
 
 /**
  * This is a generic interface that functions can use to cache and distribute appropriate authentication
- * data that is needed to configure the runtime of functions to support appropriate authentication of function instances
+ * data that is needed to configure the runtime of functions to support appropriate authentication
+ * of function instances.
  */
 public interface FunctionAuthProvider {
 
     /**
-     * Set authentication configs for function instance based on the data in FunctionAuthenticationSpec
+     * Set authentication configs for function instance based on the data in FunctionAuthenticationSpec.
      * @param authConfig authentication configs passed to the function instance
      * @param functionAuthData function authentication data that is provider specific
      */
     void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData);
 
     /**
-     * Cache auth data in as part of function metadata for function that runtime may need to configure authentication
+     * Cache auth data in as part of function metadata for function that runtime may need to configure authentication.
      * @param funcDetails the function details
      * @param authenticationDataSource auth data
      * @return
      * @throws Exception
      */
-    Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails, AuthenticationDataSource authenticationDataSource) throws Exception;
+    Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+                                             AuthenticationDataSource authenticationDataSource) throws Exception;
 
-    Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> existingFunctionAuthData, AuthenticationDataSource authenticationDataSource) throws Exception;
+    Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+                                              Optional<FunctionAuthData> existingFunctionAuthData,
+                                              AuthenticationDataSource authenticationDataSource) throws Exception;
 
     /**
-     * Clean up operation for auth when function is terminated
+     * Clean up operation for auth when function is terminated.
      * @param funcDetails the function details
      * @param functionAuthData function auth data
      * @throws Exception
      */
-    void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception;
+    void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
+            throws Exception;
 
     static FunctionAuthProvider getAuthProvider(String className) {
-        return Reflections.createInstance(className, FunctionAuthProvider.class, Thread.currentThread().getContextClassLoader());
+        return Reflections
+                .createInstance(className, FunctionAuthProvider.class, Thread.currentThread().getContextClassLoader());
     }
 }

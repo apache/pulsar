@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
@@ -48,7 +49,7 @@ public interface PendingAckHandle {
      * Client will not send batch size to server, we get the batch size from consumer pending ack. When we get the Batch
      * size, we can accurate batch ack of this position.
      *
-     * @param txnID                  {@link TxnID}TransactionID of an ongoing transaction trying to sck message.
+     * @param txnID                  {@link TxnID} TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
@@ -57,7 +58,6 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl,
             Integer>> positions);
-
     /**
      * Acknowledge message(s) for an ongoing transaction.
      * <p>
@@ -73,7 +73,7 @@ public interface PendingAckHandle {
      * If an ongoing transaction cumulative acked a message and then try to ack single message which is
      * greater than that one it cumulative acked, it'll succeed.
      *
-     * @param txnID                  {@link TxnID}TransactionID of an ongoing transaction trying to sck message.
+     * @param txnID                  {@link TxnID} TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
@@ -144,7 +144,7 @@ public interface PendingAckHandle {
      *
      * @return the stats of this pending ack handle.
      */
-    TransactionPendingAckStats getStats();
+    TransactionPendingAckStats getStats(boolean lowWaterMarks);
 
     /**
      * Close the pending ack handle.
@@ -154,9 +154,16 @@ public interface PendingAckHandle {
     CompletableFuture<Void> close();
 
     /**
-     * Is transaction ack present.
-     *
-     * @return the the boolean of transaction ack present.
+     * Check if the PendingAckStore is init.
+     * @return if the PendingAckStore is init.
      */
-    boolean isTransactionAckPresent();
+    boolean checkIfPendingAckStoreInit();
+
+    /**
+     * Get the stats of this message position is in pending ack.
+     * @param position message position.
+     * @param batchIndex the batch index of ths position.
+     * @return the stats of the message position.
+     */
+    PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex);
 }

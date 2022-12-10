@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,14 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Set;
-
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -36,23 +33,9 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
 public class AuthenticationServiceTest {
 
     private static final String s_authentication_success = "authenticated";
-
-    @Test(timeOut = 10000)
-    public void testAuthentication() throws Exception {
-        ServiceConfiguration config = new ServiceConfiguration();
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
-        config.setAuthenticationProviders(providersClassNames);
-        config.setAuthenticationEnabled(true);
-        AuthenticationService service = new AuthenticationService(config);
-        String result = service.authenticate(null, "auth");
-        assertEquals(result, s_authentication_success);
-        service.close();
-    }
 
     @Test(timeOut = 10000)
     public void testAuthenticationHttp() throws Exception {

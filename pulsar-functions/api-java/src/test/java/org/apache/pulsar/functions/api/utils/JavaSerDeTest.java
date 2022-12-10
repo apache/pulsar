@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.api.utils;
 
 import static org.testng.Assert.assertEquals;
-
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;

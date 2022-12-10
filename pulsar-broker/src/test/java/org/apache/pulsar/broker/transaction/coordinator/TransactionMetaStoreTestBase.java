@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import java.util.Optional;
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
@@ -65,18 +66,19 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
         for (int i = 0; i < BROKER_COUNT; i++) {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
             config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 
-            pulsarServices[i] = Mockito.spy(new PulsarService(config));
+            pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
             pulsarServices[i].start();
 
             pulsarAdmins[i] = PulsarAdmin.builder()

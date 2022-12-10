@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.source;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Schema;
-
-import java.util.Map;
 
 @Data
 @Builder
@@ -36,4 +34,5 @@ class PulsarSourceConsumerConfig<T> {
     private Map<String, String> consumerProperties;
     private CryptoKeyReader cryptoKeyReader;
     private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+    private boolean poolMessages;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
-public interface PublishRateLimiter {
+public interface PublishRateLimiter extends AutoCloseable {
 
     PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
 
@@ -71,4 +71,9 @@ public interface PublishRateLimiter {
      * @param bytes
      */
     boolean tryAcquire(int numbers, long bytes);
+
+    /**
+     * Close the limiter.
+     */
+    void close();
 }

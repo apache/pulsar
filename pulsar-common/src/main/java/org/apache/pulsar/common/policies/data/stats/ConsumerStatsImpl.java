@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import lombok.Data;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Data;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 
 /**
  * Consumer statistics.
@@ -44,7 +45,12 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Total chunked messages dispatched. */
+    /**
+     * Total rate of message ack (msg/s).
+     */
+    public double messageAckRate;
+
+    /** The total rate of chunked messages delivered to this consumer. */
     public double chunkedMessageRate;
 
     /** Name of the consumer. */
@@ -53,7 +59,13 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Number of available message permits for the consumer. */
     public int availablePermits;
 
-    /** Number of unacknowledged messages for the consumer. */
+    /**
+     * Number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been
+     * sent to the consumer but not yet acknowledged. This field is only meaningful when using a
+     * {@link org.apache.pulsar.client.api.SubscriptionType} that tracks individual message acknowledgement, like
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Shared} or
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Key_Shared}.
+     */
     public int unackedMessages;
 
     /** Number of average messages per entry for the consumer consumed. */
@@ -66,19 +78,27 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public String readPositionWhenJoining;
 
     /** Address of this consumer. */
+    @JsonIgnore
     private int addressOffset = -1;
+    @JsonIgnore
     private int addressLength;
 
     /** Timestamp of connection. */
+    @JsonIgnore
     private int connectedSinceOffset = -1;
+    @JsonIgnore
     private int connectedSinceLength;
 
     /** Client library version. */
+    @JsonIgnore
     private int clientVersionOffset = -1;
+    @JsonIgnore
     private int clientVersionLength;
 
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
+
+    public long lastConsumedFlowTimestamp;
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     public List<String> keyHashRanges;
@@ -90,11 +110,13 @@ public class ConsumerStatsImpl implements ConsumerStats {
      * In order to prevent multiple string object allocation under stats: create a string-buffer
      * that stores data for all string place-holders.
      */
+    @JsonIgnore
     private StringBuilder stringBuffer = new StringBuilder();
 
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {
         Objects.requireNonNull(stats);
         this.msgRateOut += stats.msgRateOut;
+        this.messageAckRate += stats.messageAckRate;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;

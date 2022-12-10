@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -56,16 +55,14 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @SuppressWarnings("unused")
     private volatile int totalAvailablePermits = 0;
 
-    private final ServiceConfiguration serviceConfig;
     private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription) {
-        super(subscription);
+        super(subscription, topic.getBrokerService().pulsar().getConfiguration());
         this.topic = topic;
         this.subscription = subscription;
         this.name = topic.getName() + " / " + subscription.getName();
         this.msgDrop = new Rate();
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
     }
 
@@ -88,7 +85,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumerList.size());
+        return isConsumersExceededOnSubscription(topic, consumerList.size());
     }
 
     @Override
@@ -190,7 +187,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         if (consumer != null) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, consumer);
             consumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
 
@@ -219,6 +216,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && consumer.getAvailablePermits() > 0 && consumer.isWritable();
+    }
+
+    @Override
+    protected void reScheduleRead() {
+        // No-op
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherMultipleConsumers.class);

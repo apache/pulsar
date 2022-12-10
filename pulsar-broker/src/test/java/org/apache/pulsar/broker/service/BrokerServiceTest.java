@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,32 +18,38 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -53,6 +59,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -63,25 +71,42 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -99,6 +124,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.baseSetup();
     }
 
@@ -113,6 +140,42 @@ public class BrokerServiceTest extends BrokerTestBase {
     private void resetState() throws Exception {
         cleanup();
         setup();
+    }
+
+    @Test
+    public void testShutDownWithMaxConcurrentUnload() throws Exception {
+        int bundleNum = 3;
+        cleanup();
+        conf.setDefaultNumberOfNamespaceBundles(bundleNum);
+        setup();
+        final String topic = "persistent://prop/ns-abc/successTopic";
+        admin.topics().createPartitionedTopic(topic, 12);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+
+        BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
+        assertEquals(bundlesData.getNumBundles(), bundleNum);
+        List<String> list = admin.brokers().getActiveBrokers("test");
+        assertEquals(list.size(), 1);
+        admin.brokers().shutDownBrokerGracefully(1, false);
+        //We can only unload one bundle per second, so it takes at least 2 seconds.
+        Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(pulsar.getBrokerService().getTopics().size(), 0);
+        });
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertNull(pulsar.getBrokerService());
+            assertEquals(pulsar.getState(), PulsarService.State.Closed);
+        });
+        try {
+            producer.send("1".getBytes(StandardCharsets.UTF_8));
+            fail("sending msg should timeout, because broker is down and there is only one broker");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        }
+
+        pulsar = null;
+
+        producer.close();
+        resetState();
     }
 
     @Test
@@ -168,7 +231,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -189,7 +252,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // publisher stats
@@ -227,11 +290,126 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
         assertEquals(stats.getOffloadedStorageSize(), 0);
 
         assertEquals(subStats.getMsgBacklog(), 0);
+    }
+
+    @Test
+    public void testConnectionController() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(3);
+        conf.setBrokerMaxConnectionsPerIp(2);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(2);
+        conf.setBrokerMaxConnectionsPerIp(3);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+    }
+
+    @Test
+    public void testConnectionController2() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        startTime = System.currentTimeMillis();
+        for (int i = 0; i < 10; i++) {
+            clients.add(createNewConnection(topicName, clientBuilder));
+        }
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+    }
+
+    private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        try {
+            createNewConnection(topicName, builder);
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        }
+    }
+
+    private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
+        PulsarClient client1 = clientBuilder.build();
+        client1.newProducer().topic(topicName).create().close();
+        return client1;
+    }
+
+    private void cleanClient(List<PulsarClient> clients) throws Exception {
+        for (PulsarClient client : clients) {
+            if (client != null) {
+                client.close();
+            }
+        }
     }
 
     @Test
@@ -241,13 +419,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats(false, false).storageSize, 0);
+        assertEquals(topicRef.getStats(false, false, false).storageSize, 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats(false, false).storageSize > 0);
+        assertTrue(topicRef.getStats(false, false, false).storageSize > 0);
     }
 
     @Test
@@ -269,7 +447,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -287,7 +465,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // publisher stats
@@ -322,7 +500,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
         assertTrue(subStats.getMsgRateRedeliver() > 0.0);
         assertEquals(subStats.getMsgRateRedeliver(), subStats.getConsumers().get(0).getMsgRateRedeliver());
@@ -336,7 +514,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         assertEquals(subStats.getMsgBacklog(), 0);
@@ -400,8 +578,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
 
-        List<String> nsList = Lists.newArrayList(ns1, ns2);
-        List<Producer<byte[]>> producerList = Lists.newArrayList();
+        List<String> nsList = List.of(ns1, ns2);
+        List<Producer<byte[]>> producerList = new ArrayList<>();
 
         BrokerStats brokerStatsClient = admin.brokerStats();
 
@@ -564,6 +742,39 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+    }
+
+    @Test
+    public void testTlsEnabledWithoutNonTlsServicePorts() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic";
+        final String subName = "newSub";
+
+        conf.setAuthenticationEnabled(false);
+        conf.setBrokerServicePort(Optional.empty());
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePort(Optional.empty());
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
+        restartBroker();
+
+        // Access with TLS (Allow insecure TLS connection)
+        try {
+            pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscribe();
+
+        } catch (Exception e) {
+            fail("should not fail");
+        } finally {
+            pulsarClient.close();
+        }
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
@@ -761,39 +972,154 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(1)
-                .maxLookupRequests(2)
-                .build();
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+        resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setConcurrentLookupRequest(1);
+        conf.setMaxLookupRequest(2);
 
-        // 2 lookup will success.
-        try {
-            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub1").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub2").subscribeAsync();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
+                new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
+        long reqId = 0xdeadbeef;
+        // Using an AtomicReference in order to reset a new CountDownLatch
+        AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
+        latchRef.set(new CountDownLatch(1));
+        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
+            @Override
+            protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
+                try {
+                    latchRef.get().await();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+                super.handleLookupResponse(lookupResult);
+            }
 
-            consumer1.get().close();
-            consumer2.get().close();
-        } catch (Exception e) {
-            fail("Subscribe should success with 2 requests");
-        }
+            @Override
+            protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
+                try {
+                    latchRef.get().await();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+                super.handlePartitionResponse(lookupResult);
+            }
+        })) {
+            // for PMR
+            // 2 lookup will succeed
+            long reqId1 = reqId++;
+            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
+            CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
-        // 3 lookup will fail
-        try {
-            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub11").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub22").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub33").subscribeAsync();
+            long reqId2 = reqId++;
+            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
+            CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                });
 
-            consumer1.get().close();
-            consumer2.get().close();
-            consumer3.get().close();
-            fail("It should fail as throttling should only receive 2 requests");
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof
-                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
-                fail("Subscribe should fail with TooManyRequestsException");
+            f1.get();
+            f2.get();
+
+            // 3 lookup will fail
+            latchRef.set(new CountDownLatch(1));
+            long reqId3 = reqId++;
+            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
+
+            long reqId4 = reqId++;
+            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
+
+            long reqId5 = reqId++;
+            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
+            CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                    });
+
+            f1.get();
+            f2.get();
+            try {
+                f3.get();
+                fail("At least one should fail");
+            } catch (ExecutionException e) {
+                Throwable rootCause = e;
+                while (rootCause instanceof ExecutionException) {
+                    rootCause = rootCause.getCause();
+                }
+                if (!(rootCause instanceof
+                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    throw e;
+                }
+            }
+
+            // for Lookup
+            // 2 lookup will succeed
+            latchRef.set(new CountDownLatch(1));
+            long reqId6 = reqId++;
+            ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
+
+            long reqId7 = reqId++;
+            ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                });
+
+            f1.get();
+            f2.get();
+
+            // 3 lookup will fail
+            latchRef.set(new CountDownLatch(1));
+            long reqId8 = reqId++;
+            ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
+
+            long reqId9 = reqId++;
+            ByteBuf request9 = Commands.newLookup(topicName, true, reqId9);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
+
+            long reqId10 = reqId++;
+            ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
+            f3 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                });
+
+            f1.get();
+            f2.get();
+            try {
+                f3.get();
+                fail("At least one should fail");
+            } catch (ExecutionException e) {
+                Throwable rootCause = e;
+                while (rootCause instanceof ExecutionException) {
+                    rootCause = rootCause.getCause();
+                }
+                if (!(rootCause instanceof
+                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    throw e;
+                }
             }
         }
     }
@@ -820,7 +1146,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true);
+                .loadOrCreatePersistentTopic(topicName, true, null);
 
         try {
             futureResult.get();
@@ -944,10 +1270,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         final int totalBundle = 3;
         System.err.println("----------------");
         admin.namespaces().createNamespace(namespace, BundlesData.builder().numBundles(totalBundle).build());
+        admin.topics().createNonPartitionedTopic(namespace + "/test");
 
-        String globalPath = joinPath(LOCAL_POLICIES_ROOT, namespace);
-        pulsar.getLocalZkCacheService().policiesCache().clear();
-        Optional<LocalPolicies> policy = pulsar.getLocalZkCacheService().policiesCache().get(globalPath);
+        Optional<LocalPolicies> policy = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(
+                NamespaceName.get(namespace));
         assertTrue(policy.isPresent());
         assertEquals(policy.get().bundles.getNumBundles(), totalBundle);
     }
@@ -1017,6 +1343,81 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testPublishRateLimiterMonitor() {
+        BrokerService.PublishRateLimiterMonitor monitor = new BrokerService.PublishRateLimiterMonitor("test");
+        AtomicInteger checkCnt = new AtomicInteger(0);
+        AtomicInteger refreshCnt = new AtomicInteger(0);
+        monitor.startOrUpdate(100, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
+        Assert.assertEquals(monitor.getTickTimeMs(), 100);
+        Awaitility.await().until(() -> checkCnt.get() > 0);
+        Awaitility.await().until(() -> refreshCnt.get() > 0);
+
+        monitor.startOrUpdate(500, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
+        Assert.assertEquals(monitor.getTickTimeMs(), 500);
+        checkCnt.set(0);
+        refreshCnt.set(0);
+        Awaitility.await().until(() -> checkCnt.get() > 0);
+        Awaitility.await().until(() -> refreshCnt.get() > 0);
+
+        monitor.stop();
+        Assert.assertEquals(monitor.getTickTimeMs(), 0);
+    }
+
+    @Test
+    public void testDynamicBrokerPublisherThrottlingTickTimeMillis() throws Exception {
+        cleanup();
+        conf.setBrokerPublisherThrottlingMaxMessageRate(1000);
+        conf.setBrokerPublisherThrottlingTickTimeMillis(100);
+        setup();
+
+        int prevTickMills = 100;
+        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().brokerPublishRateLimiterMonitor;
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+
+        int newTickMills = prevTickMills * 2;
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
+                String.valueOf(newTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
+
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
+                String.valueOf(0));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
+
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
+                String.valueOf(prevTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+    }
+
+    @Test
+    public void testDynamicTopicPublisherThrottlingTickTimeMillis() throws Exception {
+        cleanup();
+        conf.setPreciseTopicPublishRateLimiterEnable(false);
+        conf.setMaxPublishRatePerTopicInMessages(1000);
+        conf.setTopicPublisherThrottlingTickTimeMillis(100);
+        setup();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-abc/test-topic").create();
+
+        int prevTickMills = 100;
+        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().topicPublishRateLimiterMonitor;
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+
+        int newTickMills = prevTickMills * 2;
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(newTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
+
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(0));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
+
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(prevTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+    }
+
+    @Test
     public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
         // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
         for (int i = 0; i < 100; i++) {
@@ -1043,5 +1444,80 @@ public class BrokerServiceTest extends BrokerTestBase {
             assertNotNull(producer);
             getStatsThread.join();
         }
+    }
+
+    @Test
+    public void testIsSystemTopic() {
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertFalse(brokerService.isSystemTopic(TopicName.get("test")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("public/default/test")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("healthcheck")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("public/default/healthcheck")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("persistent://public/default/test")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("non-persistent://public/default/test")));
+
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__change_events")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__change_events-partition-0")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__change_events-partition-1")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-0")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-1")));
+        assertTrue(brokerService.isSystemTopic(TopicName
+                .get("topicxxx-partition-0-multiTopicsReader-f433329d68__transaction_pending_ack")));
+        assertTrue(brokerService.isSystemTopic(
+                TopicName.get("topicxxx-multiTopicsReader-f433329d68__transaction_pending_ack")));
+
+        assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
+        assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
+        assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
+    }
+
+    @Test
+    public void testGetTopic() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = ns + "/topic-1";
+        admin.topics().createNonPartitionedTopic(String.format("persistent://%s", topicName));
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        producer1.close();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
+        persistentTopic.close().join();
+        List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keys());
+        topics.removeIf(item -> item.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
+        Assert.assertEquals(topics.size(), 0);
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteNamespaceAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteNamespaceAllowed());
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteTenantAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteTenantAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteTenantAllowed());
+        });
     }
 }

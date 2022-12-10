@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 
 public class SystemTopic extends PersistentTopic {
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService)
-            throws BrokerServiceException.NamingException {
+    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws PulsarServerException {
         super(topic, ledger, brokerService);
+    }
+
+    @Override
+    public boolean isDeleteWhileInactive() {
+        return false;
     }
 
     @Override
@@ -36,8 +43,8 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public boolean isTimeBacklogExceeded() {
-        return false;
+    public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
+        return CompletableFuture.completedFuture(false);
     }
 
     @Override
@@ -53,5 +60,20 @@ public class SystemTopic extends PersistentTopic {
     @Override
     public void checkGC() {
         // do nothing for system topic
+    }
+
+    @Override
+    public CompletableFuture<Void> checkReplication() {
+        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+            return super.checkReplication();
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public boolean isCompactionEnabled() {
+        // All system topics are using compaction except `HealthCheck`,
+        // even though is not explicitly set in the policies.
+        return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic));
     }
 }

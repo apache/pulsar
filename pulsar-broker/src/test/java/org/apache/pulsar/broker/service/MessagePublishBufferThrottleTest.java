@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-import java.util.ArrayList;
-import java.util.List;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.pulsar.client.api.MessageId;
+
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -45,7 +43,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test
@@ -142,12 +139,14 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
         flushFuture.join();
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
 
         // Resume message publish.
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
 
         flushFuture.get();
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
     }
 }

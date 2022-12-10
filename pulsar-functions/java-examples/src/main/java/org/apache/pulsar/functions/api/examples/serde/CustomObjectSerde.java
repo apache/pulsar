@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.functions.api.examples.serde;
 
-import org.apache.pulsar.functions.api.SerDe;
-
 import java.nio.ByteBuffer;
+import org.apache.pulsar.functions.api.SerDe;
 
 /**
  * This class takes care of serializing/deserializing CustomObject.
@@ -28,7 +27,7 @@ import java.nio.ByteBuffer;
 public class CustomObjectSerde implements SerDe<CustomObject> {
     @Override
     public CustomObject deserialize(byte[] bytes) {
-        ByteBuffer buffer =  ByteBuffer.wrap(bytes);
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
         return new CustomObject(buffer.getLong());
     }
 

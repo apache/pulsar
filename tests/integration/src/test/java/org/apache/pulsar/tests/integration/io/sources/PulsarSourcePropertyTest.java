@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -104,7 +103,7 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
+                result.getStdout().contains("Created successfully"),
                 result.getStdout());
     }
 

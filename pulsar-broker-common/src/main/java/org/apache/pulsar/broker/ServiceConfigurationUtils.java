@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Map;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class ServiceConfigurationUtils {
 
@@ -54,9 +54,14 @@ public class ServiceConfigurationUtils {
      * Get the address of Broker, first try to get it from AdvertisedAddress.
      * If it is not set, try to get the address set by advertisedListener.
      * If it is still not set, get it through InetAddress.getLocalHost().
+     * @param configuration
+     * @param ignoreAdvertisedListener Sometimes we can’t use the default key of AdvertisedListener,
+     *                                 setting it to true can ignore AdvertisedListener.
      * @return
      */
-    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration) {
+    @Deprecated
+    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration,
+                                                     boolean ignoreAdvertisedListener) {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(configuration);
 
@@ -66,7 +71,7 @@ public class ServiceConfigurationUtils {
         }
 
         AdvertisedListener advertisedListener = result.get(configuration.getInternalListenerName());
-        if (advertisedListener != null) {
+        if (advertisedListener != null && !ignoreAdvertisedListener) {
             String address = advertisedListener.getBrokerServiceUrl().getHost();
             if (address != null) {
                 return address;
@@ -76,4 +81,60 @@ public class ServiceConfigurationUtils {
         return getDefaultOrConfiguredAddress(advertisedAddress);
     }
 
+    /**
+     * Gets the internal advertised listener for broker-to-broker communication.
+     * @return a non-null advertised listener
+     */
+    public static AdvertisedListener getInternalListener(ServiceConfiguration config, String protocol) {
+        Map<String, AdvertisedListener> result = MultipleListenerValidator
+                .validateAndAnalysisAdvertisedListener(config);
+        AdvertisedListener internal = result.get(config.getInternalListenerName());
+        if (internal == null || !internal.hasUriForProtocol(protocol)) {
+            // Search for an advertised listener for same protocol
+            for (AdvertisedListener l : result.values()) {
+                if (l.hasUriForProtocol(protocol)) {
+                    internal = l;
+                    break;
+                }
+            }
+        }
+
+        if (internal == null) {
+            // synthesize an advertised listener based on legacy configuration properties
+            String host = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+            internal = AdvertisedListener.builder()
+                    .brokerServiceUrl(createUriOrNull("pulsar", host, config.getBrokerServicePort()))
+                    .brokerServiceUrlTls(createUriOrNull("pulsar+ssl", host, config.getBrokerServicePortTls()))
+                    .build();
+
+        }
+        return internal;
+    }
+
+    private static URI createUriOrNull(String scheme, String hostname, Optional<Integer> port) {
+        return port.map(p -> URI.create(String.format("%s://%s:%d", scheme, hostname, p))).orElse(null);
+    }
+
+    /**
+     * Gets the web service address (hostname).
+     */
+    public static String getWebServiceAddress(ServiceConfiguration config) {
+        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+    }
+
+    public static String brokerUrl(String host, int port) {
+        return String.format("pulsar://%s:%d", host, port);
+    }
+
+    public static String brokerUrlTls(String host, int port) {
+        return String.format("pulsar+ssl://%s:%d", host, port);
+    }
+
+    public static String webServiceUrl(String host, int port) {
+        return String.format("http://%s:%d", host, port);
+    }
+
+    public static String webServiceUrlTls(String host, int port) {
+        return String.format("https://%s:%d", host, port);
+    }
 }

@@ -29,10 +29,10 @@ echo "__import__(\'pkg_resources\').declare_namespace(__name__)" > $PF_DIR/pulsa
 sed "s/VERSION/$VERSION/" setup.py.template > $PF_DIR/setup.py
 cp requirements.txt $PF_DIR
 cd $PF_DIR
-/usr/bin/env python2.7 setup.py sdist
-/usr/bin/env python2.7 setup.py bdist_wheel
+/usr/bin/env python3 setup.py sdist
+/usr/bin/env python3 setup.py bdist_wheel
 mkdir -p $OUTPUT_DIR
-cp $PF_DIR/dist/pulsarfunction-*-py2-*.whl $OUTPUT_DIR
+cp $PF_DIR/dist/pulsarfunction-*-py*-*.whl $OUTPUT_DIR
 cp $PF_DIR/dist/pulsarfunction-*.tar.gz $OUTPUT_DIR
 touch $OUTPUT_DIR/pulsarfunction.whl
 rm -rf $TMP_DIR

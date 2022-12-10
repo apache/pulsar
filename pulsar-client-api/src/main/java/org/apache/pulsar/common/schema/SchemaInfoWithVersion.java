@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,6 +45,6 @@ public class SchemaInfoWithVersion {
 
     @Override
     public String toString(){
-        return DefaultImplementation.jsonifySchemaInfoWithVersion(this);
+        return DefaultImplementation.getDefaultImplementation().jsonifySchemaInfoWithVersion(this);
     }
 }

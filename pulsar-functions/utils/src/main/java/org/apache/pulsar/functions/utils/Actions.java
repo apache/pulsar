@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,28 +18,28 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class Actions {
     private List<Action> actions = new LinkedList<>();
 
     @Data
-    @Builder(toBuilder=true)
+    @Builder(toBuilder = true)
     public static class Action {
         private String actionName;
+        @Builder.Default
         private int numRetries = 1;
         private Supplier<ActionResult> supplier;
+        @Builder.Default
         private long sleepBetweenInvocationsMs = 500;
         private Boolean continueOn;
         private Consumer<ActionResult> onFail;
@@ -84,8 +84,8 @@ public class Actions {
 
     public void run() throws InterruptedException {
         Iterator<Action> it = this.actions.iterator();
-        while(it.hasNext()) {
-            Action action  = it.next();
+        while (it.hasNext()) {
+            Action action = it.next();
 
             boolean success;
             try {
@@ -94,23 +94,24 @@ public class Actions {
                 log.error("Uncaught exception thrown when running action [ {} ]:", action.getActionName(), e);
                 success = false;
             }
-            if (action.getContinueOn() != null
-                    && success == action.getContinueOn()) {
-                continue;
-            } else {
-                // terminate
-                break;
+            if (action.getContinueOn() != null) {
+                if (success == action.getContinueOn()) {
+                    continue;
+                } else {
+                    // terminate
+                    break;
+                }
             }
         }
     }
 
     private boolean runAction(Action action) throws InterruptedException {
-        for (int i = 0; i< action.getNumRetries(); i++) {
+        for (int i = 0; i < action.getNumRetries(); i++) {
 
             ActionResult actionResult = action.getSupplier().get();
 
             if (actionResult.isSuccess()) {
-                log.info("Sucessfully completed action [ {} ]", action.getActionName());
+                log.info("Successfully completed action [ {} ]", action.getActionName());
                 if (action.getOnSuccess() != null) {
                     action.getOnSuccess().accept(actionResult);
                 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.BitSet;
 
-class BatchMessageAcker {
+public class BatchMessageAcker {
 
     private BatchMessageAcker() {
         this.bitSet = new BitSet();
@@ -49,7 +48,6 @@ class BatchMessageAcker {
         this.batchSize = batchSize;
     }
 
-    @VisibleForTesting
     BitSet getBitSet() {
         return bitSet;
     }
@@ -88,10 +86,10 @@ class BatchMessageAcker {
 
     @Override
     public String toString() {
-        return "BatchMessageAcker{" +
-                "batchSize=" + batchSize +
-                ", bitSet=" + bitSet +
-                ", prevBatchCumulativelyAcked=" + prevBatchCumulativelyAcked +
-                '}';
+        return "BatchMessageAcker{"
+                + "batchSize=" + batchSize
+                + ", bitSet=" + bitSet
+                + ", prevBatchCumulativelyAcked=" + prevBatchCumulativelyAcked
+                + '}';
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -40,16 +39,15 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final NonPersistentTopic topic;
     private final Rate msgDrop;
     private final Subscription subscription;
-    private final ServiceConfiguration serviceConfig;
     private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
                                                        NonPersistentTopic topic, Subscription subscription) {
-        super(subscriptionType, partitionIndex, topic.getName(), subscription);
+        super(subscriptionType, partitionIndex, topic.getName(), subscription,
+                topic.getBrokerService().pulsar().getConfiguration(), null);
         this.topic = topic;
         this.subscription = subscription;
         this.msgDrop = new Rate();
-        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
     }
 
@@ -59,7 +57,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, currentConsumer);
             currentConsumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
         } else {
@@ -75,7 +73,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumers.size());
+        return isConsumersExceededOnSubscription(topic, consumers.size());
     }
 
     @Override
@@ -110,6 +108,11 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     protected void cancelPendingRead() {
+        // No-op
+    }
+
+    @Override
+    protected void reScheduleRead() {
         // No-op
     }
 }

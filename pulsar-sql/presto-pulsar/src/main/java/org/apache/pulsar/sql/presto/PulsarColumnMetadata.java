@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.Type;
-
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.type.Type;
 import java.util.Objects;
 
 /**
@@ -107,10 +106,10 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (isInternal != that.isInternal) {
             return false;
         }
-        if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) {
+        if (!Objects.equals(nameWithCase, that.nameWithCase)) {
             return false;
         }
-        if (decoderExtraInfo != null ? !decoderExtraInfo.equals(that.decoderExtraInfo) : that.decoderExtraInfo != null) {
+        if (!Objects.equals(decoderExtraInfo, that.decoderExtraInfo)) {
             return false;
         }
         return Objects.equals(handleKeyValueType, that.handleKeyValueType);
@@ -129,7 +128,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
     /**
      * Decoder extra info for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
-     * used by {@link io.prestosql.decoder.RowDecoder}.
+     * used by {@link io.trino.decoder.RowDecoder}.
      */
     public static class DecoderExtraInfo {
 
@@ -187,10 +186,10 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
             DecoderExtraInfo that = (DecoderExtraInfo) o;
 
-            if (mapping != that.mapping) {
+            if (!Objects.equals(mapping, that.mapping)) {
                 return false;
             }
-            if (dataFormat != null ? !dataFormat.equals(that.dataFormat) : that.dataFormat != null) {
+            if (!Objects.equals(dataFormat, that.dataFormat)) {
                 return false;
             }
             return Objects.equals(formatHint, that.formatHint);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -43,7 +49,7 @@ public class ProducerBuilderImplTest {
     private PulsarClientImpl client;
     private ProducerBuilderImpl producerBuilderImpl;
 
-    @BeforeTest
+    @BeforeClass(alwaysRun = true)
     public void setup() {
         Producer producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
@@ -115,6 +121,17 @@ public class ProducerBuilderImplTest {
                 .messageRouter(new CustomMessageRouter())
                 .create();
         assertNotNull(producer);
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class,
+        expectedExceptionsMessageRegExp =
+            ".*When 'messageRoutingMode' is CustomPartition, 'messageRouter' should be set")
+    public void testProducerBuilderImplWhenMessageRoutingIsCustomPartitionAndMessageRouterNotSet()
+        throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+            .messageRoutingMode(MessageRoutingMode.CustomPartition)
+            .create();
     }
 
     @Test(expectedExceptions = PulsarClientException.class)
@@ -318,7 +335,7 @@ public class ProducerBuilderImplTest {
                 .create();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testProducerBuilderImplWhenPropertiesIsEmpty() throws PulsarClientException {
         Map<String, String> properties = new HashMap<>();
 
@@ -340,12 +357,12 @@ public class ProducerBuilderImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalid() {
-        producerBuilderImpl.maxPendingMessagesAcrossPartitions(999);
+        producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
-        producerBuilderImpl.maxPendingMessagesAcrossPartitions(999);
+        producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
     @Test

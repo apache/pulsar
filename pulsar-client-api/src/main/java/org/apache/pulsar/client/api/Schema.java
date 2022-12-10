@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.client.internal.DefaultImplementation.getBytes;
+import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -28,10 +28,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.Optional;
-
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -47,7 +46,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Schema<T> extends Cloneable{
+public interface Schema<T> extends Cloneable {
 
     /**
      * Check if the message is a valid object for this schema.
@@ -126,6 +125,20 @@ public interface Schema<T> extends Cloneable{
      *
      * @param data
      *            the ByteBuffer to decode
+     * @return the deserialized object
+     */
+    default T decode(ByteBuffer data) {
+        if (data == null) {
+            return null;
+        }
+        return decode(getBytes(data));
+    }
+
+    /**
+     * Decode a ByteBuffer into an object using a given version. <br/>
+     *
+     * @param data
+     *            the ByteBuffer to decode
      * @param schemaVersion
      *            the schema version to decode the object. null indicates using latest version.
      * @return the deserialized object
@@ -174,7 +187,7 @@ public interface Schema<T> extends Cloneable{
     /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
      */
-    Schema<byte[]> BYTES = DefaultImplementation.newBytesSchema();
+    Schema<byte[]> BYTES = DefaultImplementation.getDefaultImplementation().newBytesSchema();
 
     /**
      * Return the native schema that is wrapped by Pulsar API.
@@ -188,79 +201,79 @@ public interface Schema<T> extends Cloneable{
     /**
      * ByteBuffer Schema.
      */
-    Schema<ByteBuffer> BYTEBUFFER = DefaultImplementation.newByteBufferSchema();
+    Schema<ByteBuffer> BYTEBUFFER = DefaultImplementation.getDefaultImplementation().newByteBufferSchema();
 
     /**
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
      */
-    Schema<String> STRING = DefaultImplementation.newStringSchema();
+    Schema<String> STRING = DefaultImplementation.getDefaultImplementation().newStringSchema();
 
     /**
      * INT8 Schema.
      */
-    Schema<Byte> INT8 = DefaultImplementation.newByteSchema();
+    Schema<Byte> INT8 = DefaultImplementation.getDefaultImplementation().newByteSchema();
 
     /**
      * INT16 Schema.
      */
-    Schema<Short> INT16 = DefaultImplementation.newShortSchema();
+    Schema<Short> INT16 = DefaultImplementation.getDefaultImplementation().newShortSchema();
 
     /**
      * INT32 Schema.
      */
-    Schema<Integer> INT32 = DefaultImplementation.newIntSchema();
+    Schema<Integer> INT32 = DefaultImplementation.getDefaultImplementation().newIntSchema();
 
     /**
      * INT64 Schema.
      */
-    Schema<Long> INT64 = DefaultImplementation.newLongSchema();
+    Schema<Long> INT64 = DefaultImplementation.getDefaultImplementation().newLongSchema();
 
     /**
      * Boolean Schema.
      */
-    Schema<Boolean> BOOL = DefaultImplementation.newBooleanSchema();
+    Schema<Boolean> BOOL = DefaultImplementation.getDefaultImplementation().newBooleanSchema();
 
     /**
      * Float Schema.
      */
-    Schema<Float> FLOAT = DefaultImplementation.newFloatSchema();
+    Schema<Float> FLOAT = DefaultImplementation.getDefaultImplementation().newFloatSchema();
 
     /**
      * Double Schema.
      */
-    Schema<Double> DOUBLE = DefaultImplementation.newDoubleSchema();
+    Schema<Double> DOUBLE = DefaultImplementation.getDefaultImplementation().newDoubleSchema();
 
     /**
      * Date Schema.
      */
-    Schema<Date> DATE = DefaultImplementation.newDateSchema();
+    Schema<Date> DATE = DefaultImplementation.getDefaultImplementation().newDateSchema();
 
     /**
      * Time Schema.
      */
-    Schema<Time> TIME = DefaultImplementation.newTimeSchema();
+    Schema<Time> TIME = DefaultImplementation.getDefaultImplementation().newTimeSchema();
 
     /**
      * Timestamp Schema.
      */
-    Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
+    Schema<Timestamp> TIMESTAMP = DefaultImplementation.getDefaultImplementation().newTimestampSchema();
 
     /**
      * Instant Schema.
      */
-    Schema<Instant> INSTANT = DefaultImplementation.newInstantSchema();
+    Schema<Instant> INSTANT = DefaultImplementation.getDefaultImplementation().newInstantSchema();
     /**
      * LocalDate Schema.
      */
-    Schema<LocalDate> LOCAL_DATE = DefaultImplementation.newLocalDateSchema();
+    Schema<LocalDate> LOCAL_DATE = DefaultImplementation.getDefaultImplementation().newLocalDateSchema();
     /**
      * LocalTime Schema.
      */
-    Schema<LocalTime> LOCAL_TIME = DefaultImplementation.newLocalTimeSchema();
+    Schema<LocalTime> LOCAL_TIME = DefaultImplementation.getDefaultImplementation().newLocalTimeSchema();
     /**
      * LocalDateTime Schema.
      */
-    Schema<LocalDateTime> LOCAL_DATE_TIME = DefaultImplementation.newLocalDateTimeSchema();
+    Schema<LocalDateTime> LOCAL_DATE_TIME = DefaultImplementation.getDefaultImplementation().newLocalDateTimeSchema();
 
     // CHECKSTYLE.OFF: MethodName
 
@@ -271,7 +284,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return DefaultImplementation.newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
 
     /**
@@ -281,7 +295,7 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
-        return DefaultImplementation.newProtobufSchema(schemaDefinition);
+        return DefaultImplementation.getDefaultImplementation().newProtobufSchema(schemaDefinition);
     }
 
     /**
@@ -291,7 +305,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
-        return DefaultImplementation.newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
 
     /**
@@ -302,7 +317,7 @@ public interface Schema<T> extends Cloneable{
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(
             SchemaDefinition<T> schemaDefinition) {
-        return DefaultImplementation.newProtobufNativeSchema(schemaDefinition);
+        return DefaultImplementation.getDefaultImplementation().newProtobufNativeSchema(schemaDefinition);
     }
 
     /**
@@ -312,7 +327,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
-        return DefaultImplementation.newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
 
     /**
@@ -322,7 +338,7 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(SchemaDefinition<T> schemaDefinition) {
-        return DefaultImplementation.newAvroSchema(schemaDefinition);
+        return DefaultImplementation.getDefaultImplementation().newAvroSchema(schemaDefinition);
     }
 
     /**
@@ -332,7 +348,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> pojo) {
-        return DefaultImplementation.newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
 
     /**
@@ -342,35 +359,37 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
-        return DefaultImplementation.newJSONSchema(schemaDefinition);
+        return DefaultImplementation.getDefaultImplementation().newJSONSchema(schemaDefinition);
     }
 
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
-        return DefaultImplementation.newKeyValueSchema(key, value, type);
+        return DefaultImplementation.getDefaultImplementation().newKeyValueSchema(key, value, type);
     }
 
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
     static Schema<KeyValue<byte[], byte[]>> KV_BYTES() {
-        return DefaultImplementation.newKeyValueBytesSchema();
+        return DefaultImplementation.getDefaultImplementation().newKeyValueBytesSchema();
     }
 
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON);
+        return DefaultImplementation.getDefaultImplementation().newKeyValueSchema(key, value, SchemaType.JSON);
     }
 
     /**
-     * Key Value Schema using passed in key and value schemas.
+     * Key Value Schema using passed in key and value schemas with {@link KeyValueEncodingType#INLINE} encoding type.
+     *
+     * @see Schema#KeyValue(Schema, Schema, KeyValueEncodingType)
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
-        return DefaultImplementation.newKeyValueSchema(key, value);
+        return KeyValue(key, value, KeyValueEncodingType.INLINE);
     }
 
     /**
@@ -378,7 +397,7 @@ public interface Schema<T> extends Cloneable{
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value,
         KeyValueEncodingType keyValueEncodingType) {
-        return DefaultImplementation.newKeyValueSchema(key, value, keyValueEncodingType);
+        return DefaultImplementation.getDefaultImplementation().newKeyValueSchema(key, value, keyValueEncodingType);
     }
 
     @Deprecated
@@ -396,7 +415,7 @@ public interface Schema<T> extends Cloneable{
      * @return the auto schema instance
      */
     static Schema<GenericRecord> AUTO_CONSUME() {
-        return DefaultImplementation.newAutoConsumeSchema();
+        return DefaultImplementation.getDefaultImplementation().newAutoConsumeSchema();
     }
 
     /**
@@ -411,7 +430,7 @@ public interface Schema<T> extends Cloneable{
      * @return the auto schema instance
      */
     static Schema<byte[]> AUTO_PRODUCE_BYTES() {
-        return DefaultImplementation.newAutoProduceSchema();
+        return DefaultImplementation.getDefaultImplementation().newAutoProduceSchema();
     }
 
     /**
@@ -423,13 +442,25 @@ public interface Schema<T> extends Cloneable{
      * @see #AUTO_PRODUCE_BYTES()
      */
     static Schema<byte[]> AUTO_PRODUCE_BYTES(Schema<?> schema) {
-        return DefaultImplementation.newAutoProduceSchema(schema);
+        return DefaultImplementation.getDefaultImplementation().newAutoProduceSchema(schema);
+    }
+
+    /**
+     * Create a schema instance that accepts a serialized Avro payload
+     * without validating it against the schema specified.
+     * It can be useful when migrating data from existing event or message stores.
+     *
+     * @return the auto schema instance
+     * @since 2.9.0
+     */
+    static Schema<byte[]> NATIVE_AVRO(Object schema) {
+        return DefaultImplementation.getDefaultImplementation().newAutoProduceValidatedAvroSchema(schema);
     }
 
     // CHECKSTYLE.ON: MethodName
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {
-        return DefaultImplementation.getSchema(schemaInfo);
+        return DefaultImplementation.getDefaultImplementation().getSchema(schemaInfo);
     }
 
     /**
@@ -441,6 +472,6 @@ public interface Schema<T> extends Cloneable{
      * @return a generic schema instance
      */
     static GenericSchema<GenericRecord> generic(SchemaInfo schemaInfo) {
-        return DefaultImplementation.getGenericSchema(schemaInfo);
+        return DefaultImplementation.getDefaultImplementation().getGenericSchema(schemaInfo);
     }
 }

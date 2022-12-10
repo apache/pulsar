@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import org.apache.pulsar.broker.service.PersistentTopicE2ETest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -33,5 +32,11 @@ public class PersistentTopicStreamingDispatcherE2ETest extends PersistentTopicE2
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setStreamingDispatch(true);
+    }
+
+    @Override
+    @Test
+    public void testMessageRedelivery() throws Exception {
+        super.testMessageRedelivery();
     }
 }

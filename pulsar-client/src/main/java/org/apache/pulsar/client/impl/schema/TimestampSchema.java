@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.sql.Timestamp;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.sql.Timestamp;
 
 /**
  * A schema for `java.sql.Timestamp`.
@@ -33,10 +32,10 @@ public class TimestampSchema extends AbstractSchema<Timestamp> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("Timestamp")
-             .setType(SchemaType.TIMESTAMP)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("Timestamp")
+             .type(SchemaType.TIMESTAMP)
+             .schema(new byte[0]).build();
        INSTANCE = new TimestampSchema();
    }
 

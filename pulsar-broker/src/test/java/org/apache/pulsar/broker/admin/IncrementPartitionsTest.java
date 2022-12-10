@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,9 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.util.Collections;
-
+import java.util.List;
+import java.util.Set;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
@@ -34,14 +33,13 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
@@ -59,7 +57,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
@@ -102,7 +100,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
         assertEquals(admin.topics().getSubscriptions(
-                TopicName.get(partitionedTopicName).getPartition(15).toString()), Lists.newArrayList("sub-1"));
+                TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
 
         consumer.close();
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,29 +19,30 @@
 package org.apache.pulsar.sql.presto.decoder.protobufnative;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.util.stream.Collectors.toList;
-
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.TimestampProto;
 import io.airlift.log.Logger;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.StandardTypes;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.TypeManager;
-import io.prestosql.spi.type.TypeSignature;
-import io.prestosql.spi.type.TypeSignatureParameter;
-import io.prestosql.spi.type.VarbinaryType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
+import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeSignatureParameter;
+import io.trino.spi.type.VarbinaryType;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -59,7 +60,7 @@ import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
  */
 public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFactory {
 
-    private TypeManager typeManager;
+    private final TypeManager typeManager;
 
     public PulsarProtobufNativeRowDecoderFactory(TypeManager typeManager) {
         this.typeManager = typeManager;
@@ -68,7 +69,8 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
     @Override
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
                                              Set<DecoderColumnHandle> columns) {
-        return new PulsarProtobufNativeRowDecoder((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo), columns);
+        return new PulsarProtobufNativeRowDecoder((GenericProtobufNativeSchema)
+                GenericProtobufNativeSchema.of(schemaInfo), columns);
     }
 
     @Override
@@ -77,26 +79,27 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
         List<ColumnMetadata> columnMetadata;
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
-            throw new PrestoException(NOT_SUPPORTED, "Topic "
+            throw new TrinoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " does not have a valid schema");
         }
         Descriptors.Descriptor schema;
         try {
             schema =
-                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo)).getProtobufNativeSchema();
+                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo))
+                            .getProtobufNativeSchema();
         } catch (Exception ex) {
             log.error(ex);
-            throw new PrestoException(NOT_SUPPORTED, "Topic "
+            throw new TrinoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " does not have a valid schema");
         }
 
         //Protobuf have not yet supported Cyclic Objects.
         columnMetadata = schema.getFields().stream()
                 .map(field ->
-                        new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.getName()),
-                                parseProtobufPrestoType(field), field.getType().toString(), null, false, false,
-                                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.getName(),
-                                null, null))
+                        new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType,
+                                field.getName()), parseProtobufPrestoType(field), field.getType().toString(), null,
+                                false, false, handleKeyValueType,
+                                new PulsarColumnMetadata.DecoderExtraInfo(field.getName(), null, null))
 
                 ).collect(toList());
 
@@ -135,22 +138,30 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                 if (field.isMapField()) {
                     //map
                     TypeSignature keyType =
-                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_KEY_NAME)).getTypeSignature();
+                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder
+                                    .PROTOBUF_MAP_KEY_NAME)).getTypeSignature();
                     TypeSignature valueType =
-                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_VALUE_NAME)).getTypeSignature();
+                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder
+                                    .PROTOBUF_MAP_VALUE_NAME)).getTypeSignature();
                     return typeManager.getParameterizedType(StandardTypes.MAP,
                             ImmutableList.of(TypeSignatureParameter.typeParameter(keyType),
                                     TypeSignatureParameter.typeParameter(valueType)));
                 } else {
-                    //row
-                    dataType = RowType.from(msg.getFields().stream()
-                            .map(rowField -> new RowType.Field(Optional.of(rowField.getName()),
-                                    parseProtobufPrestoType(rowField)))
-                            .collect(toImmutableList()));
+                    if (TimestampProto.getDescriptor().toProto().getName().equals(msg.getFile().toProto().getName())) {
+                        //if msg type is protobuf/timestamp
+                        dataType = TimestampType.TIMESTAMP_MILLIS;
+                    } else {
+                        //row
+                        dataType = RowType.from(msg.getFields().stream()
+                                .map(rowField -> new RowType.Field(Optional.of(rowField.getName()),
+                                        parseProtobufPrestoType(rowField)))
+                                .collect(toImmutableList()));
+                    }
                 }
                 break;
             default:
-                throw new RuntimeException("Unknown type: " + type.toString() + " for FieldDescriptor: " + field.getName());
+                throw new RuntimeException("Unknown type: " + type.toString() + " for FieldDescriptor: "
+                        + field.getName());
         }
         //list
         if (field.isRepeated() && !field.isMapField()) {

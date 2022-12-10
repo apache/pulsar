@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
-import java.io.Closeable;
 import java.util.Map;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -38,7 +36,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
  * which is a MySQL database server preconfigured with an inventory database.
  */
 @Slf4j
-public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContainer> implements Closeable {
+public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContainer> {
 
     private static final String NAME = "debezium-mysql";
 
@@ -49,7 +47,8 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     private final PulsarCluster pulsarCluster;
 
-    public DebeziumMySqlSourceTester(PulsarCluster cluster, String converterClassName) {
+    public DebeziumMySqlSourceTester(PulsarCluster cluster, String converterClassName,
+                                     boolean testWithClientBuilder) {
         super(NAME);
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
@@ -61,7 +60,9 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         sourceConfig.put("database.server.id", "184054");
         sourceConfig.put("database.server.name", "dbserver1");
         sourceConfig.put("database.whitelist", "inventory");
-        sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
+        if (!testWithClientBuilder) {
+            sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        }
         sourceConfig.put("key.converter", converterClassName);
         sourceConfig.put("value.converter", converterClassName);
         sourceConfig.put("topic.namespace", "debezium/mysql-" +
@@ -124,8 +125,9 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     @Override
     public void close() {
-        if (pulsarCluster != null) {
-            pulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+        if (debeziumMySqlContainer != null) {
+            PulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+            debeziumMySqlContainer = null;
         }
     }
 

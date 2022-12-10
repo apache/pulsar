@@ -37,5 +37,3 @@ cd $SCRIPT_DIR
 ./doxygen-doc-gen.sh
 
 ./javadoc-gen.sh
-
-./python-doc-gen.sh

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.functions.windowing;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import com.google.gson.Gson;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Record;
-
-import org.apache.pulsar.common.functions.WindowConfig;
-import org.apache.pulsar.functions.api.WindowContext;
-import org.mockito.Mockito;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,11 +39,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.WindowContext;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit tests for {@link WindowFunctionExecutor}
@@ -86,7 +90,7 @@ public class WindowFunctionExecutorTest {
     private static class TestWrongTimestampExtractor implements TimestampExtractor<String> {
         @Override
         public long extractTimestamp(String input) {
-            return Long.valueOf(input);
+            return Long.parseLong(input);
         }
     }
 
@@ -98,14 +102,14 @@ public class WindowFunctionExecutorTest {
     @BeforeMethod
     public void setUp() {
         testWindowedPulsarFunction = new TestWindowFunctionExecutor();
-        context = Mockito.mock(Context.class);
-        Mockito.doReturn("test-function").when(context).getFunctionName();
-        Mockito.doReturn("test-namespace").when(context).getNamespace();
-        Mockito.doReturn("test-tenant").when(context).getTenant();
+        context = mock(Context.class);
+        doReturn("test-function").when(context).getFunctionName();
+        doReturn("test-namespace").when(context).getNamespace();
+        doReturn("test-tenant").when(context).getTenant();
 
-        Record<?> record = Mockito.mock(Record.class);
-        Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-        Mockito.doReturn(record).when(context).getCurrentRecord();
+        Record<?> record = mock(Record.class);
+        doReturn(Optional.of("test-topic")).when(record).getTopicName();
+        doReturn(record).when(context).getCurrentRecord();
 
         windowConfig = new WindowConfig();
         windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
@@ -115,10 +119,11 @@ public class WindowFunctionExecutorTest {
         // trigger manually to avoid timing issues
         windowConfig.setWatermarkEmitIntervalMs(100000L);
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
-        Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-        Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
+        doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
+        doReturn("test-sink-topic").when(context).getOutputTopic();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -126,11 +131,51 @@ public class WindowFunctionExecutorTest {
         testWindowedPulsarFunction.shutdown();
     }
 
+    @Test
+    public void testWindowFunctionWithAtmostOnce() throws Exception {
+        windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATMOST_ONCE);
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        Record record = mock(Record.class);
+        when(context.getCurrentRecord()).thenReturn(record);
+        doReturn(Optional.of("test-topic")).when(record).getTopicName();
+        doReturn(record).when(context).getCurrentRecord();
+        doReturn(100l).when(record).getValue();
+        testWindowedPulsarFunction.process(10L, context);
+        verify(record, times(1)).ack();
+    }
+
+    @Test
+    public void testWindowFunctionWithAtleastOnce() throws Exception {
+
+        WindowConfig config = new WindowConfig();
+        config.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        WindowFunctionExecutor windowFunctionExecutor = spy(WindowFunctionExecutor.class);
+        windowFunctionExecutor.windowConfig = config;
+        doNothing().when(windowFunctionExecutor).initialize(any());
+        doReturn(new Object()).when(windowFunctionExecutor).process(any(Window.class), any(WindowContext.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(context).publish(any(), any(), any());
+
+        List<Event<Record<Long>>> tuples = new ArrayList<>();
+        tuples.add(new EventImpl<>(mock(Record.class), 0l, mock(Record.class)));
+        WindowLifecycleListener<Event<Record<Long>>> eventWindowLifecycleListener =
+                windowFunctionExecutor.newWindowLifecycleListener(context);
+
+        eventWindowLifecycleListener.onExpiry(tuples);
+        for (Event<Record<Long>> tuple : tuples) {
+            verify(tuple.getRecord(), times(0)).ack();
+        }
+
+        eventWindowLifecycleListener.onActivation(tuples, new ArrayList<>(), new ArrayList<>(), 0l);
+        for (Event<Record<Long>> tuple : tuples) {
+            verify(tuple.get(), times(1)).ack();
+        }
+    }
     @Test(expectedExceptions = RuntimeException.class)
     public void testExecuteWithWrongWrongTimestampExtractorType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setTimestampExtractorClassName(TestWrongTimestampExtractor.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         testWindowedPulsarFunction.process(10L, context);
@@ -140,7 +185,7 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithWrongJavaWindowFunctionType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setActualWindowFunctionClassName(TestWrongFunction.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         testWindowedPulsarFunction.process(10L, context);
@@ -150,10 +195,10 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithTs() throws Exception {
         long[] timestamps = {603, 605, 607, 618, 626, 636};
         for (long ts : timestamps) {
-            Record<?> record = Mockito.mock(Record.class);
-            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-            Mockito.doReturn(record).when(context).getCurrentRecord();
-            Mockito.doReturn(ts).when(record).getValue();
+            Record<?> record = mock(Record.class);
+            doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            doReturn(record).when(context).getCurrentRecord();
+            doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
         }
         testWindowedPulsarFunction.waterMarkEventGenerator.run();
@@ -161,25 +206,28 @@ public class WindowFunctionExecutorTest {
         Window<Record<Long>> first = testWindowedPulsarFunction.windows.get(0);
         assertArrayEquals(
                 new long[]{603, 605, 607},
-                new long[]{first.get().get(0).getValue(), first.get().get(1).getValue(), first.get().get(2).getValue()});
+                new long[]{first.get().get(0).getValue(), first.get().get(1).getValue(),
+                        first.get().get(2).getValue()});
 
         Window<Record<Long>> second = testWindowedPulsarFunction.windows.get(1);
         assertArrayEquals(
                 new long[]{603, 605, 607, 618},
-                new long[]{second.get().get(0).getValue(), second.get().get(1).getValue(), second.get().get(2).getValue(), second.get().get(3).getValue()});
+                new long[]{second.get().get(0).getValue(), second.get().get(1).getValue(),
+                        second.get().get(2).getValue(), second.get().get(3).getValue()});
 
         Window<Record<Long>> third = testWindowedPulsarFunction.windows.get(2);
-        assertArrayEquals(new long[]{618, 626}, new long[]{third.get().get(0).getValue(), third.get().get(1).getValue()});
+        assertArrayEquals(new long[]{618, 626},
+                new long[]{third.get().get(0).getValue(), third.get().get(1).getValue()});
     }
 
     @Test
     public void testPrepareLateTupleStreamWithoutTs() throws Exception {
-        context = Mockito.mock(Context.class);
-        Mockito.doReturn("test-function").when(context).getFunctionName();
-        Mockito.doReturn("test-namespace").when(context).getNamespace();
-        Mockito.doReturn("test-tenant").when(context).getTenant();
-        Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
-        Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
+        context = mock(Context.class);
+        doReturn("test-function").when(context).getFunctionName();
+        doReturn("test-namespace").when(context).getNamespace();
+        doReturn("test-tenant").when(context).getTenant();
+        doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
+        doReturn("test-sink-topic").when(context).getOutputTopic();
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setWindowLengthDurationMs(20L);
         windowConfig.setSlidingIntervalDurationMs(10L);
@@ -187,7 +235,7 @@ public class WindowFunctionExecutorTest {
         windowConfig.setMaxLagMs(5L);
         windowConfig.setWatermarkEmitIntervalMs(10L);
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         try {

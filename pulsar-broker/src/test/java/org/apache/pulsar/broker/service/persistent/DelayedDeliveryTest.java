@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -57,9 +59,8 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setDelayedDeliveryTickTimeMillis(1024);
+        conf.setDispatcherReadFailureBackoffInitialTimeInMs(1000);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -331,14 +332,15 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
-        String topicName = "persistent://public/default/topic-" + UUID.randomUUID().toString();
+        String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(2000)
                 .active(false)
-                .build();;
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -367,6 +369,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
@@ -490,4 +493,136 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.topics().skipAllMessages(topic, subName);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
+
+    @Test
+    public void testDelayedDeliveryWithAllConsumersDisconnecting() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelays");
+
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        c1.close();
+
+        // Attach a new consumer. Since there are no consumers connected, this will trigger the cursor rewind
+        @Cleanup
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
+                .subscribe();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        Message<String> msg = c2.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg);
+
+        // No more messages
+        msg = c2.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+    }
+
+    @Test
+    public void testInterleavedMessagesOnKeySharedSubscription() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testInterleavedMessagesOnKeySharedSubscription");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("key-shared-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Random random = new Random(0);
+        for (int i = 0; i < 10; i++) {
+            // Publish 1 message without delay and 1 with delay
+            producer.newMessage()
+                    .value("immediate-msg-" + i)
+                    .sendAsync();
+
+            int delayMillis = 1000 + random.nextInt(1000);
+            producer.newMessage()
+                    .value("delayed-msg-" + i)
+                    .deliverAfter(delayMillis, TimeUnit.MILLISECONDS)
+                    .sendAsync();
+            Thread.sleep(1000);
+        }
+
+        producer.flush();
+
+        Set<String> receivedMessages = new HashSet<>();
+
+        while (receivedMessages.size() < 20) {
+            Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            receivedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+    }
+
+    @Test
+    public void testDispatcherReadFailure() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testDispatcherReadFailure");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+
+        producer.flush();
+
+        Message<String> msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+        assertNull(msg);
+
+        // Inject failure in BK read
+        this.mockBookKeeper.failNow(BKException.Code.ReadException);
+
+        Set<String> receivedMsgs = new TreeSet<>();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(10, TimeUnit.SECONDS);
+            receivedMsgs.add(msg.getValue());
+        }
+
+        assertEquals(receivedMsgs.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertTrue(receivedMsgs.contains("msg-" + i));
+        }
+    }
+
 }

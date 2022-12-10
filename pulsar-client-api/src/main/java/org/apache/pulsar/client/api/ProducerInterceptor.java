@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,5 +94,14 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * @param exception the exception on sending messages, null indicates send has succeed.
      */
     void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable exception);
+
+    /**
+     * This method is called when partitions of the topic (partitioned-topic) changes.
+     *
+     * @param topicName topic name
+     * @param partitions new updated partitions
+     */
+    default void onPartitionsChange(String topicName, int partitions) {
+    }
 
 }

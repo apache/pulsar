@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -53,6 +53,35 @@ public class TripleLongPriorityQueueTest {
 
         pq.close();
     }
+
+    @Test
+    public void testLargeQueue() {
+        TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
+        assertEquals(pq.size(), 0);
+
+        final int N = 3_000_000;
+
+        for (int i = N; i > 0; i--) {
+            pq.add(i, i * 2L, i * 3L);
+        }
+
+        assertEquals(pq.size(), N);
+        assertFalse(pq.isEmpty());
+
+        for (int i = 1; i <= N; i++) {
+            assertEquals(pq.peekN1(), i);
+            assertEquals(pq.peekN2(), i * 2);
+            assertEquals(pq.peekN3(), i * 3);
+
+            pq.pop();
+
+            assertEquals(pq.size(), N - i);
+        }
+
+        pq.clear();
+        pq.close();
+    }
+
 
     @Test
     public void testCheckForEmpty() {
@@ -134,5 +163,38 @@ public class TripleLongPriorityQueueTest {
         assertTrue(pq.isEmpty());
 
         pq.close();
+    }
+
+    @Test
+    public void testShrink() throws Exception {
+        int initialCapacity = 20;
+        int tupleSize = 3 * 8;
+        TripleLongPriorityQueue pq = new TripleLongPriorityQueue(initialCapacity, 0.5f);
+        pq.add(0, 0, 0);
+        assertEquals(pq.size(), 1);
+        assertEquals(pq.bytesCapacity(), initialCapacity * tupleSize);
+
+        // Scale out to capacity * 2
+        triggerScaleOut(initialCapacity, pq);
+        int scaleCapacity = initialCapacity * 2;
+        assertEquals(pq.bytesCapacity(), scaleCapacity * tupleSize);
+        // Trigger shrinking
+        for (int i = 0; i < initialCapacity / 2 + 2; i++) {
+             pq.pop();
+        }
+        int capacity = scaleCapacity - (int)((scaleCapacity ) * 0.5f * 0.9f);
+        assertTrue(pq.bytesCapacity() < scaleCapacity * tupleSize);
+        // Scale out to capacity * 2
+        triggerScaleOut(initialCapacity, pq);
+        scaleCapacity = capacity * 2;
+        // Trigger shrinking
+        pq.clear();
+        capacity = scaleCapacity - (int)(scaleCapacity * 0.5f * 0.9f);
+    }
+
+    private void triggerScaleOut(int initialCapacity, TripleLongPriorityQueue pq) {
+        for (long i = 0; i < initialCapacity + 1; i++) {
+            pq.add(i, i, i);
+        }
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.client.impl.schema.util;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import java.lang.reflect.Field;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.lang.reflect.Field;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class SchemaUtil {
 
@@ -89,8 +88,11 @@ public class SchemaUtil {
         try {
             return parseAvroSchema(pojo.getDeclaredField("SCHEMA$").get(null).toString());
         } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException ignored) {
-            return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo)
-                    : ReflectData.get().getSchema(pojo);
+            ReflectData reflectData = schemaDefinition.getAlwaysAllowNull()
+                     ? new ReflectData.AllowNull()
+                     : new ReflectData();
+            AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled(), false);
+            return reflectData.getSchema(pojo);
         }
     }
 }

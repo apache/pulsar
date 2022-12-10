@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,7 +29,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
 /**
  * Implementation of OAuth 2.0 Client Credentials flow.
@@ -46,21 +47,24 @@ class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
+    public static final String CONFIG_PARAM_SCOPE = "scope";
 
     private static final long serialVersionUID = 1L;
 
     private final String audience;
     private final String privateKey;
+    private final String scope;
 
     private transient ClientCredentialsExchanger exchanger;
 
     private boolean initialized = false;
 
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey) {
+    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope) {
         super(issuerUrl);
         this.audience = audience;
         this.privateKey = privateKey;
+        this.scope = scope;
     }
 
     @Override
@@ -87,6 +91,7 @@ class ClientCredentialsFlow extends FlowBase {
                 .clientId(keyFile.getClientId())
                 .clientSecret(keyFile.getClientSecret())
                 .audience(this.audience)
+                .scope(this.scope)
                 .build();
         TokenResult tr;
         if (!initialized) {
@@ -114,12 +119,15 @@ class ClientCredentialsFlow extends FlowBase {
      */
     public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
         URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String audience = parseParameterString(params, CONFIG_PARAM_AUDIENCE);
         String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+        // These are optional parameters, so we only perform a get
+        String scope = params.get(CONFIG_PARAM_SCOPE);
+        String audience = params.get(CONFIG_PARAM_AUDIENCE);
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)
                 .privateKey(privateKeyUrl)
+                .scope(scope)
                 .build();
     }
 
@@ -132,18 +140,22 @@ class ClientCredentialsFlow extends FlowBase {
     private static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
         try {
             URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
-
-            String protocol = urlConnection.getURL().getProtocol();
-            String contentType = urlConnection.getContentType();
-            if ("data".equals(protocol) && !"application/json".equals(contentType)) {
-                throw new IllegalArgumentException(
-                        "Unsupported media type or encoding format: " + urlConnection.getContentType());
+            try {
+                String protocol = urlConnection.getURL().getProtocol();
+                String contentType = urlConnection.getContentType();
+                if ("data".equals(protocol) && !"application/json".equals(contentType)) {
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
+                }
+                KeyFile privateKey;
+                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
+                        StandardCharsets.UTF_8)) {
+                    privateKey = KeyFile.fromJson(r);
+                }
+                return privateKey;
+            } finally {
+                IOUtils.close(urlConnection);
             }
-            KeyFile privateKey;
-            try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(), StandardCharsets.UTF_8)) {
-                privateKey = KeyFile.fromJson(r);
-            }
-            return privateKey;
         } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
             throw new IOException("Invalid privateKey format", e);
         }

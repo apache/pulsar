@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,30 +99,4 @@ public class Backoff {
         this.mandatoryStopMade = false;
     }
 
-    @VisibleForTesting
-    long getFirstBackoffTimeInMillis() {
-        return firstBackoffTimeInMillis;
-    }
-
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
-    									long defaultInterval, long maxBackoffInterval) {
-    	long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
-        long currentTime = System.nanoTime();
-        long interval = defaultInterval;
-        for (int i = 1; i < failedAttempts; i++) {
-            interval = interval * 2;
-            if (interval > maxBackoffInterval) {
-                interval = maxBackoffInterval;
-                break;
-            }
-        }
-
-        // if the current time is less than the time at which next retry should occur, we should backoff
-        return currentTime < (initialTimestampInNano + interval);
-    }
-
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
-        return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts,
-        							 DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
-    }
 }

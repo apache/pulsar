@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import java.util.Map;
 
 /**
  * Statistics about a publisher.
  */
 @Data
 public class PublisherStatsImpl implements PublisherStats {
+    @JsonIgnore
     private int count;
 
     public ProducerAccessMode accessMode;
@@ -41,32 +43,44 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Average message size published by this publisher. */
     public double averageMsgSize;
 
-    /** total chunked message count received. **/
+    /** The total rate of chunked messages published by this publisher. **/
     public double chunkedMessageRate;
 
     /** Id of this publisher. */
     public long producerId;
 
+    /** Whether partial producer is supported at client. */
+    public boolean supportsPartialProducer;
+
     /** Producer name. */
+    @JsonIgnore
     private int producerNameOffset = -1;
+    @JsonIgnore
     private int producerNameLength;
 
     /** Address of this publisher. */
+    @JsonIgnore
     private int addressOffset = -1;
+    @JsonIgnore
     private int addressLength;
 
     /** Timestamp of connection. */
+    @JsonIgnore
     private int connectedSinceOffset = -1;
+    @JsonIgnore
     private int connectedSinceLength;
 
     /** Client library version. */
+    @JsonIgnore
     private int clientVersionOffset = -1;
+    @JsonIgnore
     private int clientVersionLength;
 
     /**
      * In order to prevent multiple string objects under stats: create a string-buffer that stores data for all string
      * place-holders.
      */
+    @JsonIgnore
     private StringBuilder stringBuffer = new StringBuilder();
 
     /** Metadata (key/value strings) associated with this publisher. */
@@ -74,7 +88,7 @@ public class PublisherStatsImpl implements PublisherStats {
 
     public PublisherStatsImpl add(PublisherStatsImpl stats) {
         if (stats == null) {
-            throw new NullPointerException();
+            throw new IllegalArgumentException("stats can't be null");
         }
         this.count++;
         this.msgRateIn += stats.msgRateIn;

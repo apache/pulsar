@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -117,7 +117,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
         assertTrue(m.value > 0.0);
-        m = metrics.get("pulsar_source_received_total_1min");
+        m = metrics.get("pulsar_source_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
@@ -131,7 +131,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
         assertTrue(m.value > 0.0);
-        m = metrics.get("pulsar_source_written_total_1min");
+        m = metrics.get("pulsar_source_written_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
@@ -145,7 +145,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_source_source_exceptions_total_1min");
+        m = metrics.get("pulsar_source_source_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
@@ -159,7 +159,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_source_system_exceptions_total_1min");
+        m = metrics.get("pulsar_source_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
@@ -181,6 +181,12 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
     @Test(timeOut = 20000, groups = "builtin")
     public void testPulsarSourceStatsBuiltin() throws Exception {
         String jarFilePathUrl = String.format("%s://data-generator", Utils.BUILTIN);
+        testPulsarSourceStats(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "Built-in source is not available")
+    public void testPulsarSourceStatsBuiltinDoesNotExist() throws Exception {
+        String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
         testPulsarSourceStats(jarFilePathUrl);
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,21 @@
  */
 package org.apache.pulsar.io.flume.source;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.PushSource;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.flume.FlumeConfig;
 import org.apache.pulsar.io.flume.FlumeConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.*;
-
-import org.apache.pulsar.io.core.PushSource;
-import org.apache.pulsar.io.core.SourceContext;
-
-import java.util.*;
-import java.util.concurrent.BlockingQueue;
 
 /**
  * A Simple abstract source class for flume to pulsar.
@@ -46,7 +46,8 @@ public abstract class AbstractSource<V> extends PushSource<V> {
 
     protected volatile boolean running = false;
 
-    protected final Thread.UncaughtExceptionHandler handler = (t, e) -> log.error("[{}] parse events has an error", t.getName(), e);
+    protected final Thread.UncaughtExceptionHandler handler =
+            (t, e) -> log.error("[{}] parse events has an error", t.getName(), e);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -54,7 +55,7 @@ public abstract class AbstractSource<V> extends PushSource<V> {
         FlumeConfig flumeConfig = FlumeConfig.load(config);
 
         FlumeConnector flumeConnector = new FlumeConnector();
-        flumeConnector.StartConnector(flumeConfig);
+        flumeConnector.startConnector(flumeConfig);
 
         this.start();
 

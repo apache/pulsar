@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import java.util.SortedSet;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
 /**
- * Basic defintion of an auto-failover policy.
+ * Basic definition of an auto-failover policy.
  */
 public abstract class AutoFailoverPolicy {
 

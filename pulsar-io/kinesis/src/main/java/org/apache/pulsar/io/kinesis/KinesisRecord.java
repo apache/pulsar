@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,13 +24,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.pulsar.functions.api.Record;
 import software.amazon.awssdk.services.kinesis.model.EncryptionType;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 public class KinesisRecord implements Record<byte[]> {
-    
     public static final String ARRIVAL_TIMESTAMP = "";
     public static final String ENCRYPTION_TYPE = "";
     public static final String PARTITION_KEY = "";
@@ -39,8 +37,7 @@ public class KinesisRecord implements Record<byte[]> {
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
-    private final HashMap<String, String> userProperties = new HashMap<String, String> ();
-    
+    private final HashMap<String, String> userProperties = new HashMap<>();
     public KinesisRecord(KinesisClientRecord record) {
         this.key = Optional.of(record.partitionKey());
         // encryption type can (annoyingly) be null, so we default to NONE
@@ -57,8 +54,7 @@ public class KinesisRecord implements Record<byte[]> {
             String s = null;
             try {
                 s = decoder.decode(record.data()).toString();
-            } catch (CharacterCodingException e) {
-               // Ignore 
+            } catch (CharacterCodingException ignored) {
             }
             this.value = (s != null) ? s.getBytes() : null;
         } else if (encType == EncryptionType.KMS) {
@@ -70,7 +66,6 @@ public class KinesisRecord implements Record<byte[]> {
             this.value = null;
         }
     }
-    
     @Override
     public Optional<String> getKey() {
         return key;

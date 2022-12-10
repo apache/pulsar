@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,5 +28,10 @@ public class InMemoryPendingAckStoreProvider implements TransactionPendingAckSto
     @Override
     public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
         return CompletableFuture.completedFuture(new InMemoryPendingAckStore());
+    }
+
+    @Override
+    public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+        return CompletableFuture.completedFuture(true);
     }
 }

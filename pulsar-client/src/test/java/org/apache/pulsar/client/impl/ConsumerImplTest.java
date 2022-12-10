@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -25,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -33,12 +33,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -47,25 +50,28 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ConsumerImplTest {
-
+    private final String topic = "non-persistent://tenant/ns1/my-topic";
 
     private ExecutorProvider executorProvider;
+    private ExecutorService internalExecutor;
     private ConsumerImpl<byte[]> consumer;
-    private ConsumerConfigurationData consumerConf;
-    private ExecutorService executorService;
+    private ConsumerConfigurationData<byte[]> consumerConf;
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
-        executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         consumerConf = new ConsumerConfigurationData<>();
-        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock();
-        executorService = Executors.newSingleThreadExecutor();
-        when(client.getInternalExecutorService()).thenReturn(executorService);
+        createConsumer(consumerConf);
+    }
+
+    private void createConsumer(ConsumerConfigurationData consumerConf) {
+        executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
+        internalExecutor = Executors.newSingleThreadScheduledExecutor();
+
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
         ClientConfigurationData clientConf = client.getConfiguration();
         clientConf.setOperationTimeoutMs(100);
         clientConf.setStatsIntervalSeconds(0);
-        CompletableFuture<Consumer<ConsumerImpl>> subscribeFuture = new CompletableFuture<>();
-        String topic = "non-persistent://tenant/ns1/my-topic";
+        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
 
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
@@ -80,9 +86,9 @@ public class ConsumerImplTest {
             executorProvider.shutdownNow();
             executorProvider = null;
         }
-        if (executorService != null) {
-            executorService.shutdownNow();
-            executorService = null;
+        if (internalExecutor != null) {
+            internalExecutor.shutdownNow();
+            internalExecutor = null;
         }
     }
 
@@ -172,7 +178,7 @@ public class ConsumerImplTest {
     public void testReceiveAsyncCanBeCancelled() {
         // given
         CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(consumer.peekPendingReceive(), future));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumer.hasNextPendingReceive()));
         // when
         future.cancel(true);
         // then
@@ -188,5 +194,69 @@ public class ConsumerImplTest {
         future.cancel(true);
         // then
         Assert.assertFalse(consumer.hasPendingBatchReceive());
+    }
+
+    @Test
+    public void testClose() {
+        Exception checkException = null;
+        try {
+            if (consumer != null) {
+                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.close();
+            }
+        } catch (Exception e) {
+            checkException = e;
+        }
+        Assert.assertNull(checkException);
+    }
+
+    @Test
+    public void testConsumerCreatedWhilePaused() throws InterruptedException {
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
+        ClientConfigurationData clientConf = client.getConfiguration();
+        clientConf.setOperationTimeoutMs(100);
+        clientConf.setStatsIntervalSeconds(0);
+        String topic = "non-persistent://tenant/ns1/my-topic";
+
+        consumerConf.setStartPaused(true);
+
+        consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
+                executorProvider, -1, false, new CompletableFuture<>(), null, null, null,
+                true);
+
+        Assert.assertTrue(consumer.paused);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testCreateConsumerWhenSchemaIsNull() throws PulsarClientException {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl("pulsar://127.0.0.1:6650")
+            .build();
+
+        client.newConsumer(null)
+            .topic("topic_testCreateConsumerWhenSchemaIsNull")
+            .subscriptionName("testCreateConsumerWhenSchemaIsNull")
+            .subscribe();
+    }
+
+    @Test
+    public void testMaxReceiverQueueSize() {
+        int size = consumer.getCurrentReceiverQueueSize();
+        int permits = consumer.getAvailablePermits();
+        consumer.setCurrentReceiverQueueSize(size + 100);
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), size + 100);
+        Assert.assertEquals(consumer.getAvailablePermits(), permits + 100);
+    }
+
+    @Test
+    public void testTopicPriorityLevel() {
+        ConsumerConfigurationData<Object> consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.getTopicConfigurations().add(
+                TopicConsumerConfigurationData.ofTopicName(topic, 1));
+
+        createConsumer(consumerConf);
+
+        assertThat(consumer.getPriorityLevel()).isEqualTo(1);
     }
 }

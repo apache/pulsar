@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
 public class LoadManagerReportResources extends BaseResources<LoadManagerReport> {
 
-    public LoadManagerReportResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+    public LoadManagerReportResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, LoadManagerReport.class, operationTimeoutSec);
     }
 }

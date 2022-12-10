@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,6 @@ public class ResourceQuotaTest {
         Assert.assertEquals(quota.getBandwidthOut(), 0.0);
         Assert.assertEquals(quota.getMemory(), 0.0);
         Assert.assertTrue(quota.getDynamic());
-        Assert.assertFalse(quota.isValid());
 
         quota.setMsgRateIn(10);
         quota.setMsgRateOut(20);

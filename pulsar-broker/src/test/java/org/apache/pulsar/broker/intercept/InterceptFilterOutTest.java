@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import java.util.HashSet;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.web.ExceptionHandler;
 import org.apache.pulsar.broker.web.PreInterceptFilter;
 import org.apache.pulsar.broker.web.ProcessHandlerFilter;
 import org.apache.pulsar.broker.web.ResponseHandlerFilter;
@@ -61,7 +63,8 @@ public class InterceptFilterOutTest {
     @Test
     public void testFilterOutForPreInterceptFilter() throws Exception {
         CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
-        PreInterceptFilter filter = new PreInterceptFilter(interceptor);
+        ExceptionHandler handler = new ExceptionHandler();
+        PreInterceptFilter filter = new PreInterceptFilter(interceptor, handler);
 
         HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -149,7 +152,7 @@ public class InterceptFilterOutTest {
         Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
         ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
         // Disable the broker interceptor
-        Mockito.doReturn(Sets.newHashSet()).when(conf).getBrokerInterceptors();
+        Mockito.doReturn(new HashSet<>()).when(conf).getBrokerInterceptors();
         Mockito.doReturn(conf).when(pulsarService).getConfig();
         ResponseHandlerFilter filter = new ResponseHandlerFilter(pulsarService);
 

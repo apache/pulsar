@@ -22,6 +22,8 @@ package pf
 import (
 	"testing"
 
+	cfg "github.com/apache/pulsar/pulsar-function-go/conf"
+
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/stretchr/testify/assert"
 )
@@ -62,9 +64,10 @@ func Test_newInstanceConf(t *testing.T) {
 							},
 						},
 					},
-					TimeoutMs:           0,
-					SubscriptionName:    "",
-					CleanupSubscription: false,
+					TimeoutMs:            0,
+					SubscriptionName:     "",
+					CleanupSubscription:  false,
+					SubscriptionPosition: pb.SubscriptionPosition_EARLIEST,
 				},
 				Sink: &pb.SinkSpec{
 					Topic:      "persistent://public/default/topic-02",
@@ -94,4 +97,19 @@ func TestInstanceConf_GetInstanceName(t *testing.T) {
 	instanceName := instanceConf.getInstanceName()
 
 	assert.Equal(t, "101", instanceName)
+}
+
+func TestInstanceConf_Fail(t *testing.T) {
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 0, AutoACK: false})
+	}, "Should have a panic")
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 1, AutoACK: false})
+	}, "Should have a panic")
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 2})
+	}, "Should have a panic")
+	assert.NotPanicsf(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 3})
+	}, "Should have a panic")
 }

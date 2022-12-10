@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl;
 
 import java.util.Map;
@@ -199,4 +198,25 @@ public class TopicMessageImpl<T> implements Message<T> {
     public void release() {
         msg.release();
     }
+
+    @Override
+    public boolean hasBrokerPublishTime() {
+        return msg.hasBrokerPublishTime();
+    }
+
+    @Override
+    public Optional<Long> getBrokerPublishTime() {
+        return msg.getBrokerPublishTime();
+    }
+
+    @Override
+    public boolean hasIndex() {
+        return msg.hasIndex();
+    }
+
+    @Override
+    public Optional<Long> getIndex() {
+        return msg.getIndex();
+    }
+
 }

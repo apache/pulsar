@@ -1,15 +1,11 @@
 ---
-id: version-2.3.0-reference-configuration
+id: reference-configuration
 title: Pulsar configuration
-sidebar_label: Pulsar configuration
+sidebar_label: "Pulsar configuration"
 original_id: reference-configuration
 ---
 
-<style type="text/css">
-  table{
-    font-size: 80%;
-  }
-</style>
+
 
 
 Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
@@ -40,7 +36,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
-|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
+|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|1073741824|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled.|3600|
 |majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
@@ -49,9 +45,9 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |compactionRate|The rate at which compaction will read entries, in adds per second.|1000|
 |isThrottleByBytes|Throttle compaction by bytes or by entries.|false|
 |compactionRateByEntries|The rate at which compaction will read entries, in adds per second.|1000|
-|compactionRateByBytes|Set the rate at which compaction will readd entries. The unit is bytes added per second.|1000000|
+|compactionRateByBytes|Set the rate at which compaction reads entries. The unit is bytes added per second.|1000000|
 |journalMaxSizeMB|Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.|2048|
-|journalMaxBackups|The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
+|journalMaxBackups|The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
 |journalPreAllocSizeMB|How space to pre-allocate at a time in the journal.|16|
 |journalWriteBufferSizeKB|The of the write buffers used for the journal.|64|
 |journalRemoveFromPageCache|Whether pages should be removed from the page cache after force write.|true|
@@ -70,10 +66,10 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkTimeout|ZooKeeper client session timeout in milliseconds Bookie server will exit if it received SESSION_EXPIRED because it was partitioned off from ZooKeeper for more than the session timeout JVM garbage collection, disk I/O will cause SESSION_EXPIRED. Increment this value could help avoiding this issue|30000|
 |serverTcpNoDelay|This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.|true|
 |openFileLimit|Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.|0|
-|pageSize|Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficent when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.|8192|
-|pageLimit|How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain bettern performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.|0|
-|readOnlyModeEnabled|If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.|true|
-|diskUsageThreshold|For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).|0.95|
+|pageSize|Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.|8192|
+|pageLimit|How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.|0|
+|readOnlyModeEnabled|If all ledger directories configured are full, then support only read requests for clients. If "readOnlyModeEnabled=true" then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.|true|
+|diskUsageThreshold|For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).|0.95|
 |diskCheckInterval|Disk check interval in milli seconds, interval to check the ledger dirs usage.|10000|
 |auditorPeriodicCheckInterval|Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.|604800|
 |auditorPeriodicBookieCheckInterval|The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.|86400|
@@ -127,7 +123,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
+|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to see if topics with compaction policies need to be compacted  |60|
@@ -153,12 +149,12 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |authenticationEnabled| Enable authentication |false|
 |authenticationProviders| Authentication provider name list, which is comma separated list of class names  ||
 |authorizationEnabled|  Enforce authorization |false|
-|superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
+|superUserRoles|  Role names that are treated as "super-user", meaning they will be able to do all admin operations and publish/consume from all topics ||
 |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters  ||
 |brokerClientAuthenticationParameters|||
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
-|bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
+|bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||   
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
@@ -177,12 +173,12 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |managedLedgerCacheSizeMB|  Amount of memory to use for caching data payload in managed ledger. This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. By default, uses 1/5th of available direct memory ||
 |managedLedgerCacheEvictionWatermark| Threshold to which bring down the cache level when eviction is triggered  |0.9|
 |managedLedgerDefaultMarkDeleteRateLimit| Rate limit the amount of writes per second generated by consumer acking the messages  |1.0|
-|managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered on these conditions: <ul><li>Either the max rollover time has been reached</li><li>or the max entries have been written to the ledger and at least min-time has passed</li></ul>|50000|
+|managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered after the min rollover time has passed and one of the following conditions is true: <ul><li>The max rollover time has been reached</li><li>The max entries have been written to the ledger</li><li>The max ledger size has been written to the ledger</li></ul>|50000|
 |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10|
 |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240|
 |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000|
 |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400|
-|managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
+|managedLedgerMaxUnackedRangesToPersist|  Max number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
@@ -190,11 +186,11 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15|
 |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1|
 |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30|
-|loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30|
+|loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more than once within this timeframe |30|
 |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000|
 |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1|
 |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85|
-|loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15|
+|loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quota |15|
 |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65|
 |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false|
 |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
@@ -207,8 +203,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false|
-|defaultRetentionTimeInMinutes| Default message retention time  ||
-|defaultRetentionSizeInMB|  Default retention size  |0|
+|defaultRetentionTimeInMinutes| Default message retention time. 0 means retention is disabled. -1 means data is not removed by time quota  ||
+|defaultRetentionSizeInMB|  Default retention size. 0 means retention is disabled. -1 means data is not removed by size quota  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |brokerServicePurgeInactiveFrequencyInSeconds|  How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected) |60|
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
@@ -219,6 +215,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) ||
 |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum) |67108864|
 |s3ManagedLedgerOffloadReadBufferSizeInBytes| For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)  |1048576|
+
 
 
 
@@ -253,7 +250,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authenticationEnabled| Enable authentication |false|
 |authenticationProviders| Authentication provider name list, which is comma separated list of class names (comma-separated) ||
 |authorizationEnabled|  Enforce authorization |false|
-|superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated) ||
+|superUserRoles|  Role names that are treated as "super-user", meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated) ||
 |tlsEnabled|  Enable TLS  |false|
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
 |tlsKeyFilePath|  Path for the TLS private key file ||
@@ -307,7 +304,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |zookeeperServers|  The quorum connection string for local ZooKeeper  ||
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
-|webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
+|webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| The name of the cluster that this broker belongs to. |standalone|
@@ -316,7 +313,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB|  The default per-topic backlog quota limit.  |10|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
+|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
@@ -328,7 +325,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|
-|superUserRoles|  Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks. ||  
+|superUserRoles|  Role names that are treated as "superusers." Superusers are authorized to perform all admin tasks. ||  
 |brokerClientAuthenticationPlugin|  The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters. ||
 |brokerClientAuthenticationParameters|  The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.  ||
 |athenzDomainNames| Supported Athenz authentication provider domain names as a comma-separated list.  ||
@@ -434,8 +431,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |brokerClientAuthenticationPlugin|  The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientAuthenticationParameters|  The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientTrustCertsFilePath|  The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers ||
-|superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
-|forwardAuthorizationCredentials| Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
+|superUserRoles|  Role names that are treated as "super-users," meaning that they will be able to perform all admin ||
+|forwardAuthorizationCredentials| Whether client authorization credentials are forwarded to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |50000|
 |tlsEnabledInProxy| Whether TLS is enabled for the proxy  |false|
@@ -473,9 +470,11 @@ In addition to the parameters in the table above, configuring ZooKeeper for Puls
 a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
 
 ```properties
+
 server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
+
 ```
 
 > We strongly recommend consulting the [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html) for a more thorough and comprehensive introduction to ZooKeeper configuration

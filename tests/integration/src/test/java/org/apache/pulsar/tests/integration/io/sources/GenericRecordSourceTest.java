@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -116,7 +116,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-            result.getStdout().contains("\"Created successfully\""),
+            result.getStdout().contains("Created successfully"),
             result.getStdout());
     }
 

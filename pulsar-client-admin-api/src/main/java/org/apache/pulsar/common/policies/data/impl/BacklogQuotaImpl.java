@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,90 @@
  */
 package org.apache.pulsar.common.policies.data.impl;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 
-@Data
-@AllArgsConstructor
+@ToString
+@EqualsAndHashCode
 @NoArgsConstructor
 public class BacklogQuotaImpl implements BacklogQuota {
-    private long limitSize;
-    // backlog quota by time in second
+    public static final long BYTES_IN_GIGABYTE = 1024 * 1024 * 1024;
+
+    /**
+     * backlog quota by size in byte, remains for compatible.
+     * for the details: https://github.com/apache/pulsar/pull/13291
+     * @since 2.9.1
+     */
+    @Deprecated
+    private long limit;
+
+    /**
+     * backlog quota by size in byte.
+     */
+    private Long limitSize;
+
+    /**
+     * backlog quota by time in second.
+     */
     private int limitTime;
     private RetentionPolicy policy;
+
+    public BacklogQuotaImpl(long limitSize, int limitTime, RetentionPolicy policy) {
+        this.limitSize = limitSize;
+        this.limitTime = limitTime;
+        this.policy = policy;
+    }
+
+    @Deprecated
+    public long getLimit() {
+        if (limitSize == null) {
+            return limit;
+        }
+        return limitSize;
+    }
+
+    @Deprecated
+    public void setLimit(long limit) {
+        this.limit = limit;
+        this.limitSize = limit;
+    }
+
+    public long getLimitSize() {
+        if (limitSize == null) {
+            return limit;
+        }
+        return limitSize;
+    }
+
+    public void setLimitSize(long limitSize) {
+        this.limitSize = limitSize;
+        this.limit = limitSize;
+    }
+
+    public int getLimitTime() {
+        return limitTime;
+    }
+
+    public void setLimitTime(int limitTime) {
+        this.limitTime = limitTime;
+    }
+
+    public RetentionPolicy getPolicy() {
+        return policy;
+    }
+
+    public void setPolicy(RetentionPolicy policy) {
+        this.policy = policy;
+    }
 
     public static BacklogQuotaImplBuilder builder() {
         return new BacklogQuotaImplBuilder();
     }
 
     public static class BacklogQuotaImplBuilder implements BacklogQuota.Builder {
-        private long limitSize;
+        private long limitSize = -1;
         private int limitTime = -1;
         private RetentionPolicy retentionPolicy;
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,15 @@ import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
  * <code>limit</code> representing a quota limit in bytes and <code>policy</code> for backlog retention policy.
  */
 public interface BacklogQuota {
+
+    /**
+     * Gets quota limit in size.
+     * Remains for compatible
+     *
+     * @return quota limit in bytes
+     */
+    @Deprecated
+    long getLimit();
 
     /**
      * Gets quota limit in size.

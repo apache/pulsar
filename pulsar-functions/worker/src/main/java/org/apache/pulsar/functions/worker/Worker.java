@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,19 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 
 @Slf4j
 public class Worker {
@@ -47,11 +39,10 @@ public class Worker {
     private final WorkerService workerService;
     private WorkerServer server;
 
-    private ZooKeeperClientFactory zkClientFactory = null;
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
+    private final OrderedExecutor orderedExecutor =
+            OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
-    private ConfigurationMetadataCacheService configurationCacheService;
     private final ErrorNotifier errorNotifier;
 
     public Worker(WorkerConfig workerConfig) {
@@ -65,7 +56,7 @@ public class Worker {
         workerService.start(getAuthenticationService(), getAuthorizationService(), errorNotifier);
         server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
-        log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
+        log.info("/** Started worker server **/");
 
         try {
             errorNotifier.waitForError();
@@ -83,15 +74,14 @@ public class Worker {
 
             log.info("starting configuration cache service");
             try {
-                configMetadataStore = PulsarResources.createMetadataStore(workerConfig.getConfigurationStoreServers(),
-                        (int) workerConfig.getZooKeeperSessionTimeoutMillis());
+                configMetadataStore = PulsarResources.createConfigMetadataStore(
+                        workerConfig.getConfigurationMetadataStoreUrl(),
+                        (int) workerConfig.getMetadataStoreSessionTimeoutMillis());
             } catch (IOException e) {
                 throw new PulsarServerException(e);
             }
             pulsarResources = new PulsarResources(null, configMetadataStore);
-            this.configurationCacheService = new ConfigurationMetadataCacheService(this.pulsarResources,
-                    this.workerConfig.getPulsarFunctionsCluster());
-                return new AuthorizationService(getServiceConfiguration(), this.configurationCacheService);
+            return new AuthorizationService(getServiceConfiguration(), this.pulsarResources);
             }
         return null;
     }
@@ -100,21 +90,13 @@ public class Worker {
         return new AuthenticationService(getServiceConfiguration());
     }
 
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
-        }
-        // Return default factory
-        return zkClientFactory;
-    }
-
     protected void stop() {
         try {
             if (null != this.server) {
                 this.server.stop();
             }
             workerService.stop();
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.warn("Failed to gracefully stop worker service ", e);
         }
 

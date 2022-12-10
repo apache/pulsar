@@ -1,15 +1,11 @@
 ---
-id: version-2.7.0-reference-configuration
+id: reference-configuration
 title: Pulsar configuration
-sidebar_label: Pulsar configuration
+sidebar_label: "Pulsar configuration"
 original_id: reference-configuration
 ---
 
-<style type="text/css">
-  table{
-    font-size: 80%;
-  }
-</style>
+
 
 
 Pulsar configuration can be managed via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
@@ -45,7 +41,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
-|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
+|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|1073741824|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime. |3600|
 |majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
@@ -57,9 +53,9 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |compactionRate|The rate at which compaction will read entries, in adds per second.|1000|
 |isThrottleByBytes|Throttle compaction by bytes or by entries.|false|
 |compactionRateByEntries|The rate at which compaction will read entries, in adds per second.|1000|
-|compactionRateByBytes|Set the rate at which compaction will readd entries. The unit is bytes added per second.|1000000|
+|compactionRateByBytes|Set the rate at which compaction reads entries. The unit is bytes added per second.|1000000|
 |journalMaxSizeMB|Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.|2048|
-|journalMaxBackups|The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
+|journalMaxBackups|The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
 |journalPreAllocSizeMB|How space to pre-allocate at a time in the journal.|16|
 |journalWriteBufferSizeKB|The of the write buffers used for the journal.|64|
 |journalRemoveFromPageCache|Whether pages should be removed from the page cache after force write.|true|
@@ -84,7 +80,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkRetryBackoffMaxMs|The maximum time that the Zookeeper client backoff retries in milliseconds.|10000|
 |zkEnableSecurity|Set ACLs on every node written on ZooKeeper, allowing users to read and write BookKeeper metadata stored on ZooKeeper. In order to make ACLs work you need to setup ZooKeeper JAAS authentication. All the bookies and Client need to share the same user, and this is usually done using Kerberos authentication. See ZooKeeper documentation.|false|
 |httpServerEnabled|The flag enables/disables starting the admin http server.|false|
-|httpServerPort|The http server port to listen on. By default, the value is 8080. Use `8000` as the port to keep it consistent with prometheus stats provider.|8000
+|httpServerPort|The HTTP server port to listen on. By default, the value is `8080`. If you want to keep it consistent with the Prometheus stats provider, you can set it to `8000`.|8080
 |httpServerClass|The http server class.|org.apache.bookkeeper.http.vertx.VertxHttpServer|
 |serverTcpNoDelay|This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.|true|
 |serverSockKeepalive|This setting is used to send keep-alive messages on connection-oriented sockets.|true|
@@ -94,11 +90,11 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |openFileLimit|Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.|0|
 |pageSize|Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.|8192|
 |pageLimit|How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.|0|
-|readOnlyModeEnabled|If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.|true|
+|readOnlyModeEnabled|If all ledger directories configured are full, then support only read requests for clients. If "readOnlyModeEnabled=true" then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.|true|
 |diskUsageThreshold|For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).|0.95|
 |diskCheckInterval|Disk check interval in milli seconds, interval to check the ledger dirs usage.|10000|
 |auditorPeriodicCheckInterval|Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.|604800|
-|sortedLedgerStorageEnabled|Whether sorted-ledger storage is enabled.|ture|
+|sortedLedgerStorageEnabled|Whether sorted-ledger storage is enabled.|true|
 |auditorPeriodicBookieCheckInterval|The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.|86400|
 |numAddWorkerThreads|The number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.|0|
 |numReadWorkerThreads|The number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.|8|
@@ -111,7 +107,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |readBufferSizeBytes|The number of bytes we should use as capacity for BufferedReadChannel.|4096|
 |writeBufferSizeBytes|The number of bytes used as capacity for the write buffer|65536|
 |useHostNameAsBookieID|Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ip address for the registration.|false|
-|bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the `bookieId`. <br><br>Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`). If you set the `bookieId`, then the `useHostNameAsBookieID` does not take effect.<br><br>The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
+|bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`). If you set the `bookieId`, then the `useHostNameAsBookieID` does not take effect.<br /><br />The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
 |allowEphemeralPorts|Whether the bookie is allowed to use an ephemeral port (port 0) as its server port. By default, an ephemeral port is not allowed. Using an ephemeral port as the service port usually indicates a configuration error. However, in unit tests, using an ephemeral port will address port conflict problems and allow running tests in parallel.|false|
 |enableLocalTransport|Whether the bookie is allowed to listen for the BookKeeper clients executed on the local JVM.|false|
 |disableServerSocketBind|Whether the bookie is allowed to disable bind on network interfaces. This bookie will be available only to BookKeeper clients executed on the local JVM.|false|
@@ -139,8 +135,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 
 |Name|Description|Default|
 |---|---|---|
-|advertisedListeners|Specify multiple advertised listeners for the broker.<br><br>The format is `<listener_name>:pulsar://<host>:<port>`.<br><br>If there are multiple listeners, separate them with commas.<br><br>**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
-|internalListenerName|Specify the internal listener name for the broker.<br><br>**Note**: the listener name must be contained in `advertisedListeners`.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
+|advertisedListeners|Specify multiple advertised listeners for the broker.<br /><br />The format is `<listener_name>:pulsar://<host>:<port>`.<br /><br />If there are multiple listeners, separate them with commas.<br /><br />**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
+|internalListenerName|Specify the internal listener name for the broker.<br /><br />**Note**: the listener name must be contained in `advertisedListeners`.<br /><br /> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
 |enablePersistentTopics|  Whether persistent topics are enabled on the broker |true|
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
@@ -166,9 +162,12 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |bindAddress| Hostname or IP address the service binds on, default is 0.0.0.0.  |0.0.0.0|
 |advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| Name of the cluster to which this broker belongs to ||
+|maxTenants|The maximum number of tenants that can be created in each Pulsar cluster. When the number of tenants reaches the threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
+| maxNamespacesPerTenant | The maximum number of namespaces that can be created in each tenant. When the number of namespaces reaches this threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
 |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false|
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
+|brokerDeduplicationSnapshotIntervalSeconds| The time period after which a deduplication informational snapshot is taken. It runs simultaneously with `brokerDeduplicationEntriesInterval`. |120|
 |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360|
 |dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
 |dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
@@ -183,9 +182,9 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |allowAutoTopicCreationType| The type of topic that is allowed to be automatically created.(partitioned/non-partitioned) |non-partitioned|
 |allowAutoSubscriptionCreation| Enable subscription auto creation if a new consumer connected |true|
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
+|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
-| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. <li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. | `delete_when_no_subscriptions` |
+| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. </li><li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. </li>| `delete_when_no_subscriptions` |
 | brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to see if topics with compaction policies need to be compacted  |60|
@@ -196,6 +195,10 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |clientLibraryVersionCheckAllowUnversioned| Allow client libraries with no version information  |true|
 |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks ||
 |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false|
+| maxSubscriptionsPerTopic | Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxProducersPerTopic | Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerTopic | Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to a subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
 |maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
 |tlsEnabled|Deprecated - Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
@@ -226,24 +229,25 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true|
-|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br/>Setting this configuration to **0** does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
+|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br /><br />Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br />Setting this configuration to **0** does not delete inactive subscriptions automatically. <br /><br /> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br />Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
 |authenticationProviders| Authentication provider name list, which is comma separated list of class names  ||
 | authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60 |
 |authorizationEnabled|  Enforce authorization |false|
-|superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
+|superUserRoles|  Role names that are treated as "super-user", meaning they will be able to do all admin operations and publish/consume from all topics ||
 |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters  ||
 |brokerClientAuthenticationParameters|||
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false|
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
 |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
-|bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
+|bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
@@ -273,12 +277,12 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |managedLedgerCacheEvictionTimeThresholdMillis| All entries that have stayed in cache for more than the configured time, will be evicted | 1000 |
 |managedLedgerCursorBackloggedThreshold| Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive. | 1000|
 |managedLedgerDefaultMarkDeleteRateLimit| Rate limit the amount of writes per second generated by consumer acking the messages  |1.0|
-|managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered on these conditions: <ul><li>Either the max rollover time has been reached</li><li>or the max entries have been written to the ledger and at least min-time has passed</li></ul>|50000|
+|managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered after the min rollover time has passed and one of the following conditions is true: <ul><li>The max rollover time has been reached</li><li>The max entries have been written to the ledger</li><li>The max ledger size has been written to the ledger</li></ul>|50000|
 |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10|
 |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240|
 |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000|
 |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400|
-|managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
+|managedLedgerMaxUnackedRangesToPersist|  Max number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
@@ -286,11 +290,11 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15|
 |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1|
 |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30|
-|loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30|
+|loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more than once within this timeframe |30|
 |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000|
 |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1|
 |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85|
-|loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15|
+|loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quota |15|
 |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65|
 |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false|
 |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
@@ -306,8 +310,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
-|defaultRetentionTimeInMinutes| Default message retention time  |0|
-|defaultRetentionSizeInMB|  Default retention size  |0|
+|defaultRetentionTimeInMinutes| Default message retention time. 0 means retention is disabled. -1 means data is not removed by time quota  |0|
+|defaultRetentionSizeInMB|  Default retention size. 0 means retention is disabled. -1 means data is not removed by size quota  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |bootstrapNamespaces| The bootstrap name. | N/A |
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
@@ -345,7 +349,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 | preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
-|bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set this option. <br><br>Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br><br> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
+|bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set this option. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
 
 ## Client
 
@@ -362,7 +366,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | tlsEnableHostnameVerification | Whether the server hostname must match the common name of the certificate that is used by the server. | false |
 |tlsTrustCertsFilePath|||
 | useKeyStoreTls | Enable TLS with KeyStore type configuration in the broker. | false |
-| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS <li>PKCS12 |JKS|
+| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path. | |
 | tlsTrustStorePassword | TLS TrustStore password. | |
 
@@ -383,7 +387,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authenticationEnabled| Enable authentication |false|
 |authenticationProviders| Authentication provider name list, which is comma separated list of class names (comma-separated) ||
 |authorizationEnabled|  Enforce authorization |false|
-|superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated) ||
+|superUserRoles|  Role names that are treated as "super-user", meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated) ||
 |tlsEnabled|  Enable TLS  |false|
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
 |tlsKeyFilePath|  Path for the TLS private key file ||
@@ -441,7 +445,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
-|webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
+|webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 | numIOThreads | Number of threads to use for Netty IO | 2 * Runtime.getRuntime().availableProcessors() |
@@ -457,7 +461,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. |-1|
 |ttlDurationDefaultInSeconds|  The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
+|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 | maxPendingPublishRequestsPerConnection | Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory | 1000|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|
@@ -465,8 +469,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically | 0 |
 | subscriptionRedeliveryTrackerEnabled | Enable subscription message redelivery tracker to send redelivery count to consumer. | true |
 |subscriptionKeySharedEnable|Whether to enable the Key_Shared subscription.|true|
-| subscriptionKeySharedUseConsistentHashing | In the Key_Shared subscription mode, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers. | false |
-| subscriptionKeySharedConsistentHashingReplicaPoints | In the Key_Shared subscription mode, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers. | 100 |
+| subscriptionKeySharedUseConsistentHashing | In Key_Shared subscription type, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers. | false |
+| subscriptionKeySharedConsistentHashingReplicaPoints | In Key_Shared subscription type, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers. | 100 |
 | subscriptionExpiryCheckIntervalInMinutes | How frequently to proactively check and purge expired subscription |5 |
 | brokerDeduplicationEnabled | Set the default behavior for message deduplication in the broker. This can be overridden per-namespace. If it is enabled, the broker rejects messages that are already stored in the topic. | false |
 | brokerDeduplicationMaxNumberOfProducers | Maximum number of producer information that it's going to be persisted for deduplication purposes | 10000 |
@@ -480,7 +484,6 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |maxUnackedMessagesPerSubscription| The same as above, except per subscription rather than per consumer.  |200000|
 | maxUnackedMessagesPerBroker | Maximum number of unacknowledged messages allowed per broker. Once this limit reaches, the broker stops dispatching messages to all shared subscriptions which has a higher number of unacknowledged messages until subscriptions start acknowledging messages back and unacknowledged messages count reaches to limit/2. When the value is set to 0, unacknowledged message limit check is disabled and broker does not block dispatchers. | 0 |
 | maxUnackedMessagesPerSubscriptionOnBrokerBlocked | Once the broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which have higher unacknowledged messages than this percentage limit and subscription does not receive any new messages until that subscription acknowledges messages back. | 0.16 |
-|maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
 |zookeeperSessionExpiredPolicy|There are two policies when ZooKeeper session expired happens, "shutdown" and "reconnect". If it is set to "shutdown" policy, when ZooKeeper session expired happens, the broker is shutdown. If it is set to "reconnect" policy, the broker tries to reconnect to ZooKeeper server and re-register metadata to ZooKeeper. Note: the "reconnect" policy is an experiment feature.|shutdown|
 | topicPublisherThrottlingTickTimeMillis | Tick time to schedule task that checks topic publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. (Disable publish throttling with value 0) | 10|
 | brokerPublisherThrottlingTickTimeMillis | Tick time to schedule task that checks broker publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled. |50 |
@@ -505,9 +508,10 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | numWorkerThreadsForNonPersistentTopic | Number of worker threads to serve non-persistent topic. | 8 |
 | enablePersistentTopics | Enable broker to load persistent topics. | true |
 | enableNonPersistentTopics | Enable broker to load non-persistent topics. | true |
-| maxProducersPerTopic | Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled. | 0 |
-| maxConsumersPerTopic | Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled. | 0 |
-| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled. | 0 |
+| maxSubscriptionsPerTopic | Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxProducersPerTopic | Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerTopic | Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to a subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
 | maxNumPartitionsPerPartitionedTopic | Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled. | 0 |
 | tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection. | 300 |
 | tlsCertificateFilePath | Path for the TLS certificate file. | |
@@ -519,29 +523,29 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | tlsRequireTrustedClientCertOnConnect | Trusted client certificates are required for to connect TLS. Reject the Connection if the client certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication. | false |
 | tlsEnabledWithKeyStore | Enable TLS with KeyStore type configuration in broker. | false |
 | tlsProvider | TLS Provider for KeyStore type. | |
-| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS <li>PKCS12 |JKS|
+| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsKeyStore | TLS KeyStore path in the broker. | |
 | tlsKeyStorePassword | TLS KeyStore password for the broker. | |
-| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS <li>PKCS12 |JKS|
+| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path in the broker. | |
 | tlsTrustStorePassword | TLS TrustStore password for the broker. | |
 | brokerClientTlsEnabledWithKeyStore | Configure whether the internal client uses the KeyStore type to authenticate with Pulsar brokers. | false |
 | brokerClientSslProvider | The TLS Provider used by the internal client to authenticate with other Pulsar brokers. | |
-| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS <li>PKCS12 | JKS |
+| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS </li><li>PKCS12 </li>| JKS |
 | brokerClientTlsTrustStore | TLS TrustStore path for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsTrustStorePassword | TLS TrustStore password for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsCiphers | Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake. | |
 | brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 | proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
-| authenticateOriginalAuthData | If this flag is set, the broker authenticates the original Auth data. Otherwise, it just accepts the originalPrincipal and authorizes it (if required). | false |
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|
 | authorizationProvider | Authorization provider fully qualified class-name. | org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider |
 | authorizationAllowWildcardsMatching | Allow wildcard matching in authorization. Wildcard matching is applicable only when the wildcard-character (*) presents at the **first** or **last** position. | false |
-|superUserRoles|  Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks. | |
+|superUserRoles|  Role names that are treated as "superusers." Superusers are authorized to perform all admin tasks. | |
 |brokerClientAuthenticationPlugin|  The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters. | |
 |brokerClientAuthenticationParameters|  The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.  | |
 |athenzDomainNames| Supported Athenz authentication provider domain names as a comma-separated list.  | |
@@ -690,18 +694,12 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |forwardAuthorizationCredentials| Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect. |false|
 |zookeeperServers|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
-| brokerServiceURL | The service URL pointing to the broker cluster. | |
-| brokerServiceURLTLS | The TLS service URL pointing to the broker cluster | |
+| brokerServiceURL | The service URL pointing to the broker cluster. Must begin with `pulsar://`. | |
+| brokerServiceURLTLS | The TLS service URL pointing to the broker cluster. Must begin with `pulsar+ssl://`. | |
 | brokerWebServiceURL | The Web service URL pointing to the broker cluster | |
 | brokerWebServiceURLTLS | The TLS Web service URL pointing to the broker cluster | |
 | functionWorkerWebServiceURL | The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
 | functionWorkerWebServiceURLTLS | The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
-|brokerServiceURL|If service discovery is disabled, this url should point to the discovery service provider.|N/A|
-|brokerServiceURLTLS|If service discovery is disabled, this url should point to the discovery service provider.|N/A|
-|brokerWebServiceURL|This settings are unnecessary if `zookeeperServers` is specified.|N/A|
-|brokerWebServiceURLTLS|This settings are unnecessary if `zookeeperServers` is specified.|N/A|
-|functionWorkerWebServiceURL|If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.|N/A|
-|functionWorkerWebServiceURLTLS|If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.|N/A|
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |advertisedAddress|Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.|N/A|
@@ -709,7 +707,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
 |advertisedAddress|Hostname or IP address the service advertises to the outside world.|`InetAddress.getLocalHost().getHostname()`|
-| proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. <li>1: Parse and log any TCP channel information and command information without message body. <li>2: Parse and log channel information, command information and message body.| 0 |
+| proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. </li><li>1: Parse and log any TCP channel information and command information without message body. </li><li>2: Parse and log channel information, command information and message body.</li>| 0 |
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
 |authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
 |authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||
@@ -719,8 +717,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |brokerClientAuthenticationPlugin|  The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientAuthenticationParameters|  The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientTrustCertsFilePath|  The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers ||
-|superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
-|forwardAuthorizationCredentials| Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
+|superUserRoles|  Role names that are treated as "super-users," meaning that they will be able to perform all admin ||
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |50000|
 |tlsEnabledInProxy| Deprecated - use `servicePortTls` and `webServicePortTls` instead. |false|
@@ -741,7 +738,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAuthClaim| Specify the token claim that will be used as the authentication "principal" or "role". The "subject" field will be used if this is left blank ||
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
-| proxyLogLevel | Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged. | 0 |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 
 ## ZooKeeper
@@ -770,9 +766,11 @@ In addition to the parameters in the table above, configuring ZooKeeper for Puls
 a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
 
 ```properties
+
 server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
+
 ```
 
 > We strongly recommend consulting the [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html) for a more thorough and comprehensive introduction to ZooKeeper configuration
