@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -60,7 +60,7 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
         EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
         ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory();
         clientFactory.initialize(pulsar.getConfiguration(), pulsar.getLocalMetadataStore(),
-                bkEnsemble.getZkClient(), pulsar.getBookKeeperClientFactory(), eventLoopGroup);
+                pulsar.getBookKeeperClientFactory(), eventLoopGroup);
         ManagedLedgerFactory mlFactory = clientFactory.getManagedLedgerFactory();
         ManagedLedger ml = mlFactory.open(TopicName.get(topicName).getPersistenceNamingEncoding());
         ml.close();

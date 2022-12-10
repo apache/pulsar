@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,7 +40,7 @@ public class MetadataStoreException extends IOException {
     }
 
     /**
-     * Implementation is invalid
+     * Implementation is invalid.
      */
     public static class InvalidImplementationException extends MetadataStoreException {
         public InvalidImplementationException() {
@@ -180,6 +180,14 @@ public class MetadataStoreException extends IOException {
             return new InvalidImplementationException(msg);
         } else if (cause instanceof LockBusyException) {
             return new LockBusyException(msg);
+        } else {
+            return new MetadataStoreException(t);
+        }
+    }
+
+    public static MetadataStoreException wrap(Throwable t) {
+        if (t instanceof MetadataStoreException) {
+            return (MetadataStoreException) t;
         } else {
             return new MetadataStoreException(t);
         }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,18 @@
  */
 package org.apache.pulsar.io.nsq;
 
+import com.sproutsocial.nsq.Client;
+import com.sproutsocial.nsq.Subscriber;
 import java.io.IOException;
 import java.util.Map;
-
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-
-import com.sproutsocial.nsq.Client;
-import com.sproutsocial.nsq.Subscriber;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

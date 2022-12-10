@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,9 @@
 package org.apache.pulsar.tests.integration.functions;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 /**
@@ -45,6 +41,15 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     public static final String EXCEPTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
+
+    public static final String GENERIC_OBJECT_FUNCTION_JAVA_CLASS =
+            "org.apache.pulsar.tests.integration.functions.GenericObjectFunction";
+
+    public static final String REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS =
+            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldFunction";
+
+    public static final String REMOVE_AVRO_FIELD_RECORD_FUNCTION_JAVA_CLASS =
+        "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction";
 
     public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -38,6 +40,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
@@ -48,71 +51,37 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
+    public List<TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException {
+        return sync(() -> listTransactionCoordinatorsAsync());
+    }
+
+    @Override
+    public CompletableFuture<List<TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync() {
+        WebTarget path = adminV3Transactions.path("coordinators");
+        return asyncGetRequest(path, new FutureCallback<List<TransactionCoordinatorInfo>>(){});
+    }
+
+    @Override
     public CompletableFuture<TransactionCoordinatorStats> getCoordinatorStatsByIdAsync(int coordinatorId) {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
         path = path.queryParam("coordinatorId", coordinatorId);
-        final CompletableFuture<TransactionCoordinatorStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionCoordinatorStats>() {
-                    @Override
-                    public void completed(TransactionCoordinatorStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorStats>(){});
     }
 
     @Override
     public TransactionCoordinatorStats getCoordinatorStatsById(int coordinatorId) throws PulsarAdminException {
-        try {
-            return getCoordinatorStatsByIdAsync(coordinatorId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCoordinatorStatsByIdAsync(coordinatorId));
     }
 
     @Override
     public CompletableFuture<Map<Integer, TransactionCoordinatorStats>> getCoordinatorStatsAsync() {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
-        final CompletableFuture<Map<Integer, TransactionCoordinatorStats>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<Integer, TransactionCoordinatorStats>>() {
-                    @Override
-                    public void completed(Map<Integer, TransactionCoordinatorStats> stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<Integer, TransactionCoordinatorStats>>(){});
     }
 
     @Override
     public Map<Integer, TransactionCoordinatorStats> getCoordinatorStats() throws PulsarAdminException {
-        try {
-            return getCoordinatorStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCoordinatorStatsAsync());
     }
 
     @Override
@@ -122,34 +91,12 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(topicName.getRestPath(false));
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionInBufferStats>() {
-                    @Override
-                    public void completed(TransactionInBufferStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionInBufferStats>(){});
     }
 
     @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID, String topic) throws PulsarAdminException {
-        try {
-            return getTransactionInBufferStatsAsync(txnID, topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionInBufferStatsAsync(txnID, topic));
     }
 
     @Override
@@ -161,36 +108,13 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(subName);
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionInPendingAckStats>() {
-                    @Override
-                    public void completed(TransactionInPendingAckStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionInPendingAckStats>(){});
     }
 
     @Override
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic,
                                                                         String subName) throws PulsarAdminException {
-        try {
-            return getTransactionInPendingAckStatsAsync(txnID, topic, subName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionInPendingAckStatsAsync(txnID, topic, subName));
     }
 
     @Override
@@ -198,104 +122,43 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         WebTarget path = adminV3Transactions.path("transactionMetadata");
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        final CompletableFuture<TransactionMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionMetadata>() {
-                    @Override
-                    public void completed(TransactionMetadata metadata) {
-                        future.complete(metadata);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionMetadata>(){});
     }
 
     @Override
     public TransactionMetadata getTransactionMetadata(TxnID txnID) throws PulsarAdminException {
-        try {
-            return getTransactionMetadataAsync(txnID)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionMetadataAsync(txnID));
     }
 
     @Override
-    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
+    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
+                                                                                    boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
-        final CompletableFuture<TransactionBufferStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionBufferStats>() {
-                    @Override
-                    public void completed(TransactionBufferStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        path = path.queryParam("lowWaterMarks", lowWaterMarks);
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>(){});
     }
 
     @Override
-    public TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
-        try {
-            return getTransactionBufferStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public TransactionBufferStats getTransactionBufferStats(String topic,
+                                                            boolean lowWaterMarks) throws PulsarAdminException {
+        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks));
     }
 
     @Override
-    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName) {
+    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
+                                                                                 boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("pendingAckStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.path(subName);
-        final CompletableFuture<TransactionPendingAckStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionPendingAckStats>() {
-                    @Override
-                    public void completed(TransactionPendingAckStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        path = path.queryParam("lowWaterMarks", lowWaterMarks);
+        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckStats>(){});
     }
 
     @Override
-    public TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException {
-        try {
-            return getPendingAckStatsAsync(topic, subName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public TransactionPendingAckStats getPendingAckStats(String topic, String subName, boolean lowWaterMarks)
+            throws PulsarAdminException {
+        return sync(() -> getPendingAckStatsAsync(topic, subName, lowWaterMarks));
     }
 
     @Override
@@ -306,20 +169,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         if (coordinatorId != null) {
             path = path.queryParam("coordinatorId", coordinatorId);
         }
-        final CompletableFuture<Map<String, TransactionMetadata>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, TransactionMetadata>>() {
-                    @Override
-                    public void completed(Map<String, TransactionMetadata> metadataMap) {
-                        future.complete(metadataMap);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, TransactionMetadata>>(){});
     }
 
     @Override
@@ -327,17 +177,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                                long timeout,
                                                                                TimeUnit timeUnit)
             throws PulsarAdminException {
-        try {
-            return getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit));
     }
 
     @Override
@@ -349,16 +189,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public Map<String, TransactionMetadata> getSlowTransactions(long timeout,
                                                                 TimeUnit timeUnit) throws PulsarAdminException {
-        try {
-            return getSlowTransactionsAsync(timeout, timeUnit).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSlowTransactionsAsync(timeout, timeUnit));
     }
 
     @Override
@@ -367,37 +198,14 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         WebTarget path = adminV3Transactions.path("coordinatorInternalStats");
         path = path.path(coordinatorId + "");
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<TransactionCoordinatorInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionCoordinatorInternalStats>() {
-                    @Override
-                    public void completed(TransactionCoordinatorInternalStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorInternalStats>(){});
     }
 
     @Override
     public TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
                                                                            boolean metadata)
             throws PulsarAdminException {
-        try {
-            return getCoordinatorInternalStatsAsync(coordinatorId, metadata)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCoordinatorInternalStatsAsync(coordinatorId, metadata));
     }
 
     @Override
@@ -409,37 +217,50 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<TransactionPendingAckInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionPendingAckInternalStats>() {
-                    @Override
-                    public void completed(TransactionPendingAckInternalStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckInternalStats>(){});
     }
 
     @Override
     public TransactionPendingAckInternalStats getPendingAckInternalStats(String topic,
                                                                          String subName,
                                                                          boolean metadata) throws PulsarAdminException {
-        try {
-            return getPendingAckInternalStatsAsync(topic, subName, metadata)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
     }
 
+    @Override
+    public void scaleTransactionCoordinators(int replicas) throws PulsarAdminException {
+         sync(() -> scaleTransactionCoordinatorsAsync(replicas));
+    }
+
+    @Override
+    public CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas) {
+        checkArgument(replicas > 0, "Number of transaction coordinators must be more than 0");
+        WebTarget path = adminV3Transactions.path("transactionCoordinator");
+        path = path.path("replicas");
+        return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic,
+                                                                                          String subName,
+                                                                                          Long ledgerId,
+                                                                                          Long entryId,
+                                                                                          Integer batchIndex) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("positionStatsInPendingAck");
+        path = path.path(tn.getRestPath(false));
+        path = path.path(subName);
+        path = path.path(ledgerId.toString());
+        path = path.path(entryId.toString());
+        path = path.queryParam("batchIndex", batchIndex);
+        return asyncGetRequest(path, new FutureCallback<PositionInPendingAckStats>() {});
+    }
+
+
+    @Override
+    public PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId,
+                                                                  Long entryId, Integer batchIndex)
+            throws PulsarAdminException {
+        return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
+    }
 }

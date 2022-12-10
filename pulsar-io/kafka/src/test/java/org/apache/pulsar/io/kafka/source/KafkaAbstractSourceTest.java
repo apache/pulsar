@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.source;
 
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
@@ -38,7 +40,9 @@ import java.util.Properties;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 
@@ -51,10 +55,10 @@ public class KafkaAbstractSourceTest {
         public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
             KafkaRecord record = new KafkaRecord(consumerRecord,
                     new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                    Schema.STRING);
+                    Schema.STRING,
+                    Collections.emptyMap());
             return record;
         }
-
     }
 
     @Test
@@ -99,6 +103,23 @@ public class KafkaAbstractSourceTest {
     }
 
     @Test
+    public void loadConsumerConfigPropertiesFromMapTest() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("consumerConfigProperties", "");
+        KafkaSourceConfig kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertNotNull(kafkaSourceConfig);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+
+        config.put("consumerConfigProperties", null);
+        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+
+        config.put("consumerConfigProperties", ImmutableMap.of("foo", "bar"));
+        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertEquals(kafkaSourceConfig.getConsumerConfigProperties(), ImmutableMap.of("foo", "bar"));
+    }
+
+    @Test
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("kafkaSourceConfig.yaml");
         KafkaSourceConfig config = KafkaSourceConfig.load(yamlFile.getAbsolutePath());
@@ -106,7 +127,7 @@ public class KafkaAbstractSourceTest {
         assertEquals("localhost:6667", config.getBootstrapServers());
         assertEquals("test", config.getTopic());
         assertEquals(Long.parseLong("10000"), config.getSessionTimeoutMs());
-        assertEquals(Boolean.parseBoolean("false"), config.isAutoCommitEnabled());
+        assertFalse(config.isAutoCommitEnabled());
         assertEquals("latest", config.getAutoOffsetReset());
         assertNotNull(config.getConsumerConfigProperties());
         Properties props = new Properties();
@@ -115,6 +136,21 @@ public class KafkaAbstractSourceTest {
         assertEquals("test-pulsar-consumer", props.getProperty("client.id"));
         assertEquals("SASL_PLAINTEXT", props.getProperty("security.protocol"));
         assertEquals("test-pulsar-io", props.getProperty(ConsumerConfig.GROUP_ID_CONFIG));
+    }
+
+    @Test
+    public final void loadFromSaslYamlFileTest() throws IOException {
+        File yamlFile = getFile("kafkaSourceConfigSasl.yaml");
+        KafkaSourceConfig config = KafkaSourceConfig.load(yamlFile.getAbsolutePath());
+        assertNotNull(config);
+        assertEquals(config.getBootstrapServers(), "localhost:6667");
+        assertEquals(config.getTopic(), "test");
+        assertEquals(config.getSecurityProtocol(), SecurityProtocol.SASL_PLAINTEXT.name);
+        assertEquals(config.getSaslMechanism(), "PLAIN");
+        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
+        assertEquals(config.getSslEndpointIdentificationAlgorithm(), "");
+        assertEquals(config.getSslTruststoreLocation(), "/etc/cert.pem");
+        assertEquals(config.getSslTruststorePassword(), "cert_pwd");
     }
 
     private File getFile(String name) {

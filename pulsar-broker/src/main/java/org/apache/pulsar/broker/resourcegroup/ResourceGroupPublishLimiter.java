@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,8 +89,10 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     public void update(ResourceGroup resourceGroup) {
         long publishRateInMsgs = 0, publishRateInBytes = 0;
         if (resourceGroup != null) {
-            publishRateInBytes = resourceGroup.getPublishRateInBytes();
-            publishRateInMsgs = resourceGroup.getPublishRateInMsgs();
+            publishRateInBytes = resourceGroup.getPublishRateInBytes() == null
+                    ? -1 : resourceGroup.getPublishRateInBytes();
+            publishRateInMsgs = resourceGroup.getPublishRateInMsgs() == null
+                    ? -1 : resourceGroup.getPublishRateInMsgs();
         }
 
         update(publishRateInMsgs, publishRateInBytes);

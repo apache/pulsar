@@ -1,7 +1,7 @@
 ---
 id: io-nsq-source
 title: NSQ source connector
-sidebar_label: NSQ source connector
+sidebar_label: "NSQ source connector"
 ---
 
 The NSQ source connector receives messages from NSQ topics 

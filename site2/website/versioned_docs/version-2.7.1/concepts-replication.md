@@ -1,7 +1,7 @@
 ---
-id: version-2.7.1-concepts-replication
+id: concepts-replication
 title: Geo Replication
-sidebar_label: Geo Replication
+sidebar_label: "Geo Replication"
 original_id: concepts-replication
 ---
 

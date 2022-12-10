@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 
@@ -30,12 +29,13 @@ public class PolicyHierarchyValue<T> {
     private static final AtomicReferenceFieldUpdater<PolicyHierarchyValue, Object> VALUE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(PolicyHierarchyValue.class, Object.class, "value");
 
+    @Getter
     private volatile T brokerValue;
 
-    @VisibleForTesting
     @Getter
     private volatile T namespaceValue;
 
+    @Getter
     private volatile T topicValue;
 
     private volatile T value;

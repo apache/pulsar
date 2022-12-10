@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.websocket.admin;
 
-import com.google.common.collect.Maps;
-
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
-
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.RestException;
@@ -94,7 +91,7 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
 
     public Map<String, ProxyTopicStat> getStat() {
 
-        Map<String, ProxyTopicStat> statMap = Maps.newHashMap();
+        Map<String, ProxyTopicStat> statMap = new HashMap<>();
 
         service().getProducers().forEach((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());

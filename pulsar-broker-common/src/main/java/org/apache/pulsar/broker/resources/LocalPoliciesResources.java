@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,8 +33,6 @@ import org.apache.zookeeper.KeeperException;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
-    private static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
-
     public LocalPoliciesResources(MetadataStore localStore, int operationTimeoutSec) {
         super(localStore, LocalPolicies.class, operationTimeoutSec);
     }
@@ -52,7 +50,8 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         return getCache().get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
-    public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>, LocalPolicies> createFunction) throws MetadataStoreException {
+    public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>,
+            LocalPolicies> createFunction) throws MetadataStoreException {
         setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 

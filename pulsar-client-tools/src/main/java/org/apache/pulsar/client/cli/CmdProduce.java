@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,31 +19,26 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonParseException;
-
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Stream;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -89,29 +84,30 @@ public class CmdProduce {
     private List<String> mainOptions;
 
     @Parameter(names = { "-m", "--messages" },
-               description = "Messages to send, either -m or -f must be specified. The default separator is comma",
+               description = "Messages to send, either -m or -f must be specified. Specify -m for each message.",
                splitter = NoSplitter.class)
-    private List<String> messages = Lists.newArrayList();
+    private List<String> messages = new ArrayList<>();
 
     @Parameter(names = { "-f", "--files" },
                description = "Comma separated file paths to send, either -m or -f must be specified.")
-    private List<String> messageFileNames = Lists.newArrayList();
+    private List<String> messageFileNames = new ArrayList<>();
 
     @Parameter(names = { "-n", "--num-produce" },
-               description = "Number of times to send message(s), the count of messages/files * num-produce " +
-                       "should below than " + MAX_MESSAGES + ".")
+               description = "Number of times to send message(s), the count of messages/files * num-produce "
+                       + "should below than " + MAX_MESSAGES + ".")
     private int numTimesProduce = 1;
 
     @Parameter(names = { "-r", "--rate" },
-               description = "Rate (in msg/sec) at which to produce," +
-                       " value 0 means to produce messages as fast as possible.")
+               description = "Rate (in msg/sec) at which to produce,"
+                       + " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
 
     @Parameter(names = { "-db", "--disable-batching" }, description = "Disable batch sending of messages")
     private boolean disableBatching = false;
-    
+
     @Parameter(names = { "-c",
-            "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+            "--chunking" }, description = "Should split the message and publish in chunks if message size is "
+            + "larger than allowed max size")
     private boolean chunkingAllowed = false;
 
     @Parameter(names = { "-s", "--separator" },
@@ -120,7 +116,7 @@ public class CmdProduce {
 
     @Parameter(names = { "-p", "--properties"}, description = "Properties to add, Comma separated "
             + "key=value string, like k1=v1,k2=v2.")
-    private List<String> properties = Lists.newArrayList();
+    private List<String> properties = new ArrayList<>();
 
     @Parameter(names = { "-k", "--key"}, description = "message key to add ")
     private String key;
@@ -131,7 +127,8 @@ public class CmdProduce {
     @Parameter(names = { "-ks", "--key-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
     private String keySchema = "string";
 
-    @Parameter(names = { "-kvet", "--key-value-encoding-type"}, description = "Key Value Encoding Type (it can be separated or inline)")
+    @Parameter(names = { "-kvet", "--key-value-encoding-type"},
+            description = "Key Value Encoding Type (it can be separated or inline)")
     private String keyValueEncodingType = null;
 
     @Parameter(names = { "-ekn", "--encryption-key-name" }, description = "The public key name to encrypt payload")
@@ -141,6 +138,10 @@ public class CmdProduce {
             "--encryption-key-value" }, description = "The URI of public key to encrypt payload, for example "
                     + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue = null;
+
+    @Parameter(names = { "-dr",
+            "--disable-replication" }, description = "Disable geo-replication for messages.")
+    private boolean disableReplication = false;
 
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -203,7 +204,7 @@ public class CmdProduce {
         }
 
         if (messages.size() > 0){
-            messages = Collections.unmodifiableList(Arrays.asList(messages.get(0).split(separator)));
+            messages = messages.stream().map(str -> str.split(separator)).flatMap(Stream::of).toList();
         }
 
         if (messages.size() == 0 && messageFileNames.size() == 0) {
@@ -218,7 +219,8 @@ public class CmdProduce {
                 case KEY_VALUE_ENCODING_TYPE_INLINE:
                     break;
                 default:
-                    throw (new ParameterException("--key-value-encoding-type "+keyValueEncodingType+" is not valid, only 'separated' or 'inline'"));
+                    throw (new ParameterException("--key-value-encoding-type "
+                            + keyValueEncodingType + " is not valid, only 'separated' or 'inline'"));
             }
         }
 
@@ -242,8 +244,7 @@ public class CmdProduce {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        try {
-            PulsarClient client = clientBuilder.build();
+        try (PulsarClient client = clientBuilder.build()){
             Schema<?> schema = buildSchema(this.keySchema, this.valueSchema, this.keyValueEncodingType);
             ProducerBuilder<?> producerBuilder = client.newProducer(schema).topic(topic);
             if (this.chunkingAllowed) {
@@ -256,55 +257,59 @@ public class CmdProduce {
                 producerBuilder.addEncryptionKey(this.encKeyName);
                 producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
             }
-            Producer<?> producer = producerBuilder.create();
+            try (Producer<?> producer = producerBuilder.create();) {
 
-            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
-            RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
+                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+                RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
-            Map<String, String> kvMap = new HashMap<>();
-            for (String property : properties) {
-                String [] kv = property.split("=");
-                kvMap.put(kv[0], kv[1]);
-            }
+                Map<String, String> kvMap = new HashMap<>();
+                for (String property : properties) {
+                    String[] kv = property.split("=");
+                    kvMap.put(kv[0], kv[1]);
+                }
 
-            for (int i = 0; i < this.numTimesProduce; i++) {
-                for (byte[] content : messageBodies) {
-                    if (limiter != null) {
-                        limiter.acquire();
+                for (int i = 0; i < this.numTimesProduce; i++) {
+                    for (byte[] content : messageBodies) {
+                        if (limiter != null) {
+                            limiter.acquire();
+                        }
+
+                        TypedMessageBuilder message = producer.newMessage();
+
+                        if (!kvMap.isEmpty()) {
+                            message.properties(kvMap);
+                        }
+
+                        switch (keyValueEncodingType) {
+                            case KEY_VALUE_ENCODING_TYPE_NOT_SET:
+                                if (key != null && !key.isEmpty()) {
+                                    message.key(key);
+                                }
+                                message.value(content);
+                                break;
+                            case KEY_VALUE_ENCODING_TYPE_SEPARATED:
+                            case KEY_VALUE_ENCODING_TYPE_INLINE:
+                                KeyValue kv = new KeyValue<>(
+                                        // TODO: support AVRO encoded key
+                                        key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
+                                        content);
+                                message.value(kv);
+                                break;
+                            default:
+                                throw new IllegalStateException();
+                        }
+
+                        if (disableReplication) {
+                            message.disableReplication();
+                        }
+
+                        message.send();
+
+
+                        numMessagesSent++;
                     }
-
-                    TypedMessageBuilder message = producer.newMessage();
-
-                    if (!kvMap.isEmpty()) {
-                        message.properties(kvMap);
-                    }
-
-                    switch (keyValueEncodingType) {
-                        case KEY_VALUE_ENCODING_TYPE_NOT_SET:
-                            if (key != null && !key.isEmpty()) {
-                                message.key(key);
-                            }
-                            message.value(content);
-                            break;
-                        case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                        case KEY_VALUE_ENCODING_TYPE_INLINE:
-                            KeyValue kv = new KeyValue<>(
-                                    // TODO: support AVRO encoded key
-                                    key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
-                                    content);
-                            message.value(kv);
-                            break;
-                        default:
-                            throw new IllegalStateException();
-                    }
-
-                    message.send();
-
-
-                    numMessagesSent++;
                 }
             }
-            client.close();
         } catch (Exception e) {
             LOG.error("Error while producing messages");
             LOG.error(e.getMessage(), e);
@@ -321,11 +326,14 @@ public class CmdProduce {
             case KEY_VALUE_ENCODING_TYPE_NOT_SET:
                 return buildComponentSchema(schema);
             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.SEPARATED);
+                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
+                        KeyValueEncodingType.SEPARATED);
             case KEY_VALUE_ENCODING_TYPE_INLINE:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.INLINE);
+                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
+                        KeyValueEncodingType.INLINE);
             default:
-                throw new IllegalArgumentException("Invalid KeyValueEncodingType "+keyValueEncodingType+", only: 'none','separated' and 'inline");
+                throw new IllegalArgumentException("Invalid KeyValueEncodingType "
+                        + keyValueEncodingType + ", only: 'none','separated' and 'inline");
         }
     }
 
@@ -344,7 +352,7 @@ public class CmdProduce {
                 } else if (schema.startsWith("json:")) {
                     base = buildGenericSchema(SchemaType.JSON, schema.substring(5));
                 } else {
-                    throw new IllegalArgumentException("Invalid schema type: "+schema);
+                    throw new IllegalArgumentException("Invalid schema type: " + schema);
                 }
         }
         return Schema.AUTO_PRODUCE_BYTES(base);
@@ -432,7 +440,7 @@ public class CmdProduce {
                     if (limiter != null) {
                         limiter.acquire();
                     }
-                    produceSocket.send(index++, content).get(30,TimeUnit.SECONDS);
+                    produceSocket.send(index++, content).get(30, TimeUnit.SECONDS);
                     numMessagesSent++;
                 }
             }
@@ -494,8 +502,8 @@ public class CmdProduce {
 
         @OnWebSocketMessage
         public synchronized void onMessage(String msg) throws JsonParseException {
-            LOG.info("ack= {}",msg);
-            if(this.result!=null) {
+            LOG.info("ack= {}", msg);
+            if (this.result != null) {
                 this.result.complete(null);
             }
         }

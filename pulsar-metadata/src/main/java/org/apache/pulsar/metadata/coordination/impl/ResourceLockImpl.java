@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,17 +21,17 @@ package org.apache.pulsar.metadata.coordination.impl;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.api.MetadataSerde;
 
 @Slf4j
 public class ResourceLockImpl<T> implements ResourceLock<T> {
@@ -44,6 +44,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private long version;
     private final CompletableFuture<Void> expiredFuture;
     private boolean revalidateAfterReconnection = false;
+    private CompletableFuture<Void> revalidateFuture;
 
     private enum State {
         Init,
@@ -127,7 +128,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 .thenRun(() -> result.complete(null))
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof LockBusyException) {
-                        revalidate(newValue)
+                        revalidate(newValue, false)
                                 .thenAccept(__ -> result.complete(null))
                                 .exceptionally(ex1 -> {
                                    result.completeExceptionally(ex1);
@@ -144,6 +145,9 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     // Simple operation of acquiring the lock with no retries, or checking for the lock content
     private CompletableFuture<Void> acquireWithNoRevalidation(T newValue) {
+        if (log.isDebugEnabled()) {
+            log.debug("acquireWithNoRevalidation,newValue={},version={}", newValue, version);
+        }
         byte[] payload;
         try {
             payload = serde.serialize(path, newValue);
@@ -181,37 +185,65 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         log.info("Lock on resource {} was invalidated", path);
-        revalidate(value)
-                .thenRun(() -> log.info("Successfully revalidated the lock on {}", path))
-                .exceptionally(ex -> {
-                    synchronized (ResourceLockImpl.this) {
-                        if (ex.getCause() instanceof BadVersionException) {
-                            log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
-                            state = State.Released;
-                            expiredFuture.complete(null);
-                        } else {
-                            // We failed to revalidate the lock due to connectivity issue
-                            // Continue assuming we hold the lock, until we can revalidate it, either
-                            // on Reconnected or SessionReestablished events.
-                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
-                                    ex.getCause().getMessage());
-                        }
-                    }
-                    return null;
-                });
+        revalidate(value, true)
+                .thenRun(() -> log.info("Successfully revalidated the lock on {}", path));
     }
 
     synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
-            return revalidate(value);
+            return revalidate(value, true);
         } else {
             return CompletableFuture.completedFuture(null);
         }
     }
 
-    synchronized CompletableFuture<Void> revalidate(T newValue) {
+    synchronized CompletableFuture<Void> revalidate(T newValue, boolean revalidateAfterReconnection) {
+        if (revalidateFuture == null || revalidateFuture.isDone()) {
+            revalidateFuture = doRevalidate(newValue);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Previous revalidating is not finished while revalidate newValue={}, value={}, version={}",
+                        newValue, value, version);
+            }
+            CompletableFuture<Void> newFuture = new CompletableFuture<>();
+            revalidateFuture.whenComplete((unused, throwable) -> {
+                doRevalidate(newValue).thenRun(() -> newFuture.complete(null))
+                        .exceptionally(throwable1 -> {
+                            newFuture.completeExceptionally(throwable1);
+                            return null;
+                        });
+            });
+            revalidateFuture = newFuture;
+        }
+        revalidateFuture.exceptionally(ex -> {
+            synchronized (ResourceLockImpl.this) {
+                Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                if (!revalidateAfterReconnection || realCause instanceof BadVersionException
+                        || realCause instanceof LockBusyException) {
+                    log.warn("Failed to revalidate the lock at {}. Marked as expired. {}",
+                            path, realCause.getMessage());
+                    state = State.Released;
+                    expiredFuture.complete(null);
+                } else {
+                    // We failed to revalidate the lock due to connectivity issue
+                    // Continue assuming we hold the lock, until we can revalidate it, either
+                    // on Reconnected or SessionReestablished events.
+                    ResourceLockImpl.this.revalidateAfterReconnection = true;
+                    log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
+                            realCause.getMessage());
+                }
+            }
+            return null;
+        });
+        return revalidateFuture;
+    }
+
+    private synchronized CompletableFuture<Void> doRevalidate(T newValue) {
+        if (log.isDebugEnabled()) {
+            log.debug("doRevalidate with newValue={}, version={}", newValue, version);
+        }
         return store.get(path)
                 .thenCompose(optGetResult -> {
                     if (!optGetResult.isPresent()) {

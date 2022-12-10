@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import lombok.Data;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -146,18 +147,18 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz) {
-        return store.getMetadataCache(clazz);
+    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
+        return store.getMetadataCache(clazz, cacheConfig);
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef) {
-        return store.getMetadataCache(typeRef);
+    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+        return store.getMetadataCache(typeRef, cacheConfig);
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
-        return store.getMetadataCache(serde);
+    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+        return store.getMetadataCache(serde, cacheConfig);
     }
 
     @Override
@@ -192,13 +193,16 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         if (ex != null) {
             return Optional.of(ex);
         }
-        Optional<Failure> failure = failures.stream()
-                .filter(f -> f.predicate.test(op, path))
-                .findFirst();
-        if (failure.isPresent()) {
-            failures.remove(failure.get());
+        while (true) {
+            Optional<Failure> failure = failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
+            if (failure.isPresent()) {
+                if (failures.remove(failure.get())) {
+                    return failure.map(Failure::getException);
+                }
+                // failure is taken by other threads. Retry.
+            } else {
+                return Optional.empty();
+            }
         }
-
-        return failure.map(Failure::getException);
     }
 }

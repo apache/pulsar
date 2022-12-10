@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class SinksBase extends AdminResource {
 
     Sinks<? extends WorkerService> sinks() {
-        return pulsar().getWorkerService().getSinks();
+        return validateAndGetWorkerService().getSinks();
     }
 
     @POST
@@ -75,7 +75,10 @@ public class SinksBase extends AdminResource {
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(value =
-                                     "A JSON value presenting config payload of a Pulsar Sink."
+                                     "You can submit a sink (in any languages that you are familiar with) "
+                                             + "to a Pulsar cluster. Follow the steps below.\n"
+                                             + "1. Create a JSON object using some of the following parameters.\n"
+                                             + "A JSON value presenting config payload of a Pulsar Sink."
                                              + " All available configuration options are:\n"
                                              + "- **classname**\n"
                                              + "   The class name of a Pulsar Sink if"
@@ -136,19 +139,32 @@ public class SinksBase extends AdminResource {
                                              + "   Boolean denotes whether the subscriptions the functions"
                                              + " created/used should be deleted when the functions is deleted\n"
                                              + "- **runtimeFlags**\n"
-                                             + "   Any flags that you want to pass to the runtime as a single string\n",
+                                             + "   Any flags that you want to pass to the runtime as a single string\n"
+                                             + "2. Encapsulate the JSON object to a multipart object.",
                                      examples = @Example(
-                                             value = @ExampleProperty(
-                                                     mediaType = MediaType.APPLICATION_JSON,
-                                                     value = "{\n"
-                                                             + "\t\"classname\": \"org.example.MySinkTest\",\n"
-                                                             + "\t\"inputs\": ["
-                                                             + "\"persistent://public/default/sink-input\"],\n"
-                                                             + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                             + "\t\"parallelism\": 10\n"
-                                                             + "}"
-                                             )
-                                 )
+                                             value = {
+                                                 @ExampleProperty(
+                                                     mediaType = MediaType.TEXT_PLAIN,
+                                                     value = """
+                                                             Example
+                                                             1. Create a JSON object.
+                                                              {
+                                                               "classname": "org.example.MySinkTest",
+                                                               "inputs": ["persistent://public/default/sink-input"],
+                                                               "processingGuarantees": "EFFECTIVELY_ONCE",
+                                                               "parallelism": "10"
+                                                              }
+                                                             2. Encapsulate the JSON object to a multipart object \
+                                                             (in Python).
+                                                             from requests_toolbelt.multipart.encoder import \
+                                                             MultipartEncoder
+                                                             mp_encoder = MultipartEncoder(\
+                                                              [('sinkConfig',\
+                                                             (None, json.dumps(config), 'application/json'))])
+                                                             """
+                                                  )
+                                            }
+                                    )
                              )
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
         sinks().registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
@@ -240,13 +256,14 @@ public class SinksBase extends AdminResource {
                                    examples = @Example(
                                            value = @ExampleProperty(
                                                    mediaType = MediaType.APPLICATION_JSON,
-                                                   value = "{\n"
-                                                           + "\t\"classname\": \"org.example.SinkStressTest\",\n"
-                                                           + "\t\"inputs\": ["
-                                                           + "\"persistent://public/default/sink-input\"],\n"
-                                                           + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                           + "\t\"parallelism\": 5\n"
-                                                           + "}"
+                                                   value = """
+                                                           {
+                                                           "classname": "org.example.SinkStressTest",
+                                                           "inputs": ["persistent://public/default/sink-input"],
+                                                           "processingGuarantees": "EFFECTIVELY_ONCE",
+                                                           "parallelism": 5
+                                                           }
+                                                           """
                                            )
                                )
                            )

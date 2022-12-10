@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -463,6 +463,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * TopicMigration exception thrown by Pulsar client.
+     */
+    public static class TopicMigrationException extends PulsarClientException {
+        /**
+         * Constructs an {@code TopicMigrationException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public TopicMigrationException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Producer fenced exception thrown by Pulsar client.
      */
     public static class ProducerFencedException extends PulsarClientException {
@@ -910,6 +926,23 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    public static class TransactionHasOperationFailedException extends PulsarClientException {
+        /**
+         * Constructs an {@code TransactionHasOperationFailedException}.
+         */
+        public TransactionHasOperationFailedException() {
+            super("Now allowed to commit the transaction due to failed operations of producing or acknowledgment");
+        }
+
+        /**
+         * Constructs an {@code TransactionHasOperationFailedException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public TransactionHasOperationFailedException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -972,6 +1005,8 @@ public class PulsarClientException extends IOException {
             return new MessageAcknowledgeException(msg);
         } else if (t instanceof TransactionConflictException) {
             return new TransactionConflictException(msg);
+        } else if (t instanceof  TransactionHasOperationFailedException) {
+            return new TransactionHasOperationFailedException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -1003,7 +1038,7 @@ public class PulsarClientException extends IOException {
         // site
         Throwable cause = t.getCause();
         String msg = cause.getMessage();
-        PulsarClientException newException = null;
+        PulsarClientException newException;
         if (cause instanceof TimeoutException) {
             newException = new TimeoutException(msg);
         } else if (cause instanceof InvalidConfigurationException) {
@@ -1070,6 +1105,8 @@ public class PulsarClientException extends IOException {
             newException = new MemoryBufferIsFullError(msg);
         } else if (cause instanceof NotFoundException) {
             newException = new NotFoundException(msg);
+        } else if (cause instanceof TransactionHasOperationFailedException) {
+            newException = new TransactionHasOperationFailedException(msg);
         } else {
             newException = new PulsarClientException(t);
         }
@@ -1085,7 +1122,7 @@ public class PulsarClientException extends IOException {
         Throwable e = t;
         for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
             if (e instanceof PulsarClientException) {
-                Collection<Throwable> previous = ((PulsarClientException)e).getPreviousExceptions();
+                Collection<Throwable> previous = ((PulsarClientException) e).getPreviousExceptions();
                 if (previous != null) {
                     return previous;
                 }
@@ -1099,7 +1136,7 @@ public class PulsarClientException extends IOException {
         Throwable e = t;
         for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
             if (e instanceof PulsarClientException) {
-                ((PulsarClientException)e).setPreviousExceptions(previous);
+                ((PulsarClientException) e).setPreviousExceptions(previous);
                 return;
             }
             e = t.getCause();
@@ -1133,7 +1170,8 @@ public class PulsarClientException extends IOException {
                 || t instanceof MessageAcknowledgeException
                 || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
-                || t instanceof ConsumerBusyException) {
+                || t instanceof ConsumerBusyException
+                || t instanceof TransactionHasOperationFailedException) {
             return false;
         }
         return true;

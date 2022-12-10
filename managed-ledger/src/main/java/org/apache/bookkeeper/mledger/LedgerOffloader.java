@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -77,12 +77,12 @@ public interface LedgerOffloader {
         CompletableFuture<OffloadResult> getOffloadResultAsync();
 
         /**
-         * Manually close current offloading segment
+         * Manually close current offloading segment.
          * @return true if the segment is not already closed
          */
         boolean close();
 
-        default CompletableFuture<Boolean> AsyncClose() {
+        default CompletableFuture<Boolean> asyncClose() {
             return CompletableFuture.completedFuture(close());
         }
     }
@@ -90,6 +90,7 @@ public interface LedgerOffloader {
     // TODO: improve the user metadata in subsequent changes
     String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
     String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
+    String METADATA_PULSAR_CLUSTER_NAME = "pulsarClusterName";
 
     /**
      * Get offload driver name.
@@ -158,7 +159,8 @@ public interface LedgerOffloader {
      * ensuring that subsequent calls will not attempt to offload the same ledger
      * again.
      *
-     * @return an OffloaderHandle, which when `completeFuture()` completed, denotes that the offload has been successful.
+     * @return an OffloaderHandle, which when `completeFuture()` completed, denotes that the offload has been
+     * successful.
      */
     default CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uid, long beginLedger,
                                                               long beginEntry,
@@ -201,21 +203,32 @@ public interface LedgerOffloader {
         throw new UnsupportedOperationException();
     }
 
-    default CompletableFuture<Void> deleteOffloaded(UUID uid,
-                                                    Map<String, String> offloadDriverMetadata) {
+    default CompletableFuture<Void> deleteOffloaded(UUID uid, Map<String, String> offloadDriverMetadata) {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * Get offload policies of this LedgerOffloader
+     * Get offload policies of this LedgerOffloader.
      *
      * @return offload policies
      */
     OffloadPoliciesImpl getOffloadPolicies();
 
     /**
-     * Close the resources if necessary
+     * Close the resources if necessary.
      */
     void close();
+
+    /**
+     * Scans all the ManagedLedgers stored on this Offloader (usually a Bucket).
+     * The callback should not modify/delete the ledgers.
+     * @param consumer receives the
+     * @param offloadDriverMetadata additional metadata
+     * @throws ManagedLedgerException
+     */
+    default void scanLedgers(OffloadedLedgerMetadataConsumer consumer,
+                             Map<String, String> offloadDriverMetadata) throws ManagedLedgerException {
+        throw ManagedLedgerException.getManagedLedgerException(new UnsupportedOperationException());
+    }
 }
 

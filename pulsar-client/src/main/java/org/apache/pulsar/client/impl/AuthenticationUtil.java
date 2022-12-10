@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,14 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -46,9 +43,14 @@ public class AuthenticationUtil {
         if (isNotBlank(authParamsString)) {
             String[] params = authParamsString.split(",");
             for (String p : params) {
-                String[] kv = p.split(":");
-                if (kv.length == 2) {
-                    authParams.put(kv[0], kv[1]);
+                // The value could be a file path, which could contain a colon like "C:\\path\\to\\file" on Windows.
+                int index = p.indexOf(':');
+                if (index < 0) {
+                    continue;
+                }
+                String key = p.substring(0, index);
+                if (!key.isEmpty()) {
+                    authParams.put(key, p.substring(index + 1));
                 }
             }
         }
@@ -56,7 +58,7 @@ public class AuthenticationUtil {
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the Authentication-Plugin.
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
@@ -89,7 +91,7 @@ public class AuthenticationUtil {
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the Authentication-Plugin.
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use

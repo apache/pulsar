@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,18 +20,18 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -53,6 +53,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -78,8 +79,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         prepareData();
     }
@@ -283,7 +282,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(new HashSet<>(), Set.of("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);
@@ -308,9 +307,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 .setMax(1000, TimeUnit.MILLISECONDS)
                 .create();
         try {
-            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
+            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
         } catch (Exception e) {
-            assertTrue(e.getCause().getCause() instanceof TopicPoliciesCacheNotInitException);
+            assertTrue(e.getCause() instanceof TopicPoliciesCacheNotInitException);
         }
         long cost = System.currentTimeMillis() - start;
         assertTrue("actual:" + cost, cost >= 5000 - 1000);
@@ -330,9 +329,10 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         SystemTopicClient.Reader<PulsarEvent> reader = mock(SystemTopicClient.Reader.class);
         // Throw an exception first, create successfully after retrying
-        doThrow(new PulsarClientException("test")).doReturn(reader).when(client).newReader();
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
+                .doReturn(CompletableFuture.completedFuture(reader)).when(client).newReaderAsync();
 
-        SystemTopicClient.Reader<PulsarEvent> reader1 = service.creatSystemTopicClientWithRetry(null).get();
+        SystemTopicClient.Reader<PulsarEvent> reader1 = service.createSystemTopicClientWithRetry(null).get();
 
         assertEquals(reader1, reader);
     }
@@ -365,7 +365,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             }
         }, 2000, TimeUnit.MILLISECONDS);
         Awaitility.await().untilAsserted(() -> {
-            Optional<TopicPolicies> topicPolicies = systemTopicBasedTopicPoliciesService.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
+            Optional<TopicPolicies> topicPolicies = systemTopicBasedTopicPoliciesService
+                    .getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
             Assert.assertTrue(topicPolicies.isPresent());
             if (topicPolicies.isPresent()) {
                 Assert.assertEquals(topicPolicies.get(), initPolicy);

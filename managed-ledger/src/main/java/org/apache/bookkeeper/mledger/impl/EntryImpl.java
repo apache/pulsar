@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,17 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ComparisonChain;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
-
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 
-public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>, ReferenceCounted {
+public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>,
+        ReferenceCounted {
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -45,6 +43,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long ledgerId;
     private long entryId;
     ByteBuf data;
+
+    private Runnable onDeallocate;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
@@ -104,6 +104,22 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         this.recyclerHandle = recyclerHandle;
     }
 
+    public void onDeallocate(Runnable r) {
+        if (this.onDeallocate == null) {
+            this.onDeallocate = r;
+        } else {
+            // this is not expected to happen
+            Runnable previous = this.onDeallocate;
+            this.onDeallocate = () -> {
+                try {
+                    previous.run();
+                } finally {
+                    r.run();
+                }
+            };
+        }
+    }
+
     public long getTimestamp() {
         return timestamp;
     }
@@ -150,7 +166,15 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public int compareTo(EntryImpl other) {
-        return ComparisonChain.start().compare(ledgerId, other.ledgerId).compare(entryId, other.entryId).result();
+        if (this.ledgerId != other.ledgerId) {
+            return this.ledgerId < other.ledgerId ? -1 : 1;
+        }
+
+        if (this.entryId != other.entryId) {
+            return this.entryId < other.entryId ? -1 : 1;
+        }
+
+        return 0;
     }
 
     @Override
@@ -161,6 +185,13 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     @Override
     protected void deallocate() {
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
+        if (onDeallocate != null) {
+            try {
+                onDeallocate.run();
+            } finally {
+                onDeallocate = null;
+            }
+        }
         data.release();
         data = null;
         timestamp = -1;

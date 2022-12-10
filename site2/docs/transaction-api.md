@@ -1,7 +1,7 @@
 ---
 id: transactions-api
 title: Transactions API
-sidebar_label: Transactions API
+sidebar_label: "Transactions API"
 ---
 
 All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back. 
@@ -9,13 +9,13 @@ All messages in a transaction are available only to consumers after the transact
 ## Prerequisites
 1. To enable transactions in Pulsar, you need to configure the parameter in `broker.conf` file or `standalone.conf` file.
 
-```
+```conf
 transactionCoordinatorEnabled=true
 ```
 
 2. Initialize transaction coordinator metadata, so the transaction coordinators can leverage advantages of the partitioned topic, such as load balance.
 
-```
+```shell
 bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
 ```
 
@@ -23,9 +23,9 @@ After initializing transaction coordinator metadata, you can use the transaction
 
 ## Initialize Pulsar client 
 
-You can enable transaction for transaction client and initialize transaction coordinator client.
+You can enable transactions for transaction clients and initialize transaction coordinator clients.
 
-```
+```java
 PulsarClient pulsarClient = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .enableTransaction(true)
@@ -33,9 +33,9 @@ PulsarClient pulsarClient = PulsarClient.builder()
 ```
 
 ## Start transactions
-You can start transaction in the following way.
+You can start transactions in the following way.
 
-```
+```java
 Transaction txn = pulsarClient
         .newTransaction()
         .withTransactionTimeout(5, TimeUnit.MINUTES)
@@ -47,13 +47,13 @@ Transaction txn = pulsarClient
 
 A transaction parameter is required when producing new transaction messages. The semantic of the transaction messages in Pulsar is `read-committed`, so the consumer cannot receive the ongoing transaction messages before the transaction is committed.
 
-```
+```java
 producer.newMessage(txn).value("Hello Pulsar Transaction".getBytes()).sendAsync();
 ```
 
 ## Acknowledge the messages with the transaction
 
-The transaction acknowledgement requires a transaction parameter. The transaction acknowledgement marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unack state.
+The transaction acknowledgment requires a transaction parameter. The transaction acknowledgment marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unacknowledged state.
 
 ```
 Message<byte[]> message = consumer.receive();
@@ -64,22 +64,22 @@ consumer.acknowledgeAsync(message.getMessageId(), txn);
 
 When the transaction is committed, consumers receive the transaction messages and the pending-ack state becomes ack state.
 
-```
+```java
 txn.commit().get();
 ```
 
 ## Abort transaction
 
-When the transaction is aborted, the transaction acknowledgement is canceled and the pending-ack messages are redelivered.
+When the transaction is aborted, the transaction acknowledgment is canceled and the pending-ack messages are redelivered.
 
-```
+```java
 txn.abort().get();
 ```
 
 ### Example
-The following example shows how messages are processed in transaction.
- 
-```
+The following example shows how messages are processed in transactions.
+
+```java
 PulsarClient pulsarClient = PulsarClient.builder()
         .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
         .statsInterval(0, TimeUnit.SECONDS)
@@ -115,7 +115,7 @@ Transaction txn = pulsarClient
         .build()
         .get();
 
-// source message acknowledgement and sink message produce belong to one transaction,
+// source message acknowledgment and sink message produce belong to one transaction,
 // they are combined into an atomic operation.
 Message<String> message = sourceConsumer.receive();
 sourceConsumer.acknowledgeAsync(message.getMessageId(), txn);
@@ -126,23 +126,24 @@ txn.commit().get();
 
 ## Enable batch messages in transactions
 
-To enable batch messages in transactions, you need to enable the batch index acknowledgement feature. The transaction acks check whether the batch index acknowledgement conflicts.
+To enable batch messages in transactions, you need to enable the batch index acknowledgment feature. The transaction acks check whether the batch index acknowledgment conflicts.
 
-To enable batch index acknowledgement, you need to set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+To enable batch index acknowledgment, you need to set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
-```
+```conf
 acknowledgmentAtBatchIndexLevelEnabled=true
 ```
 
 And then you need to call the `enableBatchIndexAcknowledgment(true)` method in the consumer builder.
 
-```
+```java
 Consumer<byte[]> sinkConsumer = pulsarClient
         .newConsumer()
         .topic(transferTopic)
         .subscriptionName("sink-topic")
         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
         .subscriptionType(SubscriptionType.Shared)
-        .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
+        .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgment
         .subscribe();
 ```
+

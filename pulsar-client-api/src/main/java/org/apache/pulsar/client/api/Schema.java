@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,10 +28,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.Optional;
-
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -47,7 +46,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Schema<T> extends Cloneable{
+public interface Schema<T> extends Cloneable {
 
     /**
      * Check if the message is a valid object for this schema.
@@ -119,6 +118,20 @@ public interface Schema<T> extends Cloneable{
     default T decode(byte[] bytes, byte[] schemaVersion) {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(bytes);
+    }
+
+    /**
+     * Decode a ByteBuffer into an object using a given version. <br/>
+     *
+     * @param data
+     *            the ByteBuffer to decode
+     * @return the deserialized object
+     */
+    default T decode(ByteBuffer data) {
+        if (data == null) {
+            return null;
+        }
+        return decode(getBytes(data));
     }
 
     /**
@@ -271,7 +284,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation().newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
 
     /**
@@ -291,7 +305,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation().newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
 
     /**
@@ -312,7 +327,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation().newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
 
     /**
@@ -332,7 +348,8 @@ public interface Schema<T> extends Cloneable{
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation().newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return DefaultImplementation.getDefaultImplementation()
+                .newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
 
     /**
@@ -367,10 +384,12 @@ public interface Schema<T> extends Cloneable{
     }
 
     /**
-     * Key Value Schema using passed in key and value schemas.
+     * Key Value Schema using passed in key and value schemas with {@link KeyValueEncodingType#INLINE} encoding type.
+     *
+     * @see Schema#KeyValue(Schema, Schema, KeyValueEncodingType)
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
-        return DefaultImplementation.getDefaultImplementation().newKeyValueSchema(key, value);
+        return KeyValue(key, value, KeyValueEncodingType.INLINE);
     }
 
     /**
@@ -428,7 +447,7 @@ public interface Schema<T> extends Cloneable{
 
     /**
      * Create a schema instance that accepts a serialized Avro payload
-     * without validating it against the schema specified. 
+     * without validating it against the schema specified.
      * It can be useful when migrating data from existing event or message stores.
      *
      * @return the auto schema instance

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -90,7 +90,8 @@ public class Person {
         protected String city;
 
         public Address(io.codearte.jfairy.producer.person.Address address) {
-            this(address.getStreet(), address.getStreetNumber(), address.getApartmentNumber(), address.getPostalCode(), address.getCity());
+            this(address.getStreet(), address.getStreetNumber(), address.getApartmentNumber(),
+                    address.getPostalCode(), address.getCity());
         }
     }
 }

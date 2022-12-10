@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,8 @@ public class ClusterReplicationMetrics {
     public ClusterReplicationMetrics(String localCluster, boolean metricsEnabled) {
         metricsList = new ArrayList<>();
         this.localCluster = localCluster;
-        metricsMap = new ConcurrentOpenHashMap<>();
+        metricsMap = ConcurrentOpenHashMap.<String, ReplicationMetrics>newBuilder()
+                .build();
         this.metricsEnabled = metricsEnabled;
     }
 

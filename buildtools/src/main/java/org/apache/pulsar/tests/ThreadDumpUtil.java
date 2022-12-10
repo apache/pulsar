@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.tests;
 
-import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.LockInfo;
@@ -27,21 +25,18 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import javax.management.JMException;
 import javax.management.ObjectName;
 
 /**
- * Adapted from Hadoop TimedOutTestsListener
+ * Adapted from Hadoop TimedOutTestsListener.
  *
  * https://raw.githubusercontent.com/apache/hadoop/master/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/test/TimedOutTestsListener.java
  */
 public class ThreadDumpUtil {
-    static final String TEST_TIMED_OUT_PREFIX = "test timed out after";
-
     private static final String INDENT = "    ";
 
     public static String buildThreadDiagnosticString() {
@@ -70,9 +65,7 @@ public class ThreadDumpUtil {
         // fallback to using JMX for creating the thread dump
         StringBuilder dump = new StringBuilder();
 
-        DateFormat dateFormat = new SimpleDateFormat(
-            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
-        dump.append(String.format("Timestamp: %s", dateFormat.format(new Date())));
+        dump.append(String.format("Timestamp: %s", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDateTime.now())));
         dump.append("\n\n");
 
         Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
@@ -109,7 +102,7 @@ public class ThreadDumpUtil {
 
     static String buildDeadlockInfo() {
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-        long[] threadIds = threadBean.findMonitorDeadlockedThreads();
+        long[] threadIds = threadBean.findDeadlockedThreads();
         if (threadIds != null && threadIds.length > 0) {
             StringWriter stringWriter = new StringWriter();
             PrintWriter out = new PrintWriter(stringWriter);

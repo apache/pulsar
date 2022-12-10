@@ -1,7 +1,7 @@
 ---
-id: version-2.6.3-admin-api-overview
+id: admin-api-overview
 title: The Pulsar admin interface
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: admin-api-overview
 ---
 
@@ -15,7 +15,9 @@ You can currently interact with the admin interface via:
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone.md):
 
 ```shell
+
 $ bin/pulsar-admin
+
 ```
 
 Full documentation for this tool can be found in the [Pulsar command-line tools](reference-pulsar-admin.md) doc.
@@ -54,6 +56,7 @@ You can find documentation for the REST API exposed by Pulsar [brokers](referenc
 To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, specifying a URL for a Pulsar [broker](reference-terminology.md#broker) and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. Here's a minimal example using `localhost`:
 
 ```java
+
 String url = "http://localhost:8080";
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
@@ -68,10 +71,13 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
+
 ```
 
 If you have multiple brokers to use, you can use multi-host like Pulsar service. For example,
+
 ```java
+
 String url = "http://localhost:8080,localhost:8081,localhost:8082";
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
@@ -86,4 +92,6 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
+
 ```
+

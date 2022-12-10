@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import java.io.IOException;
@@ -24,7 +23,6 @@ import java.security.Principal;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.regex.Pattern;
-
 import javax.naming.AuthenticationException;
 import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
@@ -35,11 +33,9 @@ import javax.security.sasl.AuthorizeCallback;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
-
 
 /**
  * Server side Sasl implementation.

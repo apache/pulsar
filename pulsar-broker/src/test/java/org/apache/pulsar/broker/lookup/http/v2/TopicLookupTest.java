@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.lookup.http.v2;
 
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.lookup.v2.TopicLookup;
 import org.apache.pulsar.broker.web.PulsarWebResourceTest;
@@ -26,7 +25,7 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
-
+import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
@@ -42,7 +41,7 @@ public class TopicLookupTest extends PulsarWebResourceTest {
 
     @Override
     protected ResourceConfig configure() {
-        resource = spy(new TestableTopicLookup());
+        resource = spy(TestableTopicLookup.class);
         return new ResourceConfig().register(resource);
     }
 
@@ -66,14 +65,14 @@ public class TopicLookupTest extends PulsarWebResourceTest {
         assertEquals(resource.actualListenerName, "query");
     }
 
-    private static class TestableTopicLookup extends TopicLookup {
+    public static class TestableTopicLookup extends TopicLookup {
         private String actualListenerName;
 
         @Override
-        protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative, AsyncResponse asyncResponse,
-                String listenerName) {
+        protected CompletableFuture<LookupData> internalLookupTopicAsync(TopicName topicName, boolean authoritative,
+                                                                         String listenerName) {
             this.actualListenerName = listenerName;
-            asyncResponse.resume(new LookupData());
+            return CompletableFuture.completedFuture(new LookupData());
         }
     }
 }

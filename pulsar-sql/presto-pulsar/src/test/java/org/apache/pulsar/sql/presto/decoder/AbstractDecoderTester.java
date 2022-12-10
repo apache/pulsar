@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,18 @@
 package org.apache.pulsar.sql.presto.decoder;
 
 import io.airlift.slice.Slice;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.connector.ConnectorContext;
-import io.prestosql.spi.type.Type;
-import io.prestosql.testing.TestingConnectorContext;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.block.Block;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.type.Type;
+import io.trino.testing.TestingConnectorContext;
+import java.math.BigDecimal;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.sql.presto.PulsarAuth;
 import org.apache.pulsar.sql.presto.PulsarColumnHandle;
 import org.apache.pulsar.sql.presto.PulsarColumnMetadata;
 import org.apache.pulsar.sql.presto.PulsarConnectorConfig;
@@ -62,11 +64,12 @@ public abstract class AbstractDecoderTester {
     protected void init() {
         ConnectorContext prestoConnectorContext = new TestingConnectorContext();
         this.decoderFactory = new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
-        this.pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        this.pulsarConnectorConfig = spy(PulsarConnectorConfig.class);
         this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
-        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, decoderFactory);
+        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, decoderFactory,
+                new PulsarAuth(this.pulsarConnectorConfig));
         this.topicName = TopicName.get("persistent", NamespaceName.get("tenant-1", "ns-1"), "topic-1");
     }
 
@@ -99,6 +102,10 @@ public abstract class AbstractDecoderTester {
     }
 
     protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, boolean value) {
+        decoderTestUtil.checkValue(decodedRow, handle, value);
+    }
+
+    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.concurrent.atomic.AtomicLong;
-
 import javax.naming.AuthenticationException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -39,16 +34,17 @@ public class SaslAuthenticationState implements AuthenticationState {
     private final long stateId;
     private static final AtomicLong stateIdGenerator = new AtomicLong(0L);
     private final SaslAuthenticationDataSource authenticationDataSource;
+    private PulsarSaslServer pulsarSaslServer;
 
-    public SaslAuthenticationState(AuthenticationDataSource authenticationDataSource) {
+    public SaslAuthenticationState(PulsarSaslServer server) {
         stateId = stateIdGenerator.incrementAndGet();
-        checkArgument(authenticationDataSource instanceof SaslAuthenticationDataSource);
-        this.authenticationDataSource = (SaslAuthenticationDataSource)authenticationDataSource;
+        this.authenticationDataSource = new SaslAuthenticationDataSource(server);
+        this.pulsarSaslServer = server;
     }
 
     @Override
     public String getAuthRole() {
-        return authenticationDataSource.getAuthorizationID();
+        return pulsarSaslServer.getAuthorizationID();
     }
 
     @Override
@@ -58,7 +54,7 @@ public class SaslAuthenticationState implements AuthenticationState {
 
     @Override
     public boolean isComplete() {
-        return authenticationDataSource.isComplete();
+        return pulsarSaslServer.isComplete();
     }
 
     /**
@@ -67,7 +63,7 @@ public class SaslAuthenticationState implements AuthenticationState {
      */
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
-        return authenticationDataSource.authenticate(authData);
+        return pulsarSaslServer.response(authData);
     }
 
     @Override

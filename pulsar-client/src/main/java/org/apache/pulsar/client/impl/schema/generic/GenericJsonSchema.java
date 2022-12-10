@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,7 +51,8 @@ public class GenericJsonSchema extends GenericSchemaImpl {
     }
 
     public Schema<GenericRecord> clone() {
-        Schema<GenericRecord> schema = of(this.schemaInfo, ((AbstractMultiVersionGenericReader)this.reader).useProvidedSchemaAsReaderSchema);
+        Schema<GenericRecord> schema = of(this.schemaInfo,
+                ((AbstractMultiVersionGenericReader) this.reader).useProvidedSchemaAsReaderSchema);
         if (this.schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(this.schemaInfoProvider);
         }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
         WorkerConfig wc = super.createWorkerConfig(config);
         wc.setStateStorageProviderImplementation(PulsarMetadataStateStoreProviderImpl.class.getName());
-        wc.setStateStorageServiceUrl("memory://local");
+        wc.setStateStorageServiceUrl("memory:local");
         return wc;
     }
 

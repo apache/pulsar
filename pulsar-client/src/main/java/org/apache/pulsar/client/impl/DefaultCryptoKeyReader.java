@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.util.Map;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -30,13 +29,13 @@ import org.apache.pulsar.client.api.url.URL;
 import org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
- 
+
 public class DefaultCryptoKeyReader implements CryptoKeyReader {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultCryptoKeyReader.class);
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
- 
+
     private String defaultPublicKey;
     private String defaultPrivateKey;
 
@@ -46,14 +45,14 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
     public static DefaultCryptoKeyReaderBuilder builder() {
         return new DefaultCryptoKeyReaderBuilder();
     }
- 
+
     DefaultCryptoKeyReader(DefaultCryptoKeyReaderConfigurationData conf) {
         this.defaultPublicKey = conf.getDefaultPublicKey();
         this.defaultPrivateKey = conf.getDefaultPrivateKey();
         this.publicKeys = conf.getPublicKeys();
         this.privateKeys = conf.getPrivateKeys();
     }
- 
+
     @Override
     public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata) {
         EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
@@ -71,7 +70,7 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
 
         return keyInfo;
     }
- 
+
     @Override
     public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata) {
         EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
@@ -93,12 +92,16 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
     private byte[] loadKey(String keyUrl) throws IOException, IllegalAccessException, InstantiationException {
         try {
             URLConnection urlConnection = new URL(keyUrl).openConnection();
-            String protocol = urlConnection.getURL().getProtocol();
-            if ("data".equals(protocol) && !APPLICATION_X_PEM_FILE.equals(urlConnection.getContentType())) {
-                throw new IllegalArgumentException(
-                        "Unsupported media type or encoding format: " + urlConnection.getContentType());
+            try {
+                String protocol = urlConnection.getURL().getProtocol();
+                if ("data".equals(protocol) && !APPLICATION_X_PEM_FILE.equals(urlConnection.getContentType())) {
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
+                }
+                return IOUtils.toByteArray(urlConnection);
+            } finally {
+                IOUtils.close(urlConnection);
             }
-            return IOUtils.toByteArray(urlConnection);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid key format");
         }

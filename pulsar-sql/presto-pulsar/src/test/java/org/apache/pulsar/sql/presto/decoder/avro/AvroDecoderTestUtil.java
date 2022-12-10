@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto.decoder.avro;
 
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.type.*;
+import io.trino.spi.block.Block;
+import io.trino.spi.type.*;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
-import static io.prestosql.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.String.format;
 import static org.testng.Assert.*;
 

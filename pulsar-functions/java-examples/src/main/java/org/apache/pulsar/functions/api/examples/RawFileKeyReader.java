@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,21 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.api.examples;
-
-import lombok.Data;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
+import lombok.Data;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 
 /**
  * Example function that provide a constructor with map<string, object> argument
- * to initialize the CryptoKeyReader class used by pulsar function
+ * to initialize the CryptoKeyReader class used by pulsar function.
  */
 @Data
 public class RawFileKeyReader implements CryptoKeyReader {

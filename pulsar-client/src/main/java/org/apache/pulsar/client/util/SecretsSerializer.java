@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,9 @@ import java.io.IOException;
 public class SecretsSerializer extends JsonSerializer<Object> {
 
     @Override
-    public void serialize(final Object value, final JsonGenerator jsonGenerator, final SerializerProvider serializerProvider)
-            throws IOException {
+    public void serialize(final Object value,
+                          final JsonGenerator jsonGenerator,
+                          final SerializerProvider serializerProvider) throws IOException {
         if (value == null) {
             serializerProvider.defaultSerializeNull(jsonGenerator);
             return;

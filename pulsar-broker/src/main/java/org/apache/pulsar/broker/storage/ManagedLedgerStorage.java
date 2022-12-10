@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,8 +27,8 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.zookeeper.ZooKeeper;
 
 /**
  * Storage to access {@link org.apache.bookkeeper.mledger.ManagedLedger}s.
@@ -41,13 +41,11 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * Initialize the managed ledger storage.
      *
      * @param conf service config
-     * @param zkClient zk client
      * @param bookkeeperProvider bookkeeper provider
      * @throws Exception
      */
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
-                    ZooKeeper zkClient,
                     BookKeeperClientFactory bookkeeperProvider,
                     EventLoopGroup eventLoopGroup) throws Exception;
 
@@ -83,18 +81,17 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * Initialize the {@link ManagedLedgerStorage} from the provided resources.
      *
      * @param conf service config
-     * @param zkClient zookeeper client
      * @param bkProvider bookkeeper client provider
      * @return the initialized managed ledger storage.
      */
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
-                                       ZooKeeper zkClient,
                                        BookKeeperClientFactory bkProvider,
                                        EventLoopGroup eventLoopGroup) throws Exception {
-        final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
-        final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
-        storage.initialize(conf, metadataStore, zkClient, bkProvider, eventLoopGroup);
+        ManagedLedgerStorage storage =
+                Reflections.createInstance(conf.getManagedLedgerStorageClassName(), ManagedLedgerStorage.class,
+                        Thread.currentThread().getContextClassLoader());
+        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
         return storage;
     }
 

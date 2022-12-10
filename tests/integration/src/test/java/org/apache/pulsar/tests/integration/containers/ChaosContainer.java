@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.LogContainerCmd;
-import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.core.command.LogContainerResultCallback;
+
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
@@ -110,7 +106,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
             return false;
         }
 
-        ChaosContainer another = (ChaosContainer) o;
+        ChaosContainer<?> another = (ChaosContainer<?>) o;
         return clusterName.equals(another.clusterName)
             && super.equals(another);
     }

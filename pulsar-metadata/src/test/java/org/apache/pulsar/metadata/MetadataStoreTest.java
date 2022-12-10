@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,16 +23,23 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -44,8 +51,10 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.assertj.core.util.Lists;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
@@ -72,8 +81,29 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             store.delete("/non-existing-key", Optional.of(1L)).join();
             fail("Should have failed");
         } catch (CompletionException e) {
-            assertException(e, NotFoundException.class);
+            assertTrue(NotFoundException.class.isInstance(e.getCause()) || BadVersionException.class.isInstance(
+                    e.getCause()));
         }
+    }
+
+    @Test(dataProvider = "impl")
+    public void concurrentPutTest(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String data = "data";
+        String path = "/non-existing-key";
+        int concurrent = 50;
+        List<CompletableFuture<Stat>> futureList = new ArrayList<>();
+        for (int i = 0; i < concurrent; i++) {
+            futureList.add(store.put(path, data.getBytes(), Optional.empty()).exceptionally(ex -> {
+                fail("fail to execute concurrent put", ex);
+                return null;
+            }));
+        }
+        FutureUtil.waitForAll(futureList).join();
+
+        assertEquals(store.get(path).join().get().getValue(), data.getBytes());
     }
 
     @Test(dataProvider = "impl")
@@ -380,4 +410,123 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertFalse(store.exists(prefix).join());
     }
 
+    @Test(dataProvider = "impl")
+    public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
+        String metadataUrl = urlSupplier.get();
+        MetadataStore store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
+        byte[] data = "testPersistent".getBytes(StandardCharsets.UTF_8);
+
+        String key = newKey() + "/a/b/c";
+        store.put(key, data, Optional.of(-1L)).join();
+        store.close();
+
+        store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
+        Optional<GetResult> result = store.get(key).get();
+        assertTrue(result.isPresent());
+        assertEquals(result.get().getValue(), data);
+        store.close();
+    }
+
+    @Test(dataProvider = "impl")
+    public void testConcurrentPutGetOneKey(String provider, Supplier<String> urlSupplier) throws Exception {
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        byte[] data = new byte[]{0};
+        String path = newKey();
+        int maxValue = 100;
+        store.put(path, data, Optional.of(-1L)).join();
+
+        AtomicInteger successWrites = new AtomicInteger(0);
+        Runnable task = new Runnable() {
+            @SneakyThrows
+            @Override
+            public void run() {
+                byte value;
+                while (true) {
+                    GetResult readResult = store.get(path).get().get();
+                    value = (byte) (readResult.getValue()[0] + 1);
+                    if (value <= maxValue) {
+                        CompletableFuture<Void> putResult =
+                                store.put(path, new byte[]{value}, Optional.of(readResult.getStat().getVersion()))
+                                        .thenRun(successWrites::incrementAndGet);
+                        try {
+                            putResult.get();
+                        } catch (Exception ignore) {
+                        }
+                        log.info("Put value {} success:{}. ", value, !putResult.isCompletedExceptionally());
+                    } else {
+                        break;
+                    }
+                }
+            }
+        };
+        CompletableFuture<Void> t1 = CompletableFuture.completedFuture(null).thenRunAsync(task);
+        CompletableFuture<Void> t2 = CompletableFuture.completedFuture(null).thenRunAsync(task);
+        task.run();
+        t1.join();
+        t2.join();
+        assertFalse(t1.isCompletedExceptionally());
+        assertFalse(t2.isCompletedExceptionally());
+
+        assertEquals(successWrites.get(), maxValue);
+        assertEquals(store.get(path).get().get().getValue()[0], maxValue);
+    }
+
+    @Test(dataProvider = "impl")
+    public void testConcurrentPut(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String k = newKey();
+        CompletableFuture<Void> f1 =
+                CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
+        CompletableFuture<Void> f2 =
+                CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
+        Awaitility.await().until(() -> f1.isDone() && f2.isDone());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testConcurrentDelete(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String k = newKey();
+        store.put(k, new byte[0], Optional.of(-1L)).join();
+        CompletableFuture<Void> f1 =
+                CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
+        CompletableFuture<Void> f2 =
+                CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
+        Awaitility.await().until(() -> f1.isDone() && f2.isDone());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        List<String> subPaths = store.getChildren("/").get();
+        Set<String> expectedSet = "ZooKeeper".equals(provider) ? Set.of("a", "b", "zookeeper") : Set.of("a", "b");
+        for (String subPath : subPaths) {
+            assertTrue(expectedSet.contains(subPath));
+        }
+
+        List<String> subPaths2 = store.getChildren("/a").get();
+        Set<String> expectedSet2 = Set.of("a-1", "a-2");
+        for (String subPath : subPaths2) {
+            assertTrue(expectedSet2.contains(subPath));
+        }
+
+        List<String> subPaths3 = store.getChildren("/b").get();
+        Set<String> expectedSet3 = Set.of("c");
+        for (String subPath : subPaths3) {
+            assertTrue(expectedSet3.contains(subPath));
+        }
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -233,7 +233,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         v.put("b", "2");
         objCache.create(key1, v).join();
 
-        assertEquals(objCache.getIfCached(key1), Optional.of(v));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(v), Optional.empty());
         assertEquals(objCache.get(key1).join(), Optional.of(v));
 
         objCache.delete(key1).join();
@@ -264,12 +264,12 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
             assertEquals(e.getCause().getClass(), AlreadyExistsException.class);
         }
 
-        assertEquals(objCache.getIfCached(key1), Optional.of(value1));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
 
         assertEquals(objCache.readModifyUpdateOrCreate(key1, __ -> value2).join(), value2);
         assertEquals(objCache.get(key1).join(), Optional.of(value2));
-        assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value2), Optional.empty());
 
         objCache.delete(key1).join();
 
@@ -320,17 +320,18 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
 
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
-        assertEquals(objCache.getIfCached(key1), Optional.of(value1));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
     }
 
     @Test(dataProvider = "impl")
-    public void insertionOutsideCacheWithGenericType(String provider, Supplier<String> urlSupplier) throws Exception {
+    public void updateOutsideCacheWithGenericType(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         MetadataCache<Map<String, String>> objCache = store.getMetadataCache(new TypeReference<Map<String, String>>() {
         });
 
         String key1 = newKey();
+        objCache.get(key1);
 
         Map<String, String> v = new TreeMap<>();
         v.put("a", "1");
@@ -490,15 +491,21 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         MyClass value1 = new MyClass("a", 1);
         objCache1.create(key1, value1).join();
-        objCache1.get(key1).join();
+        assertEquals(objCache1.get(key1).join().get().b, 1);
 
-        objCache2.readModifyUpdate(key1, v -> {
+        CompletableFuture<MyClass> future1 = objCache1.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
-        }).join();
+        });
 
-        objCache1.readModifyUpdate(key1, v -> {
+        CompletableFuture<MyClass> future2 = objCache2.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
-        }).join();
+        });
+
+        MyClass myClass1 = future1.join();
+        assertEquals(myClass1.b, 2);
+
+        MyClass myClass2 = future2.join();
+        assertEquals(myClass2.b, 3);
     }
 
     @Test(dataProvider = "impl")

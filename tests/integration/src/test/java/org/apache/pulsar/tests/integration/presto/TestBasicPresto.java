@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,7 +97,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     }
 
     @Test(dataProvider = "schemaProvider")
-    public void testForSchema(Schema schema) throws Exception {
+    public void testForSchema(Schema<?> schema) throws Exception {
         String schemaFlag;
         if (schema.getSchemaInfo().getType().isStruct()) {
             schemaFlag = schema.getSchemaInfo().getType().name();
@@ -156,11 +156,12 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         assertFalse(result.getStdout().contains("non_persistent"));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
 
         if (schema.getSchemaInfo().getName().equals(Schema.BYTES.getSchemaInfo().getName())) {
@@ -171,11 +172,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             prepareDataForStringSchema(topicName, isBatch, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.JSON)
                 || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
-            prepareDataForStructSchema(topicName, isBatch, schema, compressionType);
+            prepareDataForStructSchema(topicName, isBatch, (Schema<Stock>) schema, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.PROTOBUF_NATIVE)) {
-            prepareDataForProtobufNativeSchema(topicName, isBatch, schema, compressionType);
+            prepareDataForProtobufNativeSchema(topicName, isBatch, (Schema<StockProtoMessage.Stock>) schema, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
-            prepareDataForKeyValueSchema(topicName, schema, compressionType);
+            prepareDataForKeyValueSchema(topicName, (Schema<KeyValue<Stock, Stock>>) schema, compressionType);
         }
 
         return NUM_OF_STOCKS;
@@ -241,7 +242,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 .create();
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
-            final Stock stock = new Stock(i,"STOCK_" + i , 100.0 + i * 10);
+            final Stock stock = new Stock(i, "STOCK_" + i, 100.0 + i * 10);
             producer.send(stock);
         }
         producer.flush();
@@ -277,14 +278,14 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
             int j = 100 * i;
-            final Stock stock1 = new Stock(j, "STOCK_" + j , 100.0 + j * 10);
-            final Stock stock2 = new Stock(i, "STOCK_" + i , 100.0 + i * 10);
+            final Stock stock1 = new Stock(j, "STOCK_" + j, 100.0 + j * 10);
+            final Stock stock2 = new Stock(i, "STOCK_" + i, 100.0 + i * 10);
             producer.send(new KeyValue<>(stock1, stock2));
         }
     }
 
     @Override
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) {
         switch (schema.getSchemaInfo().getType()) {
             case BYTES:
                 log.info("Skip validate content for BYTES schema type.");

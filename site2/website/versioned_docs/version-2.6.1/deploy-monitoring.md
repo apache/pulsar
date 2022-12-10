@@ -1,7 +1,7 @@
 ---
-id: version-2.6.1-deploy-monitoring
+id: deploy-monitoring
 title: Monitoring
-sidebar_label: Monitoring
+sidebar_label: "Monitoring"
 original_id: deploy-monitoring
 ---
 
@@ -18,13 +18,17 @@ You can collect Pulsar broker metrics from brokers and export the metrics in JSO
 * *Destination dumps*, which contain stats for each individual topic. You can fetch the destination dumps using the command below:
 
   ```shell
+  
   bin/pulsar-admin broker-stats destinations
+  
   ```
 
 * Broker metrics, which contain the broker information and topics stats aggregated at namespace level. You can fetch the broker metrics using the command below:
 
   ```shell
+  
   bin/pulsar-admin broker-stats monitoring-metrics
+  
   ```
 
 All the message rates are updated every 1min.
@@ -32,7 +36,9 @@ All the message rates are updated every 1min.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
-http://$BROKER_ADDRESS:8080/metrics
+
+http://$BROKER_ADDRESS:8080/metrics/
+
 ```
 
 ### ZooKeeper stats
@@ -40,8 +46,10 @@ http://$BROKER_ADDRESS:8080/metrics
 The local Zookeeper and configuration store server and clients that are shipped with Pulsar have been instrumented to expose detailed stats through Prometheus as well.
 
 ```shell
+
 http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
+
 ```
 
 The default port of local ZooKeeper is `8000` and the default port of configuration store is `8001`. You can change the default port of local Zookeeper and configuration store by specifying system property `stats_server_port`.
@@ -54,7 +62,9 @@ For BookKeeper you can configure the stats frameworks by changing the `statsProv
 The default BookKeeper configuration, which is included with Pulsar distribution, enables the Prometheus exporter.
 
 ```shell
+
 http://$BOOKIE_ADDRESS:8000/metrics
+
 ```
 
 The default port for bookie is `8000` (instead of `8080`). You can change the port by configuring `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
@@ -84,7 +94,10 @@ When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled
 Enter the command below to use the dashboard manually:
 
 ```shell
+
 docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
         apachepulsar/pulsar-grafana:latest
+
 ```
+

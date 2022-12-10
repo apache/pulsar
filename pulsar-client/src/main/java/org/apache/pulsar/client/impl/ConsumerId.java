@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
+import java.util.Objects;
 
 public class ConsumerId implements Comparable<ConsumerId> {
     private final String topic;
@@ -40,14 +40,14 @@ public class ConsumerId implements Comparable<ConsumerId> {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(topic, subscription);
+        return Objects.hash(topic, subscription);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ConsumerId) {
             ConsumerId other = (ConsumerId) obj;
-            return Objects.equal(this.topic, other.topic) && Objects.equal(this.subscription, other.subscription);
+            return Objects.equals(this.topic, other.topic) && Objects.equals(this.subscription, other.subscription);
         }
 
         return false;

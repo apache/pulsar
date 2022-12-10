@@ -19,6 +19,7 @@
 syntax = "proto3";
 package proto;
 
+import public "google/protobuf/timestamp.proto";
 
 option java_package = "org.apache.pulsar.sql.presto.decoder.protobufnative";
 option java_outer_classname = "TestMsg";
@@ -58,4 +59,5 @@ message TestMessage {
     SubMessage subMessage = 17;
     repeated string repeatedField = 18;
     map<string, double> mapField = 19;
+    google.protobuf.Timestamp timestampField = 20;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
@@ -32,6 +31,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
 /**
  * Pulsar client authentication provider based on OAuth 2.0.

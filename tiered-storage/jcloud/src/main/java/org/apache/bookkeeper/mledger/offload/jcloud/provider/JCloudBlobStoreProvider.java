@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorag
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_SECRET_FIELD;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
@@ -33,21 +32,18 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Properties;
 import java.util.UUID;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.BlobStoreBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.ConfigValidation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.CredentialBuilder;
-
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.jclouds.ShadedJCloudsUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -119,8 +115,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         public void buildCredentials(TieredStorageConfiguration config) {
             if (config.getCredentials() == null) {
                 try {
-                    String gcsKeyContent = Files.toString(
-                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)), Charset.defaultCharset());
+                    String gcsKeyContent = Files.asCharSource(
+                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)),
+                            Charset.defaultCharset()).read();
                     config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
                     log.error("Cannot read GCS service account credentials file: {}",
@@ -140,6 +137,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
             ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+            ShadedJCloudsUtils.addStandardModules(contextBuilder);
             contextBuilder.overrides(config.getOverrides());
 
             if (config.getProviderCredentials() != null) {
@@ -172,23 +170,40 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
 
     /**
-     * Aliyun OSS is compatible with the S3 API
+     * Aliyun OSS is compatible with the S3 API.
      * https://www.alibabacloud.com/help/doc-detail/64919.htm
      */
     ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
-            ALIYUN_OSS_VALIDATION.validate(config);
+            S3_VALIDATION.validate(config);
         }
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-            return ALIYUN_OSS_BLOB_STORE_BUILDER.getBlobStore(config);
+            return S3_BLOB_STORE_BUILDER.getBlobStore(config);
         }
 
         @Override
         public void buildCredentials(TieredStorageConfiguration config) {
-            ALIYUN_OSS_CREDENTIAL_BUILDER.buildCredentials(config);
+            S3_CREDENTIAL_BUILDER.buildCredentials(config);
+        }
+    },
+
+    S3("S3", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
+        @Override
+        public BlobStore getBlobStore(TieredStorageConfiguration config) {
+            return S3_BLOB_STORE_BUILDER.getBlobStore(config);
+        }
+
+        @Override
+        public void buildCredentials(TieredStorageConfiguration config) {
+            S3_CREDENTIAL_BUILDER.buildCredentials(config);
+        }
+
+        @Override
+        public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
+            S3_VALIDATION.validate(config);
         }
     },
 
@@ -204,8 +219,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
 
-            ContextBuilder builder =  ContextBuilder.newBuilder("transient");
-            BlobStoreContext ctx = builder
+            ContextBuilder contextBuilder =  ContextBuilder.newBuilder("transient");
+            ShadedJCloudsUtils.addStandardModules(contextBuilder);
+            BlobStoreContext ctx = contextBuilder
                     .buildView(BlobStoreContext.class);
 
             BlobStore bs = ctx.getBlobStore();
@@ -241,7 +257,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         return null;
     }
 
-    public static final boolean driverSupported(String driverName) {
+    public static boolean driverSupported(String driverName) {
         for (JCloudBlobStoreProvider provider: JCloudBlobStoreProvider.values()) {
             if (provider.getDriver().equalsIgnoreCase(driverName)) {
                 return true;
@@ -287,6 +303,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final BlobStoreBuilder BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        ShadedJCloudsUtils.addStandardModules(contextBuilder);
         contextBuilder.overrides(config.getOverrides());
 
         if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
@@ -369,11 +386,14 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     };
 
-    static final BlobStoreBuilder ALIYUN_OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
+    static final BlobStoreBuilder S3_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        ShadedJCloudsUtils.addStandardModules(contextBuilder);
         Properties overrides = config.getOverrides();
-        // For security reasons, OSS supports only virtual hosted style access.
-        overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
+        if (ALIYUN_OSS.getDriver().equals(config.getDriver())) {
+            // For security reasons, OSS supports only virtual hosted style access.
+            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
+        }
         contextBuilder.overrides(overrides);
         contextBuilder.endpoint(config.getServiceEndpoint());
 
@@ -390,7 +410,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     };
 
-    static final ConfigValidation ALIYUN_OSS_VALIDATION = (TieredStorageConfiguration config) -> {
+    static final ConfigValidation S3_VALIDATION = (TieredStorageConfiguration config) -> {
         if (Strings.isNullOrEmpty(config.getServiceEndpoint())) {
             throw new IllegalArgumentException(
                     "ServiceEndpoint must specified for " + config.getDriver() + " offload");
@@ -408,14 +428,21 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         }
     };
 
-    static final CredentialBuilder ALIYUN_OSS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
-        String accountName = System.getenv("ALIYUN_OSS_ACCESS_KEY_ID");
-        if (StringUtils.isEmpty(accountName)) {
-            throw new IllegalArgumentException("Couldn't get the aliyun oss access key id.");
+    static final CredentialBuilder S3_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        String accountName = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
+        // For forward compatibility
+        if (StringUtils.isEmpty(accountName.trim())) {
+            accountName = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_ID", "");
         }
-        String accountKey = System.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET");
-        if (StringUtils.isEmpty(accountKey)) {
-            throw new IllegalArgumentException("Couldn't get the aliyun oss access key secret.");
+        if (StringUtils.isEmpty(accountName.trim())) {
+            throw new IllegalArgumentException("Couldn't get the access key id.");
+        }
+        String accountKey = System.getenv().getOrDefault("ACCESS_KEY_SECRET", "");
+        if (StringUtils.isEmpty(accountKey.trim())) {
+            accountKey = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_SECRET", "");
+        }
+        if (StringUtils.isEmpty(accountKey.trim())) {
+            throw new IllegalArgumentException("Couldn't get the access key secret.");
         }
         Credentials credentials = new Credentials(
                 accountName, accountKey);

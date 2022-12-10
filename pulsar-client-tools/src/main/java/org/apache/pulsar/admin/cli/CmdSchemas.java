@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -79,10 +78,16 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "whether to delete schema completely. If true, delete "
+                + "all resources (including metastore and ledger), otherwise only do a mark deletion"
+                + " and not remove any resources indeed")
+        private boolean force = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getAdmin().schemas().deleteSchema(topic);
+            getAdmin().schemas().deleteSchema(topic, force);
         }
     }
 
@@ -116,13 +121,12 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
         private String className;
 
-        @Parameter(names = { "--always-allow-null" }, arity = 1,
+        @Parameter(names = {"-a", "--always-allow-null"}, arity = 1,
                    description = "set schema whether always allow null or not")
         private boolean alwaysAllowNull = true;
 
         @Parameter(names = { "-n", "--dry-run"},
-                   description = "dost not apply to schema registry, " +
-                                 "just prints the post schema payload")
+                   description = "dost not apply to schema registry, just prints the post schema payload")
         private boolean dryRun = false;
 
         @Override
@@ -145,9 +149,8 @@ public class CmdSchemas extends CmdBase {
             } else if (type.equalsIgnoreCase("json")){
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
-            }
-            else {
-                throw new Exception("Unknown schema type specified as type");
+            } else {
+                throw new ParameterException("Invalid schema type " + type + ". Valid options are: avro, json");
             }
             input.setProperties(schemaDefinition.getProperties());
             if (dryRun) {

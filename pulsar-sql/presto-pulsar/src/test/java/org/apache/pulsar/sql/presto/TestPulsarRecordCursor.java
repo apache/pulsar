@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,12 @@ package org.apache.pulsar.sql.presto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.spi.predicate.TupleDomain;
-import io.prestosql.spi.type.RowType;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
+import java.math.BigDecimal;
 import lombok.Data;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -40,7 +44,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.raw.RawMessage;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
@@ -67,11 +70,11 @@ import java.util.Map;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -142,6 +145,17 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         }else if (fooColumnHandles.get(i).getName().equals("field7")) {
                             assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), fooFunctions.get("field7").apply(count).toString().getBytes());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        }else if (fooColumnHandles.get(i).getName().equals("decimal")) {
+                            Type type = fooColumnHandles.get(i).getType();
+                            // In JsonDecoder, decimal trans to varcharType
+                            if (type instanceof VarcharType) {
+                                assertEquals(new String(pulsarRecordCursor.getSlice(i).getBytes()),
+                                        fooFunctions.get("decimal").apply(count).toString());
+                            } else {
+                                DecimalType decimalType = (DecimalType) fooColumnHandles.get(i).getType();
+                                assertEquals(BigDecimal.valueOf(pulsarRecordCursor.getLong(i), decimalType.getScale()), fooFunctions.get("decimal").apply(count));
+                            }
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else {
                             if (PulsarInternalColumn.getInternalFieldsMap().containsKey(fooColumnHandles.get(i).getName())) {
@@ -446,7 +460,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         PulsarAdmin pulsarAdmin = Mockito.mock(PulsarAdmin.class);
         Schemas schemas = Mockito.mock(Schemas.class);
         Mockito.when(pulsarAdmin.schemas()).thenReturn(schemas);
-        PulsarConnectorConfig connectorConfig = spy(new PulsarConnectorConfig());
+        PulsarConnectorConfig connectorConfig = spy(PulsarConnectorConfig.class);
         Mockito.when(connectorConfig.getPulsarAdmin()).thenReturn(pulsarAdmin);
         PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
                 new ArrayList<>(), pulsarSplit, connectorConfig, Mockito.mock(ManagedLedgerFactory.class),

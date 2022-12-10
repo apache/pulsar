@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,10 @@ package org.apache.pulsar.metadata.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 
@@ -138,9 +136,35 @@ public interface MetadataStore extends AutoCloseable {
      * @param <T>
      * @param clazz
      *            the class type to be used for serialization/deserialization
+     * @param cacheConfig
+     *          the cache configuration to be used
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(Class<T> clazz);
+    <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig);
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param clazz
+     *            the class type to be used for serialization/deserialization
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(Class<T> clazz) {
+        return getMetadataCache(clazz, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache specialized for a specific class.
+     *
+     * @param <T>
+     * @param typeRef
+     *            the type ref description to be used for serialization/deserialization
+     * @param cacheConfig
+     *          the cache configuration to be used
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig);
 
     /**
      * Create a metadata cache specialized for a specific class.
@@ -150,7 +174,21 @@ public interface MetadataStore extends AutoCloseable {
      *            the type ref description to be used for serialization/deserialization
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef);
+    default <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef) {
+        return getMetadataCache(typeRef, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @param cacheConfig
+     *          the cache configuration to be used
+     * @return the metadata cache object
+     */
+    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig);
 
     /**
      * Create a metadata cache that uses a particular serde object.
@@ -160,5 +198,16 @@ public interface MetadataStore extends AutoCloseable {
      *            the custom serialization/deserialization object
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde);
+    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
+        return getMetadataCache(serde, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Returns the default metadata cache config.
+     *
+     * @return default metadata cache config
+     */
+    default MetadataCacheConfig getDefaultMetadataCacheConfig() {
+        return MetadataCacheConfig.builder().build();
+    }
 }

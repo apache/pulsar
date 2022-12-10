@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.bookkeeper.client;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,7 +30,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-
+import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
@@ -61,6 +60,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     final byte[] passwd;
     final ReadHandle readHandle;
     long lastEntry = -1;
+    @VisibleForTesting
+    @Getter
     boolean fenced = false;
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
@@ -78,23 +79,23 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncClose(CloseCallback cb, Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                fenced = true;
+            fenced = true;
 
-                Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
-                Versioned<LedgerMetadata> newMetadata = new Versioned<>(
-                        LedgerMetadataBuilder.from(current.getValue())
-                        .withClosedState().withLastEntryId(getLastAddConfirmed())
-                        .withLength(getLength()).build(),
-                        new LongVersion(((LongVersion)current.getVersion()).getLongVersion() + 1));
-                setLedgerMetadata(current, newMetadata);
-                return FutureUtils.value(null);
-            }, bk.executor).whenCompleteAsync((res, exception) -> {
-                    if (exception != null) {
-                        cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
-                    } else {
-                        cb.closeComplete(BKException.Code.OK, this, ctx);
-                    }
-                }, bk.executor);
+            Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
+            Versioned<LedgerMetadata> newMetadata = new Versioned<>(
+                    LedgerMetadataBuilder.from(current.getValue())
+                            .withClosedState().withLastEntryId(getLastAddConfirmed())
+                            .withLength(getLength()).build(),
+                    new LongVersion(((LongVersion) current.getVersion()).getLongVersion() + 1));
+            setLedgerMetadata(current, newMetadata);
+            return FutureUtils.value(null);
+        }, bk.executor).whenCompleteAsync((res, exception) -> {
+            if (exception != null) {
+                cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
+            } else {
+                cb.closeComplete(BKException.Code.OK, this, ctx);
+            }
+        }, bk.executor);
     }
 
     @Override
@@ -128,7 +129,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                 return FutureUtils.value(entries);
             }).whenCompleteAsync((res, exception) -> {
                     if (exception != null) {
-                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception), PulsarMockLedgerHandle.this, null, ctx);
+                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
+                                PulsarMockLedgerHandle.this, null, ctx);
                     } else {
                         cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
                     }

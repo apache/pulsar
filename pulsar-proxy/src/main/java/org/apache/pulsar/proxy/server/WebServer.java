@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,12 +31,12 @@ import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
-import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
-import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -51,6 +51,7 @@ import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -76,20 +77,26 @@ public class WebServer {
     private ServerConnector connector;
     private ServerConnector connectorTls;
 
-    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) throws IOException {
-        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
+    private final FilterInitializer filterInitializer;
+
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
+        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web",
+                config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(webServiceExecutor);
+        if (config.getMaxHttpServerConnections() > 0) {
+            server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
+        }
         this.authenticationService = authenticationService;
         this.config = config;
 
         List<ServerConnector> connectors = new ArrayList<>();
 
-        HttpConfiguration http_config = new HttpConfiguration();
-        http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
             connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
@@ -98,8 +105,8 @@ public class WebServer {
             try {
                 SslContextFactory sslCtxFactory;
                 if (config.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
-                            config.getTlsProvider(),
+                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
+                            config.getWebServiceTlsProvider(),
                             config.getTlsKeyStoreType(),
                             config.getTlsKeyStore(),
                             config.getTlsKeyStorePassword(),
@@ -108,19 +115,23 @@ public class WebServer {
                             config.getTlsTrustStore(),
                             config.getTlsTrustStorePassword(),
                             config.isTlsRequireTrustedClientCertOnConnect(),
+                            config.getWebServiceTlsCiphers(),
+                            config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec()
                     );
                 } else {
-                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
+                            config.getWebServiceTlsProvider(),
                             config.isTlsAllowInsecureConnection(),
                             config.getTlsTrustCertsFilePath(),
                             config.getTlsCertificateFilePath(),
                             config.getTlsKeyFilePath(),
                             config.isTlsRequireTrustedClientCertOnConnect(),
-                            true,
+                            config.getWebServiceTlsCiphers(),
+                            config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                connectorTls = new ServerConnector(server, 1, 1, sslCtxFactory);
+                connectorTls = new ServerConnector(server, sslCtxFactory);
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
@@ -130,12 +141,48 @@ public class WebServer {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.stream().forEach(c -> c.setAcceptQueueSize(1024 / connectors.size()));
+        connectors.stream().forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
+
+        filterInitializer = new FilterInitializer(config, authenticationService);
     }
 
     public URI getServiceUri() {
         return serviceURI;
+    }
+
+    private static class FilterInitializer {
+        private final List<FilterHolder> filterHolders = new ArrayList<>();
+        private final FilterHolder authenticationFilterHolder;
+
+        FilterInitializer(ProxyConfiguration config, AuthenticationService authenticationService) {
+            if (config.getMaxConcurrentHttpRequests() > 0) {
+                FilterHolder filterHolder = new FilterHolder(QoSFilter.class);
+                filterHolder.setInitParameter("maxRequests", String.valueOf(config.getMaxConcurrentHttpRequests()));
+                filterHolders.add(filterHolder);
+            }
+
+            if (config.isHttpRequestsLimitEnabled()) {
+                filterHolders.add(new FilterHolder(
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+            }
+
+            if (config.isAuthenticationEnabled()) {
+                authenticationFilterHolder = new FilterHolder(new AuthenticationFilter(authenticationService));
+                filterHolders.add(authenticationFilterHolder);
+            } else {
+                authenticationFilterHolder = null;
+            }
+        }
+
+        public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
+            for (FilterHolder filterHolder : filterHolders) {
+                if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
+                    context.addFilter(filterHolder,
+                            MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                }
+            }
+        }
     }
 
     public void addServlet(String basePath, ServletHolder servletHolder) {
@@ -146,7 +193,8 @@ public class WebServer {
         addServlet(basePath, servletHolder, attributes, true);
     }
 
-    public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+    public void addServlet(String basePath, ServletHolder servletHolder,
+                           List<Pair<String, Object>> attributes, boolean requireAuthentication) {
         Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
         if (existingPath.isPresent()) {
             throw new IllegalArgumentException(
@@ -156,32 +204,25 @@ public class WebServer {
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
-        context.addServlet(servletHolder, "/*");
+        context.addServlet(servletHolder, MATCH_ALL);
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
-        if (config.isAuthenticationEnabled() && requireAuthentication) {
-            FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
-            context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-        }
 
-        if (config.isHttpRequestsLimitEnabled()) {
-            context.addFilter(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())), MATCH_ALL,
-                    EnumSet.allOf(DispatcherType.class));
-        }
+        filterInitializer.addFilters(context, requireAuthentication);
 
         handlers.add(context);
     }
 
-    public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
+    public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
         ResourceConfig config = new ResourceConfig();
-        config.packages("jersey.config.server.provider.packages", javaPackages);
+        config.register(resourceClass);
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
-        context.addServlet(servletHolder, "/*");
+        context.addServlet(servletHolder, MATCH_ALL);
         context.setAttribute(attribute, attributeValue);
         handlers.add(context);
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
-
-import java.nio.ByteBuffer;
-import java.util.*;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -79,8 +80,10 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         log.info("Created kafka consumer config : {}", props);
 
-        keySchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props, true);
-        valueSchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props, false);
+        keySchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                props, true);
+        valueSchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                props, false);
 
         boolean needsSchemaCache = keySchema == DeferredSchemaPlaceholder.INSTANCE
                                     || valueSchema == DeferredSchemaPlaceholder.INSTANCE;
@@ -120,13 +123,15 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             return new KeyValueKafkaRecord(consumerRecord,
                     new KeyValue<>(key, value),
                     currentKeySchema,
-                    currentValueSchema);
+                    currentValueSchema,
+                    copyKafkaHeaders(consumerRecord));
 
         } else {
             Object value = consumerRecord.value();
             return new KafkaRecord(consumerRecord,
                     extractSimpleValue(value),
-                    getSchemaFromObject(value, valueSchema));
+                    getSchemaFromObject(value, valueSchema),
+                    copyKafkaHeaders(consumerRecord));
 
         }
     }
@@ -143,7 +148,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         } else if (value instanceof ByteBuffer) {
             return (ByteBuffer) value;
         } else {
-            throw new IllegalArgumentException("Unexpected type from Kafka: "+value.getClass());
+            throw new IllegalArgumentException("Unexpected type from Kafka: " + value.getClass());
         }
     }
 
@@ -157,7 +162,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-    private static Schema<ByteBuffer> getSchemaFromDeserializerAndAdaptConfiguration(String key, Properties props, boolean isKey) {
+    private static Schema<ByteBuffer> getSchemaFromDeserializerAndAdaptConfiguration(String key, Properties props,
+                                                                                     boolean isKey) {
         String kafkaDeserializerClass = props.getProperty(key);
         Objects.requireNonNull(kafkaDeserializerClass);
 
@@ -195,7 +201,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             // but we the schema is created by downloading the definition from the SchemaRegistry
             return DeferredSchemaPlaceholder.INSTANCE;
         } else {
-            throw new IllegalArgumentException("Unsupported deserializer "+kafkaDeserializerClass);
+            throw new IllegalArgumentException("Unsupported deserializer " + kafkaDeserializerClass);
         }
         return new ByteBufferSchemaWrapper(result);
     }

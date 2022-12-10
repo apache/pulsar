@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,8 +67,9 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                         future.completeExceptionally(throwable);
                         return;
                     }
-                    future.complete(new TransactionImpl(client, txnTimeout,
-                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                    TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
+                            txnID.getLeastSigBits(), txnID.getMostSigBits());
+                    future.complete(transaction);
                 });
         return future;
     }
