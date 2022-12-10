@@ -44,6 +44,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -177,6 +178,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
+    private Consumer consumerMock;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -201,6 +203,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
         doReturn(mock(PulsarClientImpl.class)).when(pulsar).getClient();
+
+        consumerMock = mock(Consumer.class);
 
         doAnswer(invocationOnMock -> CompletableFuture.completedFuture(null))
                 .when(mlFactoryMock).getManagedLedgerPropertiesAsync(any());
@@ -2363,4 +2367,30 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.initialize();
         assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), namespaceClusters);
     }
+
+    @Test
+    public void testCompactorSubscriptionMarkDeleteComplete() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
+                Compactor.COMPACTION_SUBSCRIPTION,
+                cursorMock);
+
+        doAnswer((invokactionOnMock) -> {
+            ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])
+                    .markDeleteFailed(new ManagedLedgerException
+                                    .CursorAlreadyClosedException("Cursor was already closed"),
+                            invokactionOnMock.getArguments()[3]);
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
+
+        doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
+        sub.addConsumer(consumerMock);
+        PositionImpl position = new PositionImpl(1, 1);
+        long ledgerId = 0xc0bfefeL;
+        sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
+                ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+        verify(consumerMock, Mockito.times(1)).disconnect();
+    }
+
 }
