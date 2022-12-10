@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,26 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.testng.annotations.*;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -49,7 +56,7 @@ public class ClientCnxRequestTimeoutQueueTest {
 
     @BeforeTest
     void setupClientCnx() throws Exception {
-        eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setKeepAliveIntervalSeconds(0);
         conf.setOperationTimeoutMs(1);
@@ -65,9 +72,11 @@ public class ClientCnxRequestTimeoutQueueTest {
         requestMessage = mock(ByteBuf.class);
     }
 
-    @AfterTest
+    @AfterTest(alwaysRun = true)
     void cleanupClientCnx() {
-        eventLoop.shutdownNow();
+        if (eventLoop != null) {
+            eventLoop.shutdownGracefully();
+        }
     }
 
     @Test
@@ -83,6 +92,18 @@ public class ClientCnxRequestTimeoutQueueTest {
     @Test
     void testGetTopicsRequestTimeout() {
         assertFutureTimesOut(cnx.newGetTopicsOfNamespace(requestMessage, 1L));
+    }
+
+    @Test
+    void testNewAckForResponseNoFlushTimeout() {
+        assertFutureTimesOut(cnx.newAckForReceipt(requestMessage, 1L));
+    }
+
+    @Test
+    void testNewAckForResponseFlushTimeout() {
+        TimedCompletableFuture<Void> timedCompletableFuture = new TimedCompletableFuture<>();
+        cnx.newAckForReceiptWithFuture(requestMessage, 1L, timedCompletableFuture);
+        assertFutureTimesOut(timedCompletableFuture);
     }
 
     @Test

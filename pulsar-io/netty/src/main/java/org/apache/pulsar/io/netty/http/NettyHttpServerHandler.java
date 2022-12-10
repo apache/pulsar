@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,15 +36,11 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
-
 import java.io.Serializable;
 import java.util.Optional;
-
 import lombok.Data;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.netty.NettySource;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +82,7 @@ public class NettyHttpServerHandler extends SimpleChannelInboundHandler<Object> 
             ByteBuf content = httpContent.content();
             if (content.isReadable()) {
                 nettySource.consume(new NettyHttpRecord(Optional.ofNullable(""),
-                        content.toString(CharsetUtil.UTF_8).getBytes()));
+                        content.toString(CharsetUtil.UTF_8).getBytes(CharsetUtil.UTF_8)));
             }
 
             if (msg instanceof LastHttpContent) {
@@ -137,7 +133,7 @@ public class NettyHttpServerHandler extends SimpleChannelInboundHandler<Object> 
     }
 
     @Data
-    static private class NettyHttpRecord implements Record<byte[]>, Serializable {
+    private static class NettyHttpRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }

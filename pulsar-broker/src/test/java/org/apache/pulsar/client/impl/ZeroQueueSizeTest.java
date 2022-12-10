@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,8 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,11 +30,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.common.collect.Lists;
-
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,6 +51,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class ZeroQueueSizeTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(ZeroQueueSizeTest.class);
     private final int totalMessages = 10;
@@ -63,7 +62,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
@@ -80,8 +79,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     }
 
     @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
-    public void zeroQueueSizeReceieveAsyncInCompatibility() throws PulsarClientException {
-        String key = "zeroQueueSizeReceieveAsyncInCompatibility";
+    public void zeroQueueSizeReceiveAsyncInCompatibility() throws PulsarClientException {
+        String key = "zeroQueueSizeReceiveAsyncInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
 
@@ -100,7 +99,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeNormalConsumer() throws PulsarClientException {
         String key = "nonZeroQueueSizeNormalConsumer";
 
@@ -137,7 +136,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeConsumerListener() throws Exception {
         String key = "zeroQueueSizeConsumerListener";
 
@@ -153,7 +152,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             .create();
 
         // 3. Create Consumer
-        List<Message<byte[]>> messages = Lists.newArrayList();
+        List<Message<byte[]>> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(totalMessages);
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
@@ -181,7 +180,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeSharedSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeSharedSubscription";
 
@@ -222,7 +221,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeFailoverSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeFailoverSubscription";
 
@@ -277,7 +276,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;
@@ -493,5 +492,54 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
         consumer.unsubscribe();
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeNoReconnection() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-no-reconnection";
+        final String subName = "sub";
+
+        final Object object = new Object();
+        AtomicBoolean running = new AtomicBoolean(false);
+
+        final List<Integer> receivedMessages = Collections.synchronizedList(new ArrayList<>());
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .receiverQueueSize(0)
+                .messageListener((MessageListener<Integer>) (consumer1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    receivedMessages.add(msg.getValue());
+                    try {
+                        consumer1.acknowledge(msg);
+                    } catch (PulsarClientException ignored) {
+                    }
+                    synchronized (object) {
+                        running.set(false);
+                        object.notifyAll();
+                    }
+                }).subscribe();
+        final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            consumer.resume();
+            producer.newMessage().value(i).sendAsync();
+            synchronized (object) {
+                running.set(true);
+                while (running.get()) {
+                    object.wait();
+                }
+            }
+            consumer.pause();
+        }
+
+        log.info("Received messages: {}", receivedMessages);
+        assertEquals(receivedMessages.size(), numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            assertEquals(receivedMessages.get(i).intValue(), i);
+        }
     }
 }

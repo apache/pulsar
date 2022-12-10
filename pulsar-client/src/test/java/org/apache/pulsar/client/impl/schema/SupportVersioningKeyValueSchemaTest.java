@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 public class SupportVersioningKeyValueSchemaTest {
 
@@ -40,7 +40,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchema.of(
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
                 fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
@@ -78,7 +78,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchema.of(
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
                 fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
@@ -96,7 +96,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchema)keyValueSchema).decode(
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(
@@ -110,7 +110,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchema.of(
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
                 fooSchema, barSchema);
 
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
@@ -143,7 +143,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchema.of(
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = KeyValueSchemaImpl.of(
                 fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
 
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
@@ -157,7 +157,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setColor(SchemaTestUtils.Color.RED);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchema)keyValueSchema).decode(
+        KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl)keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
         Assert.assertEquals(

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,7 +44,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
     public void simple() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, zkc, config);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");
         ManagedLedgerMBeanImpl mbean = ledger.mbean;
@@ -74,6 +74,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         }).get();
 
         assertEquals(mbean.getAddEntryBytesRate(), 0.0);
+        assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 0.0);
         assertEquals(mbean.getAddEntryMessagesRate(), 0.0);
         assertEquals(mbean.getAddEntrySucceed(), 0);
         assertEquals(mbean.getAddEntryErrors(), 0);
@@ -101,6 +102,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         }).get();
 
         assertEquals(mbean.getAddEntryBytesRate(), 800.0);
+        assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 1600.0);
         assertEquals(mbean.getAddEntryMessagesRate(), 2.0);
         assertEquals(mbean.getAddEntrySucceed(), 2);
         assertEquals(mbean.getAddEntryErrors(), 0);

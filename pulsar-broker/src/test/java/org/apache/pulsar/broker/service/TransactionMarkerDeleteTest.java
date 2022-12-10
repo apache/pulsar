@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,46 +18,59 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
+@Test(groups = "broker")
+public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
-public class TransactionMarkerDeleteTest extends BrokerTestBase{
-
+    private static final int TOPIC_PARTITION = 3;
+    private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
-    @Override
     protected void setup() throws Exception {
-        super.baseSetup();
+        setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @Test
-    public void testTransactionMarkerDelete() throws Exception {
-        ManagedLedger managedLedger = pulsar.getManagedLedgerFactory().open("test");
+    public void testMarkerDeleteTimes() throws Exception {
+        ManagedLedgerImpl managedLedger =
+                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
         PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
@@ -65,26 +78,88 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         doReturn(brokerService).when(topic).getBrokerService();
         doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(configuration).when(pulsarService).getConfig();
-        doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
+        doReturn(false).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
         ManagedCursor cursor = managedLedger.openCursor("test");
-        PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
-                managedLedger.openCursor("test"), false);
-        MessageIdData messageIdData = MessageIdData.newBuilder()
-                .setLedgerId(1)
-                .setEntryId(1)
-                .build();
-        Position position1 = managedLedger.addEntry("test".getBytes());
-        managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());
-        Position position3 = managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1, Collections.emptyList()).array());
-        assertEquals(3, cursor.getNumberOfEntriesInBacklog(true));
-        assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
-        persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),
+        PersistentSubscription persistentSubscription =
+                spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "test", cursor, false);
+        Position position = managedLedger.addEntry("test".getBytes());
+        persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
                 AckType.Individual, Collections.emptyMap());
-        Thread.sleep(1000L);
-        assertEquals(0, ((PositionImpl) persistentSubscription.getCursor()
-                .getMarkDeletedPosition()).compareTo((PositionImpl) position3));
+        verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
+    }
+
+
+    @Test
+    public void testMarkerDelete() throws Exception {
+        final String subName = "testMarkerDelete";
+        final String topicName = NAMESPACE1 + "/testMarkerDelete";
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .isAckReceiptEnabled(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topicName)
+                .create();
+
+        Transaction txn1 = getTxn();
+        Transaction txn2 = getTxn();
+        Transaction txn3 = getTxn();
+        Transaction txn4 = getTxn();
+
+        MessageIdImpl msgId1 = (MessageIdImpl) producer.newMessage(txn1).send();
+        MessageIdImpl msgId2 = (MessageIdImpl) producer.newMessage(txn2).send();
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+        txn1.commit().get();
+
+        consumer.acknowledgeAsync(consumer.receive()).get();
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        // maxReadPosition move to msgId1, msgId2 have not be committed
+        assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+                PositionImpl.get(msgId1.getLedgerId(), msgId1.getEntryId()).toString());
+
+        MessageIdImpl msgId3 = (MessageIdImpl) producer.newMessage(txn3).send();
+        txn2.commit().get();
+
+        consumer.acknowledgeAsync(consumer.receive()).get();
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        // maxReadPosition move to txn1 marker, so entryId is msgId2.getEntryId() + 1,
+        // because send msgId2 before commit txn1
+        assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+                PositionImpl.get(msgId2.getLedgerId(), msgId2.getEntryId() + 1).toString());
+
+        MessageIdImpl msgId4 = (MessageIdImpl) producer.newMessage(txn4).send();
+        txn3.commit().get();
+
+        consumer.acknowledgeAsync(consumer.receive()).get();
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        // maxReadPosition move to txn2 marker, because msgId4 have not be committed
+        assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
+                PositionImpl.get(msgId3.getLedgerId(), msgId3.getEntryId() + 1).toString());
+
+        txn4.abort().get();
+
+        // maxReadPosition move to txn4 abort marker, so entryId is msgId4.getEntryId() + 2
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getInternalStats(topicName)
+                .cursors.get(subName).markDeletePosition, PositionImpl.get(msgId4.getLedgerId(),
+                msgId4.getEntryId() + 2).toString()));
+    }
+
+    private Transaction getTxn() throws Exception {
+        return pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
     }
 }

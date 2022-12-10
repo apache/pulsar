@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,23 +23,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * A provider that provides topic implementations of {@link TransactionBuffer}.
  */
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        CompletableFuture<TransactionBuffer> completableFuture = new CompletableFuture<>();
-        completableFuture.completeExceptionally(new Exception("Unsupported operation new transaction buffer "
-                + "with no arguments for TopicTransactionBufferProvider."));
-        return completableFuture;
-    }
-
-    @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic) {
-        return CompletableFuture.completedFuture(new TopicTransactionBuffer((PersistentTopic) originTopic));
+    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+        return new TopicTransactionBuffer((PersistentTopic) originTopic);
     }
 }

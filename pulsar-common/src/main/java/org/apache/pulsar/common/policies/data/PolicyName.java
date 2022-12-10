@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.policies.data;
 
 /**
@@ -25,6 +24,8 @@ package org.apache.pulsar.common.policies.data;
 public enum PolicyName {
     ALL,
     ANTI_AFFINITY,
+    AUTO_SUBSCRIPTION_CREATION,
+    AUTO_TOPIC_CREATION,
     BACKLOG,
     COMPACTION,
     DELAYED_DELIVERY,
@@ -34,7 +35,9 @@ public enum PolicyName {
     MAX_PRODUCERS,
     DEDUPLICATION_SNAPSHOT,
     MAX_UNACKED,
+    MAX_SUBSCRIPTIONS,
     OFFLOAD,
+    PARTITION,
     PERSISTENCE,
     RATE,
     RETENTION,
@@ -42,6 +45,11 @@ public enum PolicyName {
     REPLICATION_RATE,
     SCHEMA_COMPATIBILITY_STRATEGY,
     SUBSCRIPTION_AUTH_MODE,
+    SUBSCRIPTION_EXPIRATION_TIME,
     ENCRYPTION,
     TTL,
+    MAX_TOPICS,
+    RESOURCEGROUP,
+    ENTRY_FILTERS,
+    SHADOW_TOPIC
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,14 @@
 package org.apache.pulsar.client.api.schema;
 
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Builder to build schema.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaBuilder {
 
     /**
@@ -32,7 +36,7 @@ public interface SchemaBuilder {
      * @return builder to build the schema for a record.
      */
     static RecordSchemaBuilder record(String name) {
-        return DefaultImplementation.newRecordSchemaBuilder(name);
+        return DefaultImplementation.getDefaultImplementation().newRecordSchemaBuilder(name);
     }
 
 }

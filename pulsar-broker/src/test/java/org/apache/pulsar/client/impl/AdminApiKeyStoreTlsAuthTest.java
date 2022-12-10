@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,36 +19,38 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls.mapToString;
-import static org.testng.Assert.fail;
-
-import com.google.common.collect.ImmutableSet;
+import static org.testng.AssertJUnit.fail;
 import com.google.common.collect.Sets;
-
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
-
+import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
-
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
-import org.apache.pulsar.client.impl.tls.NoopHostnameVerifier;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -57,29 +59,16 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_CN = "clientuser";
-    protected final String KEYSTORE_TYPE = "JKS";
-
     private final String clusterName = "test";
     Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private final String CLIENTUSER_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "clientuser", Optional.empty());
 
     @BeforeMethod
     @Override
@@ -99,6 +88,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
+        tlsProtocols.add("TLSv1.3");
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
 
@@ -108,7 +98,12 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         conf.setAuthorizationEnabled(true);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
+        providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
+        conf.setProperties(properties);
 
         conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientTlsEnabledWithKeyStore(true);
@@ -127,7 +122,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         super.init();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -174,37 +169,37 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfo(ImmutableSet.of("foobar"),
-                                                        ImmutableSet.of("test")));
-            Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
+                                         new TenantInfoImpl(Set.of("foobar"),
+                                                        Set.of("test")));
+            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
         }
     }
 
     @Test
     public void testSuperUserCantListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfo(ImmutableSet.of("proxy"),
-                                                        ImmutableSet.of("test")));
+                                         new TenantInfoImpl(Set.of("proxy"),
+                                                        Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
-            admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1");
+            Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
         }
     }
 
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfo(ImmutableSet.of("proxy", "user1"),
-                                                        ImmutableSet.of("test")));
+                                         new TenantInfoImpl(Set.of("proxy", "user1"),
+                                                        Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient();
-        Assert.assertEquals(ImmutableSet.of("tenant1/ns1"),
+        Assert.assertEquals(Set.of("tenant1/ns1"),
                             root.path("/admin/v2/namespaces").path("tenant1")
                             .request(MediaType.APPLICATION_JSON)
                             .header("X-Original-Principal", "user1")
@@ -216,11 +211,11 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                    new TenantInfo(ImmutableSet.of("foobar"),
-                            ImmutableSet.of("test")));
-            Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
+                    new TenantInfoImpl(Set.of("foobar"),
+                            Set.of("test")));
+            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
 
             admin.namespaces().createNamespace("tenant1/ns1");
 
@@ -230,5 +225,40 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
             ex.printStackTrace();
             fail("Should not have thrown an exception");
         }
+    }
+
+    private final Authentication tlsAuth =
+            new AuthenticationKeyStoreTls(KEYSTORE_TYPE, CLIENT_KEYSTORE_FILE_PATH, CLIENT_KEYSTORE_PW);
+    private final Authentication tokenAuth = new AuthenticationToken(CLIENTUSER_TOKEN);
+
+    @DataProvider
+    public Object[] keyStoreTlsTransportWithAuth() {
+        return new Object[]{
+                // Verify JKS TLS transport encryption with TLS authentication
+                tlsAuth,
+                null,
+                // Verify JKS TLS transport encryption with token authentication
+                tokenAuth,
+        };
+    }
+
+    @Test(dataProvider = "keyStoreTlsTransportWithAuth")
+    public void testKeyStoreTlsTransportWithAuth(Authentication auth) throws Exception {
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString())
+                .useKeyStoreTls(true)
+                .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
+                .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
+                .tlsKeyStorePath(CLIENT_KEYSTORE_FILE_PATH)
+                .tlsKeyStorePassword(CLIENT_KEYSTORE_PW)
+                .authentication(auth)
+                .allowTlsInsecureConnection(false)
+                .build();
+
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("tenant1",
+                new TenantInfoImpl(Set.of("foobar"),
+                        Set.of("test")));
     }
 }

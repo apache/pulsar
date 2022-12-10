@@ -1,10 +1,10 @@
 ---
 id: io-connectors
 title: Built-in connector
-sidebar_label: Built-in connector
+sidebar_label: "Built-in connector"
 ---
 
-Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems.
+Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. 
 
 Using any of these connectors is as easy as writing a simple connector and running the connector locally or submitting the connector to a Pulsar Functions cluster.
 
@@ -45,6 +45,23 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/java/org/apache/pulsar/io/debezium/mongodb/DebeziumMongoDbSource.java)
 
+### Debezium Oracle
+
+* [Configuration](io-debezium-source.md#configuration)
+
+* [Example](io-debezium-source.md#example-of-oracle)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/oracle/src/main/java/org/apache/pulsar/io/debezium/oracle/DebeziumOracleSource.java)
+
+### Debezium Microsoft SQL Server
+
+* [Configuration](io-debezium-source.md#configuration)
+
+* [Example](io-debezium-source.md#example-of-microsoft-sql)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mssql/src/main/java/org/apache/pulsar/io/debezium/mssql/DebeziumMsSqlSource.java)
+
+  
 ### DynamoDB
 
 * [Configuration](io-dynamodb-source.md#configuration)
@@ -84,7 +101,13 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 * [Configuration](io-kinesis-source.md#configuration)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/KinesisSource.java)
-  
+
+### MongoDB
+
+* [Configuration](io-mongo-source.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/mongo/src/main/java/org/apache/pulsar/io/mongodb/MongoSource.java)
+
 ### Netty
 
 * [Configuration](io-netty-source.md#configuration)
@@ -94,6 +117,12 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 * [Example of HTTP](io-netty-source.md#http)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/netty/src/main/java/org/apache/pulsar/io/netty/NettySource.java)
+
+### NSQ
+
+* [Configuration](io-nsq-source.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/nsq/src/main/java/org/apache/pulsar/io/nsq/NSQSource.java)
 
 ### RabbitMQ
 
@@ -149,6 +178,12 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hdfs3/src/main/java/org/apache/pulsar/io/hdfs3/AbstractHdfsConnector.java)
 
+### HTTP
+
+* [Configuration](io-http-sink.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/http/src/main/java/org/apache/pulsar/io/http/HttpSink.java)
+
 ### InfluxDB
 
 * [Configuration](io-influxdb-sink.md#configuration)
@@ -159,7 +194,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-clickhouse)
+* [Example](io-jdbc-sink.md#example-of-clickhouse)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/clickhouse/src/main/java/org/apache/pulsar/io/jdbc/ClickHouseJdbcAutoSchemaSink.java)
 
@@ -167,15 +202,23 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-mariadb)
+* [Example](io-jdbc-sink.md#example-of-mariadb)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/mariadb/src/main/java/org/apache/pulsar/io/jdbc/MariadbJdbcAutoSchemaSink.java)
+
+### JDBC OpenMLDB
+
+* [Configuration](io-jdbc-sink.md#configuration)
+
+* [Example](io-jdbc-sink.md#example-of-openmldb)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/openmldb/src/main/java/org/apache/pulsar/io/jdbc/OpenMLDBJdbcAutoSchemaSink.java)
 
 ### JDBC PostgreSQL
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-postgresql)
+* [Example](io-jdbc-sink.md#example-of-postgresql)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/postgres/src/main/java/org/apache/pulsar/io/jdbc/PostgresJdbcAutoSchemaSink.java)
   
@@ -183,7 +226,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 * [Configuration](io-jdbc-sink.md#configuration)
   
-* [Example](io-jdbc-sink.md#example-for-sqlite)
+* [Example](io-jdbc-sink.md#example-of-sqlite)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/sqlite/src/main/java/org/apache/pulsar/io/jdbc/SqliteJdbcAutoSchemaSink.java)
   

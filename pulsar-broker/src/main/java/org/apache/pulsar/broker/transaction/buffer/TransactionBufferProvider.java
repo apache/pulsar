@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,9 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
-import org.apache.pulsar.broker.service.Topic;
-
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-
-import static com.google.common.base.Preconditions.checkArgument;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.util.Reflections;
 
 /**
  * A provider that provides {@link TransactionBuffer}.
@@ -39,28 +36,14 @@ public interface TransactionBufferProvider {
      * @return an instance of transaction buffer provider.
      */
     static TransactionBufferProvider newProvider(String providerClassName) throws IOException {
-        Class<?> providerClass;
         try {
-            providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
-            checkArgument(obj instanceof TransactionBufferProvider,
-                "The factory has to be an instance of "
-                    + TransactionBufferProvider.class.getName());
-
-            return (TransactionBufferProvider) obj;
+            TransactionBufferProvider transactionBufferProvider = Reflections.createInstance(providerClassName,
+                    TransactionBufferProvider.class, Thread.currentThread().getContextClassLoader());
+            return transactionBufferProvider;
         } catch (Exception e) {
             throw new IOException(e);
         }
     }
-
-    /**
-     * Open the transaction buffer.
-     *
-     * @return a future represents the result of the operation.
-     *         an instance of {@link TransactionBuffer} is returned
-     *         if the operation succeeds.
-     */
-    CompletableFuture<TransactionBuffer> newTransactionBuffer();
 
     /**
      * Open the persistent transaction buffer.
@@ -68,5 +51,5 @@ public interface TransactionBufferProvider {
      * @param originTopic
      * @return
      */
-    CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic);
+    TransactionBuffer newTransactionBuffer(Topic originTopic);
 }

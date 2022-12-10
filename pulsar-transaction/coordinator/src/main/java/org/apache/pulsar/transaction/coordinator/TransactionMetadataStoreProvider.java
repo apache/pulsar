@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,13 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.annotations.Beta;
-
+import io.netty.util.Timer;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 
 /**
  * A provider that provides {@link TransactionMetadataStore}.
@@ -43,7 +43,7 @@ public interface TransactionMetadataStoreProvider {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
+            Object obj = providerClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof TransactionMetadataStoreProvider,
                 "The factory has to be an instance of "
                     + TransactionMetadataStoreProvider.class.getName());
@@ -58,10 +58,18 @@ public interface TransactionMetadataStoreProvider {
      * Open the transaction metadata store for transaction coordinator
      * identified by <tt>transactionCoordinatorId</tt>.
      *
+     * @param transactionCoordinatorId {@link TransactionCoordinatorID} the coordinator id.
+     * @param managedLedgerFactory {@link ManagedLedgerFactory} the managedLedgerFactory to create managedLedger.
+     * @param managedLedgerConfig {@link ManagedLedgerConfig} the managedLedgerConfig to create managedLedger.
+     * @param timeoutTracker {@link TransactionTimeoutTracker} the timeoutTracker to handle transaction time out.
+     * @param recoverTracker {@link TransactionRecoverTracker} the recoverTracker to handle transaction recover.
      * @return a future represents the result of the operation.
      *         an instance of {@link TransactionMetadataStore} is returned
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionMetadataStore> openStore(
-        TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory);
+            TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
+            ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker,
+            TransactionRecoverTracker recoverTracker, long maxActiveTransactionsPerCoordinator,
+            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig, Timer timer);
 }

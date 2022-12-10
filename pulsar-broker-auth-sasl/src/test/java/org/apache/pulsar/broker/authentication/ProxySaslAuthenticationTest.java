@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,13 @@
 package org.apache.pulsar.broker.authentication;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -34,8 +35,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.Configuration;
 
+import lombok.Cleanup;
 import org.apache.commons.io.FileUtils;
-import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -64,6 +65,8 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
 	public static File kdcDir;
 	public static File kerberosWorkDir;
+	public static File brokerSecretKeyFile;
+	public static File proxySecretKeyFile;
 
 	private static MiniKdc kdc;
 	private static Properties properties;
@@ -160,7 +163,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("created AuthenticationSasl");
 	}
 
-	@AfterClass
+	@AfterClass(alwaysRun = true)
 	public static void stopMiniKdc() {
 		System.clearProperty("java.security.auth.login.config");
 		System.clearProperty("java.security.krb5.conf");
@@ -182,6 +185,9 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		conf.setAuthenticationEnabled(true);
 		conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		conf.setSaslJaasServerSectionName("PulsarBroker");
+		brokerSecretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+		Files.write(Paths.get(brokerSecretKeyFile.toString()), "PulsarSecret".getBytes());
+		conf.setSaslJaasServerRoleTokenSignerSecretPath(brokerSecretKeyFile.toString());
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());
 		conf.setAuthenticationProviders(providers);
@@ -193,7 +199,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		lookupUrl = new URI(pulsar.getBrokerServiceUrl());
 
 		// set admin auth, to verify admin web resources
-		Map<String, String> clientSaslConfig = Maps.newHashMap();
+		Map<String, String> clientSaslConfig = new HashMap<>();
 		clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
 		clientSaslConfig.put("serverType", "broker");
 		log.info("set client jaas section name: PulsarClient");
@@ -206,8 +212,12 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
+		FileUtils.deleteQuietly(brokerSecretKeyFile);
+		Assert.assertFalse(brokerSecretKeyFile.exists());
+		FileUtils.deleteQuietly(proxySecretKeyFile);
+		Assert.assertFalse(proxySecretKeyFile.exists());
 		super.internalCleanup();
 	}
 
@@ -223,6 +233,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		ProxyConfiguration proxyConfig = new ProxyConfiguration();
 		proxyConfig.setAuthenticationEnabled(true);
 		proxyConfig.setServicePort(Optional.of(0));
+		proxyConfig.setBrokerProxyAllowedTargetPorts("*");
 		proxyConfig.setWebServicePort(Optional.of(0));
 		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
 		proxyConfig.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
@@ -233,7 +244,9 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setBrokerClientAuthenticationParameters(
 			"{\"saslJaasClientSectionName\": " + "\"PulsarProxy\"," +
 				"\"serverType\": " + "\"broker\"}");
-
+		proxySecretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+		Files.write(Paths.get(proxySecretKeyFile.toString()), "PulsarSecret".getBytes());
+		proxyConfig.setSaslJaasServerRoleTokenSignerSecretPath(proxySecretKeyFile.toString());
 		// proxy as a server, it will use sasl to authn
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());
@@ -249,6 +262,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("1 proxy service started {}", proxyService);
 
 		// Step 3: Pass correct client params
+		@Cleanup
 		PulsarClient proxyClient = createProxyClient(proxyServiceUrl, 1);
 		log.info("2 create proxy client {}, {}", proxyServiceUrl, proxyClient);
 
@@ -265,7 +279,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		}
 
 		Message<byte[]> msg = null;
-		Set<String> messageSet = Sets.newHashSet();
+		Set<String> messageSet = new HashSet<>();
 		for (int i = 0; i < 10; i++) {
 			msg = consumer.receive(5, TimeUnit.SECONDS);
 			String receivedMessage = new String(msg.getData());
@@ -277,12 +291,11 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		consumer.acknowledgeCumulative(msg);
 		consumer.close();
 
-		proxyClient.close();
 		proxyService.close();
 	}
 
 	private PulsarClient createProxyClient(String proxyServiceUrl, int numberOfConnections) throws PulsarClientException {
-		Map<String, String> clientSaslConfig = Maps.newHashMap();
+		Map<String, String> clientSaslConfig = new HashMap<>();
 		clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
 		clientSaslConfig.put("serverType", "proxy");
 		log.info("set client jaas section name: PulsarClient, serverType: proxy");

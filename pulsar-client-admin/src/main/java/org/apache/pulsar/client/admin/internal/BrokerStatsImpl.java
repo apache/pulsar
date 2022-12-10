@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,17 +19,9 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -53,201 +45,69 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     }
 
     @Override
-    public JsonArray getMetrics() throws PulsarAdminException {
-        try {
-            return getMetricsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public String getMetrics() throws PulsarAdminException {
+        return sync(this::getMetricsAsync);
     }
 
     @Override
-    public CompletableFuture<JsonArray> getMetricsAsync() {
+    public CompletableFuture<String> getMetricsAsync() {
         WebTarget path = adminV2BrokerStats.path("/metrics");
-        final CompletableFuture<JsonArray> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(new Gson().fromJson(s, JsonArray.class));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException {
-        try {
-            return getAllocatorStatsAsync(allocatorName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getAllocatorStatsAsync(allocatorName));
     }
 
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
         WebTarget path = adminV2BrokerStats.path("/allocator-stats").path(allocatorName);
-        final CompletableFuture<AllocatorStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<AllocatorStats>() {
-                    @Override
-                    public void completed(AllocatorStats allocatorStats) {
-                        future.complete(allocatorStats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<AllocatorStats>(){});
     }
 
     @Override
-    public JsonArray getMBeans() throws PulsarAdminException {
-        try {
-            return getMBeansAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public String getMBeans() throws PulsarAdminException {
+        return sync(this::getMBeansAsync);
     }
 
     @Override
-    public CompletableFuture<JsonArray> getMBeansAsync() {
+    public CompletableFuture<String> getMBeansAsync() {
         WebTarget path = adminV2BrokerStats.path("/mbeans");
-        final CompletableFuture<JsonArray> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(new Gson().fromJson(s, JsonArray.class));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
-    public JsonObject getTopics() throws PulsarAdminException {
-        try {
-            return getTopicsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public String getTopics() throws PulsarAdminException {
+        return sync(this::getTopicsAsync);
     }
 
     @Override
-    public CompletableFuture<JsonObject> getTopicsAsync() {
+    public CompletableFuture<String> getTopicsAsync() {
         WebTarget path = adminV2BrokerStats.path("/topics");
-        final CompletableFuture<JsonObject> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(new Gson().fromJson(s, JsonObject.class));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
-        try {
-            return getLoadReportAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(this::getLoadReportAsync);
     }
 
     @Override
     public CompletableFuture<LoadManagerReport> getLoadReportAsync() {
         WebTarget path = adminV2BrokerStats.path("/load-report");
-        final CompletableFuture<LoadManagerReport> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<LoadManagerReport>() {
-                    @Override
-                    public void completed(LoadManagerReport loadManagerReport) {
-                        future.complete(loadManagerReport);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<LoadManagerReport>(){});
     }
 
     @Override
-    public JsonObject getPendingBookieOpsStats() throws PulsarAdminException {
-        try {
-            return getPendingBookieOpsStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public String getPendingBookieOpsStats() throws PulsarAdminException {
+        return sync(this::getPendingBookieOpsStatsAsync);
     }
 
     @Override
-    public CompletableFuture<JsonObject> getPendingBookieOpsStatsAsync() {
+    public CompletableFuture<String> getPendingBookieOpsStatsAsync() {
         WebTarget path = adminV2BrokerStats.path("/bookieops");
-        final CompletableFuture<JsonObject> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(new Gson().fromJson(s, JsonObject.class));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {

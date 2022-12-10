@@ -1,29 +1,25 @@
 ---
 id: administration-geo
 title: Pulsar geo-replication
-sidebar_label: Geo-replication
+sidebar_label: "Geo-replication"
 ---
 
-*Geo-replication* is the replication of persistently stored message data across multiple clusters of a Pulsar instance.
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-## How geo-replication works
 
-The diagram below illustrates the process of geo-replication across Pulsar clusters:
+## Enable geo-replication for a namespace
 
-![Replication Diagram](assets/geo-replication.png)
+You must enable geo-replication on a [per-tenant basis](#concepts-multi-tenancy) in Pulsar. For example, you can enable geo-replication between two specific clusters only when a tenant has access to both clusters.
 
-In this diagram, whenever **P1**, **P2**, and **P3** producers publish messages to the **T1** topic on **Cluster-A**, **Cluster-B**, and **Cluster-C** clusters respectively, those messages are instantly replicated across clusters. Once the messages are replicated, **C1** and **C2** consumers can consume those messages from their respective clusters.
+Geo-replication is managed at the namespace level, which means you only need to create and configure a namespace to replicate messages between two or more provisioned clusters that a tenant can access.
 
-Without geo-replication, **C1** and **C2** consumers are not able to consume messages that **P3** producer publishes.
+Complete the following tasks to enable geo-replication for a namespace:
 
-## Geo-replication and Pulsar properties
-
-You must enable geo-replication on a per-tenant basis in Pulsar. You can enable geo-replication between clusters only when a tenant is created that allows access to both clusters.
-
-Although geo-replication must be enabled between two clusters, actually geo-replication is managed at the namespace level. You must complete the following tasks to enable geo-replication for a namespace:
-
-* [Enable geo-replication namespaces](#enable-geo-replication-namespaces)
-* Configure that namespace to replicate across two or more provisioned clusters
+* [Enable a geo-replication namespace](#enable-geo-replication-at-namespace-level)
+* [Configure that namespace to replicate across two or more provisioned clusters](admin-api-namespaces.md#configure-replication-clusters)
 
 Any message published on *any* topic in that namespace is replicated to all clusters in the specified set.
 
@@ -35,7 +31,9 @@ In normal cases, when connectivity issues are none, messages are replicated imme
 
 Applications can create producers and consumers in any of the clusters, even when the remote clusters are not reachable (like during a network partition).
 
-Producers and consumers can publish messages to and consume messages from any cluster in a Pulsar instance. However, subscriptions cannot only be local to the cluster where the subscriptions are created but also can be transferred between clusters after replicated subscription is enabled. Once replicated subscription is enabled, you can keep subscription state in synchronization. Therefore, a topic can be asynchronously replicated across multiple geographical regions. In case of failover, a consumer can restart consuming messages from the failure point in a different cluster.
+Producers and consumers can publish messages to and consume messages from any cluster in a Pulsar instance. However, subscriptions cannot only be local to the cluster where the subscriptions are created but also can be transferred between clusters after the replicated subscription is enabled. Once the replicated subscription is enabled, you can keep the subscription state in synchronization. Therefore, a topic can be asynchronously replicated across multiple geographical regions. In case of failover, a consumer can restart consuming messages from the failure point in a different cluster.
+
+![A typical geo-replication example with a full-mesh pattern](/assets/geo-replication.png)
 
 In the aforementioned example, the **T1** topic is replicated among three clusters, **Cluster-A**, **Cluster-B**, and **Cluster-C**.
 
@@ -43,48 +41,112 @@ All messages produced in any of the three clusters are delivered to all subscrip
 
 ## Configure replication
 
-As stated in [Geo-replication and Pulsar properties](#geo-replication-and-pulsar-properties) section, geo-replication in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level.
+This section guides you through the steps to configure geo-replicated clusters.
+1. [Connect replication clusters](#connect-replication-clusters)
+2. [Grant permissions to properties](#grant-permissions-to-properties)
+3. [Enable geo-replication](#enable-geo-replication)
+4. [Use topics with geo-replication](#use-topics-with-geo-replication)
+
+### Connect replication clusters
+
+To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the [`pulsar-admin`](/tools/pulsar-admin/) tool to create a connection.
+
+**Example**
+
+Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east`.
+
+1. Configure the connection from `us-west` to `us-east`.
+
+   Run the following command on `us-west`.
+
+   ```shell
+   bin/pulsar-admin clusters create \
+   --broker-url pulsar://<DNS-OF-US-EAST>:<PORT> \
+   --url http://<DNS-OF-US-EAST>:<PORT> \
+   us-east
+   ```
+
+:::tip
+
+   - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](/tools/pulsar-admin/).
+   - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication.md).
+
+:::
+
+2. Configure the connection from `us-west` to `us-cent`.
+
+   Run the following command on `us-west`.
+
+   ```shell
+   bin/pulsar-admin clusters create \
+   --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
+   --url http://<DNS-OF-US-CENT>:<PORT> \
+   us-cent
+   ```
+
+3. Run similar commands on `us-east` and `us-cent` to create connections among clusters.
 
 ### Grant permissions to properties
 
-To replicate to a cluster, the tenant needs permission to use that cluster. You can grant permission to the tenant when you create the tenant or grant later.
+To replicate to a cluster, the tenant needs permission to use that cluster. You can grant permission to the tenant when you create the tenant or grant it later.
 
 Specify all the intended clusters when you create a tenant:
 
 ```shell
-$ bin/pulsar-admin tenants create my-tenant \
-  --admin-roles my-admin-role \
-  --allowed-clusters us-west,us-east,us-cent
+bin/pulsar-admin tenants create my-tenant \
+--admin-roles my-admin-role \
+--allowed-clusters us-west,us-east,us-cent
 ```
 
 To update permissions of an existing tenant, use `update` instead of `create`.
 
-### Enable geo-replication namespaces
+### Enable geo-replication
+
+You can enable geo-replication at **namespace** or **topic** level.
+
+#### Enable geo-replication at namespace level
 
 You can create a namespace with the following command sample.
 
 ```shell
-$ bin/pulsar-admin namespaces create my-tenant/my-namespace
+bin/pulsar-admin namespaces create my-tenant/my-namespace
 ```
 
 Initially, the namespace is not assigned to any cluster. You can assign the namespace to clusters using the `set-clusters` subcommand:
 
 ```shell
-$ bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
-  --clusters us-west,us-east,us-cent
+bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
+--clusters us-west,us-east,us-cent
 ```
 
-You can change the replication clusters for a namespace at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
+#### Enable geo-replication at topic level
+
+You can set geo-replication at topic level using the command `pulsar-admin topics set-replication-clusters`. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
+
+```shell
+bin/pulsar-admin topics set-replication-clusters --clusters us-west,us-east,us-cent my-tenant/my-namespace/my-topic
+```
+
+:::tip
+
+- You can change the replication clusters for a namespace at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
+- Once you create a geo-replication namespace, any topics that producers or consumers create within that namespace are replicated across clusters. Typically, each application uses the `serviceUrl` for the local cluster.
+- If you are using Pulsar version `2.10.x`, to enable geo-replication at topic level, you need to change the following configurations in the `conf/broker.conf` or `conf/standalone.conf` file to enable topic policies service.
+
+```conf
+systemTopicEnabled=true
+topicLevelPoliciesEnabled=true
+```
+
+:::
 
 ### Use topics with geo-replication
-
-Once you create a geo-replication namespace, any topics that producers or consumers create within that namespace is replicated across clusters. Typically, each application uses the `serviceUrl` for the local cluster.
 
 #### Selective replication
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message, and then that message is replicated only to the subset in the replication list.
 
-The following is an example for the [Java API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when you construct the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
+The following is an example of the [Java](client-libraries-java.md) API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when you construct the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
 
 ```java
 List<String> restrictReplicationTo = Arrays.asList(
@@ -104,11 +166,29 @@ producer.newMessage()
 
 #### Topic stats
 
-Topic-specific statistics for geo-replication topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
+You can check topic-specific statistics for geo-replication topics using one of the following methods.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"}]}>
+<TabItem value="pulsar-admin">
+
+Use the [`pulsar-admin topics stats`](/tools/pulsar-admin/) command.
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic
+bin/pulsar-admin topics stats persistent://my-tenant/my-namespace/my-topic
 ```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+
+</TabItem>
+
+</Tabs>
+````
 
 Each cluster reports its own local stats, including the incoming and outgoing replication rates and backlogs.
 
@@ -119,7 +199,7 @@ Given that geo-replication topics exist in multiple regions, directly deleting a
 In Pulsar, a topic is automatically deleted when the topic meets the following three conditions:
 - no producers or consumers are connected to it;
 - no subscriptions to it;
-- no more messages are kept for retention. 
+- no more messages are kept for retention.
 For geo-replication topics, each region uses a fault-tolerant mechanism to decide when deleting the topic locally is safe.
 
 You can explicitly disable topic garbage collection by setting `brokerDeleteInactiveTopicsEnabled` to `false` in your [broker configuration](reference-configuration.md#broker).
@@ -128,13 +208,13 @@ To delete a geo-replication topic, close all producers and consumers on the topi
 
 ## Replicated subscriptions
 
-Pulsar supports replicated subscriptions, so you can keep subscription state in sync, within a sub-second timeframe, in the context of a topic that is being asynchronously replicated across multiple geographical regions.
+Pulsar supports replicated subscriptions, so you can keep the subscription state in sync, within a sub-second timeframe, in the context of a topic that is being asynchronously replicated across multiple geographical regions.
 
-In case of failover, a consumer can restart consuming from the failure point in a different cluster. 
+In case of failover, a consumer can restart consuming from the failure point in a different cluster.
 
 ### Enable replicated subscription
 
-Replicated subscription is disabled by default. You can enable replicated subscription when creating a consumer. 
+Replicated subscription is disabled by default. You can enable replicated subscriptions when creating a consumer.
 
 ```java
 Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -146,11 +226,50 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 ### Advantages
 
- * It is easy to implement the logic. 
+ * It is easy to implement the logic.
  * You can choose to enable or disable replicated subscription.
- * When you enable it, the overhead is low, and it is easy to configure. 
+ * When you enable it, the overhead is low, and it is easy to configure.
  * When you disable it, the overhead is zero.
 
 ### Limitations
 
-When you enable replicated subscription, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
+* When you enable replicated subscriptions, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
+* Only the base line cursor position is synced in replicated subscriptions while the individual acknowledgments are not synced. This means the messages acknowledged out-of-order could end up getting delivered again, in the case of a cluster failover.
+
+## Migrate data between clusters using geo-replication
+
+Using geo-replication to migrate data between clusters is a special use case of the [active-active replication pattern](concepts-replication.md#active-active-replication) when you don't have a large amount of data.
+
+1. Create your new cluster.
+2. Add the new cluster to your old cluster.
+
+   ```shell
+   bin/pulsar-admin cluster create new-cluster
+   ```
+
+3. Add the new cluster to your tenant.
+
+   ```shell
+   bin/pulsar-admin tenants update my-tenant --cluster old-cluster,new-cluster
+   ```
+
+4. Set the clusters on your namespace.
+
+   ```shell
+   bin/pulsar-admin namespaces set-clusters my-tenant/my-ns --cluster old-cluster,new-cluster
+   ```
+
+5. Update your applications using [replicated subscriptions](#replicated-subscriptions).
+6. Validate subscription replication is active.
+   ```shell
+   bin/pulsar-admin topics stats-internal public/default/t1
+   ```
+
+7. Move your consumers and producers to the new cluster by modifying the values of `serviceURL`.
+
+:::note
+
+* The replication starts from step 4, which means existing messages in your old cluster are not replicated.
+* If you have some older messages to migrate, you can pre-create the replication subscriptions for each topic and set it at the earliest position by using `pulsar-admin topics create-subscription -s pulsar.repl.new-cluster -m earliest <topic>`.
+
+:::

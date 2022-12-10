@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -65,8 +65,8 @@ public class TestPulsarConnectorConfig {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
         Assert.assertEquals(0L, connectorConfig.getManagedLedgerCacheSizeMB());
-        Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumWorkerThreads());
         Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumSchedulerThreads());
+        Assert.assertEquals(connectorConfig.getMaxSplitQueueSizeBytes(), -1);
     }
 
     @Test
@@ -90,11 +90,11 @@ public class TestPulsarConnectorConfig {
         connectorConfig.setManagedLedgerOffloadMaxThreads(managedLedgerOffloadMaxThreads);
         connectorConfig.setOffloaderProperties(offloadProperties);
 
-        OffloadPolicies offloadPolicies = connectorConfig.getOffloadPolices();
+        OffloadPoliciesImpl offloadPolicies = connectorConfig.getOffloadPolices();
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), managedLedgerOffloadDriver);
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloaderDirectory);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
+        Assert.assertEquals((int) offloadPolicies.getManagedLedgerOffloadMaxThreads(), (int) managedLedgerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endpoint);

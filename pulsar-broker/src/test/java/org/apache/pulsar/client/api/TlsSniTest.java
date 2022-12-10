@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
+@Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
 
     /**

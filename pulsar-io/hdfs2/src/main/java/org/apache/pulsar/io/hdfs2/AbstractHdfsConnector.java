@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,10 +29,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.net.SocketFactory;
-
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -138,12 +135,8 @@ public abstract class AbstractHdfsConnector {
         }
         InetSocketAddress namenode = NetUtils.createSocketAddr(address, port);
         SocketFactory socketFactory = NetUtils.getDefaultSocketFactory(config);
-        Socket socket = null;
-        try {
-            socket = socketFactory.createSocket();
+        try (Socket socket = socketFactory.createSocket()) {
             NetUtils.connect(socket, namenode, 1000); // 1 second timeout
-        } finally {
-            IOUtils.closeQuietly(socket);
         }
     }
 

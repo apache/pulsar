@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.common.util.collections;
 
 import java.util.Set;
 import java.util.function.Function;
-
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairConsumer;
 
@@ -107,6 +106,13 @@ public interface LongPairSet {
      * @return
      */
     long size();
+
+    /**
+     * Returns capacity of the set.
+     *
+     * @return
+     */
+    long capacity();
 
     /**
      * Checks if given (item1,item2) composite value exists into set.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import java.io.InputStream;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
- * The data block header in code storage for each data block.
+ * The data block header in tiered storage for each data block.
  *
  * <p>Currently, It is in format:
  * [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long][padding]

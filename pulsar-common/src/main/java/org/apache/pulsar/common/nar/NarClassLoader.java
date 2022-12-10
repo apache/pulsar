@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
@@ -26,18 +25,22 @@ package org.apache.pulsar.common.nar;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -135,27 +138,20 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir") != null
+            ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
-                                                String narExtractionDirectory) throws IOException {
-        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
-                                                NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        try {
-            return new NarClassLoader(unpacked, additionalJars, parent);
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new IOException(e);
-        }
+        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
+            @SneakyThrows
+            @Override
+            public NarClassLoader run() {
+                return new NarClassLoader(unpacked, additionalJars, parent);
+            }
+        });
     }
 
     private static File getNarExtractionDirectory(String configuredDirectory) {
@@ -184,18 +180,14 @@ public class NarClassLoader extends URLClassLoader {
         // process the classpath
         updateClasspath(narWorkingDirectory);
 
-        for (String jar : additionalJars) {
-            if (jar.startsWith("/")) {
-                addURL(new URL("file://" + jar));
-            } else {
-                Path currentRelativePath = Paths.get("");
-                String cwd = currentRelativePath.toAbsolutePath().toString();
-                addURL(new URL("file://" + cwd + "/" + jar));
+        if (additionalJars != null) {
+            for (String jar : additionalJars) {
+                addURL(Paths.get(jar).toUri().toURL());
             }
         }
 
         if (log.isDebugEnabled()) {
-            log.info("Created class loader with paths: {}", Arrays.toString(getURLs()));
+            log.debug("Created class loader with paths: {}", Arrays.toString(getURLs()));
         }
     }
 
@@ -208,7 +200,7 @@ public class NarClassLoader extends URLClassLoader {
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
-        return new String(Files.readAllBytes(Paths.get(serviceDefPath)));
+        return new String(Files.readAllBytes(Paths.get(serviceDefPath)), StandardCharsets.UTF_8);
     }
 
     public List<String> getServiceImplementation(String serviceName) throws IOException {
@@ -216,7 +208,8 @@ public class NarClassLoader extends URLClassLoader {
 
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(serviceDefPath))) {
+        try (BufferedReader reader = new BufferedReader(
+            new InputStreamReader(new FileInputStream(serviceDefPath), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();

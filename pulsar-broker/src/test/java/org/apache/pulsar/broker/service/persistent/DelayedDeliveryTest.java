@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -34,6 +35,10 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.bookkeeper.client.BKException;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -42,32 +47,33 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Override
     @BeforeClass
     public void setup() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setDelayedDeliveryTickTimeMillis(1024);
+        conf.setDispatcherReadFailureBackoffInitialTimeInMs(1000);
         super.internalSetup();
         super.producerBaseSetup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @Test
-    public void testDelayedDelivery()
-            throws Exception {
-        String topic = "testNegativeAcks-" + System.nanoTime();
+    public void testDelayedDelivery() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
         @Cleanup
         Consumer<String> failoverConsumer = pulsarClient.newConsumer(Schema.STRING)
@@ -122,7 +128,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testInterleavedMessages()
             throws Exception {
-        String topic = "testInterleavedMessages-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testInterleavedMessages");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -174,7 +180,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testEverythingFilteredInMultipleReads()
             throws Exception {
-        String topic = "testEverythingFilteredInMultipleReads-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testEverythingFilteredInMultipleReads");
 
         @Cleanup
         Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
@@ -223,7 +229,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testDelayedDeliveryWithMultipleConcurrentReadEntries()
             throws Exception {
-        String topic = "persistent://public/default/testDelayedDelivery-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedDelivery");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -285,7 +291,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test
     public void testOrderingDispatch() throws PulsarClientException {
-        String topic = "persistent://public/default/testOrderingDispatch-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testOrderingDispatch");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -326,11 +332,15 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
-        String topicName = "persistent://public/default/topic-" + UUID.randomUUID().toString();
+        String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
-        DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
+        DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(2000)
+                .active(false)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -359,9 +369,13 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
-        DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, true);
+        DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(2000)
+                .active(true)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -403,7 +417,10 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(delayedMessages.contains("delayed-msg-" + i));
         }
         //5 Disable delayed delivery
-        delayedDeliveryPolicies.setActive(false);
+        delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(2000)
+                .active(false)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -418,8 +435,10 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNotNull(msg);
         consumer.acknowledge(msg);
         //7 Set a very long tick time, so that trackDelayedDelivery will fail. we can receive msg immediately.
-        delayedDeliveryPolicies.setActive(true);
-        delayedDeliveryPolicies.setTickTime(Integer.MAX_VALUE);
+        delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(Integer.MAX_VALUE)
+                .active(true)
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
@@ -447,4 +466,163 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         msg = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
+
+    @Test
+    public void testClearDelayedMessagesWhenClearBacklog() throws PulsarClientException, PulsarAdminException {
+        final String topic = "persistent://public/default/testClearDelayedMessagesWhenClearBacklog-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic).create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value("Delayed Message - " + i).send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName).getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
+
+        admin.topics().skipAllMessages(topic, subName);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+    }
+
+    @Test
+    public void testDelayedDeliveryWithAllConsumersDisconnecting() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelays");
+
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        c1.close();
+
+        // Attach a new consumer. Since there are no consumers connected, this will trigger the cursor rewind
+        @Cleanup
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
+                .subscribe();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        Message<String> msg = c2.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg);
+
+        // No more messages
+        msg = c2.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+    }
+
+    @Test
+    public void testInterleavedMessagesOnKeySharedSubscription() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testInterleavedMessagesOnKeySharedSubscription");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("key-shared-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Random random = new Random(0);
+        for (int i = 0; i < 10; i++) {
+            // Publish 1 message without delay and 1 with delay
+            producer.newMessage()
+                    .value("immediate-msg-" + i)
+                    .sendAsync();
+
+            int delayMillis = 1000 + random.nextInt(1000);
+            producer.newMessage()
+                    .value("delayed-msg-" + i)
+                    .deliverAfter(delayMillis, TimeUnit.MILLISECONDS)
+                    .sendAsync();
+            Thread.sleep(1000);
+        }
+
+        producer.flush();
+
+        Set<String> receivedMessages = new HashSet<>();
+
+        while (receivedMessages.size() < 20) {
+            Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            receivedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+    }
+
+    @Test
+    public void testDispatcherReadFailure() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testDispatcherReadFailure");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+
+        producer.flush();
+
+        Message<String> msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+        assertNull(msg);
+
+        // Inject failure in BK read
+        this.mockBookKeeper.failNow(BKException.Code.ReadException);
+
+        Set<String> receivedMsgs = new TreeSet<>();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(10, TimeUnit.SECONDS);
+            receivedMsgs.add(msg.getValue());
+        }
+
+        assertEquals(receivedMsgs.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertTrue(receivedMsgs.contains("msg-" + i));
+        }
+    }
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,26 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.channel.EventLoopGroup;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -35,29 +47,18 @@ import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.data.ACL;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import static org.mockito.Mockito.*;
 
 @Slf4j
 public class OwnerShipForCurrentServerTestBase {
 
-    public final static String CLUSTER_NAME = "test";
+    public static final String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;
@@ -72,7 +73,7 @@ public class OwnerShipForCurrentServerTestBase {
     protected PulsarClient pulsarClient;
 
     private MockZooKeeper mockZooKeeper;
-    private ExecutorService bkExecutor;
+    private OrderedExecutor bkExecutor;
     private NonClosableMockBookKeeper mockBookKeeper;
 
     public void internalSetup() throws Exception {
@@ -86,11 +87,11 @@ public class OwnerShipForCurrentServerTestBase {
     private void init() throws Exception {
         mockZooKeeper = createMockZooKeeper();
 
-        bkExecutor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                        .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                        .build());
-        mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
+        bkExecutor = OrderedExecutor.newBuilder()
+                .numThreads(1)
+                .name("mock-pulsar-bk")
+                .build();
+        mockBookKeeper = createMockBookKeeper(bkExecutor);
         startBroker();
     }
 
@@ -102,12 +103,14 @@ public class OwnerShipForCurrentServerTestBase {
             conf.setManagedLedgerCacheSizeMB(8);
             conf.setActiveConsumerFailoverDelayTimeMillis(0);
             conf.setDefaultNumberOfNamespaceBundles(1);
-            conf.setZookeeperServers("localhost:2181");
-            conf.setConfigurationStoreServers("localhost:3181");
-            conf.setAllowAutoTopicCreationType("non-partitioned");
+            conf.setMetadataStoreUrl("zk:localhost:2181");
+            conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
+            conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
             conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
+            conf.setBrokerShutdownTimeoutMs(0L);
+            conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             conf.setBrokerServicePort(Optional.of(0));
             conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
@@ -115,7 +118,7 @@ public class OwnerShipForCurrentServerTestBase {
             conf.setWebServicePortTls(Optional.of(0));
             serviceConfigurationList.add(conf);
 
-            PulsarService pulsar = spy(new PulsarService(conf));
+            PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, conf);
 
             setupBrokerMocks(pulsar);
             pulsar.start();
@@ -125,10 +128,12 @@ public class OwnerShipForCurrentServerTestBase {
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
         // Override default providers with mocked ones
-        doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
-
-        Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+        MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper);
+        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore(null);
+        doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore(null);
+        Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(
+                NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         SameThreadOrderedSafeExecutor executor = new SameThreadOrderedSafeExecutor();
@@ -144,23 +149,22 @@ public class OwnerShipForCurrentServerTestBase {
         List<ACL> dummyAclList = new ArrayList<>(0);
 
         ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
-                "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList, CreateMode.PERSISTENT);
+                "".getBytes(StandardCharsets.UTF_8), dummyAclList, CreateMode.PERSISTENT);
 
-        zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList,
+        zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(StandardCharsets.UTF_8), dummyAclList,
                 CreateMode.PERSISTENT);
         return zk;
     }
 
-    public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
-                                                                                             ExecutorService executor) throws Exception {
-        return spy(new NonClosableMockBookKeeper(zookeeper, executor));
+    public static NonClosableMockBookKeeper createMockBookKeeper(OrderedExecutor executor) throws Exception {
+        return spyWithClassAndConstructorArgs(NonClosableMockBookKeeper.class, executor);
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
     public static class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
-        public NonClosableMockBookKeeper(ZooKeeper zk, ExecutorService executor) throws Exception {
-            super(zk, executor);
+        public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+            super(executor);
         }
 
         @Override
@@ -178,20 +182,11 @@ public class OwnerShipForCurrentServerTestBase {
         }
     }
 
-    protected ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
-
-        @Override
-        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                                                   int zkSessionTimeoutMillis) {
-            // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-            return CompletableFuture.completedFuture(mockZooKeeper);
-        }
-    };
-
     private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                 EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
@@ -199,7 +194,8 @@ public class OwnerShipForCurrentServerTestBase {
         }
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                 EventLoopGroup eventLoopGroup,
                                  Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                                  Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart

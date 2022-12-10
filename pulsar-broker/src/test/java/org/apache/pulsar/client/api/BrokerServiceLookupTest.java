@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,20 +20,18 @@ package org.apache.pulsar.client.api;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
-
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -47,48 +45,49 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
 import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
-import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.discovery.service.DiscoveryService;
-import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -99,12 +98,14 @@ import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class BrokerServiceLookupTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerServiceLookupTest.class);
 
@@ -112,18 +113,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         conf.setDefaultNumberOfNamespaceBundles(1);
-        super.init();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .build();
-        super.producerBaseSetup();
+        isTcpLookup = true;
+        internalSetup();
+        producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        internalCleanup();
     }
 
     /**
@@ -142,11 +140,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setBrokerShutdownTimeoutMs(0L);
+        conf2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf2.setBrokerServicePort(Optional.of(0));
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -187,7 +188,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -200,9 +201,44 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
 
-        loadManager1 = null;
-        loadManager2 = null;
+    }
 
+    @Test
+    public void testConcurrentWriteBrokerData() throws Exception {
+        Map<String, NamespaceBundleStats> map = new ConcurrentHashMap<>();
+        for (int i = 0; i < 100; i++) {
+            map.put("key"+ i, new NamespaceBundleStats());
+        }
+        BrokerService brokerService = mock(BrokerService.class);
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        doReturn(map).when(brokerService).getBundleStats();
+        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        List<Future<?>> list = new ArrayList<>();
+        LocalBrokerData data = loadManager.getLoadManager().updateLocalBrokerData();
+        data.cleanDeltas();
+        data.getBundles().clear();
+        for (int i = 0; i < 1000; i++) {
+            list.add(executor.submit(() -> {
+                try {
+                    assertNotNull(loadManager.generateLoadReport());
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+            list.add(executor.submit(() -> {
+                try {
+                    loadManager.writeLoadReportOnZookeeper();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        }
+        for (Future<?> future : list) {
+            future.get();
+        }
     }
 
     /**
@@ -221,17 +257,23 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String property = "my-property2";
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
+        conf2.setBrokerShutdownTimeoutMs(0L);
+        conf2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf2.setBrokerServicePort(Optional.of(0));
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(newCluster); // Broker2 serves newCluster
-        conf2.setZookeeperServers("localhost:2181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort().get();
 
         admin.clusters().createCluster(newCluster,
-                new ClusterData(pulsar.getWebServiceAddress(), null, broker2ServiceUrl, null));
+                ClusterData.builder()
+                        .serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(broker2ServiceUrl)
+                        .build());
         admin.tenants().createTenant(property,
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         @Cleanup
@@ -273,7 +315,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -309,11 +351,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
+        conf2.setBrokerShutdownTimeoutMs(0L);
+        conf2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf2.setBrokerServicePort(Optional.of(0));
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -348,7 +393,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg, "Message should not be null");
@@ -383,7 +428,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setBrokerShutdownTimeoutMs(0L);
+        conf2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf2.setAdvertisedAddress("localhost");
+        conf2.setBrokerShutdownTimeoutMs(0L);
         conf2.setBrokerServicePort(Optional.of(0));
         conf2.setBrokerServicePortTls(Optional.of(0));
         conf2.setWebServicePort(Optional.of(0));
@@ -393,7 +441,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -458,343 +507,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         con.connect();
         log.info("connected url: {} ", con.getURL());
         // assert connect-url: broker2-https
-        assertEquals(new Integer(con.getURL().getPort()), conf2.getWebServicePortTls().get());
+        assertEquals(Integer.valueOf(con.getURL().getPort()), conf2.getWebServicePortTls().get());
         InputStream is = con.getInputStream();
         // assert redirect-url: broker1-https only
         log.info("redirected url: {}", con.getURL());
-        assertEquals(new Integer(con.getURL().getPort()), conf.getWebServicePortTls().get());
+        assertEquals(Integer.valueOf(con.getURL().getPort()), conf.getWebServicePortTls().get());
         is.close();
 
         loadManager1 = null;
         loadManager2 = null;
-    }
-
-    /**
-     * Discovery-Service lookup over binary-protocol 1. Start discovery service 2. start broker 3. Create
-     * Producer/Consumer: by calling Discovery service for partitionedMetadata and topic lookup
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testDiscoveryLookup() throws Exception {
-
-        // (1) start discovery service
-        ServiceConfig config = new ServiceConfig();
-        config.setServicePort(Optional.of(0));
-        config.setBindOnLocalhost(true);
-
-        @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
-
-        // (2) lookup using discovery service
-        final String discoverySvcUrl = discoveryService.getServiceUrl();
-
-        @Cleanup
-        PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(discoverySvcUrl).build();
-        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
-            .topic("persistent://my-property2/use2/my-ns/my-topic1")
-            .create();
-
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
-        for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-        }
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
-        producer.close();
-
-    }
-
-    /**
-     * Verify discovery-service binary-proto lookup using tls
-     *
-     * @throws Exception
-     */
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testDiscoveryLookupTls() throws Exception {
-
-        final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-        final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-        final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-        final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
-
-        // (1) restart broker1 with tls enabled
-        conf.setBrokerServicePortTls(Optional.ofNullable(0));
-        conf.setWebServicePortTls(Optional.ofNullable(0));
-        conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        conf.setNumExecutorThreadPoolSize(5);
-        stopBroker();
-        startBroker();
-
-        // (2) start discovery service
-        ServiceConfig config = new ServiceConfig();
-        config.setServicePort(Optional.of(0));
-        config.setServicePortTls(Optional.of(0));
-        config.setBindOnLocalhost(true);
-        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-
-        @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
-
-        // (3) lookup using discovery service
-        final String discoverySvcUrl = discoveryService.getServiceUrlTls();
-
-        Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
-        Authentication auth = new AuthenticationTls();
-        auth.configure(authParams);
-
-        @Cleanup
-        PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth)
-                .enableTls(true).allowTlsInsecureConnection(true).build();
-        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
-            .topic("persistent://my-property2/use2/my-ns/my-topic1")
-            .create();
-
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
-        for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-        }
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
-        producer.close();
-
-    }
-
-    @Test
-    public void testDiscoveryLookupAuthAndAuthSuccess() throws Exception {
-
-        // (1) start discovery service
-        ServiceConfig config = new ServiceConfig();
-        config.setServicePort(Optional.of(0));
-        config.setBindOnLocalhost(true);
-        // add Authentication Provider
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
-        config.setAuthenticationProviders(providersClassNames);
-        // enable authentication and authorization
-        config.setAuthenticationEnabled(true);
-        config.setAuthorizationEnabled(true);
-
-        @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
-
-        // (2) lookup using discovery service
-        final String discoverySvcUrl = discoveryService.getServiceUrl();
-        // set authentication data
-        Authentication auth = new Authentication() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public void close() throws IOException {
-            }
-
-            @Override
-            public String getAuthMethodName() {
-                return "auth";
-            }
-
-            @Override
-            public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-                return new AuthenticationDataProvider() {
-                    private static final long serialVersionUID = 1L;
-                };
-            }
-
-            @Override
-            public void configure(Map<String, String> authParams) {
-            }
-
-            @Override
-            public void start() throws PulsarClientException {
-            }
-        };
-
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth).build();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-            .topic("persistent://my-property/use2/my-ns/my-topic1")
-            .create();
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
-        for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-        }
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
-        producer.close();
-    }
-
-    @Test
-    public void testDiscoveryLookupAuthenticationFailure() throws Exception {
-
-        // (1) start discovery service
-        ServiceConfig config = new ServiceConfig();
-        config.setServicePort(Optional.of(0));
-        config.setBindOnLocalhost(true);
-        // set Authentication provider which fails authentication
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProviderFail.class.getName());
-        config.setAuthenticationProviders(providersClassNames);
-        // enable authentication
-        config.setAuthenticationEnabled(true);
-        config.setAuthorizationEnabled(true);
-
-        @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
-        // (2) lookup using discovery service
-        final String discoverySvcUrl = discoveryService.getServiceUrl();
-
-        // set authentication data
-        Authentication auth = new Authentication() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public void close() throws IOException {
-            }
-
-            @Override
-            public String getAuthMethodName() {
-                return "auth";
-            }
-
-            @Override
-            public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-                return new AuthenticationDataProvider() {
-                    private static final long serialVersionUID = 1L;
-                };
-            }
-
-            @Override
-            public void configure(Map<String, String> authParams) {
-            }
-
-            @Override
-            public void start() throws PulsarClientException {
-            }
-        };
-
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth)
-            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
-        try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscribe();
-            fail("should have failed due to authentication");
-        } catch (PulsarClientException e) {
-            // Ok: expected
-        }
-    }
-
-    @Test
-    public void testDiscoveryLookupAuthorizationFailure() throws Exception {
-
-        // (1) start discovery service
-        ServiceConfig config = new ServiceConfig();
-        config.setServicePort(Optional.of(0));
-        config.setBindOnLocalhost(true);
-        // set Authentication provider which returns "invalid" appid so, authorization fails
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthorizationProviderFail.class.getName());
-        config.setAuthenticationProviders(providersClassNames);
-        // enable authentication
-        config.setAuthenticationEnabled(true);
-        config.setAuthorizationEnabled(true);
-
-        @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
-        // (2) lookup using discovery service
-        final String discoverySvcUrl = discoveryService.getServiceUrl();
-
-        // set authentication data
-        Authentication auth = new Authentication() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public void close() throws IOException {
-            }
-
-            @Override
-            public String getAuthMethodName() {
-                return "auth";
-            }
-
-            @Override
-            public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-                return new AuthenticationDataProvider() {
-                    private static final long serialVersionUID = 1L;
-                };
-            }
-
-            @Override
-            public void configure(Map<String, String> authParams) {
-            }
-
-            @Override
-            public void start() throws PulsarClientException {
-            }
-        };
-
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth)
-            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
-        try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscribe();
-            fail("should have failed due to authentication");
-        } catch (PulsarClientException e) {
-            // Ok: expected
-            assertTrue(e instanceof PulsarClientException.LookupException);
-        }
     }
 
     /**
@@ -815,7 +536,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test(timeOut = 20000)
     public void testSplitUnloadLookupTest() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -824,11 +545,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // (1) Start broker-1
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
+        conf2.setBrokerShutdownTimeoutMs(0L);
+        conf2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf2.setBrokerServicePort(Optional.of(0));
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -892,7 +616,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .subscribe();
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
+        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit.toString());
 
         consumer1.close();
         consumer2.close();
@@ -916,7 +640,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test(timeOut = 20000)
     public void testModularLoadManagerSplitBundle() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -926,21 +650,28 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             final String namespace = "my-property/my-ns";
             // (1) Start broker-1
             ServiceConfiguration conf2 = new ServiceConfiguration();
+            conf2.setBrokerShutdownTimeoutMs(0L);
+            conf2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             conf2.setAdvertisedAddress("localhost");
+            conf2.setBrokerShutdownTimeoutMs(0L);
             conf2.setBrokerServicePort(Optional.of(0));
             conf2.setWebServicePort(Optional.of(0));
             conf2.setAdvertisedAddress("localhost");
             conf2.setClusterName(conf.getClusterName());
             conf2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            conf2.setZookeeperServers("localhost:2181");
-
-            @Cleanup
-            PulsarService pulsar2 = startBroker(conf2);
+            conf2.setMetadataStoreUrl("zk:localhost:2181");
+            conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
+            conf2.setLoadBalancerAutoBundleSplitEnabled(true);
+            conf2.setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
+            conf2.setLoadBalancerNamespaceBundleMaxTopics(1);
 
             // configure broker-1 with ModularLoadManager
             stopBroker();
             conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
             startBroker();
+
+            @Cleanup
+            PulsarService pulsar2 = startBroker(conf2);
 
             pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
             pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -967,16 +698,26 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             // (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
             final String topic1 = "persistent://" + namespace + "/topic1";
+            @Cleanup
             Consumer<byte[]> consumer1 = pulsarClient2.newConsumer().topic(topic1)
                     .subscriptionName("my-subscriber-name").subscribe();
 
+            // there should be more than one topic to trigger split
+            final String topic2 = "persistent://" + namespace + "/topic2";
+            @Cleanup
+            Consumer<byte[]> consumer2 = pulsarClient2.newConsumer().topic(topic2)
+                    .subscriptionName("my-subscriber-name")
+                    .subscribe();
+
             // (4) Broker-1 will own topic-1
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
-            retryStrategically((test) -> pulsar.getNamespaceService().getOwnedServiceUnits().stream()
-                    .map(nb -> nb.toString()).collect(Collectors.toSet()).contains(unsplitBundle), 5, 100);
-            Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()
-                    .map(nb -> nb.toString()).collect(Collectors.toSet());
-            assertTrue(serviceUnits1.contains(unsplitBundle));
+
+            Awaitility.await().until(() ->
+                    pulsar.getNamespaceService().getOwnedServiceUnits()
+                    .stream()
+                    .map(nb -> nb.toString())
+                    .collect(Collectors.toSet())
+                    .contains(unsplitBundle));
 
             // broker-2 should have this bundle into the cache
             TopicName topicName = TopicName.get(topic1);
@@ -991,41 +732,38 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
             // (5) Modular-load-manager will split the bundle due to max-topic threshold reached
-            Field leaderField = LeaderElectionService.class.getDeclaredField("isLeader");
             Method updateAllMethod = ModularLoadManagerImpl.class.getDeclaredMethod("updateAll");
             updateAllMethod.setAccessible(true);
-            leaderField.setAccessible(true);
-            AtomicBoolean isLeader = (AtomicBoolean) leaderField.get(pulsar2.getLeaderElectionService());
-            isLeader.set(true);
+
+            // broker-2 loadManager is a leader and let it refresh load-report from all the brokers
+            pulsar.getLeaderElectionService().close();
+
+            Awaitility.await()
+                    .untilAsserted(() -> pulsar2.getLeaderElectionService().isLeader());
+
             ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar2
                     .getLoadManager().get()).getLoadManager();
-            // broker-2 loadManager is a leader and let it refresh load-report from all the brokers
+
             updateAllMethod.invoke(loadManager);
-            conf2.setLoadBalancerAutoBundleSplitEnabled(true);
-            conf2.setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
-            conf2.setLoadBalancerNamespaceBundleMaxTopics(0);
             loadManager.checkNamespaceBundleSplit();
 
             // (6) Broker-2 should get the watch and update bundle cache
-            final int retry = 5;
-            for (int i = 0; i < retry; i++) {
-                if (pulsar2.getNamespaceService().getBundle(topicName).equals(bundleInBroker2) && i != retry - 1) {
-                    Thread.sleep(200);
-                } else {
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> {
+                assertNotEquals(pulsar2.getNamespaceService().getBundle(topicName), bundleInBroker2);
+            });
 
             // (7) Make lookup request again to Broker-2 which should succeed.
-            final String topic2 = "persistent://" + namespace + "/topic2";
-            Consumer<byte[]> consumer2 = pulsarClient2.newConsumer().topic(topic2).subscriptionName("my-subscriber-name")
+            final String topic3 = "persistent://" + namespace + "/topic3";
+            @Cleanup
+            Consumer<byte[]> consumer3 = pulsarClient2.newConsumer().topic(topic3)
+                    .subscriptionName("my-subscriber-name")
                     .subscribe();
 
-            NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-            assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
-
-            consumer1.close();
-            consumer2.close();
+            Awaitility.await().untilAsserted(() -> {
+                NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
+                        .getBundle(TopicName.get(topic3));
+                assertNotEquals(bundleInBroker1AfterSplit.toString(), unsplitBundle);
+            });
         } finally {
             conf.setLoadManagerClassName(loadBalancerName);
         }
@@ -1041,9 +779,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final int totalPartitions = 10;
         final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
-                new ClusterData(pulsar.getWebServiceAddress(), null, null, null));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant(property,
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
@@ -1154,6 +892,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     private AsyncHttpClient getHttpClient(String version) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setUserAgent(version);
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {

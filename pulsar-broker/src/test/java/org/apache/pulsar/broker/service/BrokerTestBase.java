@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,31 +18,57 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-/**
- */
+import java.util.Random;
+
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     protected static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
 
-    protected PulsarService getPulsar() {
-        return pulsar;
-    }
-
     public void baseSetup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        baseSetupCommon();
+        afterSetup();
+    }
+
+    public void baseSetup(ServiceConfiguration serviceConfiguration) throws Exception {
+        super.internalSetup(serviceConfiguration);
+        baseSetupCommon();
+        afterSetup();
+    }
+
+    protected void afterSetup() throws Exception {
+        // NOP
+    }
+
+    private void baseSetupCommon() throws Exception {
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("prop",
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
+    }
+
+    protected void createTransactionCoordinatorAssign() throws MetadataStoreException {
+        createTransactionCoordinatorAssign(1);
+    }
+
+    protected void createTransactionCoordinatorAssign(int partitions) throws MetadataStoreException {
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(partitions));
     }
 
     void rolloverPerIntervalStats() {
@@ -74,6 +100,12 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             LOG.error("Error running message expiry check", e);
         }
+    }
+
+    private static final Random random = new Random();
+
+    protected String newTopicName() {
+        return "prop/ns-abc/topic-" + Long.toHexString(random.nextLong());
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerTestBase.class);

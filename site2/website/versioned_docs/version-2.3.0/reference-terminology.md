@@ -1,7 +1,7 @@
 ---
-id: version-2.3.0-reference-terminology
+id: reference-terminology
 title: Pulsar Terminology
-sidebar_label: Terminology
+sidebar_label: "Terminology"
 original_id: reference-terminology
 ---
 
@@ -47,7 +47,7 @@ modes (exclusive, shared, and failover).
 
 #### Pub-Sub
 
-A messaging pattern in which [producer](#producer) proccesses publish messages on [topics](#topic) that
+A messaging pattern in which [producer](#producer) processes publish messages on [topics](#topic) that
 are then consumed (processed) by [consumer](#consumer) processes.
 
 #### Producer

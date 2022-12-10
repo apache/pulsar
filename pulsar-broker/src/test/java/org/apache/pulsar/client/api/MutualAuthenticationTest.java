@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,17 +45,18 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Test Mutual Authentication.
  * Test connect set success, and producer consumer works well.
  */
+@Test(groups = "broker-api")
 public class MutualAuthenticationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MutualAuthenticationTest.class);
 
     private MutualAuthentication mutualAuth;
 
-    private static String[] clientAuthStrings = {
+    private static final String[] clientAuthStrings = {
         "MutualClientAuthInit", // step 0
         "MutualClientStep1"     // step 1
     };
 
-    private static String[] serverAuthStrings = {
+    private static final String[] serverAuthStrings = {
         "ResponseMutualClientAuthInit", // step 0
     };
 
@@ -70,7 +71,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             String dataString = new String(data.getBytes(), UTF_8);
             AuthData toSend;
 
-            if (Arrays.equals(dataString.getBytes(), AuthData.INIT_AUTH_DATA)) {
+            if (Arrays.equals(dataString.getBytes(), AuthData.INIT_AUTH_DATA_BYTES)) {
                 toSend = AuthData.of(clientAuthStrings[0].getBytes(UTF_8));
             } else if (Arrays.equals(dataString.getBytes(), serverAuthStrings[0].getBytes(UTF_8))) {
                 toSend = AuthData.of(clientAuthStrings[1].getBytes(UTF_8));
@@ -181,11 +182,11 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         }
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         mutualAuth = new MutualAuthentication();
-        Set<String> superUserRoles = new HashSet<String>();
+        Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
 
@@ -194,18 +195,20 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         Set<String> providersClassNames = Sets.newHashSet(MutualAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providersClassNames);
 
-        super.init();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .authentication(mutualAuth)
-                .build();
-        super.producerBaseSetup();
+        isTcpLookup = true;
+        internalSetup();
+        producerBaseSetup();
     }
 
-    @AfterMethod
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.authentication(mutualAuth);
+    }
+
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        internalCleanup();
     }
 
     @Test
@@ -224,7 +227,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());

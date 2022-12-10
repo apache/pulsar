@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
 
 /**
  * A {@code Prometheus} based {@link StatsLogger} implementation.
@@ -34,7 +33,7 @@ public class PrometheusStatsLogger implements StatsLogger {
     private final PrometheusMetricsProvider provider;
     private final String scope;
 
-    PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope) {
+    public PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope) {
         this.provider = provider;
         this.scope = scope;
     }
@@ -45,8 +44,18 @@ public class PrometheusStatsLogger implements StatsLogger {
     }
 
     @Override
+    public OpStatsLogger getThreadScopedOpStatsLogger(String name) {
+        throw new RuntimeException("not implemented");
+    }
+
+    @Override
     public Counter getCounter(String name) {
         return provider.counters.computeIfAbsent(completeName(name), x -> new LongAdderCounter());
+    }
+
+    @Override
+    public Counter getThreadScopedCounter(String name) {
+        throw new RuntimeException("not implemented");
     }
 
     @Override

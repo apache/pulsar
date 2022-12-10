@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,23 +36,33 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
                 "bin/run-presto-worker.sh",
                 -1,
                 PRESTO_HTTP_PORT,
-                "/v1/node");
+                "/v1/info/state");
+        tailContainerLog();
+    }
 
+    @Override
+    protected void afterStart() {
+        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
+                "tail", "-f", "/pulsar/trino/var/log/launcher.log");
+        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
+                "tail", "-f", "/var/log/pulsar/presto_worker.log");
+        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
+                "tail", "-f", "/pulsar/trino/var/log/server.log");
     }
 
     @Override
     protected void beforeStop() {
         super.beforeStop();
-        if (null != containerId) {
+        if (null != getContainerId()) {
             DockerUtils.dumpContainerDirToTargetCompressed(
                     getDockerClient(),
-                    containerId,
-                    "/pulsar/lib/presto/var/log"
+                    getContainerId(),
+                    "/pulsar/trino/var/log"
             );
         }
     }
 
     public String getUrl() {
-        return String.format("%s:%s",  getContainerIpAddress(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
+        return String.format("%s:%s",  getHost(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
     }
 }

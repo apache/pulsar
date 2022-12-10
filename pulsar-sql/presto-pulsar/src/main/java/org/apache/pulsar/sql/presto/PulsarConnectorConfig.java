@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,14 +27,14 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.client.ClientBuilder;
-
 import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.Commands;
 
 /**
@@ -42,12 +42,17 @@ import org.apache.pulsar.common.protocol.Commands;
  */
 public class PulsarConnectorConfig implements AutoCloseable {
 
+    private boolean hasMetadataUrl = false;
+
     private String brokerServiceUrl = "http://localhost:8080";
-    private String zookeeperUri = "localhost:2181";
+    private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
+    private String webServiceUrl = ""; //leave empty
+    private String metadataUrl = "zk:localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
+    private long maxSplitQueueSizeBytes = -1;
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private String statsProvider = NullStatsProvider.class.getName();
 
@@ -61,11 +66,18 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
 
+    private boolean authorizationEnabled = false;
+
     // --- Ledger Offloading ---
     private String managedLedgerOffloadDriver = null;
     private int managedLedgerOffloadMaxThreads = 2;
     private String offloadersDirectory = "./offloaders";
     private Map<String, String> offloaderProperties = new HashMap<>();
+
+    //--- Ledger metrics ---
+    private boolean exposeTopicLevelMetricsInPrometheus = false;
+    private boolean exposeManagedLedgerMetricsInPrometheus = false;
+    private int managedLedgerStatsPeriodSeconds = 60;
 
     private PulsarAdmin pulsarAdmin;
 
@@ -73,10 +85,11 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int bookkeeperThrottleValue = 0;
     private int bookkeeperNumIOThreads = 2 * Runtime.getRuntime().availableProcessors();
     private int bookkeeperNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+    private boolean bookkeeperUseV2Protocol = true;
+    private int bookkeeperExplicitInterval = 0;
 
     // --- ManagedLedger
     private long managedLedgerCacheSizeMB = 0L;
-    private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     // --- Nar extraction
@@ -84,13 +97,33 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @NotNull
     public String getBrokerServiceUrl() {
-        return brokerServiceUrl;
+        if (StringUtils.isEmpty(webServiceUrl)){
+            return brokerServiceUrl;
+        } else {
+            return getWebServiceUrl();
+        }
     }
-
     @Config("pulsar.broker-service-url")
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
+    }
+    public String getBrokerBinaryServiceUrl() {
+        return this.brokerBinaryServiceUrl;
+    }
+    @Config("pulsar.broker-binary-service-url")
+    public PulsarConnectorConfig setBrokerBinaryServiceUrl(String brokerBinaryServiceUrl) {
+        this.brokerBinaryServiceUrl = brokerBinaryServiceUrl;
+        return this;
+    }
+    @Config("pulsar.web-service-url")
+    public PulsarConnectorConfig setWebServiceUrl(String webServiceUrl) {
+        this.webServiceUrl = webServiceUrl;
+        return this;
+    }
+
+    public String getWebServiceUrl() {
+        return webServiceUrl;
     }
 
     @Config("pulsar.max-message-size")
@@ -103,14 +136,37 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.maxMessageSize;
     }
 
+    /**
+     * @deprecated use {@link #getMetadataUrl()}
+     */
+    @Deprecated
     @NotNull
     public String getZookeeperUri() {
-        return this.zookeeperUri;
+        return getMetadataUrl();
     }
 
+    /**
+     * @deprecated use {@link #setMetadataUrl(String)}
+     */
+    @Deprecated
     @Config("pulsar.zookeeper-uri")
     public PulsarConnectorConfig setZookeeperUri(String zookeeperUri) {
-        this.zookeeperUri = zookeeperUri;
+        if (hasMetadataUrl) {
+            return this;
+        }
+        this.metadataUrl = zookeeperUri;
+        return this;
+    }
+
+    @NotNull
+    public String getMetadataUrl() {
+        return this.metadataUrl;
+    }
+
+    @Config("pulsar.metadata-url")
+    public PulsarConnectorConfig setMetadataUrl(String metadataUrl) {
+        this.hasMetadataUrl = true;
+        this.metadataUrl = metadataUrl;
         return this;
     }
 
@@ -155,6 +211,17 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.max-split-entry-queue-size")
     public PulsarConnectorConfig setMaxSplitEntryQueueSize(int maxSplitEntryQueueSize) {
         this.maxSplitEntryQueueSize = maxSplitEntryQueueSize;
+        return this;
+    }
+
+    @NotNull
+    public long getMaxSplitQueueSizeBytes() {
+        return this.maxSplitQueueSizeBytes;
+    }
+
+    @Config("pulsar.max-split-queue-cache-size")
+    public PulsarConnectorConfig setMaxSplitQueueSizeBytes(long maxSplitQueueSizeBytes) {
+        this.maxSplitQueueSizeBytes = maxSplitQueueSizeBytes;
         return this;
     }
 
@@ -207,6 +274,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
+    public boolean getAuthorizationEnabled() {
+        return authorizationEnabled;
+    }
+
+    @Config("pulsar.authorization-enabled")
+    public PulsarConnectorConfig setAuthorizationEnabled(boolean authorizationEnabled) {
+        this.authorizationEnabled = authorizationEnabled;
+        return this;
+    }
+
     // --- Ledger Offloading ---
 
     public int getManagedLedgerOffloadMaxThreads() {
@@ -249,6 +326,37 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setOffloaderProperties(String offloaderProperties) throws IOException {
         this.offloaderProperties = new ObjectMapper().readValue(offloaderProperties, Map.class);
         return this;
+    }
+
+    @Config("pulsar.expose-topic-level-metrics-in-prometheus")
+    public PulsarConnectorConfig setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
+        this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+        return this;
+    }
+
+    public boolean isExposeTopicLevelMetricsInPrometheus() {
+        return exposeTopicLevelMetricsInPrometheus;
+    }
+
+    @Config("pulsar.expose-managed-ledger-metrics-in-prometheus")
+    public PulsarConnectorConfig setExposeManagedLedgerMetricsInPrometheus(
+            boolean exposeManagedLedgerMetricsInPrometheus) {
+        this.exposeManagedLedgerMetricsInPrometheus = exposeManagedLedgerMetricsInPrometheus;
+        return this;
+    }
+
+    public boolean isExposeManagedLedgerMetricsInPrometheus() {
+        return exposeManagedLedgerMetricsInPrometheus;
+    }
+
+    @Config("pulsar.managed-ledger-stats-period-seconds")
+    public PulsarConnectorConfig setManagedLedgerStatsPeriodSeconds(int managedLedgerStatsPeriodSeconds) {
+        this.managedLedgerStatsPeriodSeconds = managedLedgerStatsPeriodSeconds;
+        return this;
+    }
+
+    public int getManagedLedgerStatsPeriodSeconds() {
+        return managedLedgerStatsPeriodSeconds;
     }
 
     // --- Authentication ---
@@ -335,6 +443,26 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
+    public boolean getBookkeeperUseV2Protocol() {
+        return bookkeeperUseV2Protocol;
+    }
+
+    @Config("pulsar.bookkeeper-use-v2-protocol")
+    public PulsarConnectorConfig setBookkeeperUseV2Protocol(boolean bookkeeperUseV2Protocol) {
+        this.bookkeeperUseV2Protocol = bookkeeperUseV2Protocol;
+        return this;
+    }
+
+    public int getBookkeeperExplicitInterval() {
+        return bookkeeperExplicitInterval;
+    }
+
+    @Config("pulsar.bookkeeper-explicit-interval")
+    public PulsarConnectorConfig setBookkeeperExplicitInterval(int bookkeeperExplicitInterval) {
+        this.bookkeeperExplicitInterval = bookkeeperExplicitInterval;
+        return this;
+    }
+
     // --- ManagedLedger
     public long getManagedLedgerCacheSizeMB() {
         return managedLedgerCacheSizeMB;
@@ -343,16 +471,6 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.managed-ledger-cache-size-MB")
     public PulsarConnectorConfig setManagedLedgerCacheSizeMB(int managedLedgerCacheSizeMB) {
         this.managedLedgerCacheSizeMB = managedLedgerCacheSizeMB * 1024 * 1024;
-        return this;
-    }
-
-    public int getManagedLedgerNumWorkerThreads() {
-        return managedLedgerNumWorkerThreads;
-    }
-
-    @Config("pulsar.managed-ledger-num-worker-threads")
-    public PulsarConnectorConfig setManagedLedgerNumWorkerThreads(int managedLedgerNumWorkerThreads) {
-        this.managedLedgerNumWorkerThreads = managedLedgerNumWorkerThreads;
         return this;
     }
 
@@ -404,10 +522,10 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.pulsarAdmin;
     }
 
-    public OffloadPolicies getOffloadPolices() {
+    public OffloadPoliciesImpl getOffloadPolices() {
         Properties offloadProperties = new Properties();
         offloadProperties.putAll(getOffloaderProperties());
-        OffloadPolicies offloadPolicies = OffloadPolicies.create(offloadProperties);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(offloadProperties);
         offloadPolicies.setManagedLedgerOffloadDriver(getManagedLedgerOffloadDriver());
         offloadPolicies.setManagedLedgerOffloadMaxThreads(getManagedLedgerOffloadMaxThreads());
         offloadPolicies.setOffloadersDirectory(getOffloadersDirectory());
@@ -421,8 +539,14 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-        return "PulsarConnectorConfig{"
+       if (StringUtils.isEmpty(webServiceUrl)){
+           return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + brokerServiceUrl + '\''
             + '}';
+        } else {
+            return "PulsarConnectorConfig{"
+            + "brokerServiceUrl='" + webServiceUrl + '\''
+            + '}';
+        }
     }
 }

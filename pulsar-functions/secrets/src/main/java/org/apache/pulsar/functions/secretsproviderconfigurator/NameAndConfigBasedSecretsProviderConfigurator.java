@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,9 @@ package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.V1PodSpec;
-import org.apache.pulsar.functions.proto.Function;
-
 import java.lang.reflect.Type;
 import java.util.Map;
+import org.apache.pulsar.functions.proto.Function;
 
 /**
  * This is a very simple secrets provider which wires in a given secrets provider classname/config
@@ -46,21 +45,26 @@ public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsPro
         return config;
     }
 
-    // Kubernetes secrets can be exposed as volume mounts or as environment variables in the pods. We are currently using the
-    // environment variables way. Essentially the secretName/secretPath is attached as secretRef to the environment variables
+    // Kubernetes secrets can be exposed as volume mounts or as environment
+    // variables in the pods. We are currently using the
+    // environment variables way. Essentially the secretName/secretPath is
+    // attached as secretRef to the environment variables
     // of a pod and kubernetes magically makes the secret pointed to by this combination available as a env variable.
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
+                                                          Function.FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
-    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
+    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
+                                                       Function.FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
     public Type getSecretObjectType() {
-        return new TypeToken<Map<String, String>>() {}.getType();
+        return new TypeToken<Map<String, String>>() {
+        }.getType();
     }
 }

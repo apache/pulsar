@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,9 @@ public interface SchemaDataValidator {
             case JSON:
             case PROTOBUF:
                 StructSchemaDataValidator.of().validate(schemaData);
+                break;
+            case PROTOBUF_NATIVE:
+                ProtobufNativeSchemaDataValidator.of().validate(schemaData);
                 break;
             case STRING:
                 StringSchemaDataValidator.of().validate(schemaData);

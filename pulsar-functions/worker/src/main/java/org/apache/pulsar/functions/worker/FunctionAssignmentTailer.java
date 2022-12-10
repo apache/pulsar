@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -26,17 +29,16 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 /**
  * This class is responsible for reading assignments from the 'assignments' functions internal topic.
  * Only functions worker leader writes to the topic while other workers read from the topic.
- * When a worker become a leader, the worker will read to the end of the assignments topic and close its reader to the topic.
+ * When a worker become a leader, the worker
+ * will read to the end of the assignments topic and close its reader to the topic.
  * Then the worker and new leader will be in charge of computing new assignments when necessary.
- * The leader does not need to listen to the assignments topic because it can just update its in memory assignments map directly
- * after it computes a new scheduling.  When a worker loses leadership, the worker is start reading from the assignments topic again.
+ * The leader does not need to listen to the assignments topic because it can
+ * just update its in memory assignments map directly
+ * after it computes a new scheduling.  When a worker loses leadership,
+ * the worker is start reading from the assignments topic again.
  */
 @Slf4j
 public class FunctionAssignmentTailer implements AutoCloseable {
@@ -53,7 +55,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
     @Getter
     private MessageId lastMessageId = null;
-    
+
     public FunctionAssignmentTailer(
             FunctionRuntimeManager functionRuntimeManager,
             ReaderBuilder readerBuilder,
@@ -128,7 +130,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             log.error("Failed to stop function assignment tailer", e);
         }
     }
-    
+
     private Reader<byte[]> createReader(MessageId startMessageId) throws PulsarClientException {
         log.info("Assignment tailer will start reading from message id {}", startMessageId);
 
@@ -145,7 +147,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 try {
                     Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
                     if (msg == null) {
-                        if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
+                        if (exitOnEndOfTopic && !reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
                             break;
                         }
                     } else {

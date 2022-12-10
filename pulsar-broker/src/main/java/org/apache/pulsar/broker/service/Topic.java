@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,34 +18,34 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.List;
+import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-
-import io.netty.buffer.ByteBuf;
 
 public interface Topic {
 
@@ -81,6 +81,9 @@ public interface Topic {
 
         void completed(Exception e, long ledgerId, long entryId);
 
+        default void setMetadataFromEntryData(ByteBuf entryData) {
+        }
+
         default long getHighestSequenceId() {
             return  -1L;
         }
@@ -92,26 +95,91 @@ public interface Topic {
         default long getOriginalHighestSequenceId() {
             return  -1L;
         }
+
+        default long getNumberOfMessages() {
+            return  1L;
+        }
+
+        default long getMsgSize() {
+            return  -1L;
+        }
+
+        default boolean isMarkerMessage() {
+            return false;
+        }
+
+        default void setProperty(String propertyName, Object value) {
+        }
+
+        default Object getProperty(String propertyName) {
+            return null;
+        }
+
+        default boolean isChunked() {
+            return false;
+        }
+
+        default long getEntryTimestamp() {
+            return -1L;
+        }
+
+        default void setEntryTimestamp(long entryTimestamp) {
+
+        }
     }
+
+    CompletableFuture<Void> initialize();
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
-    void addProducer(Producer producer) throws BrokerServiceException;
+    /**
+     * Tries to add a producer to the topic. Several validations will be performed.
+     *
+     * @param producer
+     * @param producerQueuedFuture
+     *            a future that will be triggered if the producer is being queued up prior of getting established
+     * @return the "topic epoch" if there is one or empty
+     */
+    CompletableFuture<Optional<Long>> addProducer(Producer producer, CompletableFuture<Void> producerQueuedFuture);
 
     void removeProducer(Producer producer);
 
     /**
-     * record add-latency
+     * Wait TransactionBuffer Recovers completely.
+     * Take snapshot after TB Recovers completely.
+     * @param isTxnEnabled
+     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     */
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
+
+    /**
+     * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
-    CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
+    /**
+     * increase the publishing limited times.
+     */
+    long increasePublishLimitedTimes();
+
+    @Deprecated
+    CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
+                                          int priorityLevel, String consumerName, boolean isDurable,
+                                          MessageId startMessageId,
+                                          Map<String, String> metadata, boolean readCompacted,
+                                          InitialPosition initialPosition,
+                                          long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
+                                          KeySharedMeta keySharedMeta);
+
+    /**
+     * Subscribe a topic.
+     * @param option
+     * @return
+     */
+    CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-            boolean replicateSubscriptionState);
+            boolean replicateSubscriptionState, Map<String, String> properties);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
@@ -129,6 +197,8 @@ public interface Topic {
 
     void checkGC();
 
+    CompletableFuture<Void> checkClusterMigration();
+
     void checkInactiveSubscriptions();
 
     /**
@@ -136,6 +206,8 @@ public interface Topic {
      * backlog.
      */
     void checkBackloggedCursors();
+
+    void checkCursorsToCacheEntries();
 
     void checkDeduplicationSnapshot();
 
@@ -155,6 +227,10 @@ public interface Topic {
 
     boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
 
+    boolean isResourceGroupRateLimitingEnabled();
+
+    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
+
     boolean isBrokerPublishRateExceeded();
 
     void disableCnxAutoRead();
@@ -163,7 +239,7 @@ public interface Topic {
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName);
+    CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -171,7 +247,13 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota();
+    boolean isShadowReplicated();
+
+    EntryFilters getEntryFiltersPolicy();
+
+    Map<String, EntryFilterWithClassLoader> getEntryFilters();
+
+    BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
@@ -181,7 +263,14 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStats getStats(boolean getPreciseBacklog);
+    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
+
+    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                            boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
+                                                              boolean subscriptionBacklogSize,
+                                                              boolean getEarliestTimeInBacklog);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -223,26 +312,28 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<SubscribeRateLimiter> getSubscribeRateLimiter() {
+        return Optional.empty();
+    }
+
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }
 
+    boolean isPersistent();
+
     /* ------ Transaction related ------ */
 
     /**
-     * Get the ${@link TransactionBuffer} of this Topic.
+     * Publish Transaction message to this Topic's TransactionBuffer.
      *
-     * @param createIfMissing Create the TransactionBuffer if missing.
-     * @return TransactionBuffer CompletableFuture
-     */
-    CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
-
-    /**
-     * Publish Transaction message to this Topic's TransactionBuffer
-     *
-     * @param txnID Transaction Id
+     * @param txnID             Transaction Id
      * @param headersAndPayload Message data
-     * @param publishContext Publish context
+     * @param publishContext    Publish context
      */
     void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
@@ -251,8 +342,28 @@ public interface Topic {
      *
      * @param txnID Transaction id
      * @param txnAction Transaction action.
+     * @param lowWaterMark low water mark of this tc
      * @return
      */
-    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, List<MessageIdData> sendMessageIdList);
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark);
+
+    /**
+     * Truncate a topic.
+     * The truncate operation will move all cursors to the end of the topic and delete all inactive ledgers.
+     * @return
+     */
+    CompletableFuture<Void> truncate();
+
+    /**
+     * Get BrokerService.
+     * @return
+     */
+    BrokerService getBrokerService();
+
+    /**
+     * Get HierarchyTopicPolicies.
+     * @return
+     */
+    HierarchyTopicPolicies getHierarchyTopicPolicies();
 
 }

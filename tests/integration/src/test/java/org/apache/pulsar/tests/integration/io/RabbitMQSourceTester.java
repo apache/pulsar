@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,11 +23,12 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
+import org.apache.pulsar.tests.integration.io.sources.SourceTester;
+
+import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
 
 public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
     private RabbitMQContainer serviceContainer;
@@ -87,5 +88,10 @@ public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
             }
             return values;
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+
     }
 }

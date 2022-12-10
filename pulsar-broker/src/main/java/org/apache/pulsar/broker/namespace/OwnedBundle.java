@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,13 +23,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@EqualsAndHashCode
+@ToString
 public class OwnedBundle {
     private static final Logger LOG = LoggerFactory.getLogger(OwnedBundle.class);
 
@@ -37,8 +40,10 @@ public class OwnedBundle {
 
     /**
      * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
-     * based on {@link #active} flag
+     * based on {@link #active} flag.
      */
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -47,7 +52,7 @@ public class OwnedBundle {
     private volatile int isActive = TRUE;
 
     /**
-     * constructor
+     * constructor.
      *
      * @param suName
      */
@@ -57,7 +62,7 @@ public class OwnedBundle {
     };
 
     /**
-     * Constructor to allow set initial active flag
+     * Constructor to allow set initial active flag.
      *
      * @param suName
      * @param active
@@ -68,7 +73,7 @@ public class OwnedBundle {
     }
 
     /**
-     * Access to the namespace name
+     * Access to the namespace name.
      *
      * @return NamespaceName
      */
@@ -93,6 +98,11 @@ public class OwnedBundle {
      * @throws Exception
      */
     public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit) {
+        return handleUnloadRequest(pulsar, timeout, timeoutUnit, true);
+    }
+
+    public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit,
+                                                       boolean closeWithoutWaitingClientDisconnect) {
         long unloadBundleStartTime = System.nanoTime();
         // Need a per namespace RenetrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
@@ -125,7 +135,8 @@ public class OwnedBundle {
         // close topics forcefully
         return pulsar.getNamespaceService().getOwnershipCache()
                 .updateBundleState(this.bundle, false)
-                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(bundle, true, timeout, timeoutUnit))
+                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(
+                        bundle, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle
@@ -133,6 +144,8 @@ public class OwnedBundle {
                     } else {
                         unloadedTopics.set(numUnloadedTopics);
                     }
+                    // clean up topics that failed to unload from the broker ownership cache
+                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
                     return null;
                 })
                 .thenCompose(v -> {
@@ -147,7 +160,7 @@ public class OwnedBundle {
     }
 
     /**
-     * Access method to the namespace state to check whether the namespace is active or not
+     * Access method to the namespace state to check whether the namespace is active or not.
      *
      * @return boolean value indicate that the namespace is active or not.
      */

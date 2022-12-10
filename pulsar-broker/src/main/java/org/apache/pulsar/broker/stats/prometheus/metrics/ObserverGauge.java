@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 import io.prometheus.client.Collector;
 import io.prometheus.client.GaugeMetricFamily;
 import io.prometheus.client.SimpleCollector;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +31,8 @@ public class ObserverGauge extends SimpleCollector<ObserverGauge.Child> implemen
 
     public static class Builder extends SimpleCollector.Builder<Builder, ObserverGauge> {
         private Supplier<Number> supplier;
+
+        public Builder() {}
 
         public Builder supplier(Supplier<Number> supplier) {
             this.supplier = supplier;

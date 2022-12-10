@@ -44,6 +44,7 @@ message Schema {
         LocalDate = 17;
         LocalTime = 18;
         LocalDateTime = 19;
+        ProtobufNative = 20;
     }
 
     required string name = 1;
@@ -59,6 +60,10 @@ message MessageIdData {
     optional int32 partition = 3 [default = -1];
     optional int32 batch_index = 4 [default = -1];
     repeated int64 ack_set = 5;
+    optional int32 batch_size = 6;
+
+    // For the chunk message id, we need to specify the first chunk message id.
+    optional MessageIdData first_chunk_message_id = 7;
 }
 
 message KeyValue {
@@ -88,6 +93,13 @@ enum CompressionType {
     ZLIB   = 2;
     ZSTD   = 3;
     SNAPPY   = 4;
+}
+
+enum ProducerAccessMode {
+    Shared = 0; // By default multiple producers can publish on a topic
+    Exclusive = 1; // Require exclusive access for producer. Fail immediately if there's already a producer connected.
+    WaitForExclusive = 2; // Producer creation is pending until it can acquire exclusive access
+    ExclusiveWithFencing = 3; // Require exclusive access for producer. Fence out old producer.
 }
 
 message MessageMetadata {
@@ -142,11 +154,11 @@ message MessageMetadata {
     optional uint64 highest_sequence_id = 24 [default = 0];
 
     // Indicate if the message payload value is set
-    optional bool null_value = 25 [ default = false ];
+    optional bool null_value = 25 [default = false];
     optional string uuid = 26;
-	optional int32 num_chunks_from_msg = 27;
-	optional int32 total_chunk_msg_size = 28;
-	optional int32 chunk_id = 29;
+    optional int32 num_chunks_from_msg = 27;
+    optional int32 total_chunk_msg_size = 28;
+    optional int32 chunk_id = 29;
 
     // Indicate if the message partition key is set
     optional bool null_partition_key = 30 [default = false];
@@ -170,6 +182,12 @@ message SingleMessageMetadata {
     optional bool null_value = 9 [ default = false ];
     // Indicate if the message partition key is set
     optional bool null_partition_key = 10 [ default = false];
+}
+
+// metadata added for entry from broker
+message BrokerEntryMetadata {
+    optional uint64 broker_timestamp = 1;
+    optional uint64 index = 2;
 }
 
 enum ServerError {
@@ -203,6 +221,13 @@ enum ServerError {
     NotAllowedError = 22; // Not allowed error
 
     TransactionConflict = 23; // Ack with transaction conflict
+    TransactionNotFound = 24; // Transaction not found
+
+    ProducerFenced = 25; // When a producer asks and fail to get exclusive producer access,
+                         // or loses the eclusive status after a reconnection, the broker will
+                         // use this error to indicate that this producer is now permanently
+                         // fenced. Applications are now supposed to close it and create a
+                         // new producer
 }
 
 enum AuthMethod {
@@ -233,6 +258,11 @@ enum ProtocolVersion {
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
+    v16 = 16; // Add support for broker entry metadata
+    v17 = 17; // Added support ack receipt
+    v18 = 18; // Add client support for broker entry metadata
+    v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
+    v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
 }
 
 message CommandConnect {
@@ -263,12 +293,16 @@ message CommandConnect {
 
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
+  optional bool supports_broker_entry_metadata = 2 [default = false];
+  optional bool supports_partial_producer = 3 [default = false];
+  optional bool supports_topic_watchers = 4 [default = false];
 }
 
 message CommandConnected {
     required string server_version = 1;
     optional int32 protocol_version = 2 [default = 0];
     optional int32 max_message_size = 3;
+    optional FeatureFlags feature_flags = 4;
 }
 
 message CommandAuthResponse {
@@ -356,6 +390,11 @@ message CommandSubscribe {
     optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
 
     optional KeySharedMeta keySharedMeta = 17;
+
+    repeated KeyValue subscription_properties = 18;
+
+    // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
+    optional uint64 consumer_epoch = 19;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -447,6 +486,24 @@ message CommandProducer {
     // Indicate the name of the producer is generated or user provided
     // Use default true here is in order to be forward compatible with the client
     optional bool user_provided_producer_name = 9 [default = true];
+
+    // Require that this producers will be the only producer allowed on the topic
+    optional ProducerAccessMode producer_access_mode = 10 [default = Shared];
+
+    // Topic epoch is used to fence off producers that reconnects after a new
+    // exclusive producer has already taken over. This id is assigned by the
+    // broker on the CommandProducerSuccess. The first time, the client will
+    // leave it empty and then it will always carry the same epoch number on
+    // the subsequent reconnections.
+    optional uint64 topic_epoch = 11;
+
+    optional bool txn_enabled = 12 [default = false];
+
+    // Name of the initial subscription of the topic.
+    // If this field is not set, the initial subscription will not be created.
+    // If this field is set but the broker's `allowAutoSubscriptionCreation`
+    // is disabled, the producer will fail to be created.
+    optional string initial_subscription_name = 13;
 }
 
 message CommandSend {
@@ -459,6 +516,12 @@ message CommandSend {
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
     optional bool is_chunk     =7 [default = false];
+
+    // Specify if the message being published is a Pulsar marker or not
+    optional bool marker = 8 [default = false];
+
+    // Message id of this message, currently is used in replicator for shadow topic.
+    optional MessageIdData message_id = 9;
 }
 
 message CommandSendReceipt {
@@ -480,6 +543,7 @@ message CommandMessage {
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
     repeated int64 ack_set = 4;
+    optional uint64 consumer_epoch = 5;
 }
 
 message CommandAck {
@@ -557,6 +621,19 @@ message CommandReachedEndOfTopic {
     required uint64 consumer_id = 1;
 }
 
+message CommandTopicMigrated {
+	enum ResourceType {
+        Producer = 0;
+        Consumer = 1;
+    }
+    required uint64 resource_id = 1;
+    required ResourceType resource_type = 2;
+    optional string brokerServiceUrl      = 3;
+    optional string brokerServiceUrlTls   = 4;
+    
+}
+
+
 message CommandCloseProducer {
     required uint64 producer_id = 1;
     required uint64 request_id = 2;
@@ -570,6 +647,7 @@ message CommandCloseConsumer {
 message CommandRedeliverUnacknowledgedMessages {
     required uint64 consumer_id = 1;
     repeated MessageIdData message_ids = 2;
+    optional uint64 consumer_epoch = 3;
 }
 
 message CommandSuccess {
@@ -586,6 +664,15 @@ message CommandProducerSuccess {
     // This will only be meaningful if deduplication has been enabled.
     optional int64  last_sequence_id = 3 [default = -1];
     optional bytes schema_version = 4;
+
+    // The topic epoch assigned by the broker. This field will only be set if we
+    // were requiring exclusive access when creating the producer.
+    optional uint64 topic_epoch = 5;
+
+    // If producer is not "ready", the client will avoid to timeout the request
+    // for creating the producer. Instead it will wait indefinitely until it gets
+    // a subsequent  `CommandProducerSuccess` with `producer_ready==true`.
+    optional bool producer_ready = 6 [default = true];
 }
 
 message CommandError {
@@ -649,6 +736,9 @@ message CommandConsumerStatsResponse {
 
         /// Number of messages in the subscription backlog
         optional uint64 msgBacklog                  = 15;
+
+        /// Total rate of messages ack. msg/s
+        optional double messageAckRate              = 16;
 }
 
 message CommandGetLastMessageId {
@@ -659,6 +749,7 @@ message CommandGetLastMessageId {
 message CommandGetLastMessageIdResponse {
     required MessageIdData last_message_id = 1;
     required uint64 request_id  = 2;
+    optional MessageIdData consumer_mark_delete_position = 3;
 }
 
 message CommandGetTopicsOfNamespace {
@@ -670,11 +761,47 @@ message CommandGetTopicsOfNamespace {
     required uint64 request_id    = 1;
     required string namespace    = 2;
     optional Mode mode = 3 [default = PERSISTENT];
+    optional string topics_pattern = 4;
+    optional string topics_hash    = 5;
 }
 
 message CommandGetTopicsOfNamespaceResponse {
     required uint64 request_id    = 1;
     repeated string topics         = 2;
+    // true iff the topic list was filtered by the pattern supplied by the client
+    optional bool   filtered       = 3 [default = false];
+    // hash computed from the names of matching topics
+    optional string topics_hash    = 4;
+    // if false, topics is empty and the list of matching topics has not changed
+    optional bool   changed        = 5 [default = true];
+}
+
+message CommandWatchTopicList {
+    required uint64 request_id     = 1;
+    required uint64 watcher_id     = 2;
+    required string namespace      = 3;
+    required string topics_pattern = 4;
+    // Only present when the client reconnects:
+    optional string topics_hash    = 5;
+}
+
+message CommandWatchTopicListSuccess {
+    required uint64 request_id     = 1;
+    required uint64 watcher_id     = 2;
+    repeated string topic          = 3;
+    required string topics_hash    = 4;
+}
+
+message CommandWatchTopicUpdate {
+    required uint64 watcher_id     = 1;
+    repeated string new_topics     = 2;
+    repeated string deleted_topics = 3;
+    required string topics_hash    = 4;
+}
+
+message CommandWatchTopicListClose {
+    required uint64 request_id     = 1;
+    required uint64 watcher_id     = 2;
 }
 
 message CommandGetSchema {
@@ -712,6 +839,17 @@ message CommandGetOrCreateSchemaResponse {
 enum TxnAction {
     COMMIT = 0;
     ABORT = 1;
+}
+
+message CommandTcClientConnectRequest {
+    required uint64 request_id = 1;
+    required uint64 tc_id = 2 [default = 0];
+}
+
+message CommandTcClientConnectResponse {
+    required uint64 request_id = 1;
+    optional ServerError error  = 2;
+    optional string message     = 3;
 }
 
 message CommandNewTxn {
@@ -767,7 +905,6 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
-    repeated MessageIdData message_id = 5;
 }
 
 message CommandEndTxnResponse {
@@ -784,7 +921,7 @@ message CommandEndTxnOnPartition {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional string topic = 4;
     optional TxnAction txn_action = 5;
-    repeated MessageIdData message_id = 6;
+    optional uint64 txnid_least_bits_of_low_watermark = 6;
 }
 
 message CommandEndTxnOnPartitionResponse {
@@ -801,6 +938,7 @@ message CommandEndTxnOnSubscription {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional Subscription subscription= 4;
     optional TxnAction txn_action = 5;
+    optional uint64 txnid_least_bits_of_low_watermark = 6;
 }
 
 message CommandEndTxnOnSubscriptionResponse {
@@ -893,7 +1031,15 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
+        TC_CLIENT_CONNECT_REQUEST = 62;
+        TC_CLIENT_CONNECT_RESPONSE = 63;
 
+        WATCH_TOPIC_LIST = 64;
+        WATCH_TOPIC_LIST_SUCCESS = 65;
+        WATCH_TOPIC_UPDATE = 66;
+        WATCH_TOPIC_LIST_CLOSE = 67;
+
+        TOPIC_MIGRATED = 68;
     }
 
 
@@ -968,4 +1114,13 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+    optional CommandTcClientConnectRequest tcClientConnectRequest = 62;
+    optional CommandTcClientConnectResponse tcClientConnectResponse = 63;
+
+    optional CommandWatchTopicList watchTopicList = 64;
+    optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
+    optional CommandWatchTopicUpdate watchTopicUpdate = 66;
+    optional CommandWatchTopicListClose watchTopicListClose = 67;
+    
+    optional CommandTopicMigrated topicMigrated = 68;
 }

@@ -1,7 +1,7 @@
 ---
-id: version-2.4.2-concepts-schema-registry
+id: concepts-schema-registry
 title: Schema Registry
-sidebar_label: Schema Registry
+sidebar_label: "Schema Registry"
 original_id: concepts-schema-registry
 ---
 
@@ -50,6 +50,7 @@ Once a version is assigned/fetched to/for a schema, all subsequent messages prod
 In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begin sending messages:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
@@ -58,6 +59,7 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
         .topic("sensor-data")
         .sendTimeout(3, TimeUnit.SECONDS)
         .create();
+
 ```
 
 The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:
@@ -97,22 +99,26 @@ The following example shows how to define an Avro schema using the `GenericSchem
 
 1. Use the `RecordSchemaBuilder` to build a schema.
 
-    ```java
-    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
-    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
-    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+   ```java
+   
+   RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+   recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+   SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
-    Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
-    ```
+   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+   
+   ```
 
 2. Use `RecordBuilder` to build the generic records.
 
-    ```java
-    producer.newMessage().value(schema.newRecordBuilder()
-                .set("intField", 32)
-                .build()).send();
-    ```
+   ```java
+   
+   producer.newMessage().value(schema.newRecordBuilder()
+               .set("intField", 32)
+               .build()).send();
+   
+   ```
 
 ## Managing Schemas
 
-You can use Pulsar's [admin tools](admin-api-schemas.md) for managing schemas for topics.
+You can use Pulsar admin tools to manage schemas for topics.

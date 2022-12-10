@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,14 +21,13 @@ package org.apache.pulsar.functions.worker;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 @Slf4j
 public class FunctionMetaDataTopicTailer
@@ -67,7 +66,7 @@ public class FunctionMetaDataTopicTailer
             try {
                 Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
                 if (msg == null) {
-                    if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
+                    if (exitOnEndOfTopic && !reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
                         break;
                     }
                 } else {

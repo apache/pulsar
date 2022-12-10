@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.io.hdfs3.sink.seq;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.Writer;
@@ -60,7 +59,7 @@ public class HdfsSequentialTextSink extends HdfsAbstractSequenceFileSink<Long, S
 
     @Override
     public KeyValue<Long, String> extractKeyValue(Record<String> record) {
-       Long sequence = record.getRecordSequence().orElseGet(() -> new Long(counter.incrementAndGet()));
+       Long sequence = record.getRecordSequence().orElseGet(() -> counter.incrementAndGet());
        return new KeyValue<>(sequence, record.getValue());
     }
 

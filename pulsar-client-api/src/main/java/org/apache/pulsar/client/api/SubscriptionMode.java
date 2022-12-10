@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Types of subscription mode supported by Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SubscriptionMode {
     // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
     // position

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,7 @@ import javax.naming.AuthenticationException;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
- * Interface for accessing data which are used in variety of authentication schemes on server side
+ * Interface for accessing data which are used in variety of authentication schemes on server side.
  */
 public interface AuthenticationDataSource {
     /*
@@ -63,7 +63,7 @@ public interface AuthenticationDataSource {
 
     /**
      *
-     * @return a authentication scheme, or <code>null<c/ode> if the request is not be authenticated
+     * @return a authentication scheme, or <code>null</code> if the request is not be authenticated.
      */
     default String getHttpAuthType() {
         return null;
@@ -102,7 +102,10 @@ public interface AuthenticationDataSource {
     /**
      * Evaluate and challenge the data that passed in, and return processed data back.
      * It is used for mutual authentication like SASL.
+     * NOTE: this method is not called by the Pulsar authentication framework.
+     * @deprecated use {@link AuthenticationProvider} or {@link AuthenticationState}.
      */
+    @Deprecated
     default AuthData authenticate(AuthData data) throws AuthenticationException {
         throw new AuthenticationException("Not supported");
     }
@@ -138,16 +141,16 @@ public interface AuthenticationDataSource {
     }
 
     /**
-     * Subscription name can be necessary for consumption
+     * Subscription name can be necessary for consumption.
      *
      * @return a <code>String</code> containing the subscription name
      */
-    default String getSubscription() { return null; }
+    default String getSubscription() {
+        return null;
+    }
 
     /**
-     * Subscription name can be necessary for consumption
-     *
-     * @return a <code>String</code> containing the subscription name
+     * Subscription name can be necessary for consumption.
      */
     default void setSubscription(String subscription) { };
 }

@@ -41,6 +41,7 @@ subscriptionType: 0
 timeoutMs: 0
 subscriptionName: ""
 cleanupSubscription: false
+subscriptionPosition: 1
 # source input specs
 sourceSpecsTopic: persistent://public/default/topic-01
 sourceSchemaType: ""
@@ -57,3 +58,5 @@ disk: 0
 maxMessageRetries: 0
 deadLetterTopic: ""
 expectedHealthCheckInterval: 3
+# metrics config
+metricsPort: 50001

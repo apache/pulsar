@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,21 +22,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
-
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import java.io.IOException;
-import java.io.Writer;
-import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 
 @Path("/")
 public class FunctionsMetricsResource extends FunctionApiResource {
@@ -55,7 +53,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
 
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
-            FunctionsStatsGenerator.generate(workerService,"default", stream);
+            workerService.generateFunctionsStats(stream);
             byte[] payload = buf.array();
             int arrayOffset = buf.arrayOffset();
             int readableBytes = buf.readableBytes();

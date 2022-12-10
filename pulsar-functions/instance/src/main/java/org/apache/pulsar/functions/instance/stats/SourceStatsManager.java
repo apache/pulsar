@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,34 +19,32 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
-import lombok.Getter;
-import org.apache.pulsar.common.util.RateLimiter;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
+import org.apache.pulsar.common.util.RateLimiter;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 public class SourceStatsManager extends ComponentStatsManager {
 
     public static final String PULSAR_SOURCE_METRICS_PREFIX = "pulsar_source_";
 
-    /** Declare metric names **/
+    /** Declare metric names. **/
     public static final String SYSTEM_EXCEPTIONS_TOTAL = "system_exceptions_total";
     public static final String SOURCE_EXCEPTIONS_TOTAL = "source_exceptions_total";
     public static final String LAST_INVOCATION = "last_invocation";
     public static final String RECEIVED_TOTAL = "received_total";
     public static final String WRITTEN_TOTAL = "written_total";
 
-    public static final String SYSTEM_EXCEPTIONS_TOTAL_1min = "system_exceptions_total_1min";
-    public static final String SOURCE_EXCEPTIONS_TOTAL_1min = "source_exceptions_total_1min";
-    public static final String RECEIVED_TOTAL_1min = "received_total_1min";
-    public static final String WRITTEN_TOTAL_1min = "written_total_1min";
+    public static final String SYSTEM_EXCEPTIONS_TOTAL_1min = "system_exceptions_1min";
+    public static final String SOURCE_EXCEPTIONS_TOTAL_1min = "source_exceptions_1min";
+    public static final String RECEIVED_TOTAL_1min = "received_1min";
+    public static final String WRITTEN_TOTAL_1min = "written_1min";
 
-    /** Declare Prometheus stats **/
+    /** Declare Prometheus stats. **/
 
     private final Counter statTotalRecordsReceived;
 
@@ -74,138 +72,176 @@ public class SourceStatsManager extends ComponentStatsManager {
     final Gauge sourceExceptions;
 
     // As an optimization
-    private final Counter.Child _statTotalRecordsReceived;
-    private final Counter.Child _statTotalSysExceptions;
-    private final Counter.Child _statTotalSourceExceptions;
-    private final Counter.Child _statTotalWritten;
-    private final Gauge.Child _statlastInvocation;
+    private final Counter.Child statTotalRecordsReceivedChild;
+    private final Counter.Child statTotalSysExceptionsChild;
+    private final Counter.Child statTotalSourceExceptionsChild;
+    private final Counter.Child statTotalWrittenChild;
+    private final Gauge.Child statlastInvocationChild;
 
-    private Counter.Child _statTotalRecordsReceived1min;
-    private Counter.Child _statTotalSysExceptions1min;
-    private Counter.Child _statTotalSourceExceptions1min;
-    private Counter.Child _statTotalWritten1min;
+    private Counter.Child statTotalRecordsReceivedChild1min;
+    private Counter.Child statTotalSysExceptions1minChild;
+    private Counter.Child statTotalSourceExceptionsChild1min;
+    private Counter.Child statTotalWrittenChild1min;
 
     @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
+    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
+            EvictingQueue.create(10);
     @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSourceExceptions = EvictingQueue.create(10);
+    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSourceExceptions =
+            EvictingQueue.create(10);
 
     protected final RateLimiter sysExceptionRateLimiter;
 
     protected final RateLimiter sourceExceptionRateLimiter;
 
-    public SourceStatsManager(CollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService
-            scheduledExecutorService) {
+    public SourceStatsManager(FunctionCollectorRegistry collectorRegistry, String[] metricsLabels,
+                              ScheduledExecutorService
+                                      scheduledExecutorService) {
         super(collectorRegistry, metricsLabels, scheduledExecutorService);
 
-        statTotalRecordsReceived = Counter.build()
+        statTotalRecordsReceived = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + RECEIVED_TOTAL,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + RECEIVED_TOTAL)
                 .help("Total number of records received from source.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalRecordsReceived = statTotalRecordsReceived.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalRecordsReceivedChild = statTotalRecordsReceived.labels(metricsLabels);
 
-        statTotalSysExceptions = Counter.build()
+        statTotalSysExceptions = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL)
                 .help("Total number of system exceptions.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSysExceptions = statTotalSysExceptions.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalSysExceptionsChild = statTotalSysExceptions.labels(metricsLabels);
 
-        statTotalSourceExceptions = Counter.build()
+        statTotalSourceExceptions = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + SOURCE_EXCEPTIONS_TOTAL,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + SOURCE_EXCEPTIONS_TOTAL)
                 .help("Total number of source exceptions.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSourceExceptions = statTotalSourceExceptions.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalSourceExceptionsChild = statTotalSourceExceptions.labels(metricsLabels);
 
-        statTotalWritten = Counter.build()
+        statTotalWritten = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + WRITTEN_TOTAL,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + WRITTEN_TOTAL)
                 .help("Total number of records written to a Pulsar topic.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalWritten = statTotalWritten.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalWrittenChild = statTotalWritten.labels(metricsLabels);
 
-        statlastInvocation = Gauge.build()
+        statlastInvocation = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + LAST_INVOCATION,
+                Gauge.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + LAST_INVOCATION)
                 .help("The timestamp of the last invocation of the source.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statlastInvocation = statlastInvocation.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statlastInvocationChild = statlastInvocation.labels(metricsLabels);
 
-        statTotalRecordsReceived1min = Counter.build()
+        statTotalRecordsReceived1min = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + RECEIVED_TOTAL_1min,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + RECEIVED_TOTAL_1min)
                 .help("Total number of records received from source in the last 1 minute.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalRecordsReceivedChild1min = statTotalRecordsReceived1min.labels(metricsLabels);
 
-        statTotalSysExceptions1min = Counter.build()
+        statTotalSysExceptions1min = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL_1min,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL_1min)
                 .help("Total number of system exceptions in the last 1 minute.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSysExceptions1min = statTotalSysExceptions1min.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalSysExceptions1minChild = statTotalSysExceptions1min.labels(metricsLabels);
 
-        statTotalSourceExceptions1min = Counter.build()
+        statTotalSourceExceptions1min = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + SOURCE_EXCEPTIONS_TOTAL_1min,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + SOURCE_EXCEPTIONS_TOTAL_1min)
                 .help("Total number of source exceptions in the last 1 minute.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalSourceExceptions1min = statTotalSourceExceptions1min.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalSourceExceptionsChild1min = statTotalSourceExceptions1min.labels(metricsLabels);
 
-        statTotalWritten1min = Counter.build()
+        statTotalWritten1min = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + WRITTEN_TOTAL_1min,
+                Counter.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + WRITTEN_TOTAL_1min)
                 .help("Total number of records written to a Pulsar topic in the last 1 minute.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-        _statTotalWritten1min = statTotalWritten1min.labels(metricsLabels);
+                .labelNames(METRICS_LABEL_NAMES)
+                .create());
+        statTotalWrittenChild1min = statTotalWritten1min.labels(metricsLabels);
 
-        sysExceptions = Gauge.build()
+        sysExceptions = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + "system_exception",
+                Gauge.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + "system_exception")
-                .labelNames(exceptionMetricsLabelNames)
+                .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
                 .help("Exception from system code.")
-                .register(collectorRegistry);
+                .create());
 
-        sourceExceptions = Gauge.build()
+        sourceExceptions = collectorRegistry.registerIfNotExist(
+                PULSAR_SOURCE_METRICS_PREFIX + "source_exception",
+                Gauge.build()
                 .name(PULSAR_SOURCE_METRICS_PREFIX + "source_exception")
-                .labelNames(exceptionMetricsLabelNames)
+                .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
                 .help("Exception from source.")
-                .register(collectorRegistry);
+                .create());
 
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
-        sourceExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        sysExceptionRateLimiter = RateLimiter.builder()
+                .scheduledExecutorService(scheduledExecutorService)
+                .permits(5)
+                .rateTime(1)
+                .timeUnit(TimeUnit.MINUTES)
+                .build();
+        sourceExceptionRateLimiter = RateLimiter.builder()
+                .scheduledExecutorService(scheduledExecutorService)
+                .permits(5)
+                .rateTime(1)
+                .timeUnit(TimeUnit.MINUTES)
+                .build();
     }
 
     @Override
     public void reset() {
         statTotalRecordsReceived1min.clear();
-        _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
+        statTotalRecordsReceivedChild1min = statTotalRecordsReceived1min.labels(metricsLabels);
 
         statTotalSysExceptions1min.clear();
-        _statTotalSysExceptions1min = statTotalSysExceptions1min.labels(metricsLabels);
+        statTotalSysExceptions1minChild = statTotalSysExceptions1min.labels(metricsLabels);
 
         statTotalSourceExceptions1min.clear();
-        _statTotalSourceExceptions1min = statTotalSourceExceptions1min.labels(metricsLabels);
+        statTotalSourceExceptionsChild1min = statTotalSourceExceptions1min.labels(metricsLabels);
 
         statTotalWritten1min.clear();
-        _statTotalWritten1min = statTotalWritten1min.labels(metricsLabels);
+        statTotalWrittenChild1min = statTotalWritten1min.labels(metricsLabels);
     }
 
     @Override
     public void incrTotalReceived() {
-        _statTotalRecordsReceived.inc();
-        _statTotalRecordsReceived1min.inc();
+        statTotalRecordsReceivedChild.inc();
+        statTotalRecordsReceivedChild1min.inc();
     }
 
     @Override
     public void incrTotalProcessedSuccessfully() {
-        _statTotalWritten.inc();
-        _statTotalWritten1min.inc();
+        statTotalWrittenChild.inc();
+        statTotalWrittenChild1min.inc();
     }
 
     @Override
     public void incrSysExceptions(Throwable ex) {
+        statTotalSysExceptionsChild.inc();
+        statTotalSysExceptions1minChild.inc();
+
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
@@ -224,6 +260,9 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public void incrSourceExceptions(Throwable ex) {
+        statTotalSourceExceptionsChild.inc();
+        statTotalSourceExceptionsChild1min.inc();
+
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSourceExceptions.add(info);
@@ -248,7 +287,7 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public void setLastInvocation(long ts) {
-        _statlastInvocation.set(ts);
+        statlastInvocationChild.set(ts);
     }
 
     @Override
@@ -263,17 +302,17 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public double getTotalProcessedSuccessfully() {
-        return _statTotalWritten.get();
+        return statTotalWrittenChild.get();
     }
 
     @Override
     public double getTotalRecordsReceived() {
-        return _statTotalRecordsReceived.get();
+        return statTotalRecordsReceivedChild.get();
     }
 
     @Override
     public double getTotalSysExceptions() {
-        return _statTotalSysExceptions.get();
+        return statTotalSysExceptionsChild.get();
     }
 
     @Override
@@ -283,7 +322,7 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public double getLastInvocation() {
-        return _statlastInvocation.get();
+        return statlastInvocationChild.get();
     }
 
     @Override
@@ -293,17 +332,17 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public double getTotalProcessedSuccessfully1min() {
-        return _statTotalWritten1min.get();
+        return statTotalWrittenChild1min.get();
     }
 
     @Override
     public double getTotalRecordsReceived1min() {
-        return _statTotalRecordsReceived1min.get();
+        return statTotalRecordsReceivedChild1min.get();
     }
 
     @Override
     public double getTotalSysExceptions1min() {
-        return _statTotalSysExceptions1min.get();
+        return statTotalSysExceptions1minChild.get();
     }
 
     @Override
@@ -323,12 +362,12 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
-        return EMPTY_QUEUE;
+        return latestSystemExceptions;
     }
 
     @Override
     public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
-        return EMPTY_QUEUE;
+        return latestSourceExceptions;
     }
 
     @Override

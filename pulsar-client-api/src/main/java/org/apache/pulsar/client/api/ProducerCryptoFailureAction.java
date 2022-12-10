@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,12 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
+
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The action the producer will take in case of encryption failures.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum ProducerCryptoFailureAction {
     /**
      * This is the default option to fail send if crypto operation fails.

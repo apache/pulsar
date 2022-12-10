@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,8 @@ package org.apache.pulsar.transaction.coordinator.exceptions;
 
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * The base exception for exceptions thrown from coordinator.
@@ -85,12 +86,49 @@ public abstract class CoordinatorException extends Exception {
             super(message);
         }
 
+        public TransactionNotFoundException(TxnID txnID) {
+            super("The transaction with this txdID `" + txnID + "`not found ");
+        }
+
         public TransactionNotFoundException(String message, Throwable cause) {
             super(message, cause);
         }
 
         public TransactionNotFoundException(Throwable cause) {
             super(cause);
+        }
+    }
+
+    /**
+     * Exception is thrown when a operation of transaction is executed in a error transaction metadata store state.
+     */
+    public static class TransactionMetadataStoreStateException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TransactionMetadataStoreStateException(String message) {
+            super(message);
+        }
+
+        public TransactionMetadataStoreStateException(TransactionCoordinatorID tcID,
+                                                      TransactionMetadataStoreState.State expectedState,
+                                                      TransactionMetadataStoreState.State currentState,
+                                                      String operation) {
+            super("Expect Transaction Coordinator `" + tcID + "` to be in " + expectedState
+                    + " status but it is in " + currentState + " state for " + operation);
+
+        }
+    }
+
+    /**
+     * Exception is thrown when a operation of new transaction reach the number of max active transactions.
+     */
+    public static class ReachMaxActiveTxnException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public ReachMaxActiveTxnException(String message) {
+            super(message);
         }
     }
 }

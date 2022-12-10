@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,23 +19,39 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
 
 public class ConcurrentOpenLongPairRangeSetTest {
 
-    static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
+    static final LongPairConsumer<LongPair> consumer = LongPair::new;
+    static final RangeBoundConsumer<LongPair> reverseConsumer = pair -> pair;
+
+    @Test
+    public void testIsEmpty() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertTrue(set.isEmpty());
+        // lowerValueOpen and upperValue are both -1 so that an empty set will be added
+        set.addOpenClosed(0, -1, 0, -1);
+        assertTrue(set.isEmpty());
+        set.addOpenClosed(1, 1, 1, 5);
+        assertFalse(set.isEmpty());
+    }
 
     @Test
     public void testAddForSameKey() {
@@ -115,6 +131,12 @@ public class ConcurrentOpenLongPairRangeSetTest {
     }
 
     @Test
+    public void testNPE() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertNull(set.span());
+    }
+
+    @Test
     public void testDeleteCompareWithGuava() {
 
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
@@ -123,7 +145,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         // add 10K values for key 0
         int totalInsert = 10_000;
         // add single values
-        List<Range<LongPair>> removedRanges = Lists.newArrayList();
+        List<Range<LongPair>> removedRanges = new ArrayList<>();
         for (int i = 0; i < totalInsert; i++) {
             if (i % 3 == 0 || i % 7 == 0 || i % 11 == 0) {
                 continue;
@@ -167,6 +189,30 @@ public class ConcurrentOpenLongPairRangeSetTest {
             assertEquals(range, ranges.get(i));
             i++;
         }
+    }
+
+    @Test
+    public void testRemoveRangeInSameKey() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        set.addOpenClosed(0, 1, 0, 50);
+        set.addOpenClosed(0, 97, 0, 99);
+        set.addOpenClosed(0, 99, 1, 5);
+        set.addOpenClosed(1, 9, 1, 15);
+        set.addOpenClosed(1, 19, 2, 10);
+        set.addOpenClosed(2, 24, 2, 28);
+        set.addOpenClosed(3, 11, 3, 20);
+        set.addOpenClosed(4, 11, 4, 20);
+        // range is [(0:1..0:50],(0:97..0:99],(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
+        set.remove(Range.closed(new LongPair(0, 0), new LongPair(0, Integer.MAX_VALUE - 1)));
+        // after remove is [(1:-1..1:5],(1:9..1:15],(2:-1..2:10],(2:24..2:28],(3:11..3:20],(4:11..4:20]]
+        int count = 0;
+        List<Range<LongPair>> ranges = set.asRanges();
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(1, -1), new LongPair(1, 5)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(1, 9), new LongPair(1, 15)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(2, -1), new LongPair(2, 10)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(2, 24), new LongPair(2, 28)));
+        assertEquals(ranges.get(count++), Range.openClosed(new LongPair(3, 11), new LongPair(3, 20)));
+        assertEquals(ranges.get(count), Range.openClosed(new LongPair(4, 11), new LongPair(4, 20)));
     }
 
     @Test
@@ -385,7 +431,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     }
 
     private List<Range<LongPair>> getConnectedRange(Set<Range<LongPair>> gRanges) {
-        List<Range<LongPair>> gRangeConnected = Lists.newArrayList();
+        List<Range<LongPair>> gRangeConnected = new ArrayList<>();
         Range<LongPair> lastRange = null;
         for (Range<LongPair> range : gRanges) {
             if (lastRange == null) {
@@ -416,5 +462,77 @@ public class ConcurrentOpenLongPairRangeSetTest {
                 lastRange.upperEndpoint());
         gRangeConnected.add(lastRange);
         return gRangeConnected;
+    }
+
+    @Test
+    public void testCardinality() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        int v = set.cardinality(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        assertEquals(v, 0 );
+        set.addOpenClosed(1, 0, 1, 20);
+        set.addOpenClosed(1, 30, 1, 90);
+        set.addOpenClosed(2, 0, 3, 30);
+        v = set.cardinality(1, 0, 1, 100);
+        assertEquals(v, 80);
+        v = set.cardinality(1, 11, 1, 100);
+        assertEquals(v, 70);
+        v = set.cardinality(1, 0, 1, 90);
+        assertEquals(v, 80);
+        v = set.cardinality(1, 0, 1, 80);
+        assertEquals(v, 70);
+        v = set.cardinality(1, 0, 3, 30);
+        assertEquals(v, 80 + 31);
+    }
+
+    @Test
+    public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set =
+                new ConcurrentOpenLongPairRangeSet<>(consumer);
+
+        LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet =
+                new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
+
+        set.addOpenClosed(1, 10, 1, 15);
+        set.addOpenClosed(2, 25, 2, 28);
+        set.addOpenClosed(3, 12, 3, 20);
+        set.addOpenClosed(4, 12, 4, 20);
+
+        defaultRangeSet.addOpenClosed(1, 10, 1, 15);
+        defaultRangeSet.addOpenClosed(2, 25, 2, 28);
+        defaultRangeSet.addOpenClosed(3, 12, 3, 20);
+        defaultRangeSet.addOpenClosed(4, 12, 4, 20);
+
+
+        MutableInt size = new MutableInt(0);
+
+        List<LongPair> forEachIterResult = new ArrayList<>();
+        set.forEach((range) -> {
+            forEachIterResult.add(range.lowerEndpoint());
+            forEachIterResult.add(range.upperEndpoint());
+
+            size.increment();
+            return true;
+        });
+
+        List<LongPair> defaultRangeSetResult = new ArrayList<>();
+        List<LongPair> forEachRawRangeResult = new ArrayList<>();
+
+        defaultRangeSet.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            defaultRangeSetResult.add(new LongPair(lowerKey, lowerValue));
+            defaultRangeSetResult.add(new LongPair(upperKey, upperValue));
+            return true;
+        });
+        
+        set.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            forEachRawRangeResult.add(new LongPair(lowerKey, lowerValue));
+            forEachRawRangeResult.add(new LongPair(upperKey, upperValue));
+            return true;
+        });
+
+        assertEquals(forEachIterResult, forEachRawRangeResult);
+        assertEquals(forEachIterResult, defaultRangeSetResult);
+
+        assertEquals(size.intValue(), set.size());
+        assertEquals(size.intValue(), defaultRangeSet.size());
     }
 }

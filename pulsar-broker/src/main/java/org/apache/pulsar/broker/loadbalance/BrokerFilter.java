@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,8 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Set;
-
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 /**
  * Load management component which determines what brokers should not be considered for topic placement by the placement
@@ -46,6 +45,6 @@ public interface BrokerFilter {
      * @throws BrokerFilterException
      *            There was an error in the pipeline and the brokers should be reset to their original value
      */
-    public void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
-                       throws BrokerFilterException;
+    void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
+            throws BrokerFilterException;
 }

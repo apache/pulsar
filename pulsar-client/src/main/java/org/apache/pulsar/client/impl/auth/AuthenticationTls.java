@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
-
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  *
@@ -40,11 +38,12 @@ import com.google.common.annotations.VisibleForTesting;
  *
  */
 public class AuthenticationTls implements Authentication, EncodedAuthenticationParameterSupport {
-    private final static String AUTH_NAME = "tls";
+    static final String AUTH_METHOD_NAME = "tls";
     private static final long serialVersionUID = 1L;
 
     private String certFilePath;
     private String keyFilePath;
+    @SuppressFBWarnings(value = "SE_BAD_FIELD", justification = "Using custom serializer which Findbugs can't detect")
     private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationTls() {
@@ -74,7 +73,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     @Override
     public String getAuthMethodName() {
-        return AUTH_NAME;
+        return AUTH_METHOD_NAME;
     }
 
     @Override
@@ -131,4 +130,18 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         return keyFilePath;
     }
 
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getCertStreamProvider() {
+        return certStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getKeyStreamProvider() {
+        return keyStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getTrustStoreStreamProvider() {
+        return trustStoreStreamProvider;
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,7 +51,7 @@ public abstract class AbstractHdfsSinkTest<K, V> {
     protected HdfsAbstractSink<K, V> sink;
     
     @SuppressWarnings("unchecked")
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public final void setUp() throws Exception {
         map = new HashMap<String, Object> ();
         map.put("hdfsConfigResources", "../pulsar/pulsar-io/hdfs2/src/test/resources/hadoop/core-site.xml,"
@@ -77,7 +77,7 @@ public abstract class AbstractHdfsSinkTest<K, V> {
         when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
             long sequenceCounter = 0;
             public String answer(InvocationOnMock invocation) throws Throwable {
-                 return new String( "value-" + sequenceCounter++ + "-" + UUID.randomUUID().toString());
+                 return new String( "value-" + sequenceCounter++ + "-" + UUID.randomUUID());
             }});
         
         createSink();

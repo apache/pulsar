@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface that abstracts the access to a key store.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface CryptoKeyReader extends Serializable {
 
     /**

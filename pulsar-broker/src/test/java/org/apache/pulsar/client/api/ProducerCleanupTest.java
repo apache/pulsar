@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class ProducerCleanupTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -37,7 +38,7 @@ public class ProducerCleanupTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

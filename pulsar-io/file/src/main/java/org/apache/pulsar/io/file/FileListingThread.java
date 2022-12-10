@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Worker thread that checks the configured input directory for
@@ -106,10 +107,10 @@ public class FileListingThread extends Thread {
     private Set<File> performListing(final File directory, final FileFilter filter,
             final boolean recurseSubdirectories) {
         Path p = directory.toPath();
-        if (!Files.isWritable(p) || !Files.isReadable(p)) {
-            throw new IllegalStateException("Directory '" + directory
-                    + "' does not have sufficient permissions (i.e., not writable and readable)");
+        if (!Files.isReadable(p)) {
+            throw new IllegalStateException("Cannot read directory: '" + directory);
         }
+
         final Set<File> queue = new HashSet<>();
         if (!directory.exists()) {
             return queue;
@@ -139,10 +140,12 @@ public class FileListingThread extends Thread {
         final long minAge = Optional.ofNullable(fileConfig.getMinimumFileAge()).orElse(0);
         final Long maxAge = Optional.ofNullable(fileConfig.getMaximumFileAge()).orElse(Long.MAX_VALUE);
         final boolean ignoreHidden = Optional.ofNullable(fileConfig.getIgnoreHiddenFiles()).orElse(true);
-        final Pattern filePattern = Pattern.compile(Optional.ofNullable(fileConfig.getFileFilter()).orElse("[^\\.].*"));
+        final Pattern filePattern = Pattern.compile(Optional.ofNullable(fileConfig.getFileFilter())
+                .orElse("[^\\.].*"));
         final String indir = fileConfig.getInputDirectory();
         final String pathPatternStr = fileConfig.getPathFilter();
         final Pattern pathPattern = (!recurseDirs || pathPatternStr == null) ? null : Pattern.compile(pathPatternStr);
+        final String processedFileSuffix = fileConfig.getProcessedFileSuffix();
 
         return new FileFilter() {
             @Override
@@ -182,6 +185,12 @@ public class FileListingThread extends Thread {
                 if (!keepOriginal && !Files.isWritable(file.toPath().getParent())) {
                     return false;
                 }
+
+                if (!keepOriginal && !StringUtils.isBlank(processedFileSuffix) && file.getName()
+                        .endsWith(processedFileSuffix)) {
+                    return false;
+                }
+
                 return filePattern.matcher(file.getName()).matches();
             }
         };

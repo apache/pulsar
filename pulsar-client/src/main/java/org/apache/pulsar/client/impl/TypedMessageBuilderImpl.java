@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,28 +20,24 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
-
-import com.google.common.base.Preconditions;
-
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
@@ -49,11 +45,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
-    private final ProducerBase<?> producer;
-    private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
-    private final Schema<T> schema;
-    private ByteBuffer content;
-    private final TransactionImpl txn;
+    private final transient ProducerBase<?> producer;
+    private final transient MessageMetadata msgMetadata = new MessageMetadata();
+    private final transient Schema<T> schema;
+    private transient ByteBuffer content;
+    private final transient TransactionImpl txn;
 
     public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema) {
         this(producer, schema, null);
@@ -72,111 +68,103 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         if (txn == null) {
             return -1L;
         }
-        msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdLeastBits());
-        msgMetadataBuilder.setTxnidMostBits(txn.getTxnIdMostBits());
-        long sequenceId = txn.nextSequenceId();
-        msgMetadataBuilder.setSequenceId(sequenceId);
-        return sequenceId;
+        msgMetadata.setTxnidLeastBits(txn.getTxnIdLeastBits());
+        msgMetadata.setTxnidMostBits(txn.getTxnIdMostBits());
+        return -1L;
     }
 
     @Override
     public MessageId send() throws PulsarClientException {
-        if (null != txn) {
-            // NOTE: it makes no sense to send a transactional message in a blocking way.
-            //       because #send only completes when a transaction is committed or aborted.
-            throw new IllegalStateException("Use sendAsync to send a transactional message");
+        try {
+            // enqueue the message to the buffer
+            CompletableFuture<MessageId> sendFuture = sendAsync();
+
+            if (!sendFuture.isDone()) {
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush
+                // it out
+                producer.triggerFlush();
+            }
+
+            return sendFuture.get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
-        return producer.send(getMessage());
     }
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
         Message<T> message = getMessage();
-        final long sequenceId = message.getSequenceId();
-        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(message, txn);
+        CompletableFuture<MessageId> sendFuture;
         if (txn != null) {
-            // register the sendFuture as part of the transaction
-            return txn.registerSendOp(sequenceId, sendFuture);
+            sendFuture = producer.internalSendWithTxnAsync(message, txn);
+            txn.registerSendOp(sendFuture);
         } else {
-            return sendFuture;
+            sendFuture = producer.internalSendAsync(message);
         }
+        return sendFuture;
     }
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
-        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchema kvSchema = (KeyValueSchema) schema;
-            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
-                    "This method is not allowed to set keys when in encoding type is SEPARATED");
-            if (key == null) {
-                msgMetadataBuilder.setNullPartitionKey(true);
-                return this;
-            }
+        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
+                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        if (key == null) {
+            msgMetadata.setNullPartitionKey(true);
+            return this;
         }
-        msgMetadataBuilder.setPartitionKey(key);
-        msgMetadataBuilder.setPartitionKeyB64Encoded(false);
+        msgMetadata.setPartitionKey(key);
+        msgMetadata.setPartitionKeyB64Encoded(false);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
-        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchema kvSchema = (KeyValueSchema) schema;
-            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
-                    "This method is not allowed to set keys when in encoding type is SEPARATED");
-            if (key == null) {
-                msgMetadataBuilder.setNullPartitionKey(true);
-                return this;
-            }
+        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
+                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        if (key == null) {
+            msgMetadata.setNullPartitionKey(true);
+            return this;
         }
-        msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
-        msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+        msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(key));
+        msgMetadata.setPartitionKeyB64Encoded(true);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
-        msgMetadataBuilder.setOrderingKey(ByteString.copyFrom(orderingKey));
+        msgMetadata.setOrderingKey(orderingKey);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
         if (value == null) {
-            msgMetadataBuilder.setNullValue(true);
+            msgMetadata.setNullValue(true);
             return this;
         }
-        if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchema kvSchema = (KeyValueSchema) schema;
-            org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
-            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-                // set key as the message key
-                if (kv.getKey() != null) {
-                    msgMetadataBuilder.setPartitionKey(
-                            Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
-                    msgMetadataBuilder.setPartitionKeyB64Encoded(true);
-                } else {
-                    this.msgMetadataBuilder.setNullPartitionKey(true);
-                }
 
-                // set value as the payload
-                if (kv.getValue() != null) {
-                    this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
-                } else {
-                    this.msgMetadataBuilder.setNullValue(true);
-                }
+        return getKeyValueSchema().map(keyValueSchema -> {
+            if (keyValueSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                setSeparateKeyValue(value, keyValueSchema);
                 return this;
+            } else {
+                return null;
             }
-        }
-        this.content = ByteBuffer.wrap(schema.encode(value));
-        return this;
+        }).orElseGet(() -> {
+            content = ByteBuffer.wrap(schema.encode(value));
+            return this;
+        });
     }
 
     @Override
     public TypedMessageBuilder<T> property(String name, String value) {
         checkArgument(name != null, "Need Non-Null name");
         checkArgument(value != null, "Need Non-Null value for name: " + name);
-        msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
+        msgMetadata.addProperty()
+                    .setKey(name)
+                    .setValue(value);
         return this;
     }
 
@@ -185,8 +173,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             checkArgument(entry.getKey() != null, "Need Non-Null key");
             checkArgument(entry.getValue() != null, "Need Non-Null value for key: " + entry.getKey());
-            msgMetadataBuilder
-                    .addProperties(KeyValue.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
+            msgMetadata.addProperty()
+                    .setKey(entry.getKey())
+                    .setValue(entry.getValue());
         }
 
         return this;
@@ -195,29 +184,29 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> eventTime(long timestamp) {
         checkArgument(timestamp > 0, "Invalid timestamp : '%s'", timestamp);
-        msgMetadataBuilder.setEventTime(timestamp);
+        msgMetadata.setEventTime(timestamp);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> sequenceId(long sequenceId) {
         checkArgument(sequenceId >= 0);
-        msgMetadataBuilder.setSequenceId(sequenceId);
+        msgMetadata.setSequenceId(sequenceId);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> replicationClusters(List<String> clusters) {
-        Preconditions.checkNotNull(clusters);
-        msgMetadataBuilder.clearReplicateTo();
-        msgMetadataBuilder.addAllReplicateTo(clusters);
+        Objects.requireNonNull(clusters);
+        msgMetadata.clearReplicateTo();
+        msgMetadata.addAllReplicateTos(clusters);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> disableReplication() {
-        msgMetadataBuilder.clearReplicateTo();
-        msgMetadataBuilder.addReplicateTo("__local__");
+        msgMetadata.clearReplicateTo();
+        msgMetadata.addReplicateTo("__local__");
         return this;
     }
 
@@ -228,7 +217,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> deliverAt(long timestamp) {
-        msgMetadataBuilder.setDeliverAtTime(timestamp);
+        msgMetadata.setDeliverAtTime(timestamp);
         return this;
     }
 
@@ -271,28 +260,62 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         return this;
     }
 
-    public MessageMetadata.Builder getMetadataBuilder() {
-        return msgMetadataBuilder;
+    public MessageMetadata getMetadataBuilder() {
+        return msgMetadata;
     }
 
     public Message<T> getMessage() {
         beforeSend();
-        return MessageImpl.create(msgMetadataBuilder, content, schema);
+        return MessageImpl.create(msgMetadata, content, schema, producer != null ? producer.getTopic() : null);
     }
 
     public long getPublishTime() {
-        return msgMetadataBuilder.getPublishTime();
+        return msgMetadata.getPublishTime();
     }
 
     public boolean hasKey() {
-        return msgMetadataBuilder.hasPartitionKey();
+        return msgMetadata.hasPartitionKey();
     }
 
     public String getKey() {
-        return msgMetadataBuilder.getPartitionKey();
+        return msgMetadata.getPartitionKey();
     }
 
     public ByteBuffer getContent() {
         return content;
+    }
+
+    private Optional<KeyValueSchema<?, ?>> getKeyValueSchema() {
+        if (schema.getSchemaInfo() != null
+                && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
+                // The schema's class could also be AutoProduceBytesSchema when its type is KEY_VALUE
+                && schema instanceof KeyValueSchema) {
+            return Optional.of((KeyValueSchema<?, ?>) schema);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <K, V> void setSeparateKeyValue(T value, KeyValueSchema<K, V> keyValueSchema) {
+        checkArgument(value instanceof org.apache.pulsar.common.schema.KeyValue);
+        org.apache.pulsar.common.schema.KeyValue<K, V> keyValue =
+                (org.apache.pulsar.common.schema.KeyValue<K, V>) value;
+
+        // set key as the message key
+        if (keyValue.getKey() != null) {
+            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(
+                    keyValueSchema.getKeySchema().encode(keyValue.getKey())));
+            msgMetadata.setPartitionKeyB64Encoded(true);
+        } else {
+            msgMetadata.setNullPartitionKey(true);
+        }
+
+        // set value as the payload
+        if (keyValue.getValue() != null) {
+            content = ByteBuffer.wrap(keyValueSchema.getValueSchema().encode(keyValue.getValue()));
+        } else {
+            msgMetadata.setNullValue(true);
+        }
     }
 }

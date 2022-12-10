@@ -19,7 +19,7 @@
 
 {
 "host": "localhost",
-"port": "5672",
+"port": "5673",
 "virtualHost": "/",
 "username": "guest",
 "password": "guest",

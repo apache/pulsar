@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,42 +18,51 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.util.Timer;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.util.ExecutorProvider;
-import org.mockito.Mockito;
-
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.*;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.mockito.Mockito;
 
 class ClientTestFixtures {
     public static ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
 
-    static <T> PulsarClientImpl createPulsarClientMock() {
+//    static <T> PulsarClientImpl createPulsarClientMock() {
+//        return createPulsarClientMock(mock(ExecutorService.class));
+//    }
+
+    static <T> PulsarClientImpl createPulsarClientMock(ExecutorProvider executorProvider,
+                                                       ExecutorService internalExecutorService) {
         PulsarClientImpl clientMock = mock(PulsarClientImpl.class, Mockito.RETURNS_DEEP_STUBS);
 
         ClientConfigurationData clientConf = new ClientConfigurationData();
         when(clientMock.getConfiguration()).thenReturn(clientConf);
         when(clientMock.timer()).thenReturn(mock(Timer.class));
 
-        when(clientMock.externalExecutorProvider()).thenReturn(mock(ExecutorProvider.class));
+        when(clientMock.getInternalExecutorService()).thenReturn(internalExecutorService);
+        when(clientMock.externalExecutorProvider()).thenReturn(executorProvider);
         when(clientMock.eventLoopGroup().next()).thenReturn(mock(EventLoop.class));
+        when(clientMock.preProcessSchemaBeforeSubscribe(any(), any(), any()))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(1)));
 
         return clientMock;
     }
 
-    static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx() {
-        return mockClientCnx(createPulsarClientMock());
+    static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx(
+            ExecutorProvider executorProvider,
+            ExecutorService internalExecutorService) {
+        return mockClientCnx(createPulsarClientMock(executorProvider, internalExecutorService));
     }
 
     static PulsarClientImpl mockClientCnx(PulsarClientImpl clientMock) {
@@ -63,6 +72,11 @@ class ClientTestFixtures {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(clientCnxMock.channel().remoteAddress()).thenReturn(mock(SocketAddress.class));
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(clientMock.getConnection(any(), any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        ConnectionPool connectionPoolMock = mock(ConnectionPool.class);
+        when(clientMock.getCnxPool()).thenReturn(connectionPoolMock);
+        when(connectionPoolMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(connectionPoolMock.getConnection(any(), any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
     }
 
@@ -72,7 +86,17 @@ class ClientTestFixtures {
         return future;
     }
 
+    static <T> CompletableFuture<T> createExceptionFuture(Throwable ex, int delayMillis) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        SCHEDULER.schedule(() -> future.completeExceptionally(ex), delayMillis, TimeUnit.MILLISECONDS);
+        return future;
+    }
+
     public static ExecutorService createMockedExecutor() {
         return mock(ExecutorService.class);
+    }
+
+    public static ExecutorProvider createMockedExecutorProvider() {
+        return mock(ExecutorProvider.class);
     }
 }

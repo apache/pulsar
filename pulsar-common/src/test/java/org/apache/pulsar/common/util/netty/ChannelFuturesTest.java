@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.netty;
 
 import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelPromise;
@@ -30,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeMethod;
@@ -53,14 +53,16 @@ public class ChannelFuturesTest {
         eventLoop = new DefaultEventLoop();
     }
 
-    @AfterTest
+    @AfterTest(alwaysRun = true)
     public void shutdownEventLoop() throws InterruptedException {
-        eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).await(100);
+        if (eventLoop != null) {
+            eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).await(100);
+        }
     }
 
     @BeforeMethod
     public void setup() {
-        initMocks(this);
+        MockitoAnnotations.openMocks(this);
         when(channel.eventLoop()).thenReturn(eventLoop);
 
         channelFuture = new DefaultChannelPromise(channel);

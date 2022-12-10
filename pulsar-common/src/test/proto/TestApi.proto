@@ -19,10 +19,10 @@
 syntax = "proto2";
 
 package pulsar.proto;
-option java_package = "org.apache.pulsar.common.api.proto";
+option java_package = "org.apache.pulsar.common.api.proto.test";
 option optimize_for = LITE_RUNTIME;
 
-message MessageIdData {
+message TestMessageIdData {
     required uint64 ledgerId = 1;
     required uint64 entryId  = 2;
     optional int32 partition = 3 [default = -1];

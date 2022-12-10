@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,33 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import io.netty.buffer.Unpooled;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
-import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -58,6 +31,31 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.buffer.Unpooled;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class FunctionAssignmentTailerTest {
@@ -94,13 +92,13 @@ public class FunctionAssignmentTailerTest {
                 .build();
 
         ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
@@ -138,7 +136,7 @@ public class FunctionAssignmentTailerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
 
         doReturn(reader).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -147,7 +145,8 @@ public class FunctionAssignmentTailerTest {
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
 
-        FunctionAssignmentTailer functionAssignmentTailer = spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
+        FunctionAssignmentTailer functionAssignmentTailer =
+                spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
         functionAssignmentTailer.start();
 
@@ -209,13 +208,13 @@ public class FunctionAssignmentTailerTest {
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
@@ -253,7 +252,7 @@ public class FunctionAssignmentTailerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
 
         doReturn(reader).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -262,7 +261,8 @@ public class FunctionAssignmentTailerTest {
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
 
-        FunctionAssignmentTailer functionAssignmentTailer = spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
+        FunctionAssignmentTailer functionAssignmentTailer =
+                spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
         functionAssignmentTailer.start();
 
@@ -332,13 +332,13 @@ public class FunctionAssignmentTailerTest {
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
-        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
+        MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, metadata));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
@@ -376,7 +376,7 @@ public class FunctionAssignmentTailerTest {
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
 
         doReturn(reader).when(readerBuilder).create();
-        WorkerService workerService = mock(WorkerService.class);
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
@@ -385,7 +385,8 @@ public class FunctionAssignmentTailerTest {
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
 
-        FunctionAssignmentTailer functionAssignmentTailer = spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
+        FunctionAssignmentTailer functionAssignmentTailer =
+                spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
         functionAssignmentTailer.start();
 
@@ -404,7 +405,7 @@ public class FunctionAssignmentTailerTest {
 
         functionAssignmentTailer.triggerReadToTheEndAndExit().get();
         for (int i = 0; i < 10; i++) {
-            if(!functionAssignmentTailer.getThread().isAlive()) {
+            if (!functionAssignmentTailer.getThread().isAlive()) {
                 break;
             }
 

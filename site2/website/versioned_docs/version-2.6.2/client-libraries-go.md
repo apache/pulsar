@@ -1,7 +1,7 @@
 ---
-id: version-2.6.2-client-libraries-go
+id: client-libraries-go
 title: Pulsar Go client
-sidebar_label: Go
+sidebar_label: "Go"
 original_id: client-libraries-go
 ---
 
@@ -9,7 +9,7 @@ original_id: client-libraries-go
 
 You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> #### API docs available as well
+> **API docs available as well**  
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar-client-go/pulsar).
 
 
@@ -20,13 +20,17 @@ You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to cr
 You can install the `pulsar` library locally using `go get`.  
 
 ```bash
+
 $ go get -u "github.com/apache/pulsar-client-go/pulsar"
+
 ```
 
 Once installed locally, you can import it into your project:
 
 ```go
+
 import "github.com/apache/pulsar-client-go/pulsar"
+
 ```
 
 ## Connection URLs
@@ -36,27 +40,33 @@ To connect to Pulsar using client libraries, you need to specify a [Pulsar proto
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here's an example for `localhost`:
 
 ```http
+
 pulsar://localhost:6650
+
 ```
 
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
+
 pulsar://pulsar.us-west.example.com:6650
+
 ```
 
 If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
+
 pulsar+ssl://pulsar.us-west.example.com:6651
+
 ```
 
 ## Create a client
 
 In order to interact with Pulsar, you'll first need a `Client` object. You can create a client object using the `NewClient` function, passing in a `ClientOptions` object (more on configuration [below](#client-configuration)). Here's an example:
 
-
 ```go
+
 import (
 	"log"
 	"time"
@@ -76,6 +86,7 @@ func main() {
 
 	defer client.Close()
 }
+
 ```
 
 The following configurable parameters are available for Pulsar clients:
@@ -95,6 +106,7 @@ The following configurable parameters are available for Pulsar clients:
 Pulsar producers publish messages to Pulsar topics. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
 
 ```go
+
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: "my-topic",
 })
@@ -109,6 +121,7 @@ if err != nil {
 	fmt.Println("Failed to publish message", err)
 }
 fmt.Println("Published message")
+
 ```
 
 ### Producer operations
@@ -130,6 +143,7 @@ Method | Description | Return type
 #### How to use message router in producer
 
 ```go
+
 client, err := NewClient(ClientOptions{
 	URL: serviceURL,
 })
@@ -162,11 +176,13 @@ if err != nil {
 	log.Fatal(err)
 }
 defer producer.Close()
+
 ```
 
 #### How to use delay relative in producer
 
 ```go
+
 client, err := NewClient(ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -176,8 +192,9 @@ if err != nil {
 defer client.Close()
 
 topicName := newTopicName()
-producer, err := client.CreateProducer(ProducerOptions{
-	Topic: topicName,
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic:           topicName,
+    DisableBatching: true,
 })
 if err != nil {
 	log.Fatal(err)
@@ -218,8 +235,8 @@ if err != nil {
 }
 fmt.Println(msg.Payload())
 canc()
-```
 
+```
 
 ### Producer configuration
 
@@ -233,7 +250,7 @@ canc()
 | CompressionType | CompressionType set the compression type for the producer. | not compressed | 
 | MessageRouter | MessageRouter set a custom message routing policy by passing an implementation of MessageRouter | |
 | DisableBatching | DisableBatching control whether automatic batching of messages is enabled for the producer. | false |
-| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 10ms |
+| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 1ms |
 | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | 
 
 ## Consumers
@@ -241,6 +258,7 @@ canc()
 Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Go consumers using a `ConsumerOptions` object. Here's a basic example that uses channels:
 
 ```go
+
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            "topic-1",
 	SubscriptionName: "my-sub",
@@ -266,6 +284,7 @@ for i := 0; i < 10; i++ {
 if err := consumer.Unsubscribe(); err != nil {
 	log.Fatal(err)
 }
+
 ```
 
 ### Consumer operations
@@ -290,6 +309,7 @@ Method | Description | Return type
 #### How to use regx consumer
 
 ```go
+
 client, err := pulsar.NewClient(pulsar.ClientOptions{
     URL: "pulsar://localhost:6650",
 })
@@ -315,11 +335,13 @@ if err != nil {
 	log.Fatal(err)
 }
 defer consumer.Close()
+
 ```
 
 #### How to use multi topics Consumer
 
 ```go
+
 func newTopicName() string {
 	return fmt.Sprintf("my-topic-%v", time.Now().Nanosecond())
 }
@@ -343,11 +365,13 @@ if err != nil {
 	log.Fatal(err)
 }
 defer consumer.Close()
+
 ```
 
 #### How to use consumer listener
 
 ```go
+
 import (
 	"fmt"
 	"log"
@@ -391,11 +415,13 @@ func main() {
 		consumer.Ack(msg)
 	}
 }
+
 ```
 
 #### How to use consumer receive timeout
 
 ```go
+
 client, err := NewClient(ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -424,8 +450,8 @@ fmt.Println(msg.Payload())
 if err != nil {
 	log.Fatal(err)
 }
-```
 
+```
 
 ### Consumer configuration
 
@@ -452,6 +478,7 @@ if err != nil {
 Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Go readers using a `ReaderOptions` object. Here's an example:
 
 ```go
+
 reader, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:          "topic-1",
 	StartMessageID: pulsar.EarliestMessageID(),
@@ -460,6 +487,7 @@ if err != nil {
 	log.Fatal(err)
 }
 defer reader.Close()
+
 ```
 
 ### Reader operations
@@ -480,6 +508,7 @@ Method | Description | Return type
 Here's an example usage of a Go reader that uses the `Next()` method to process incoming messages:
 
 ```go
+
 import (
 	"context"
 	"fmt"
@@ -515,22 +544,26 @@ func main() {
 			msg.ID(), string(msg.Payload()))
 	}
 }
+
 ```
 
 In the example above, the reader begins reading from the earliest available message (specified by `pulsar.EarliestMessage`). The reader can also begin reading from the latest message (`pulsar.LatestMessage`) or some other message ID specified by bytes using the `DeserializeMessageID` function, which takes a byte array and returns a `MessageID` object. Here's an example:
 
 ```go
+
 lastSavedId := // Read last saved message id from external store as byte[]
 
 reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic:          "my-golang-topic",
     StartMessageID: pulsar.DeserializeMessageID(lastSavedId),
 })
+
 ```
 
 #### How to use reader to read specific message
 
 ```go
+
 client, err := NewClient(ClientOptions{
 	URL: lookupURL,
 })
@@ -593,6 +626,7 @@ if err != nil {
 	log.Fatal(err)
 }
 defer readerInclusive.Close()
+
 ```
 
 ### Reader configuration
@@ -606,7 +640,7 @@ defer readerInclusive.Close()
 | StartMessageIDInclusive | If true, the reader will start at the `StartMessageID`, included. Default is `false` and the reader will start from the "next" message | false |
 | MessageChannel | MessageChannel sets a `MessageChannel` for the consumer When a message is received, it will be pushed to the channel for consumption| |
 | ReceiverQueueSize | ReceiverQueueSize sets the size of the consumer receive queue. | 1000 |
-| SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | “reader” | 
+| SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | "reader" | 
 | ReadCompacted | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic.  ReadCompacted can only be enabled when reading from a persistent topic. | false|
 
 ## Messages
@@ -614,6 +648,7 @@ defer readerInclusive.Close()
 The Pulsar Go client provides a `ProducerMessage` interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:
 
 ```go
+
 msg := pulsar.ProducerMessage{
     Payload: []byte("Here is some message data"),
     Key: "message-key",
@@ -627,6 +662,7 @@ msg := pulsar.ProducerMessage{
 if _, err := producer.send(msg); err != nil {
     log.Fatalf("Could not publish message due to: %v", err)
 }
+
 ```
 
 The following methods parameters are available for `ProducerMessage` objects:
@@ -653,11 +689,13 @@ In order to use [TLS encryption](security-tls-transport.md), you'll need to conf
 Here's an example:
 
 ```go
+
 opts := pulsar.ClientOptions{
     URL: "pulsar+ssl://my-cluster.com:6651",
     TLSTrustCertsFilePath: "/path/to/certs/my-cert.csr",
     Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
 }
+
 ```
 
 ## OAuth2 authentication
@@ -666,6 +704,7 @@ To use [OAuth2 authentication](security-oauth2.md), you'll need to configure you
 This example shows how to configure OAuth2 authentication.
 
 ```go
+
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
 		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
@@ -674,7 +713,9 @@ oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"clientId":   "0Xx...Yyxeny",
 	})
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "puslar://my-cluster:6650",
+		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
+
 ```
+

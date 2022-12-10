@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The builder to build a transaction for Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface TransactionBuilder {
 
     /**

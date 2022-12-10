@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import io.netty.util.Timer;
 import java.util.concurrent.CompletableFuture;
-
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 
 /**
  * The provider that offers in-memory implementation of {@link TransactionMetadataStore}.
@@ -32,7 +35,13 @@ public class InMemTransactionMetadataStoreProvider implements TransactionMetadat
 
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
-         ManagedLedgerFactory managedLedgerFactory) {
+                                                                 ManagedLedgerFactory managedLedgerFactory,
+                                                                 ManagedLedgerConfig managedLedgerConfig,
+                                                                 TransactionTimeoutTracker timeoutTracker,
+                                                                 TransactionRecoverTracker recoverTracker,
+                                                                 long maxActiveTransactionsPerCoordinator,
+                                                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+                                                                 Timer timer) {
         return CompletableFuture.completedFuture(
             new InMemTransactionMetadataStore(transactionCoordinatorId));
     }

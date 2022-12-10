@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,29 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
-import com.google.common.collect.Maps;
-
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.common.util.Backoff;
+import org.apache.bookkeeper.common.util.Retries;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.KeyValue;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadDriverMetadata;
-import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.DataFormats;
 
 @Slf4j
@@ -45,7 +49,7 @@ public final class OffloadUtils {
     private OffloadUtils() {}
 
     public static Map<String, String> getOffloadDriverMetadata(LedgerInfo ledgerInfo) {
-        Map<String, String> metadata = Maps.newHashMap();
+        Map<String, String> metadata = new HashMap();
         if (ledgerInfo.hasOffloadContext()) {
             OffloadContext ctx = ledgerInfo.getOffloadContext();
             if (ctx.hasDriverMetadata()) {
@@ -65,7 +69,7 @@ public final class OffloadUtils {
             if (ctx.hasDriverMetadata()) {
                 OffloadDriverMetadata driverMetadata = ctx.getDriverMetadata();
                 if (driverMetadata.getPropertiesCount() > 0) {
-                    Map<String, String> metadata = Maps.newHashMap();
+                    Map<String, String> metadata = new HashMap();
                     driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
                     return metadata;
                 }
@@ -109,7 +113,8 @@ public final class OffloadUtils {
                 .setAckQuorumSize(metadata.getAckQuorumSize())
                 .setEnsembleSize(metadata.getEnsembleSize())
                 .setLength(metadata.getLength())
-                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED : DataFormats.LedgerMetadataFormat.State.OPEN)
+                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED :
+                        DataFormats.LedgerMetadataFormat.State.OPEN)
                 .setLastEntryId(metadata.getLastEntryId())
                 .setCtime(metadata.getCtime())
                 .setDigestType(BookKeeper.DigestType.toProtoDigestType(
@@ -120,21 +125,23 @@ public final class OffloadUtils {
                     .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
         }
 
-        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
+        for (Map.Entry<Long, ? extends List<BookieId>> e : metadata.getAllEnsembles().entrySet()) {
             builder.addSegmentBuilder()
                     .setFirstEntryId(e.getKey())
-                    .addAllEnsembleMember(e.getValue().stream().map(BookieSocketAddress::toString).collect(Collectors.toList()));
+                    .addAllEnsembleMember(e.getValue().stream().map(BookieId::toString).collect(Collectors.toList()));
         }
 
         return builder.build().toByteArray();
     }
 
-    public static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
+    public static LedgerMetadata parseLedgerMetadata(long id, byte[] bytes) throws IOException {
+        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder()
+                .mergeFrom(bytes).build();
         LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
                 .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
                 .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
                 .withClosedState()
+                .withId(id)
                 .withMetadataFormatVersion(2)
                 .withLength(ledgerMetadataFormat.getLength())
                 .withAckQuorumSize(ledgerMetadataFormat.getAckQuorumSize())
@@ -142,19 +149,19 @@ public final class OffloadUtils {
                 .withWriteQuorumSize(ledgerMetadataFormat.getQuorumSize())
                 .withEnsembleSize(ledgerMetadataFormat.getEnsembleSize());
         ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-            ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<>();
+            ArrayList<BookieId> addressArrayList = new ArrayList<>();
             segment.getEnsembleMemberList().forEach(address -> {
                 try {
-                    addressArrayList.add(new BookieSocketAddress(address));
-                } catch (IOException e) {
-                    log.error("Exception when create BookieSocketAddress. ", e);
+                    addressArrayList.add(BookieId.parse(address));
+                } catch (IllegalArgumentException e) {
+                    log.error("Exception when create BookieId {}. ", address, e);
                 }
             });
             builder.newEnsembleEntry(segment.getFirstEntryId(), addressArrayList);
         });
 
         if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-            Map<String, byte[]> customMetadata = Maps.newHashMap();
+            Map<String, byte[]> customMetadata = new HashMap();
             ledgerMetadataFormat.getCustomMetadataList().forEach(
                     entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
             builder.withCustomMetadata(customMetadata);
@@ -174,9 +181,32 @@ public final class OffloadUtils {
                 builder.withDigestType(DigestType.DUMMY);
                 break;
             default:
-                throw new IllegalArgumentException("Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
+                throw new IllegalArgumentException("Unable to convert digest type "
+                        + ledgerMetadataFormat.getDigestType());
         }
 
         return builder.build();
     }
+
+    public static CompletableFuture<Void> cleanupOffloaded(long ledgerId, UUID uuid, ManagedLedgerConfig mlConfig,
+                                     Map<String, String> offloadDriverMetadata, String cleanupReason,
+                                     String name, org.apache.bookkeeper.common.util.OrderedScheduler executor) {
+        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
+                name, ledgerId, uuid.toString(), cleanupReason);
+        Map<String, String> metadataMap = new HashMap();
+        metadataMap.putAll(offloadDriverMetadata);
+        metadataMap.put("ManagedLedgerName", name);
+
+        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
+                        TimeUnit.SECONDS.toHours(1)).limit(10),
+                Retries.NonFatalPredicate,
+                () -> mlConfig.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
+                executor, name).whenComplete((ignored, exception) -> {
+            if (exception != null) {
+                log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
+                        name, ledgerId, cleanupReason, exception);
+            }
+        });
+    }
+
 }

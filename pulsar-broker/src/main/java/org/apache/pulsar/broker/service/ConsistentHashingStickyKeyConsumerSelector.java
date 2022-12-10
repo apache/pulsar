@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,17 +19,18 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -89,7 +90,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     if (v == null) {
                         return null;
                     } else {
-                        v.removeIf(c -> c.consumerName().equals(consumer.consumerName()));
+                        v.removeIf(c -> c.equals(consumer));
                         if (v.isEmpty()) {
                             v = null;
                         }
@@ -103,9 +104,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Consumer select(byte[] stickyKey) {
-        int hash = Murmur3_32Hash.getInstance().makeHash(stickyKey);
-
+    public Consumer select(int hash) {
         rwLock.readLock().lock();
         try {
             if (hashRing.isEmpty()) {
@@ -126,7 +125,22 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
     }
 
-    Map<Integer, List<Consumer>> getRangeConsumer() {
-        return Collections.unmodifiableMap(hashRing);
+    @Override
+    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+        Map<Consumer, List<Range>> result = new LinkedHashMap<>();
+        rwLock.readLock().lock();
+        try {
+            int start = 0;
+            for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
+                for (Consumer consumer: entry.getValue()) {
+                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
+                            .add(Range.of(start, entry.getKey()));
+                }
+                start = entry.getKey() + 1;
+            }
+        } finally {
+            rwLock.readLock().unlock();
+        }
+        return result;
     }
 }

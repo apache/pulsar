@@ -49,13 +49,15 @@ type Conf struct {
 	ProcessingGuarantees int32  `json:"processingGuarantees" yaml:"processingGuarantees"`
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
+	//Deprecated
 	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
 	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
 	//source config
-	SubscriptionType    int32  `json:"subscriptionType" yaml:"subscriptionType"`
-	TimeoutMs           uint64 `json:"timeoutMs" yaml:"timeoutMs"`
-	SubscriptionName    string `json:"subscriptionName" yaml:"subscriptionName"`
-	CleanupSubscription bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
+	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
+	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
+	SubscriptionName     string `json:"subscriptionName" yaml:"subscriptionName"`
+	CleanupSubscription  bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
+	SubscriptionPosition int32  `json:"subscriptionPosition" yaml:"subscriptionPosition"`
 	//source input specs
 	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
 	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
@@ -73,6 +75,8 @@ type Conf struct {
 	DeadLetterTopic             string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
 	ExpectedHealthCheckInterval int32  `json:"expectedHealthCheckInterval" yaml:"expectedHealthCheckInterval"`
 	UserConfig                  string `json:"userConfig" yaml:"userConfig"`
+	//metrics config
+	MetricsPort int `json:"metricsPort" yaml:"metricsPort"`
 }
 
 var (

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,21 +19,20 @@
 package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.prestosql.spi.HostAddress;
-import io.prestosql.spi.connector.ColumnHandle;
-import io.prestosql.spi.connector.ConnectorSplit;
-import io.prestosql.spi.predicate.TupleDomain;
+import io.trino.spi.HostAddress;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.predicate.TupleDomain;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -63,7 +62,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final PositionImpl endPosition;
     private final String schemaInfoProperties;
 
-    private final OffloadPolicies offloadPolicies;
+    private final OffloadPoliciesImpl offloadPolicies;
 
     @JsonCreator
     public PulsarSplit(
@@ -81,7 +80,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) throws IOException {
+            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -189,7 +188,7 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public OffloadPolicies getOffloadPolicies() {
+    public OffloadPoliciesImpl getOffloadPolicies() {
         return offloadPolicies;
     }
 
