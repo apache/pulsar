@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -48,11 +48,11 @@ public class PulsarContainer extends GenericContainer<PulsarContainer> {
     }
 
     public String getPlainTextPulsarBrokerUrl() {
-        return String.format("pulsar://%s:%s", this.getContainerIpAddress(), this.getMappedPort(PULSAR_PORT));
+        return String.format("pulsar://%s:%s", this.getHost(), this.getMappedPort(PULSAR_PORT));
     }
 
     public String getPulsarAdminUrl() {
-        return String.format("http://%s:%s", this.getContainerIpAddress(), this.getMappedPort(BROKER_HTTP_PORT));
+        return String.format("http://%s:%s", this.getHost(), this.getMappedPort(BROKER_HTTP_PORT));
     }
 
 }

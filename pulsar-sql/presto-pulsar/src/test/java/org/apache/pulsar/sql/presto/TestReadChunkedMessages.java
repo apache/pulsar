@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 package org.apache.pulsar.sql.presto;
 
 import com.google.common.collect.Sets;
-import io.prestosql.spi.connector.ConnectorContext;
-import io.prestosql.spi.predicate.TupleDomain;
-import io.prestosql.testing.TestingConnectorContext;
+import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.testing.TestingConnectorContext;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -74,7 +74,7 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         conf.setMaxMessageSize(MAX_MESSAGE_SIZE);
         conf.setManagedLedgerMaxEntriesPerLedger(5);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -91,7 +91,7 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         internalCleanup();
     }
 

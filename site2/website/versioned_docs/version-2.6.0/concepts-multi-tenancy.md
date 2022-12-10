@@ -1,7 +1,7 @@
 ---
-id: version-2.6.0-concepts-multi-tenancy
+id: concepts-multi-tenancy
 title: Multi Tenancy
-sidebar_label: Multi Tenancy
+sidebar_label: "Multi Tenancy"
 original_id: concepts-multi-tenancy
 ---
 
@@ -10,7 +10,9 @@ Pulsar was created from the ground up as a multi-tenant system. To support multi
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
 ```http
+
 persistent://tenant/namespace/topic
+
 ```
 
 As you can see, the tenant is the most basic unit of categorization for topics (more fundamental than the namespace and topic name).
@@ -32,9 +34,12 @@ Tenants and namespaces are two key concepts of Pulsar to support multi-tenancy.
 Names for topics in the same namespace will look like this:
 
 ```http
+
 persistent://tenant/app1/topic-1
 
 persistent://tenant/app1/topic-2
 
 persistent://tenant/app1/topic-3
+
 ```
+

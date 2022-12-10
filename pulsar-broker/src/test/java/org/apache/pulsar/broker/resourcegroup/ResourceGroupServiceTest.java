@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -255,6 +255,14 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.getPublishRateLimiters(rgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 0);
+    }
+
+    @Test
+    public void testClose() throws Exception {
+        ResourceGroupService service = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, null, null);
+        service.close();
+        Assert.assertTrue(service.getAggregateLocalUsagePeriodicTask().isCancelled());
+        Assert.assertTrue(service.getCalculateQuotaPeriodicTask().isCancelled());
     }
 
     private ResourceGroupService rgs;

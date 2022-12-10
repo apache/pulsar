@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,6 +54,13 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        super.conf.setDefaultRetentionSizeInMB(-1);
+        super.conf.setDefaultRetentionTimeInMinutes(-1);
+    }
+
     @Test
     public void TestConsumedLedgersTrim() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
@@ -74,7 +81,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-        managedLedgerConfig.setRetentionSizeInMB(1L);
+        managedLedgerConfig.setRetentionSizeInMB(1);
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
@@ -96,7 +103,6 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
             assertNotNull(msg);
             consumer.acknowledge(msg);
         }
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
         //no traffic, but consumed ledger will be cleaned
         Thread.sleep(1500);
@@ -123,7 +129,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionSizeInMB(-1);
-        managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
+        managedLedgerConfig.setRetentionTime(-1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(1000);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         MessageId initialMessageId = persistentTopic.getLastMessageId().get();
@@ -150,15 +156,15 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
 
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        // now we have two ledgers, the first is expired but is contains the lastMessageId
+        // the second is empty and should be kept as it is the current tail
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
         managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionSizeInMB(-1);
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(1);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
-        managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        // now we have two ledgers, the first is expired but is contains the lastMessageId
-        // the second is empty and should be kept as it is the current tail
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
 
         // force trimConsumedLedgers
         Thread.sleep(3000);

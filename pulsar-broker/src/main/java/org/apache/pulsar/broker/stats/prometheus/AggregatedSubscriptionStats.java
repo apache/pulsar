@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,8 @@ public class AggregatedSubscriptionStats {
 
     public double msgRateOut;
 
+    public double messageAckRate;
+
     public double msgThroughputOut;
 
     public long msgDelayed;
@@ -59,6 +61,16 @@ public class AggregatedSubscriptionStats {
     long totalMsgExpired;
 
     double msgDropRate;
+
+    long consumersCount;
+
+    long filterProcessedMsgCount;
+
+    long filterAcceptedMsgCount;
+
+    long filterRejectedMsgCount;
+
+    long filterRescheduledMsgCount;
 
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

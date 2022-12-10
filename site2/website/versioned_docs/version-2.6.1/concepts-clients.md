@@ -1,7 +1,7 @@
 ---
-id: version-2.6.1-concepts-clients
+id: concepts-clients
 title: Pulsar Clients
-sidebar_label: Clients
+sidebar_label: "Clients"
 original_id: concepts-clients
 ---
 
@@ -42,7 +42,7 @@ Unlike subscription/consumer, readers are non-durable in nature and will not pre
 
 Please also note that a reader can have a "backlog", but the metric is just to allow users to know how behind the reader is and is not considered for any backlog quota calculations. 
 
-![The Pulsar consumer and reader interfaces](assets/pulsar-reader-consumer-interfaces.png)
+![The Pulsar consumer and reader interfaces](/assets/pulsar-reader-consumer-interfaces.png)
 
 > ### Non-partitioned topics only
 > The reader interface for Pulsar cannot currently be used with [partitioned topics](concepts-messaging.md#partitioned-topics).
@@ -50,6 +50,7 @@ Please also note that a reader can have a "backlog", but the metric is just to a
 Here's a Java example that begins reading from the earliest available message on a topic:
 
 ```java
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
@@ -65,24 +66,30 @@ while (true) {
 
     // Process the message
 }
+
 ```
 
 To create a reader that will read from the latest available message:
 
 ```java
+
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(MessageId.latest)
     .create();
+
 ```
 
 To create a reader that will read from some message between earliest and latest:
 
 ```java
+
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(id)
     .create();
+
 ```
+

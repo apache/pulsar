@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
@@ -66,22 +65,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
         WebTarget path = topicPath(topicName, "partitions");
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicMetadata>() {
-
-                    @Override
-                    public void completed(PartitionedTopicMetadata response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PartitionedTopicMetadata>(){});
     }
 
     @Override
@@ -92,22 +77,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
         WebTarget path = topicPath(topicName, "stats");
-        asyncGetRequest(path,
-                new InvocationCallback<NonPersistentTopicStats>() {
-
-                    @Override
-                    public void completed(NonPersistentTopicStats response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<NonPersistentTopicStats>() {});
     }
 
     @Override
@@ -118,22 +89,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
         WebTarget path = topicPath(topicName, "internalStats");
-        asyncGetRequest(path,
-                new InvocationCallback<PersistentTopicInternalStats>() {
-
-                    @Override
-                    public void completed(PersistentTopicInternalStats response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
     }
 
     @Override
@@ -156,20 +113,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath("non-persistent", ns, bundleRange);
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
     }
 
     @Override
@@ -180,21 +125,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath("non-persistent", ns);
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     /*
