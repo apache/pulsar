@@ -84,8 +84,7 @@ public class RuntimeUtils {
                                           String pythonExtraDependencyRepository,
                                           String narExtractionDirectory,
                                           String functionInstanceClassPath,
-                                          String pulsarWebServiceUrl,
-                                          int numListenerThreads) throws Exception {
+                                          String pulsarWebServiceUrl) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -95,8 +94,7 @@ public class RuntimeUtils {
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
                 pythonExtraDependencyRepository, narExtractionDirectory,
-                functionInstanceClassPath, false, pulsarWebServiceUrl,
-                numListenerThreads));
+                functionInstanceClassPath, false, pulsarWebServiceUrl));
         return cmd;
     }
 
@@ -275,8 +273,7 @@ public class RuntimeUtils {
                                       String narExtractionDirectory,
                                       String functionInstanceClassPath,
                                       boolean k8sRuntime,
-                                      String pulsarWebServiceUrl,
-                                      int numListenerThreads) throws Exception {
+                                      String pulsarWebServiceUrl) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
@@ -437,9 +434,6 @@ public class RuntimeUtils {
 
         args.add("--cluster_name");
         args.add(instanceConfig.getClusterName());
-
-        args.add("--num_listener_threads");
-        args.add(String.valueOf(numListenerThreads));
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             if (!StringUtils.isEmpty(narExtractionDirectory)) {

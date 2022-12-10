@@ -192,8 +192,7 @@ public class KubernetesRuntime implements Runtime {
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
                       String functionInstanceClassPath,
-                      String downloadDirectory,
-                      int numListenerThreads) throws Exception {
+                      String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -278,8 +277,7 @@ public class KubernetesRuntime implements Runtime {
                         narExtractionDirectory,
                         functionInstanceClassPath,
                         true,
-                        pulsarAdminUrl,
-                        numListenerThreads));
+                        pulsarAdminUrl));
 
         doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }

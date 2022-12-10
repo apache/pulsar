@@ -494,7 +494,6 @@ public class LocalRunner implements AutoCloseable {
                 null, /* log directory */
                 null, /* extra dependencies dir */
                 narExtractionDirectory, /* nar extraction dir */
-                1,
                 secretsProviderConfigurator,
                 false, Optional.empty(), Optional.empty());
 
@@ -602,7 +601,7 @@ public class LocalRunner implements AutoCloseable {
                     secretsProvider,
                     collectorRegistry, narExtractionDirectory,
                     null,
-                    exposePulsarAdminClientEnabled, webServiceUrl,1);
+                    exposePulsarAdminClientEnabled, webServiceUrl);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }

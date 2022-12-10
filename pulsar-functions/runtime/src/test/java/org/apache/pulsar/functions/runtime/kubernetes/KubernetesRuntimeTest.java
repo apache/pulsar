@@ -391,14 +391,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 41;
+            totalArgs = 39;
             portArg = 26;
             metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
-            totalArgs = 40;
+            totalArgs = 38;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -443,7 +443,7 @@ public class KubernetesRuntimeTest {
             expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
-        expectedArgs += " --cluster_name standalone --num_listener_threads 1 --nar_extraction_directory " + narExtractionDirectory;
+        expectedArgs += " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
 
         assertEquals(String.join(" ", args), expectedArgs);
 
@@ -488,13 +488,13 @@ public class KubernetesRuntimeTest {
         int configArg;
         int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 39;
+            totalArgs = 37;
             portArg = 30;
             configArg = 10;
             pythonPath = "";
             metricsPortArg = 32;
         } else {
-            totalArgs = 42;
+            totalArgs = 40;
             portArg = 31;
             configArg = 11;
             metricsPortArg = 33;
@@ -527,7 +527,6 @@ public class KubernetesRuntimeTest {
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
         expectedArgs += " --cluster_name standalone";
-        expectedArgs += " --num_listener_threads 1";
         assertEquals(String.join(" ", args), expectedArgs);
 
         // check padding and xmx
