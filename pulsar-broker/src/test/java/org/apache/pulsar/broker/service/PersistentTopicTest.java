@@ -44,7 +44,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -2389,7 +2388,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PositionImpl position = new PositionImpl(1, 1);
         long ledgerId = 0xc0bfefeL;
         sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
-                ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
         verify(consumerMock, Mockito.times(1)).disconnect();
     }
 
