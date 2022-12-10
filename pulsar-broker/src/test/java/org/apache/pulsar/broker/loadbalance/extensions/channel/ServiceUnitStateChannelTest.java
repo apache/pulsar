@@ -464,7 +464,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             if (count.decrementAndGet() > 0) {
                 return future;
             }
-            // Call real method
+            // Call the real method
             reset(namespaceService);
             return future;
         }).when(namespaceService).updateNamespaceBundles(any(), any());

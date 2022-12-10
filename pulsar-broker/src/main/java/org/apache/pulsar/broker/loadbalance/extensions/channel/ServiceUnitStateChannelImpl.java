@@ -530,7 +530,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
         NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
-        final AtomicInteger counter = new AtomicInteger(NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT);
+        final AtomicInteger counter = new AtomicInteger(0);
         this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle, serviceUnit, data,
                 counter, startTime, completionFuture);
         return completionFuture;
@@ -551,7 +551,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
             if (splitBundles == null) {
                 String msg = format("Bundle %s not found under namespace", serviceUnit);
-                log.warn(msg);
                 updateFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
                 return;
             }
@@ -592,17 +591,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.info("Successfully split {} parent namespace-bundle to {} in {} ms", serviceUnit, r,
                         splitBundleTime);
             }).exceptionally(e -> {
-                String msg = format("Failed to free bundle %s under namespace [%s] with error %s",
-                        bundle.getNamespaceObject().toString(), bundle, e.getMessage());
-                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
                 double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
-                log.error("Failed to split {} namespace-bundle in {} ms", serviceUnit, splitBundleTime, e);
+                String msg = format("Failed to free bundle %s in %s ms, under namespace [%s] with error %s",
+                        bundle.getNamespaceObject().toString(), splitBundleTime, bundle, e.getMessage());
+                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
                 return null;
             });
         }).exceptionally(ex -> {
             // Retry several times on BadVersion
             if ((ex.getCause() instanceof MetadataStoreException.BadVersionException)
-                    && (counter.decrementAndGet() >= 0)) {
+                    && (counter.incrementAndGet() < NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT)) {
                 pulsar.getExecutor().schedule(() -> pulsar.getOrderedExecutor()
                                 .execute(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle,
                                         serviceUnit, data, counter, startTime, completionFuture)),
@@ -613,7 +611,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 // Retry enough, or meet other exception
                 String msg = format("Bundle: %s not success update nsBundles, counter %d, reason %s",
                         bundle.toString(), counter.get(), ex.getMessage());
-                log.warn(msg);
                 completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
             }
             return null;
