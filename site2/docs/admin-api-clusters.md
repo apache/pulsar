@@ -1,25 +1,33 @@
 ---
 id: admin-api-clusters
 title: Managing Clusters
-sidebar_label: Clusters
+sidebar_label: "Clusters"
 ---
 
-> **Important**
->
-> This page only shows **some frequently used operations**.
->
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
-> 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
-> 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
+
+:::tip
+
+ This page only shows **some frequently used operations**.
+
+ - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+ 
+ - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+ 
+ - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+
+:::
 
 Pulsar clusters consist of one or more Pulsar [brokers](reference-terminology.md#broker), one or more [BookKeeper](reference-terminology.md#bookkeeper)
 servers (aka [bookies](reference-terminology.md#bookie)), and a [ZooKeeper](https://zookeeper.apache.org) cluster that provides configuration and coordination management.
 
 Clusters can be managed via:
 
-* The `clusters` command of the [`pulsar-admin`]([reference-pulsar-admin.md](https://pulsar.apache.org/tools/pulsar-admin/)) tool
+* The `clusters` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool
 * The `/admin/v2/clusters` endpoint of the admin {@inject: rest:REST:/} API
 * The `clusters` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
@@ -29,24 +37,33 @@ Clusters can be managed via:
 
 New clusters can be provisioned using the admin interface.
 
-> Please note that this operation requires superuser privileges.
+:::note
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+This operation requires superuser privileges.
 
-You can provision a new cluster using the [`create`](reference-pulsar-admin.md#clusters-create) subcommand. Here's an example:
+:::
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+You can provision a new cluster using the [`create`](/tools/pulsar-admin/) subcommand. Here's an example:
 
 ```shell
-$ pulsar-admin clusters create cluster-1 \
-  --url http://my-cluster.org.com:8080 \
-  --broker-url pulsar://my-cluster.org.com:6650
+pulsar-admin clusters create cluster-1 \
+    --url http://my-cluster.org.com:8080 \
+    --broker-url pulsar://my-cluster.org.com:6650
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
 ClusterData clusterData = new ClusterData(
@@ -57,14 +74,18 @@ ClusterData clusterData = new ClusterData(
 );
 admin.clusters().createCluster(clusterName, clusterData);
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Initialize cluster metadata
 
-When provision a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
+When provisioning a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
 
 * The name of the cluster
-* The local ZooKeeper connection string for the cluster
+* The local metadata store connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
@@ -75,8 +96,8 @@ You must initialize cluster metadata *before* starting up any [brokers](admin-ap
 >
 > Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API
 > or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly.
-> Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular
-> the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
+> Instead, you can use the [`pulsar`](reference-cli-tools.md) CLI tool, in particular
+> the [`initialize-cluster-metadata`](reference-cli-tools.md) command.
 
 Here's an example cluster metadata initialization command:
 
@@ -97,13 +118,20 @@ You'll need to use `--*-tls` flags only if you're using [TLS authentication](sec
 
 You can fetch the [configuration](reference-configuration.md) for an existing cluster at any time.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`get`](reference-pulsar-admin.md#clusters-get) subcommand and specify the name of the cluster. Here's an example:
+Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the cluster. Here's an example:
 
 ```shell
-$ pulsar-admin clusters get cluster-1
+pulsar-admin clusters get cluster-1
+```
+Output:
+
+```json
 {
     "serviceUrl": "http://my-cluster.org.com:8080/",
     "serviceUrlTls": null,
@@ -113,37 +141,48 @@ $ pulsar-admin clusters get cluster-1
 }
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.clusters().getCluster(clusterName);
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Update
 
 You can update the configuration for an existing cluster at any time.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`update`](reference-pulsar-admin.md#clusters-update) subcommand and specify new configuration values using flags.
+Use the [`update`](/tools/pulsar-admin/) subcommand and specify new configuration values using flags.
 
 ```shell
-$ pulsar-admin clusters update cluster-1 \
-  --url http://my-cluster.org.com:4081 \
-  --broker-url pulsar://my-cluster.org.com:3350
+pulsar-admin clusters update cluster-1 \
+    --url http://my-cluster.org.com:4081 \
+    --broker-url pulsar://my-cluster.org.com:3350
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
 ClusterData clusterData = new ClusterData(
@@ -154,78 +193,113 @@ ClusterData clusterData = new ClusterData(
 );
 admin.clusters().updateCluster(clusterName, clusterData);
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Delete
 
 Clusters can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`delete`](reference-pulsar-admin.md#clusters-delete) subcommand and specify the name of the cluster.
+Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the name of the cluster.
 
 ```
-$ pulsar-admin clusters delete cluster-1
+pulsar-admin clusters delete cluster-1
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.clusters().deleteCluster(clusterName);
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### List
 
 You can fetch a list of all clusters in a Pulsar [instance](reference-terminology.md#instance).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`list`](reference-pulsar-admin.md#clusters-list) subcommand.
+Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
-$ pulsar-admin clusters list
+pulsar-admin clusters list
+```
+
+Output:
+
+```
 cluster-1
 cluster-2
 ```
+</TabItem>
+<TabItem value="REST API">
 
-<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=@pulsar:version_number@}
 
-{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=[[pulsar:version_number]]}
-
-<!--JAVA-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.clusters().getClusters();
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Update peer-cluster data
 
 Peer clusters can be configured for a given cluster in a Pulsar [instance](reference-terminology.md#instance).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
-Use the [`update-peer-clusters`](reference-pulsar-admin.md#clusters-update-peer-clusters) subcommand and specify the list of peer-cluster names.
+Use the [`update-peer-clusters`](/tools/pulsar-admin/) subcommand and specify the list of peer-cluster names.
 
+```shell
+pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 ```
-$ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
-```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
 admin.clusters().updatePeerClusterNames(clusterName, peerClusterList);
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````

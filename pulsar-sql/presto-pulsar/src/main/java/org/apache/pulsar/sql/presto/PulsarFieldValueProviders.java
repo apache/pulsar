@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.decoder.FieldValueProvider;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.type.Timestamps;
 
 /**
  * custom FieldValueProvider for Pulsar.
@@ -40,17 +41,14 @@ public class PulsarFieldValueProviders {
     }
 
     /**
-     * FieldValueProvider for Time (Data,Timstamp etc.) with indicate Null instead of longValueProvider.
-     * @param value
-     * @param isNull
-     * @return
+     * FieldValueProvider for Time (Data, Timestamp etc.) with indicate Null instead of longValueProvider.
      */
-    public static FieldValueProvider timeValueProvider(long value, boolean isNull) {
+    public static FieldValueProvider timeValueProvider(long millis, boolean isNull) {
         return new FieldValueProvider() {
             @Override
-                public long getLong() {
-                    return value;
-                }
+            public long getLong() {
+                return millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
+            }
 
             @Override
             public boolean isNull() {

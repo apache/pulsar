@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertTrue;
@@ -108,8 +107,8 @@ public class FileModifiedTimeUpdaterTest {
         createFile(Paths.get(certFile));
         provider.certFilePath = certFile;
         provider.keyFilePath = certFile;
-        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(false, certFile,
-                provider, 1);
+        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(null, false, certFile,
+                provider, null, null, 1);
         Thread.sleep(5000);
         Paths.get(certFile).toFile().delete();
         // update the file

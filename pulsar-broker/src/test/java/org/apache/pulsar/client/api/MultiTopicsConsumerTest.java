@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +37,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.awaitility.Awaitility;
 import org.mockito.AdditionalAnswers;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -65,14 +65,20 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Override
-    protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
-        ClientConfigurationData conf =
-                ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
-        return new PulsarClientImpl(conf) {
+    // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
+    // where closing the consumer leads to an endless receive loop
+    @Test
+    public void testMultiTopicsConsumerCloses() throws Exception {
+        String topicNameBase = "persistent://my-property/my-ns/my-topic-consumer-closes-";
+
+        ClientConfigurationData conf = ((ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString()))
+                .getClientConfigurationData();
+
+        @Cleanup
+        PulsarClientImpl client = new PulsarClientImpl(conf) {
             {
                 ScheduledExecutorService internalExecutorService =
-                        (ScheduledExecutorService) super.getInternalExecutorService();
+                        (ScheduledExecutorService) super.getScheduledExecutorProvider().getExecutor();
                 internalExecutorServiceDelegate = mock(ScheduledExecutorService.class,
                         // a spy isn't used since that doesn't work for private classes, instead
                         // the mock delegatesTo an existing instance. A delegate is sufficient for verifying
@@ -85,31 +91,23 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                 return internalExecutorServiceDelegate;
             }
         };
-    }
-
-    // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
-    // where closing the consumer leads to an endless receive loop
-    @Test
-    public void testMultiTopicsConsumerCloses() throws Exception {
-        String topicNameBase = "persistent://my-property/my-ns/my-topic-consumer-closes-";
-
         @Cleanup
-        Producer<byte[]> producer1 = pulsarClient.newProducer()
+        Producer<byte[]> producer1 = client.newProducer()
                 .topic(topicNameBase + "1")
                 .enableBatching(false)
                 .create();
         @Cleanup
-        Producer<byte[]> producer2 = pulsarClient.newProducer()
+        Producer<byte[]> producer2 = client.newProducer()
                 .topic(topicNameBase + "2")
                 .enableBatching(false)
                 .create();
         @Cleanup
-        Producer<byte[]> producer3 = pulsarClient.newProducer()
+        Producer<byte[]> producer3 = client.newProducer()
                 .topic(topicNameBase + "3")
                 .enableBatching(false)
                 .create();
 
-        Consumer<byte[]> consumer = pulsarClient
+        Consumer<byte[]> consumer = client
                 .newConsumer()
                 .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2", topicNameBase + "3"))
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -178,6 +176,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             sequenceNumber++;
         }
         for (Producer<Long> producer : producers) {
+            producer.flush();
             producer.close();
         }
 
@@ -193,5 +192,43 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             Assert.assertEquals(message.getValue().longValue(), receivedSequenceCounter.getAndIncrement());
         }
         Assert.assertEquals(numPartitions * numMessages, receivedCount);
+    }
+
+    @Test
+    public void testBatchReceiveAckTimeout()
+            throws PulsarAdminException, PulsarClientException {
+        String topicName = newTopicName();
+        int numPartitions = 2;
+        int numMessages = 100000;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        @Cleanup
+        Producer<Long> producer = pulsarClient.newProducer(Schema.INT64)
+                .topic(topicName)
+                .enableBatching(false)
+                .blockIfQueueFull(true)
+                .create();
+
+        @Cleanup
+        Consumer<Long> consumer = pulsarClient
+                .newConsumer(Schema.INT64)
+                .topic(topicName)
+                .receiverQueueSize(numMessages)
+                .batchReceivePolicy(
+                        BatchReceivePolicy.builder().maxNumMessages(1).timeout(2, TimeUnit.SECONDS).build()
+                ).ackTimeout(1000, TimeUnit.MILLISECONDS)
+                .subscriptionName(methodName)
+                .subscribe();
+
+        producer.newMessage()
+                .value(1l)
+                .send();
+
+        // first batch receive
+        Assert.assertEquals(consumer.batchReceive().size(), 1);
+        // Not ack, trigger redelivery this message.
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.batchReceive().size(), 1);
+        });
     }
 }

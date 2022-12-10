@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl.auth;
 
 import com.google.gson.Gson;
@@ -29,6 +28,7 @@ import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 public class AuthenticationBasic implements Authentication, EncodedAuthenticationParameterSupport {
+    static final String AUTH_METHOD_NAME = "basic";
     private String userId;
     private String password;
 
@@ -39,7 +39,7 @@ public class AuthenticationBasic implements Authentication, EncodedAuthenticatio
 
     @Override
     public String getAuthMethodName() {
-        return "basic";
+        return AUTH_METHOD_NAME;
     }
 
     @Override

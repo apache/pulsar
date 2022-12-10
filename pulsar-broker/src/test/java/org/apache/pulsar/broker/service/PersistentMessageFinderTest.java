@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -185,7 +185,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         c1.markDelete(entries.get(2).getPosition());
         c1.close();
         ledger.close();
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
         // give timed ledger trimming a chance to run
         Thread.sleep(1000);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.Parameters;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -57,7 +58,7 @@ public class CmdGenerateDocument extends CmdBase {
         }
         for (Map.Entry<String, Class<?>> c : tool.commandMap.entrySet()) {
             try {
-                if (!c.getKey().equals("documents")) {
+                if (!c.getKey().equals("documents") && c.getValue() != null) {
                     baseJcommander.addCommand(
                             c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
                 }
@@ -93,41 +94,52 @@ public class CmdGenerateDocument extends CmdBase {
             }
         }
 
+        private boolean needsLangSupport(String module, String subK) {
+            String[] langSupport = {"localrun", "create", "update"};
+            return module.equals("functions") && Arrays.asList(langSupport).contains(subK);
+        }
+
         private void generateDocument(StringBuilder sb, String module, JCommander obj) {
-            sb.append("------------\n\n");
             sb.append("# ").append(module).append("\n\n");
-            sb.append("### Usage\n\n");
-            sb.append("`$").append(module).append("`\n\n");
-            sb.append("------------\n\n");
             sb.append(usageFormatter.getCommandDescription(module)).append("\n");
-            sb.append("\n\n```bdocs-tab:example_shell\n")
+            sb.append("\n\n```shell\n")
                     .append("$ pulsar-admin ").append(module).append(" subcommand")
                     .append("\n```");
             sb.append("\n\n");
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
-            for (String s : cmdObj.jcommander.getCommands().keySet()) {
-                sb.append("* `").append(s).append("`\n");
-            }
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
                 sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
                 sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");
-                sb.append("### Usage\n\n");
-                sb.append("------------\n\n\n");
-                sb.append("```bdocs-tab:example_shell\n$ pulsar-admin ").append(module).append(" ")
+                sb.append("**Command:**\n\n");
+                sb.append("```shell\n$ pulsar-admin ").append(module).append(" ")
                         .append(subK).append(" options").append("\n```\n\n");
                 List<ParameterDescription> options = cmdObj.jcommander.getCommands().get(subK).getParameters();
                 if (options.size() > 0) {
-                    sb.append("Options\n\n\n");
-                    sb.append("|Flag|Description|Default|\n");
-                    sb.append("|---|---|---|\n");
+                    sb.append("**Options:**\n\n");
+                    sb.append("|Flag|Description|Default|");
+                    if (needsLangSupport(module, subK)) {
+                        sb.append("Support|\n");
+                        sb.append("|---|---|---|---|\n");
+                    } else {
+                        sb.append("\n|---|---|---|\n");
+                    }
                 }
-                options.forEach((option) ->
-                    sb.append("| `").append(option.getNames())
-                            .append("` | ").append(option.getDescription().replace("\n", " "))
-                            .append("|").append(option.getDefault()).append("|\n")
+                options.stream().filter(
+                        ele -> ele.getParameterAnnotation() == null
+                                || !ele.getParameterAnnotation().hidden()
+                ).forEach((option) -> {
+                            String[] descriptions = option.getDescription().replace("\n", " ").split(" #");
+                            sb.append("| `").append(option.getNames())
+                                    .append("` | ").append(descriptions[0])
+                                    .append("|").append(option.getDefault()).append("|");
+                            if (needsLangSupport(module, subK) && descriptions.length > 1) {
+                                sb.append(descriptions[1]);
+                            }
+                            sb.append("|\n");
+                        }
                 );
             });
-            System.out.println(sb.toString());
+            System.out.println(sb);
         }
     }
 }

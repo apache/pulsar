@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.kubernetes;
 
-import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1PodSpec;
@@ -40,6 +38,7 @@ import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -63,11 +62,6 @@ import static org.testng.Assert.fail;
 public class KubernetesRuntimeFactoryTest {
 
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
-
-        @Override
-        public void init(Map<String, String> config) {
-
-        }
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
@@ -104,10 +98,6 @@ public class KubernetesRuntimeFactoryTest {
             return null;
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private KubernetesRuntimeFactory factory;
@@ -192,7 +182,8 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setStateStorageServiceUrl(null);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Mockito.mock(ConnectorsManager.class), functionAuthProvider, manifestCustomizer);
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(),
+                Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), functionAuthProvider, manifestCustomizer);
         return factory;
     }
 
@@ -271,7 +262,8 @@ public class KubernetesRuntimeFactoryTest {
 
         testMinMaxResource(1.01, 1024L, true, "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
         testMinMaxResource(1.00, 2049L, true, "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
-        testMinMaxResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinMaxResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the "
+                + "minimum required, 0.1");
         testMinMaxResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
 
         testMinMaxResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
@@ -511,7 +503,7 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
-        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Optional.empty(), Optional.empty());
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;
     }
 }

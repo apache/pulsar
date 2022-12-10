@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,22 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.WorkerConfig;
@@ -49,9 +55,11 @@ import org.apache.pulsar.client.api.Schema;
 @Slf4j
 public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
-    private Map<ByteBuffer, ByteBuffer> data;
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final Map<ByteBuffer, ByteBuffer> data = new ConcurrentHashMap<>();
     private PulsarClient client;
     private String topic;
+    private Map<String, Object> readerConfigMap = new HashMap<>();
     private Producer<byte[]> producer;
     private Reader<byte[]> reader;
     private volatile CompletableFuture<Void> outstandingReadToEnd = null;
@@ -65,7 +73,13 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     public void configure(WorkerConfig workerConfig) {
         this.topic = workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG);
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
-        this.data = new HashMap<>();
+        try {
+            this.readerConfigMap = loadConfigFromJsonString(
+                    workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG));
+        } catch (JsonProcessingException exception) {
+            log.warn("The provided reader configs are invalid, "
+                    + "will not passing any extra config to the reader builder.", exception);
+        }
 
         log.info("Configure offset backing store on pulsar topic {}", topic);
     }
@@ -126,10 +140,13 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     }
 
     void processMessage(Message<byte[]> message) {
-        synchronized (data) {
+        if (message.getKey() != null) {
             data.put(
                 ByteBuffer.wrap(message.getKey().getBytes(UTF_8)),
                 ByteBuffer.wrap(message.getValue()));
+        } else {
+            log.debug("Got message without key from the offset storage topic, skip it. message value: {}",
+                    message.getValue());
         }
     }
 
@@ -144,15 +161,19 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             reader = client.newReader(Schema.BYTES)
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
+                    .loadConf(readerConfigMap)
                 .create();
             log.info("Successfully created reader to replay updates from topic {}", topic);
 
             CompletableFuture<Void> endFuture = new CompletableFuture<>();
             readToEnd(endFuture);
-            endFuture.join();
+            endFuture.get();
         } catch (PulsarClientException e) {
             log.error("Failed to setup pulsar producer/reader to cluster", e);
             throw new RuntimeException("Failed to setup pulsar producer/reader to cluster ",  e);
+        } catch (ExecutionException | InterruptedException e) {
+            log.error("Failed to start PulsarOffsetBackingStore", e);
+            throw new RuntimeException("Failed to start PulsarOffsetBackingStore",  e);
         }
     }
 
@@ -180,6 +201,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             }
             reader = null;
         }
+        data.clear();
 
         // do not close the client, it is provided by the sink context
     }
@@ -191,10 +213,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         return endFuture.thenApply(ignored -> {
             Map<ByteBuffer, ByteBuffer> values = new HashMap<>();
             for (ByteBuffer key : keys) {
-                ByteBuffer value;
-                synchronized (data) {
-                    value = data.get(key);
-                }
+                ByteBuffer value = data.get(key);
                 if (null != value) {
                     values.put(key, value);
                 }
@@ -208,8 +227,17 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         values.forEach((key, value) -> {
             ByteBuf bb = Unpooled.wrappedBuffer(key);
             byte[] keyBytes = ByteBufUtil.getBytes(bb);
-            bb = Unpooled.wrappedBuffer(value);
-            byte[] valBytes = ByteBufUtil.getBytes(bb);
+            byte[] valBytes = null;
+            if (value != null) {
+                bb = Unpooled.wrappedBuffer(value);
+                valBytes = ByteBufUtil.getBytes(bb);
+            } else {
+                // It does not actually matter if it is earliest or latest.
+                // The connector that provides null offsets works with the
+                // system that cannot seek to the offset anyway.
+                // Just need to store something to keep the offset store happy.
+                valBytes = MessageId.earliest.toByteArray();
+            }
             producer.newMessage()
                 .key(new String(keyBytes, UTF_8))
                 .value(valBytes)
@@ -223,5 +251,13 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 readToEnd(new CompletableFuture<>());
             }
         });
+    }
+
+    private Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
+        if (!isBlank(config)) {
+            return mapper.readValue(config, new TypeReference<>() {});
+        } else {
+            return Collections.emptyMap();
+        }
     }
 }

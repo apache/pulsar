@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.io.debezium;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
@@ -34,12 +35,14 @@ import io.debezium.util.Collect;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -74,7 +77,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder) throws Exception {
+    private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder, boolean testWithReaderConfig) throws Exception {
         Configuration.Builder configBuidler = Configuration.create()
                 .with(PulsarDatabaseHistory.TOPIC, topicName)
                 .with(DatabaseHistory.NAME, "my-db-history")
@@ -91,6 +94,10 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             }
         } else {
             configBuidler.with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString());
+        }
+
+        if (testWithReaderConfig) {
+            configBuidler.with(PulsarDatabaseHistory.READER_CONFIG, "{\"subscriptionName\":\"my-subscription\"}");
         }
 
         // Start up the history ...
@@ -122,8 +129,8 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // Now record schema changes, which writes out to kafka but doesn't actually change the Tables ...
         setLogPosition(10);
         ddl = "CREATE TABLE foo ( first VARCHAR(22) NOT NULL ); \n" +
-            "CREATE TABLE customers ( id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL ); \n" +
-            "CREATE TABLE products ( productId INTEGER NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL ); \n";
+                "CREATE TABLE customers ( id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL ); \n" +
+                "CREATE TABLE products ( productId INTEGER NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL ); \n";
         history.record(source, position, "db1", ddl);
 
         // Parse the DDL statement 3x and each time update a different Tables object ...
@@ -179,6 +186,10 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         setLogPosition(100000010);
         history.recover(source, position, recoveredTables, recoveryParser);
         assertEquals(recoveredTables, tables3);
+    }
+
+    private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder) throws Exception {
+        testHistoryTopicContent(skipUnparseableDDL, testWithClientBuilder, false);
     }
 
     protected void setLogPosition(int index) {
@@ -238,5 +249,18 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
         // dummytopic should not exist yet
         assertFalse(history.exists());
+    }
+
+    @Test
+    public void testSubscriptionName() throws Exception {
+        testHistoryTopicContent(true, false, true);
+        assertTrue(history.exists());
+        try (Reader<String> ignored = history.createHistoryReader()) {
+            List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+            assertEquals(subscriptions.size(), 1);
+            assertTrue(subscriptions.contains("my-subscription"));
+        } catch (Exception e) {
+            fail("Failed to create history reader");
+        }
     }
 }

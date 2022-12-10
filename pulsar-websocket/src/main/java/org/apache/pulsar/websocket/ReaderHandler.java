@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -101,10 +102,16 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
                 }
             }
+            if (service.getCryptoKeyReader().isPresent()) {
+                builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+            }
 
             this.reader = builder.create();
-
-            this.subscription = ((ReaderImpl<?>) this.reader).getConsumer().getSubscription();
+            Consumer<?> consumer = getConsumer();
+            if (consumer == null) {
+                throw new IllegalArgumentException(String.format("Illegal Reader Type %s", reader.getClass()));
+            }
+            this.subscription = consumer.getSubscription();
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -266,7 +273,13 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     public Consumer<?> getConsumer() {
-        return reader != null ? ((ReaderImpl<?>) reader).getConsumer() : null;
+        if (reader instanceof MultiTopicsReaderImpl) {
+            return ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+        } else if (reader instanceof ReaderImpl) {
+            return ((ReaderImpl<?>) reader).getConsumer();
+        } else {
+            return null;
+        }
     }
 
     public String getSubscription() {

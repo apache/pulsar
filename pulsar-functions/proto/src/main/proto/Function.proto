@@ -27,6 +27,7 @@ enum ProcessingGuarantees {
     ATLEAST_ONCE = 0; // [default value]
     ATMOST_ONCE = 1;
     EFFECTIVELY_ONCE = 2;
+    MANUAL = 3;
 }
 
 enum SubscriptionType {
@@ -72,7 +73,8 @@ message FunctionDetails {
     string userConfig = 7;
     string secretsMap = 16;
     Runtime runtime = 8;
-    bool autoAck = 9;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    bool autoAck = 9 [deprecated = true];
     int32 parallelism = 10;
     SourceSpec source = 11;
     SinkSpec sink = 12;
@@ -209,6 +211,7 @@ message FunctionMetaData {
     uint64 createTime = 4;
     map<int32, FunctionState> instanceStates = 5;
     FunctionAuthenticationSpec functionAuthSpec = 6;
+    PackageLocationMetaData transformFunctionPackageLocation = 7;
 }
 
 message FunctionAuthenticationSpec {

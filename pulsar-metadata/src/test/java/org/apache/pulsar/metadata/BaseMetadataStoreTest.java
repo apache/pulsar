@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.etcd.jetcd.launcher.EtcdCluster;
 import io.etcd.jetcd.launcher.EtcdClusterFactory;
@@ -25,6 +26,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -39,14 +41,14 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     @BeforeClass(alwaysRun = true)
     @Override
-    public final void setup() throws Exception {
+    public void setup() throws Exception {
         incrementSetupNumber();
         zks = new TestZKServer();
     }
 
     @AfterClass(alwaysRun = true)
     @Override
-    public final void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         if (zks != null) {
             zks.close();
@@ -102,5 +104,36 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     static void assertException(Throwable t, Class<?> clazz) {
         assertTrue(clazz.isInstance(t), String.format("Exception %s is not of type %s", t.getClass(), clazz));
+    }
+
+    public static void assertEqualsAndRetry(Supplier<Object> actual,
+                                            Object expected,
+                                            Object expectedAndRetry) throws Exception {
+        assertEqualsAndRetry(actual, expected, expectedAndRetry, 5, 100);
+    }
+
+    public static void assertEqualsAndRetry(Supplier<Object> actual,
+                                            Object expected,
+                                            Object expectedAndRetry,
+                                            int retryCount,
+                                            long intSleepTimeInMillis) throws Exception {
+        assertTrue(retryStrategically((__) -> {
+            if (actual.get().equals(expectedAndRetry)) {
+                return false;
+            }
+            assertEquals(actual.get(), expected);
+            return true;
+        }, retryCount, intSleepTimeInMillis));
+    }
+
+    public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+            throws Exception {
+        for (int i = 0; i < retryCount; i++) {
+            if (predicate.test(null)) {
+                return true;
+            }
+            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+        }
+        return false;
     }
 }

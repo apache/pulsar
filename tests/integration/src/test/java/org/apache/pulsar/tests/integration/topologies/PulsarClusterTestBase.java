@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -29,6 +33,10 @@ import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
+    protected final Map<String, String> brokerEnvs = new HashMap<>();
+    protected final Map<String, String> proxyEnvs = new HashMap<>();
+    protected final List<Integer> brokerAdditionalPorts = new LinkedList<>();
+
     @Override
     protected final void setup() throws Exception {
         setupCluster();
@@ -84,7 +92,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         return pulsarCluster;
     }
 
-    private static Supplier<String> stringSupplier(Supplier<String> supplier) {
+    protected static Supplier<String> stringSupplier(Supplier<String> supplier) {
         return supplier;
     }
 
@@ -98,7 +106,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
                 .collect(joining("-"));
 
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
-                .clusterName(clusterName);
+                .clusterName(clusterName)
+                .brokerEnvs(brokerEnvs)
+                .proxyEnvs(proxyEnvs)
+                .brokerAdditionalPorts(brokerAdditionalPorts);
 
         setupCluster(beforeSetupCluster(clusterName, specBuilder).build());
     }

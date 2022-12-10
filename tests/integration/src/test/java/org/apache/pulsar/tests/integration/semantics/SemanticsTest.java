@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -262,8 +262,8 @@ public class SemanticsTest extends PulsarTestSuite {
                     for (int i = 0; i < numMessages; i++) {
                         sendFutures.add(producer.sendAsync("batch-message-" + i));
                     }
-                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture[numMessages])).get();
-                    producedMsgIds = sendFutures.stream().map(future -> future.join()).collect(Collectors.toList());
+                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture<?>[numMessages])).get();
+                    producedMsgIds = sendFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
                 }
 
                 for (int i = 0; i < numMessages; i++) {

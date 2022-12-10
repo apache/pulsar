@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.ImmutableMap;
@@ -48,11 +47,18 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
     final PolicyHierarchyValue<Long> compactionThreshold;
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
+    final PolicyHierarchyValue<PublishRate> publishRate;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
+    final PolicyHierarchyValue<DispatchRateImpl> replicatorDispatchRate;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
+    final PolicyHierarchyValue<SubscribeRate> subscribeRate;
     final PolicyHierarchyValue<DispatchRateImpl> subscriptionDispatchRate;
     final PolicyHierarchyValue<SchemaCompatibilityStrategy> schemaCompatibilityStrategy;
+    final PolicyHierarchyValue<DispatchRateImpl> dispatchRate;
+
+    final PolicyHierarchyValue<Boolean> schemaValidationEnforced;
+    final PolicyHierarchyValue<EntryFilters> entryFilters;
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
@@ -73,10 +79,16 @@ public class HierarchyTopicPolicies {
                 .build();
         topicMaxMessageSize = new PolicyHierarchyValue<>();
         messageTTLInSeconds = new PolicyHierarchyValue<>();
+        publishRate = new PolicyHierarchyValue<>();
         delayedDeliveryEnabled = new PolicyHierarchyValue<>();
         delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
+        replicatorDispatchRate = new PolicyHierarchyValue<>();
         compactionThreshold = new PolicyHierarchyValue<>();
+        subscribeRate = new PolicyHierarchyValue<>();
         subscriptionDispatchRate = new PolicyHierarchyValue<>();
         schemaCompatibilityStrategy = new PolicyHierarchyValue<>();
+        dispatchRate = new PolicyHierarchyValue<>();
+        schemaValidationEnforced = new PolicyHierarchyValue<>();
+        entryFilters = new PolicyHierarchyValue<>();
     }
 }

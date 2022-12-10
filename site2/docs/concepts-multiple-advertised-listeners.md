@@ -1,7 +1,7 @@
 ---
 id: concepts-multiple-advertised-listeners
 title: Multiple advertised listeners
-sidebar_label: Multiple advertised listeners
+sidebar_label: "Multiple advertised listeners"
 ---
 
 When a Pulsar cluster is deployed in the production environment, it may require to expose multiple advertised addresses for the broker. For example, when you deploy a Pulsar cluster in Kubernetes and want other clients, which are not in the same Kubernetes cluster, to connect to the Pulsar cluster, you need to assign a broker URL to external clients. But clients in the same Kubernetes cluster can still connect to the Pulsar cluster through the internal network of Kubernetes.
@@ -15,7 +15,7 @@ To ensure clients in both internal and external networks can connect to a Pulsar
 
 - The `internalListenerName` is used to specify the internal service URL that the broker uses. You can specify the `internalListenerName` by choosing one of the `advertisedListeners`. The broker uses the listener name of the first advertised listener as the `internalListenerName` if the `internalListenerName` is absent.
 
-After setting up the `advertisedListeners`, clients can choose one of the listeners as the service URL to create a connection to the broker as long as the network is accessible. However, if the client creates producers or consumer on a topic, the client must send a lookup requests to the broker for getting the owner broker, then connect to the owner broker to publish messages or consume messages. Therefore, You must allow the client to get the corresponding service URL with the same advertised listener name as the one used by the client. This helps keep client-side simple and secure.
+After setting up the `advertisedListeners`, clients can choose one of the listeners as the service URL to create a connection to the broker as long as the network is accessible. However, if the client creates producers or consumers on a topic, the client must send a lookup request to the broker for getting the owner broker, then connect to the owner broker to publish messages or consume messages. Therefore, You must allow the client to get the corresponding service URL with the same advertised listener name as the one used by the client. This helps keep the client side simple and secure.
 
 ## Use multiple advertised listeners
 
@@ -36,3 +36,4 @@ PulsarClient client = PulsarClient.builder()
     .listenerName("external")
     .build();
 ```
+

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,9 +22,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -825,7 +827,7 @@ public interface TopicPolicies {
     /**
      * Set subscription-message-dispatch-rate for the topic.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second
+     * Subscriptions of this topic can dispatch this many messages per second
      *
      * @param topic
      * @param dispatchRate
@@ -838,7 +840,7 @@ public interface TopicPolicies {
     /**
      * Set subscription-message-dispatch-rate for the topic asynchronously.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
      * @param topic
      * @param dispatchRate
@@ -849,31 +851,31 @@ public interface TopicPolicies {
     /**
      * Get applied subscription-message-dispatch-rate.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
-     * @param namespace
+     * @param topic
      * @returns DispatchRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    DispatchRate getSubscriptionDispatchRate(String namespace, boolean applied) throws PulsarAdminException;
+    DispatchRate getSubscriptionDispatchRate(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * Get applied subscription-message-dispatch-rate asynchronously.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions in this topic can dispatch this many messages per second.
      *
-     * @param namespace
+     * @param topic
      * @returns DispatchRate
      *            number of messages per second
      */
-    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace, boolean applied);
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, boolean applied);
 
     /**
      * Get subscription-message-dispatch-rate for the topic.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
      * @param topic
      * @returns DispatchRate
@@ -886,7 +888,7 @@ public interface TopicPolicies {
     /**
      * Get subscription-message-dispatch-rate asynchronously.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
      * @param topic
      * @returns DispatchRate
@@ -909,6 +911,51 @@ public interface TopicPolicies {
      *            Topic name
      */
     CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
+
+    /**
+     * Set dispatch rate limiter for a specific subscription.
+     */
+    void setSubscriptionDispatchRate(String topic, String subscriptionName, DispatchRate dispatchRate)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #setSubscriptionDispatchRate(String, String, DispatchRate)}.
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                             DispatchRate dispatchRate);
+
+    /**
+     * If applied is true, get dispatch rate limiter for a specific subscription.
+     * Or else, return subscription level setting.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName, boolean applied)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String, boolean)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                                     boolean applied);
+
+    /**
+     * Get subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName);
+
+    /**
+     * Remove subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    void removeSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #removeSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic, String subscriptionName);
 
     /**
      * Set replicatorDispatchRate for the topic.
@@ -1718,4 +1765,152 @@ public interface TopicPolicies {
      * @param topic The topic in whose policy should be removed
      */
     CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic);
+
+    /**
+     * Get applied entry filters for a topic.
+     * @param topic
+     * @param applied
+     * @return entry filters classes info.
+     * @throws PulsarAdminException
+     */
+    EntryFilters getEntryFiltersPerTopic(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied entry filters for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<EntryFilters> getEntryFiltersPerTopicAsync(String topic, boolean applied);
+
+    /**
+     * Set entry filters on a topic.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters) throws PulsarAdminException;
+
+    /**
+     * Set entry filters on a topic asynchronously.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    CompletableFuture<Void> setEntryFiltersPerTopicAsync(String topic, EntryFilters entryFilters);
+
+    /**
+     * remove entry filters of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeEntryFiltersPerTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * remove entry filters of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic);
+
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the namespace level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     *
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAutoSubscriptionCreation(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+            throws PulsarAdminException;
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings asynchronously.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the namespace level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     */
+    CompletableFuture<Void> setAutoSubscriptionCreationAsync(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
+
+    /**
+     * Get the autoSubscriptionCreation info within a topic.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
+                                                                 boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the autoSubscriptionCreation info within a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String topic, boolean applied);
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given topic.
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAutoSubscriptionCreation(String topic) throws PulsarAdminException;
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given topic asynchronously.
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic);
 }

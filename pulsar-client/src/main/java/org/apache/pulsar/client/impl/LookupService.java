@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -91,11 +91,19 @@ public interface LookupService extends AutoCloseable {
     String getServiceUrl();
 
     /**
+     * Resolves pulsar service url.
+     *
+     * @return the service url resolved to a socket address
+     */
+    InetSocketAddress resolveHost();
+
+    /**
      * Returns all the topics name for a given namespace.
      *
      * @param namespace : namespace-name
      * @return
      */
-    CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
+    CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
+                                                               String topicPattern, String topicsHash);
 
 }

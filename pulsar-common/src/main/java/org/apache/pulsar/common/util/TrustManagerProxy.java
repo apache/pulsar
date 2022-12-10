@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,13 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.handler.ssl.SslContext;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.Socket;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -45,13 +42,13 @@ import lombok.extern.slf4j.Slf4j;
 public class TrustManagerProxy extends X509ExtendedTrustManager {
 
     private volatile X509ExtendedTrustManager trustManager;
-    private FileModifiedTimeUpdater certFile;
+    private final FileModifiedTimeUpdater certFile;
 
     public TrustManagerProxy(String caCertFile, int refreshDurationSec, ScheduledExecutorService executor) {
         this.certFile = new FileModifiedTimeUpdater(caCertFile);
         try {
             updateTrustManager();
-        } catch (IOException | CertificateException e) {
+        } catch (KeyManagementException | IOException | CertificateException e) {
             log.warn("Failed to load cert {}, {}", certFile, e.getMessage());
             throw new IllegalArgumentException(e);
         } catch (NoSuchAlgorithmException | KeyStoreException e) {
@@ -71,19 +68,18 @@ public class TrustManagerProxy extends X509ExtendedTrustManager {
     }
 
     private void updateTrustManager() throws CertificateException, KeyStoreException, NoSuchAlgorithmException,
-            FileNotFoundException, IOException {
-        CertificateFactory factory = CertificateFactory.getInstance("X.509");
-        try (InputStream inputStream = new FileInputStream(certFile.getFileName())) {
-            X509Certificate certificate = (X509Certificate) factory.generateCertificate(inputStream);
+            IOException, KeyManagementException {
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keyStore.load(null);
+        X509Certificate[] certificates = SecurityUtility.loadCertificatesFromPemFile(certFile.getFileName());
+        for (X509Certificate certificate : certificates) {
             String alias = certificate.getSubjectX500Principal().getName();
-            KeyStore keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(null);
             keyStore.setCertificateEntry(alias, certificate);
-            final TrustManagerFactory trustManagerFactory = TrustManagerFactory
-                    .getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            trustManagerFactory.init(keyStore);
-            trustManager = (X509ExtendedTrustManager) trustManagerFactory.getTrustManagers()[0];
         }
+        final TrustManagerFactory trustManagerFactory = TrustManagerFactory
+                .getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(keyStore);
+        trustManager = (X509ExtendedTrustManager) trustManagerFactory.getTrustManagers()[0];
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.junit.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -26,6 +27,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -33,9 +36,16 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -54,6 +64,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        this.conf.setManagedLedgerMaxEntriesPerLedger(10);
     }
 
     @Override
@@ -122,4 +133,80 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
+    @Test
+    public void testForceDeletePartitionedTopicWithSub() throws Exception {
+        final int numPartitions = 10;
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+
+        admin.namespaces().setAutoTopicCreation("tenant-xyz/ns-abc",
+                AutoTopicCreationOverride.builder()
+                        .allowAutoTopicCreation(true)
+                        .topicType("partitioned")
+                        .defaultNumPartitions(5)
+                        .build());
+
+        RetentionPolicies retention = new RetentionPolicies(10, 10);
+        admin.namespaces().setRetention("tenant-xyz/ns-abc", retention);
+        final String topic = "persistent://tenant-xyz/ns-abc/topic-"
+                + RandomStringUtils.randomAlphabetic(5)
+                + "-testDeletePartitionedTopicWithSub";
+        final String subscriptionName = "sub";
+        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+
+        log.info("Creating producer and consumer");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscribe();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topic).create();
+
+        log.info("producing messages");
+        for (int i = 0; i < numPartitions * 100; ++i) {
+            producer.newMessage()
+                    .key("" + i)
+                    .value("value-" + i)
+                    .send();
+        }
+        producer.flush();
+
+        log.info("consuming some messages");
+        for (int i = 0; i < numPartitions * 5; i++) {
+            Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
+        }
+
+        log.info("trying to delete the topic {}", topic);
+        admin.topics().deletePartitionedTopic(topic, true);
+
+        log.info("closing producer and consumer");
+        producer.close();
+        consumer.close();
+
+        // topic autocreate might sneak in after the delete / before close
+        // but the topic metadata should be consistent to go through deletion again
+        if (admin.topics().getList("tenant-xyz/ns-abc")
+                .stream().anyMatch(t -> t.contains(topic))) {
+            try {
+                admin.topics().deletePartitionedTopic(topic, true);
+            } catch (PulsarAdminException.NotFoundException nfe) {
+                // pass
+            }
+
+            assertEquals(0, admin.topics().getList("tenant-xyz/ns-abc")
+                    .stream().filter(t -> t.contains(topic)).count());
+            assertEquals(0,
+                    pulsar.getPulsarResources().getTopicResources()
+                            .getExistingPartitions(TopicName.getPartitionedTopicName(topic))
+                            .get()
+                            .stream().filter(t -> t.contains(topic)).count());
+            assertFalse(admin.topics()
+                    .getPartitionedTopicList("tenant-xyz/ns-abc")
+                    .contains(topic));
+        } else {
+            log.info("trying to create the topic again");
+            ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+        }
+    }
 }

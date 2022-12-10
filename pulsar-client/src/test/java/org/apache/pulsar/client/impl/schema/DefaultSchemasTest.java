@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 public class DefaultSchemasTest {
     private PulsarClient client;
 
-    private static final String TEST_TOPIC = "persistent://sample/standalone/ns1/test-topic";
+    private static final String TEST_TOPIC = "test-topic";
 
     @BeforeClass
     public void setup() throws PulsarClientException {

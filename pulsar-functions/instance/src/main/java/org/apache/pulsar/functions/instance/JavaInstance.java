@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -75,7 +75,9 @@ public class JavaInstance implements AutoCloseable {
 
     @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
+        return handleMessage(record, input, (rec, result) -> {
+        }, cause -> {
+        });
     }
 
     public JavaExecutionResult handleMessage(Record<?> record, Object input,

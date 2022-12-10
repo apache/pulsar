@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,10 +32,10 @@ public class ShortSchema extends AbstractSchema<Short> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfoImpl()
-            .setName("INT16")
-            .setType(SchemaType.INT16)
-            .setSchema(new byte[0]);
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("INT16")
+            .type(SchemaType.INT16)
+            .schema(new byte[0]).build();
         INSTANCE = new ShortSchema();
     }
 

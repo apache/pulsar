@@ -1,7 +1,7 @@
 ---
-id: version-2.6.1-admin-api-brokers
+id: admin-api-brokers
 title: Managing Brokers
-sidebar_label: Brokers
+sidebar_label: "Brokers"
 original_id: admin-api-brokers
 ---
 
@@ -28,23 +28,28 @@ Fetch all available active brokers that are serving traffic.
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin brokers list use
+
 ```
 
 ```
+
 broker1.use.org.com:8080
+
 ```
 
 ###### REST
 
-{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers?version=@pulsar:version_number@}
 
 ###### Java
 
 ```java
+
 admin.brokers().getActiveBrokers(clusterName)
+
 ```
 
 #### list of namespaces owned by a given broker
@@ -54,11 +59,14 @@ It finds all namespaces which are owned and served by a given broker.
 ###### CLI
 
 ```shell
+
 $ pulsar-admin brokers namespaces use \
   --url broker1.use.org.com:8080
+
 ```
 
 ```json
+
 {
   "my-property/use/my-ns/0x00000000_0xffffffff": {
     "broker_assignment": "shared",
@@ -66,15 +74,19 @@ $ pulsar-admin brokers namespaces use \
     "is_active": true
   }
 }
+
 ```
+
 ###### REST
 
-{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes?version=@pulsar:version_number@}
 
 ###### Java
 
 ```java
+
 admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
+
 ```
 
 ### Dynamic broker configuration
@@ -93,17 +105,21 @@ But since all broker configuration in Pulsar is stored in ZooKeeper, configurati
 The [`update-dynamic-config`](reference-pulsar-admin.md#brokers-update-dynamic-config) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value using the `config` and `value` flag respectively. Here's an example for the [`brokerShutdownTimeoutMs`](reference-configuration.md#broker-brokerShutdownTimeoutMs) parameter:
 
 ```shell
+
 $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --value 100
+
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.brokers().updateDynamicConfiguration(configName, configValue);
+
 ```
 
 ### List updated values
@@ -113,18 +129,22 @@ Fetch a list of all potentially updatable configuration parameters.
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin brokers list-dynamic-config
 brokerShutdownTimeoutMs
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.brokers().getDynamicConfigurationNames();
+
 ```
 
 ### List all
@@ -134,16 +154,21 @@ Fetch a list of all parameters that have been dynamically updated.
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin brokers get-all-dynamic-config
 brokerShutdownTimeoutMs:100
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.brokers().getAllDynamicConfigurations();
+
 ```
+

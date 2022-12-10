@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,6 +38,16 @@ public final class DispatchRateImpl implements DispatchRate {
 
     public static DispatchRateImplBuilder builder() {
         return new DispatchRateImplBuilder();
+    }
+
+    public static DispatchRateImpl normalize(DispatchRateImpl dispatchRate) {
+        if (dispatchRate != null
+            && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
+            || dispatchRate.getDispatchThrottlingRateInByte() > 0)) {
+            return dispatchRate;
+        } else {
+            return null;
+        }
     }
 
     public static class DispatchRateImplBuilder implements DispatchRate.Builder {

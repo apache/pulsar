@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,10 +85,9 @@ public class AuthenticationService implements Closeable {
         }
     }
 
-    public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
-        AuthenticationException authenticationException = null;
-        AuthenticationDataSource authData = new AuthenticationDataHttps(request);
-        String authMethodName = request.getHeader("X-Pulsar-Auth-Method-Name");
+    public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData)
+            throws AuthenticationException {
+        String authMethodName = request.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
 
         if (authMethodName != null) {
             AuthenticationProvider providerToUse = providers.get(authMethodName);
@@ -96,20 +96,24 @@ public class AuthenticationService implements Closeable {
                         String.format("Unsupported authentication method: [%s].", authMethodName));
             }
             try {
+                if (authData == null) {
+                    AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
+                    authData = authenticationState.getAuthDataSource();
+                }
+                // Backward compatible, the authData value was null in the previous implementation
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
                             + e.getMessage(), e);
                 }
-                // Store the exception so we can throw it later instead of a generic one
-                authenticationException = e;
                 throw e;
             }
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
-                    return provider.authenticate(authData);
+                    AuthenticationState authenticationState = provider.newHttpAuthState(request);
+                    return provider.authenticate(authenticationState.getAuthDataSource());
                 } catch (AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
@@ -126,15 +130,20 @@ public class AuthenticationService implements Closeable {
                 return anonymousUserRole;
             }
             // If at least a provider was configured, then the authentication needs to be provider
-            if (authenticationException != null) {
-                throw authenticationException;
-            } else {
-                throw new AuthenticationException("Authentication required");
-            }
+            throw new AuthenticationException("Authentication required");
         } else {
             // No authentication required
             return "<none>";
         }
+    }
+
+    /**
+     * Mark this function as deprecated, it is recommended to use a method with the AuthenticationDataSource
+     * signature to implement it.
+     */
+    @Deprecated
+    public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
+        return authenticateHttpRequest(request, null);
     }
 
     public AuthenticationProvider getAuthenticationProvider(String authMethodName) {
