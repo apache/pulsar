@@ -1,7 +1,7 @@
 ---
-id: version-2.3.0-security-authorization
+id: security-authorization
 title: Authentication and authorization in Pulsar
-sidebar_label: Authorization and ACLs
+sidebar_label: "Authorization and ACLs"
 original_id: security-authorization
 ---
 
@@ -20,8 +20,10 @@ When a [tenant](reference-terminology.md#tenant) is created by a superuser, that
 Authorization is enabled and superusers are assigned in the broker ([`conf/broker.conf`](reference-configuration.md#broker)) configuration files.
 
 ```properties
+
 authorizationEnabled=true
 superUserRoles=my-super-user-1,my-super-user-2
+
 ```
 
 > A full list of parameters available in the `conf/broker.conf` file,
@@ -46,10 +48,12 @@ Another approach is to make the proxy role a superuser. This will allow the prox
 Roles can be specified as proxy roles in [`conf/broker.conf`](reference-configuration.md#broker).
 
 ```properties
+
 proxyRoles=my-proxy-role
 
 # if you want to allow superusers to use the proxy (see above)
 superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
+
 ```
 
 ## Administering Tenants
@@ -61,9 +65,11 @@ A Pulsar [tenant](reference-terminology.md#tenant) is typically provisioned by P
 Tenants are managed using the [`pulsar-admin`](reference-pulsar-admin.md) tool. Here's an example tenant creation command:
 
 ```shell
+
 $ bin/pulsar-admin tenants create my-tenant \
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east
+
 ```
 
 This command will create a new tenant `my-tenant` that will be allowed to use the clusters `us-west` and `us-east`.
@@ -73,7 +79,9 @@ A client that successfully identified itself as having the role `my-admin-role` 
 The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:
 
 ```shell
+
 persistent://tenant/namespace/topic
+
 ```
 
 ### Managing permissions
@@ -83,18 +91,23 @@ You can use [Pulsar Admin Tools](admin-api-permissions.md) for managing permissi
 ### Pulsar admin authentication
 
 ```java
+
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("http://broker:8080")
                     .authentication("com.org.MyAuthPluginClass", "param1:value1")
                     .build();
+
 ```
 
 To use TLS:
 
 ```java
+
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("https://broker:8080")
                     .authentication("com.org.MyAuthPluginClass", "param1:value1")
                     .tlsTrustCertsFilePath("/path/to/trust/cert")
                     .build();
+
 ```
+

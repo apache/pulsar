@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.dlog;
 
-import static com.google.common.base.Charsets.UTF_8;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.eq;
@@ -28,6 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -83,7 +84,7 @@ public class DLInputStreamTest {
         LogReader reader = mock(LogReader.class);
         when(dlm.getInputStream(any(DLSN.class))).thenReturn(reader);
 
-        byte[] data = "test-read".getBytes(UTF_8);
+        byte[] data = "test-read".getBytes(StandardCharsets.UTF_8);
         LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
         when(record.getPayLoadInputStream())
             .thenReturn(new ByteArrayInputStream(data));

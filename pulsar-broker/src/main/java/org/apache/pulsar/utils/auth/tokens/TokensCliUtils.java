@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import com.google.common.base.Charsets;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
@@ -35,6 +34,7 @@ import io.jsonwebtoken.security.Keys;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Key;
@@ -194,7 +194,7 @@ public class TokensCliUtils {
                 BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
                 token = r.readLine();
             } else if (tokenFile != null) {
-                token = new String(Files.readAllBytes(Paths.get(tokenFile)), Charsets.UTF_8);
+                token = new String(Files.readAllBytes(Paths.get(tokenFile)), StandardCharsets.UTF_8);
             } else if (System.getenv("TOKEN") != null) {
                 token = System.getenv("TOKEN");
             } else {
@@ -259,7 +259,7 @@ public class TokensCliUtils {
                 BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
                 token = r.readLine();
             } else if (tokenFile != null) {
-                token = new String(Files.readAllBytes(Paths.get(tokenFile)), Charsets.UTF_8);
+                token = new String(Files.readAllBytes(Paths.get(tokenFile)), StandardCharsets.UTF_8);
             } else if (System.getenv("TOKEN") != null) {
                 token = System.getenv("TOKEN");
             } else {

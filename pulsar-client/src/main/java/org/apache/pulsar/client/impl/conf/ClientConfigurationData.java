@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,6 +50,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "serviceUrl",
+            required = true,
             value = "Pulsar cluster HTTP URL to connect to a broker."
     )
     private String serviceUrl;
@@ -125,6 +126,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int connectionsPerBroker = 1;
 
     @ApiModelProperty(
+            name = "connectionMaxIdleSeconds",
+            value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
+                    + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
+    )
+    private int connectionMaxIdleSeconds = 180;
+
+    @ApiModelProperty(
             name = "useTcpNoDelay",
             value = "Whether to use TCP NoDelay option."
     )
@@ -137,10 +145,22 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean useTls = false;
 
     @ApiModelProperty(
+            name = "tlsKeyFilePath",
+            value = "Path to the TLS key file."
+    )
+    private String tlsKeyFilePath = null;
+
+    @ApiModelProperty(
+            name = "tlsCertificateFilePath",
+            value = "Path to the TLS certificate file."
+    )
+    private String tlsCertificateFilePath = null;
+
+    @ApiModelProperty(
             name = "tlsTrustCertsFilePath",
             value = "Path to the trusted TLS certificate file."
     )
-    private String tlsTrustCertsFilePath = "";
+    private String tlsTrustCertsFilePath = null;
 
     @ApiModelProperty(
             name = "tlsAllowInsecureConnection",
@@ -175,7 +195,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxNumberOfRejectedRequestPerConnection",
-            value = "Maximum number of rejected requests of a broker in a certain time frame (30 seconds) "
+            value = "Maximum number of rejected requests of a broker in a certain time frame (60 seconds) "
                     + "after the current connection is closed and the client "
                     + "creating a new connection to connect to a different broker."
     )
@@ -198,6 +218,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Maximum duration for completing a request."
     )
     private int requestTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "readTimeoutMs",
+            value = "Maximum read time of a request."
+    )
+    private int readTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
 
     @ApiModelProperty(
             name = "initialBackoffIntervalNanos",
@@ -235,6 +267,25 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
     )
     private String sslProvider = null;
+
+    @ApiModelProperty(
+            name = "tlsKeyStoreType",
+            value = "TLS KeyStore type configuration."
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePath",
+            value = "Path of TLS KeyStore."
+    )
+    private String tlsKeyStorePath = null;
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePassword",
+            value = "Password of TLS KeyStore."
+    )
+    @Secret
+    private String tlsKeyStorePassword = null;
 
     @ApiModelProperty(
             name = "tlsTrustStoreType",

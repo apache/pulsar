@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,7 +42,6 @@ public class DocumentTest extends BrokerTestBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
     }
 
@@ -60,7 +59,7 @@ public class DocumentTest extends BrokerTestBase {
     @Test
     public void testGenerator() {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
-        JCommander commander = pulsarClientTool.commandParser;
+        JCommander commander = pulsarClientTool.jcommander;
         CmdGenerateDocumentation document = new CmdGenerateDocumentation();
         for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
             String res = document.generateDocument(cmd.getKey(), commander);

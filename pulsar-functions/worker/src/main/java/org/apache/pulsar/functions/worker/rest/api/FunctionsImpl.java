@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,9 +28,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,20 +41,23 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
-import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Functions;
@@ -118,7 +118,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             if (namespaces != null && !namespaces.contains(qualifiedNamespace)) {
                 String qualifiedNamespaceWithCluster = String.format("%s/%s/%s", tenant,
                         worker().getWorkerConfig().getPulsarFunctionsCluster(), namespace);
-                if (namespaces != null && !namespaces.contains(qualifiedNamespaceWithCluster)) {
+                if (!namespaces.contains(qualifiedNamespaceWithCluster)) {
                     log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace, functionName, namespace);
                     throw new RestException(Response.Status.BAD_REQUEST, "Namespace does not exist");
                 }
@@ -144,30 +144,14 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                     ComponentTypeUtils.toString(componentType), functionName));
         }
 
-        Function.FunctionDetails functionDetails = null;
-        boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isPkgUrlProvided) {
-                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(functionPkgUrl);
-                    } else {
-                        if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
-                            throw new IllegalArgumentException("Function Package url is not valid."
-                                    + "supported url (http/https/file)");
-                        }
-                        try {
-
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
-                                            + "when getting %s package from %s", e.getMessage(),
-                                    ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
-                        }
-                    }
+                if (isNotBlank(functionPkgUrl)) {
+                    componentPackageFile = getPackageFile(functionPkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                             functionConfig, componentPackageFile);
                 } else {
@@ -329,62 +313,23 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails = null;
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isNotBlank(functionPkgUrl)) {
-                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(functionName);
-                    } else {
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
-                                            + "when getting %s package from %s", e.getMessage(),
-                                    ComponentTypeUtils.toString(componentType), functionPkgUrl));
-                        }
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
-                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(
-                                existingComponent.getPackageLocation().getPackagePath());
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
-                                        + "when getting %s package from %s", e.getMessage(),
-                                ComponentTypeUtils.toString(componentType), functionPkgUrl));
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-                } else if (uploadedInputStream != null) {
-
-                    componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-                    if (!isFunctionCodeBuiltin(functionDetails)
-                            && (componentPackageFile == null || fileDetail == null)) {
-                        throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType)
-                                + " Package is not provided");
-                    }
-                } else {
-
-                    componentPackageFile = FunctionCommon.createPkgTempFile();
-                    componentPackageFile.deleteOnExit();
-                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                            componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
-
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                componentPackageFile = getPackageFile(
+                        functionPkgUrl,
+                        existingComponent.getPackageLocation().getPackagePath(),
+                        uploadedInputStream);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                        mergedConfig, componentPackageFile);
+                if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)
+                        && !isFunctionCodeBuiltin(functionDetails)
+                        && (componentPackageFile == null || fileDetail == null)) {
+                    throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType)
+                            + " Package is not provided");
                 }
             } catch (Exception e) {
                 log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType),
@@ -767,57 +712,89 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
     }
 
+    @Override
+    public void reloadBuiltinFunctions(String clientRole, AuthenticationDataSource authenticationData)
+        throws IOException {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
+        }
+        worker().getFunctionsManager().reloadFunctions(worker().getWorkerConfig());
+    }
+
+    @Override
+    public List<FunctionDefinition> getBuiltinFunctions(String clientRole,
+                                                        AuthenticationDataSource authenticationData) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
+        }
+        return this.worker().getFunctionsManager().getFunctionDefinitions();
+    }
+
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
                                                                  final String namespace,
                                                                  final String componentName,
                                                                  final FunctionConfig functionConfig,
-                                                                 final File componentPackageFile) throws IOException {
+                                                                 final File componentPackageFile) {
 
         // The rest end points take precedence over whatever is there in function config
-        Path archivePath = null;
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
         FunctionConfigUtils.inferMissingArguments(
                 functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
 
-        if (!StringUtils.isEmpty(functionConfig.getJar())) {
-            String builtinArchive = functionConfig.getJar();
-            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
-                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+        String archive = functionConfig.getJar();
+        ClassLoader classLoader = null;
+        // check if function is builtin and extract classloader
+        if (!StringUtils.isEmpty(archive)) {
+            if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                archive = archive.replaceFirst("^builtin://", "");
+
+                FunctionsManager functionsManager = worker().getFunctionsManager();
+                FunctionArchive function = functionsManager.getFunction(archive);
+
+                // check if builtin function exists
+                if (function == null) {
+                    throw new IllegalArgumentException(String.format("No Function %s found", archive));
+                }
+                classLoader = function.getClassLoader();
             }
-            try {
-                archivePath = this.worker().getFunctionsManager().getFunctionArchive(builtinArchive);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(String.format("No Function archive %s found", archivePath));
+        }
+        boolean shouldCloseClassLoader = false;
+        try {
+
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                // if function is not builtin, attempt to extract classloader from package file if it exists
+                if (classLoader == null && componentPackageFile != null) {
+                    classLoader = getClassLoaderFromPackage(functionConfig.getClassName(),
+                            componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                    shouldCloseClassLoader = true;
+                }
+
+                if (classLoader == null) {
+                    throw new IllegalArgumentException("Function package is not provided");
+                }
+
+                FunctionConfigUtils.ExtractedFunctionDetails functionDetails = FunctionConfigUtils.validateJavaFunction(
+                        functionConfig, classLoader);
+                return FunctionConfigUtils.convert(functionConfig, functionDetails);
+            } else {
+                classLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+                shouldCloseClassLoader = true;
+                return FunctionConfigUtils.convert(functionConfig, classLoader);
+            }
+        } finally {
+            if (shouldCloseClassLoader) {
+                ClassLoaderUtils.closeClassLoader(classLoader);
             }
         }
-        ClassLoader clsLoader = null;
-        if (archivePath != null) {
-            clsLoader = FunctionConfigUtils.validate(functionConfig, archivePath.toFile());
-        } else {
-            clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
-        }
-        return FunctionConfigUtils.convert(functionConfig, clsLoader);
-
-    }
-
-    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return downloadPackageFile(worker(), packageName);
-    }
-
-    static File downloadPackageFile(PulsarWorkerService worker, String packageName)
-            throws IOException, PulsarAdminException {
-        Path tempDirectory;
-        if (worker.getWorkerConfig().getDownloadDirectory() != null) {
-            tempDirectory = Paths.get(worker.getWorkerConfig().getDownloadDirectory());
-        } else {
-            // use the Nar extraction directory as a temporary directory for downloaded files
-            tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
-        }
-        Files.createDirectories(tempDirectory);
-        File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
-        worker.getBrokerAdmin().packages().download(packageName, file.toString());
-        return file;
     }
 }

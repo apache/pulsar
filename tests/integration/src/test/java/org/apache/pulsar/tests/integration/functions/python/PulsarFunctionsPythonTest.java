@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
 
-public class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
+public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
 	PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
 		super(functionRuntimeType);

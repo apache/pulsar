@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -140,6 +140,9 @@ public class SubscribeRateLimiter {
     }
 
     public void onSubscribeRateUpdate(SubscribeRate subscribeRate) {
+        if (this.subscribeRate.equals(subscribeRate)) {
+            return;
+        }
         this.subscribeRate = subscribeRate;
         stopResetTask();
         for (ConsumerIdentifier consumerIdentifier : this.subscribeRateLimiter.keySet()) {

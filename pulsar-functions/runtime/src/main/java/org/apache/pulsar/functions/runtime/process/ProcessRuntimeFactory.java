@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 /**
@@ -92,6 +93,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
                            ConnectorsManager connectorsManager,
+                           FunctionsManager functionsManager,
                            Optional<FunctionAuthProvider> authProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
         ProcessRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
@@ -191,6 +193,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @Override
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
                                           String originalCodeFileName,
+                                          String transformFunctionFile,
+                                          String originalTransformFunctionFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
@@ -221,6 +225,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             narExtractionDirectory,
             logDirectory,
             codeFile,
+            transformFunctionFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,

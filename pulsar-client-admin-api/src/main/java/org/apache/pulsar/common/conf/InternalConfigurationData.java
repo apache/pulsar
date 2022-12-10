@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,10 @@ import lombok.ToString;
 @ToString
 public class InternalConfigurationData {
 
+    @Deprecated
+    private String zookeeperServers;
+    @Deprecated
+    private String configurationStoreServers;
     private String metadataStoreUrl;
     private String configurationMetadataStoreUrl;
     @Deprecated
@@ -43,18 +47,48 @@ public class InternalConfigurationData {
                                      String bookkeeperMetadataServiceUri,
                                      String stateStorageServiceUrl) {
         this.metadataStoreUrl = zookeeperServers;
+        this.zookeeperServers = zookeeperServers;
         this.configurationMetadataStoreUrl = configurationMetadataStoreUrl;
+        this.configurationStoreServers = configurationMetadataStoreUrl;
         this.ledgersRootPath = ledgersRootPath;
         this.bookkeeperMetadataServiceUri = bookkeeperMetadataServiceUri;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
     }
 
+    @Deprecated
+    public String getZookeeperServers() {
+        return zookeeperServers;
+    }
+
+    @Deprecated
+    public void setZookeeperServers(String zookeeperServers) {
+        this.zookeeperServers = zookeeperServers;
+    }
+
+    @Deprecated
+    public String getConfigurationStoreServers() {
+        return configurationStoreServers;
+    }
+
+    @Deprecated
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
+    }
+
     public String getMetadataStoreUrl() {
-        return metadataStoreUrl;
+        if (metadataStoreUrl != null) {
+            return metadataStoreUrl;
+        } else if (zookeeperServers != null) {
+            return "zk:" + zookeeperServers;
+        }
+        return null;
     }
 
     public String getConfigurationMetadataStoreUrl() {
-        return configurationMetadataStoreUrl;
+        if (configurationMetadataStoreUrl != null) {
+            return configurationMetadataStoreUrl;
+        }
+        return configurationStoreServers;
     }
 
     /** @deprecated */

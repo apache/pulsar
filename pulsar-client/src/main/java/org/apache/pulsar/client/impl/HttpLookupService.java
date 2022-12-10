@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -124,6 +124,11 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
+    public InetSocketAddress resolveHost() {
+        return httpClient.resolveHost();
+    }
+
+    @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                       String topicsPattern, String topicsHash) {
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
@@ -143,8 +148,9 @@ public class HttpLookupService implements LookupService {
                 });
                 future.complete(new GetTopicsResult(result, topicsHash, false, true));
             }).exceptionally(ex -> {
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, ex.getMessage());
-                future.completeExceptionally(ex);
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                future.completeExceptionally(cause);
                 return null;
             });
         return future;
@@ -188,14 +194,15 @@ public class HttpLookupService implements LookupService {
                 future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
             }
         }).exceptionally(ex -> {
-            if (ex.getCause() instanceof NotFoundException) {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof NotFoundException) {
                 future.complete(Optional.empty());
             } else {
                 log.warn("Failed to get schema for topic {} version {}",
                         topicName,
                         version != null ? Base64.getEncoder().encodeToString(version) : null,
-                        ex.getCause());
-                future.completeExceptionally(ex);
+                        cause);
+                future.completeExceptionally(cause);
             }
             return null;
         });
