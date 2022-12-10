@@ -22,6 +22,8 @@ package pf
 import (
 	"testing"
 
+	cfg "github.com/apache/pulsar/pulsar-function-go/conf"
+
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/stretchr/testify/assert"
 )
@@ -95,4 +97,19 @@ func TestInstanceConf_GetInstanceName(t *testing.T) {
 	instanceName := instanceConf.getInstanceName()
 
 	assert.Equal(t, "101", instanceName)
+}
+
+func TestInstanceConf_Fail(t *testing.T) {
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 0, AutoACK: false})
+	}, "Should have a panic")
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 1, AutoACK: false})
+	}, "Should have a panic")
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 2})
+	}, "Should have a panic")
+	assert.NotPanicsf(t, func() {
+		newInstanceConfWithConf(&cfg.Conf{ProcessingGuarantees: 3})
+	}, "Should have a panic")
 }

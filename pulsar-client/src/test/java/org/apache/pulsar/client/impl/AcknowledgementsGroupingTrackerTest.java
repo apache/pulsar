@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,7 +62,7 @@ public class AcknowledgementsGroupingTrackerTest {
         consumer = mock(ConsumerImpl.class);
         consumer.unAckedChunkedMessageIdSequenceMap =
                 ConcurrentOpenHashMap.<MessageIdImpl, MessageIdImpl[]>newBuilder().build();
-        cnx = spy(new ClientCnxTest(new ClientConfigurationData(), new NioEventLoopGroup()));
+        cnx = spy(new ClientCnxTest(new ClientConfigurationData(), eventLoopGroup));
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         doReturn(client).when(consumer).getClient();
         doReturn(cnx).when(consumer).getClientCnx();
@@ -79,8 +79,8 @@ public class AcknowledgementsGroupingTrackerTest {
     }
 
     @AfterClass(alwaysRun = true)
-    public void teardown() {
-        eventLoopGroup.shutdownGracefully();
+    public void teardown() throws Exception {
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test(dataProvider = "isNeedReceipt")

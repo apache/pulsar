@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 
 /**
- * Override of autoSubscriptionCreation settings on a namespace level.
+ * Override of autoSubscriptionCreation settings on a topic or namespace level.
  */
 @Data
 @AllArgsConstructor

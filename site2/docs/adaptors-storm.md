@@ -1,7 +1,7 @@
 ---
 id: adaptors-storm
 title: Pulsar adaptor for Apache Storm
-sidebar_label: Apache Storm
+sidebar_label: "Apache Storm"
 ---
 
 Pulsar Storm is an adaptor for integrating with [Apache Storm](http://storm.apache.org/) topologies. It provides core Storm implementations for sending and receiving data.

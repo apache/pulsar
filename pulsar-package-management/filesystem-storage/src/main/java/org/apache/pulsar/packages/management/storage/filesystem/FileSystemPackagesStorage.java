@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -146,5 +146,10 @@ public class FileSystemPackagesStorage implements PackagesStorage {
     @Override
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public String dataPath() {
+        return "/data";
     }
 }

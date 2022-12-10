@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -241,3 +240,6 @@ class ContextImpl(pulsar.Context):
 
   def get_state(self, key):
     return self.state_context.get_value(key)
+
+  def get_pulsar_client(self):
+    return self.pulsar_client

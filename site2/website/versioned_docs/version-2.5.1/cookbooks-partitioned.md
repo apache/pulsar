@@ -1,7 +1,7 @@
 ---
-id: version-2.5.1-cookbooks-partitioned
+id: cookbooks-partitioned
 title: Partitioned topics
-sidebar_label: Partitioned Topics
+sidebar_label: "Partitioned Topics"
 original_id: cookbooks-partitioned
 ---
 
@@ -26,6 +26,7 @@ You can specify the routing mode in the ProducerConfiguration object that you us
 The following is an example:
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
@@ -35,6 +36,7 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRoutingMode(MessageRoutingMode.SinglePartition)
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ### Custom message router
@@ -42,24 +44,29 @@ producer.send("Partitioned topic message".getBytes());
 To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
+
 public interface MessageRouter extends Serializable {
     int choosePartition(Message msg);
 }
+
 ```
 
 The following router routes every message to partition 10:
 
 ```java
+
 public class AlwaysTenRouter implements MessageRouter {
     public int choosePartition(Message msg) {
         return 10;
     }
 }
+
 ```
 
 With that implementation in hand, you can send
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
@@ -69,12 +76,14 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ### How to choose partitions when using a key
 If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose partition when you use a key.
 
 ```java
+
 // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
@@ -86,7 +95,8 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-```        
+
+```
 
 ## Manage partitioned topics
 

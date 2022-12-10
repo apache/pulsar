@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -30,6 +32,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @Builder
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public class DeadLetterPolicy {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.junit.Assert;
-import org.junit.Test;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 public class ProducerImplTest {
     @Test
@@ -39,11 +46,24 @@ public class ProducerImplTest {
                             null, 0, null);
             opSendMsg.chunkedMessageCtx = ctx;
             // check the ctx hasn't been deallocated.
-            Assert.assertEquals(testMessageId, ctx.firstChunkMessageId);
+            assertEquals(ctx.firstChunkMessageId, testMessageId);
             opSendMsg.recycle();
         }
 
         // check if the ctx is deallocated successfully.
-        Assert.assertNull(ctx.firstChunkMessageId);
+        assertNull(ctx.firstChunkMessageId);
     }
+
+    @Test
+    public void testPopulateMessageSchema() {
+        MessageImpl<?> msg = mock(MessageImpl.class);
+        when(msg.hasReplicateFrom()).thenReturn(true);
+        when(msg.getSchemaInternal()).thenReturn(mock(Schema.class));
+        when(msg.getSchemaInfoForReplicator()).thenReturn(null);
+        ProducerImpl<?> producer = mock(ProducerImpl.class, withSettings()
+                .defaultAnswer(Mockito.CALLS_REAL_METHODS));
+        assertTrue(producer.populateMessageSchema(msg, null));
+        verify(msg).setSchemaState(MessageImpl.SchemaState.Ready);
+    }
+
 }
