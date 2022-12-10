@@ -73,6 +73,18 @@ public class BatchMessageIdImplTest {
     }
 
     @Test
+    public void compareToUnbatchedTest() {
+        MessageIdImpl msgId = new MessageIdImpl(1, 2, 3);
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(1, 2, 3, 0);
+        assertEquals(msgId.compareTo(batchMsgId), -1);
+        assertEquals(batchMsgId.compareTo(msgId), 1);
+
+        batchMsgId = new BatchMessageIdImpl(1, 2, 3, -1);
+        assertEquals(msgId.compareTo(batchMsgId), 0);
+        assertEquals(batchMsgId.compareTo(msgId), 0);
+    }
+
+    @Test
     public void equalsUnbatchedTest() {
         BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, -1);
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, -1);
