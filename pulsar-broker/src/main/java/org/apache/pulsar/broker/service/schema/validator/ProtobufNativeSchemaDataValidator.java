@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public class ProtobufNativeSchemaDataValidator implements SchemaDataValidator {
         }
         if (descriptor == null) {
             throw new InvalidSchemaDataException(
-                    "protobuf root message descriptor is null ,"
+                    "protobuf root message descriptor is null,"
                             + " please recheck rootMessageTypeName or rootFileDescriptorName conf. ");
         }
     }

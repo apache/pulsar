@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,17 +20,18 @@ package org.apache.pulsar.common.configuration;
 
 import java.io.File;
 import java.util.function.Supplier;
-
 import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Web resource used by the VIP service to check to availability of the service instance.
  */
+@Slf4j
 @Path("/status.html")
 public class VipStatus {
 
@@ -41,7 +42,6 @@ public class VipStatus {
     protected ServletContext servletContext;
 
     @GET
-    @Context
     public String checkStatus() {
         String statusFilePath = (String) servletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH);
         @SuppressWarnings("unchecked")
@@ -55,6 +55,7 @@ public class VipStatus {
                 return "OK";
             }
         }
+        log.warn("Failed to access \"status.html\". The service is not ready");
         throw new WebApplicationException(Status.NOT_FOUND);
     }
 

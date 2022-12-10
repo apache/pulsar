@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -71,8 +71,9 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         //enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.ofNullable(2));
 
@@ -82,7 +83,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
-        assertEquals( proxyLogLevel , proxyService.getConfiguration().getProxyLogLevel());
+        assertEquals( proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
     }
 

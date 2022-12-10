@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,10 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import java.util.Map;
 
 /**
  * Statistics about a publisher.
@@ -48,6 +48,9 @@ public class PublisherStatsImpl implements PublisherStats {
 
     /** Id of this publisher. */
     public long producerId;
+
+    /** Whether partial producer is supported at client. */
+    public boolean supportsPartialProducer;
 
     /** Producer name. */
     @JsonIgnore

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * From Apache HTTP client
  */
@@ -34,11 +33,11 @@ final class SubjectName {
     private final String value;
     private final int type;
 
-    static SubjectName IP(final String value) {
+    static SubjectName newIP(final String value) {
         return new SubjectName(value, IP);
     }
 
-    static SubjectName DNS(final String value) {
+    static SubjectName newDNS(final String value) {
         return new SubjectName(value, DNS);
     }
 }

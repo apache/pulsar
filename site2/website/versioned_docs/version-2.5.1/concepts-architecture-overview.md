@@ -1,7 +1,7 @@
 ---
-id: version-2.5.1-concepts-architecture-overview
+id: concepts-architecture-overview
 title: Architecture Overview
-sidebar_label: Architecture
+sidebar_label: "Architecture"
 original_id: concepts-architecture-overview
 ---
 
@@ -15,7 +15,7 @@ In a Pulsar cluster:
 
 The diagram below provides an illustration of a Pulsar cluster:
 
-![Pulsar architecture diagram](assets/pulsar-system-architecture.png)
+![Pulsar architecture diagram](/assets/pulsar-system-architecture.png)
 
 At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](concepts-replication.md).
 
@@ -46,7 +46,7 @@ Clusters can replicate amongst themselves using [geo-replication](concepts-repli
 
 ## Metadata store
 
-The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and [BookKeeper metadata store](https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage). If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
+The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and BookKeeper metadata store. If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
 
 In a Pulsar instance:
 
@@ -79,7 +79,9 @@ In addition to message data, *cursors* are also persistently stored in BookKeepe
 At the moment, Pulsar supports persistent message storage. This accounts for the `persistent` in all topic names. Here's an example:
 
 ```http
+
 persistent://my-tenant/my-namespace/my-topic
+
 ```
 
 > Pulsar also supports ephemeral ([non-persistent](concepts-messaging.md#non-persistent-topics)) message storage.
@@ -87,7 +89,7 @@ persistent://my-tenant/my-namespace/my-topic
 
 You can see an illustration of how brokers and bookies interact in the diagram below:
 
-![Brokers and bookies](assets/broker-bookie.png)
+![Brokers and bookies](/assets/broker-bookie.png)
 
 
 ### Ledgers
@@ -126,9 +128,11 @@ The **Pulsar proxy** provides a solution to this problem by acting as a single g
 Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
 
 ```bash
+
 $ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
   --configuration-store-servers zk-0,zk-1,zk-2
+
 ```
 
 > #### Pulsar proxy docs
@@ -148,15 +152,21 @@ You can use your own service discovery system if you'd like. If you use your own
 
 The diagram below illustrates Pulsar service discovery:
 
-![alt-text](assets/pulsar-service-discovery.png)
+![alt-text](/assets/pulsar-service-discovery.png)
 
 In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](client-libraries-python.md), for example, could access this Pulsar cluster like this:
 
 ```python
+
 from pulsar import Client
 
 client = Client('pulsar://pulsar-cluster.acme.com:6650')
+
 ```
 
-> **Note**
-> In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.
+:::note
+
+In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.
+
+:::
+

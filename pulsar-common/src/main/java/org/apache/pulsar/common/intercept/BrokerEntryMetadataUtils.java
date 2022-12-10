@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,11 @@ package org.apache.pulsar.common.intercept;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.LinkedHashSet;
+import java.util.Set;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * A tool class for loading BrokerEntryMetadataInterceptor classes.

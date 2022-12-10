@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,8 @@ public class BacklogQuotaCompatibilityTest {
 
     private final BacklogQuota.RetentionPolicy testPolicy = BacklogQuota.RetentionPolicy.consumer_backlog_eviction;
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testV27ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();
@@ -76,6 +78,8 @@ public class BacklogQuotaCompatibilityTest {
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
     }
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testV28ClientSetV27BrokerRead() {
         BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();

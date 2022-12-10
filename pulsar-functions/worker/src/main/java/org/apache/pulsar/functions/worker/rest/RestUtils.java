@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,9 @@ package org.apache.pulsar.functions.worker.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
+import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-
-import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.common.util.RestException;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

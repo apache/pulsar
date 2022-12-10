@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.client.impl.BatchMessageIdImpl.NO_BATCH;
 import com.google.common.collect.ComparisonChain;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.util.Objects;
-
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
-
-import static org.apache.pulsar.client.impl.BatchMessageIdImpl.NO_BATCH;
 
 public class MessageIdImpl implements MessageId {
     protected final long ledgerId;
@@ -159,8 +155,14 @@ public class MessageIdImpl implements MessageId {
 
         MessageId messageId;
         if (idData.hasBatchIndex()) {
-            messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
+            if (idData.hasBatchSize()) {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                        idData.getBatchIndex(), idData.getBatchSize(),
+                        BatchMessageAcker.newAcker(idData.getBatchSize()));
+            } else {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                        idData.getBatchIndex(), 0, BatchMessageAckerDisabled.INSTANCE);
+            }
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -173,7 +175,7 @@ public class MessageIdImpl implements MessageId {
     }
 
     protected MessageIdData writeMessageIdData(MessageIdData msgId, int batchIndex, int batchSize) {
-        if(msgId == null) {
+        if (msgId == null) {
             msgId = LOCAL_MESSAGE_ID.get()
                     .clear();
         }

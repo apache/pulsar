@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,13 +59,12 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         Set<String> superUser = Sets.newHashSet("");
         config.setAuthorizationEnabled(true);
-        config.setConfigurationStoreServers("dummy-zk-servers");
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
         config.setWebServicePort(Optional.of(0));
-        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
         service.start();
     }
 

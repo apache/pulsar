@@ -94,8 +94,8 @@ There is regex subscription coming up in Pulsar 2.0. See [PIP-13](https://github
 ### Does Pulsar have, or plan to have, a concept of log compaction where only the latest message with the same key will be kept ?
 Yes, see [PIP-14](https://github.com/apache/pulsar/wiki/PIP-14:-Topic-compaction) for more details.
 
-### When I use an exclusive subscription to a partitioned topic, is the subscription attached to the "whole topic" or to a "topic partition"? 
-On a partitioned topic, you can use all the 3 supported subscription types (exclusive, failover, shared), same as with non partitioned topics. 
+### When I use an exclusive subscription to a partitioned topic, is the subscription attached to the "whole topic" or to a "topic partition"?
+On a partitioned topic, you can use all the 3 supported subscription types (exclusive, failover, shared), same as with non partitioned topics.
 The “subscription” concept is roughly similar to a “consumer-group” in Kafka. You can have multiple of them in the same topic, with different names.
 
 If you use “exclusive”, a consumer will try to consume from all partitions, or fail if any partition is already being consumed.
@@ -105,7 +105,7 @@ The mode similar to Kafka is “failover” subscription. In this case, you have
 ### What is the proxy component?
 It’s a component that was introduced recently. Essentially it’s a stateless proxy that speaks that Pulsar binary protocol. The motivation is to avoid (or overcome the impossibility) of direct connection between clients and brokers.
 
---- 
+---
 
 ## Usage and Configuration
 ### Can I manually change the number of bundles after creating namespaces?
@@ -119,7 +119,7 @@ Yes, you can use the cli tool `bin/pulsar-admin persistent unsubscribe $TOPIC -s
 
 ### How are subscription modes set? Can I create new subscriptions over the WebSocket API?
 Yes, you can set most of the producer/consumer configuration option in websocket, by passing them as HTTP query parameters like:
-`ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub?subscriptionType=Shared`
+`ws://localhost:8080/ws/consumer/persistent/public/default/my-topic/my-sub?subscriptionType=Shared`
 
 see [the doc](http://pulsar.apache.org/docs/latest/clients/WebSocket/#RunningtheWebSocketservice-1fhsvp).
 
@@ -153,7 +153,7 @@ There is no currently "infinite" retention, other than setting to very high valu
 The key is that you should use different subscriptions for each consumer. Each subscription is completely independent from others.
 
 ### The default when creating a consumer, is it to "tail" from "now" on the topic, or from the "last acknowledged" or something else?
-So when you spin up a consumer, it will try to subscribe to the topic, if the subscription doesn't exist, a new one will be created, and it will be positioned at the end of the topic ("now"). 
+So when you spin up a consumer, it will try to subscribe to the topic, if the subscription doesn't exist, a new one will be created, and it will be positioned at the end of the topic ("now").
 
 Once you reconnect, the subscription will still be there and it will be positioned on the last acknowledged messages from the previous session.
 
@@ -190,16 +190,16 @@ What’s your use case for timeout on the `receiveAsync()`? Could that be achiev
 ### Why do we choose to use bookkeeper to store consumer offset instead of zookeeper? I mean what's the benefits?
 ZooKeeper is a “consensus” system that while it exposes a key/value interface is not meant to support a large volume of writes per second.
 
-ZK is not an “horizontally scalable” system, because every node receive every transaction and keeps the whole data set. Effectively, ZK is based on a single “log” that is replicated consistently across the participants. 
+ZK is not an “horizontally scalable” system, because every node receive every transaction and keeps the whole data set. Effectively, ZK is based on a single “log” that is replicated consistently across the participants.
 
-The max throughput we have observed on a well configured ZK on good hardware was around ~10K writes/s. If you want to do more than that, you would have to shard it.. 
+The max throughput we have observed on a well configured ZK on good hardware was around ~10K writes/s. If you want to do more than that, you would have to shard it..
 
 To store consumers cursor positions, we need to write potentially a large number of updates per second. Typically we persist the cursor every 1 second, though the rate is configurable and if you want to reduce the amount of potential duplicates, you can increase the persistent frequency.
 
 With BookKeeper it’s very efficient to have a large throughput across a huge number of different “logs”. In our case, we use 1 log per cursor, and it becomes feasible to persist every single cursor update.
 
 ### I'm facing some issue using `.receiveAsync` that it seems to be related with `UnAckedMessageTracker` and `PartitionedConsumerImpl`. We are consuming messages with `receiveAsync`, doing instant `acknowledgeAsync` when message is received, after that the process will delay the next execution of itself. In such scenario we are consuming a lot more messages (repeated) than the num of messages produced. We are using Partitioned topics with setAckTimeout 30 seconds and I believe this issue could be related with `PartitionedConsumerImpl` because the same test in a non-partitioned topic does not generate any repeated message.
-PartitionedConsumer is composed of a set of regular consumers, one per partition. To have a single `receive()` abstraction, messages from all partitions are then pushed into a shared queue. 
+PartitionedConsumer is composed of a set of regular consumers, one per partition. To have a single `receive()` abstraction, messages from all partitions are then pushed into a shared queue.
 
 The thing is that the unacked message tracker works at the partition level.So when the timeout happens, it’s able to request redelivery for the messages and clear them from the queue when that happens,
 but if the messages were already pushed into the shared queue, the “clearing” part will not happen.
@@ -229,8 +229,8 @@ A final option is to check the topic stats. This is a tiny bit involved, because
 There’s not currently an option for “infinite” (though it sounds a good idea! maybe we could use `-1` for that). The only option now is to use INT_MAX for `retentionTimeInMinutes` and LONG_MAX for `retentionSizeInMB`. It’s not “infinite” but 4085 years of retention should probably be enough!
 
 ### Is there a profiling option in Pulsar, so that we can breakdown the time costed in every stage? For instance, message A stay in queue 1ms, bk writing time 2ms(interval between sending to bk and receiving ack from bk) and so on.
-There are latency stats at different stages. In the client (eg: reported every 1min in info logs). 
-In the broker: accessible through the broker metrics, and finally in bookies where there are several different latency metrics. 
+There are latency stats at different stages. In the client (eg: reported every 1min in info logs).
+In the broker: accessible through the broker metrics, and finally in bookies where there are several different latency metrics.
 
 In broker there’s just the write latency on BK, because there is no other queuing involved in the write path.
 
@@ -242,7 +242,7 @@ you can create reader with `MessageId.earliest`
 yes, broker performs auth&auth while creating producer/consumer and this information presents under namespace policies.. so, if auth is enabled then broker does validation
 
 ### From what I’ve seen so far, it seems that I’d instead want to do a partitioned topic when I want a firehose/mix of data, and shuffle that firehose in to specific topics per entity when I’d have more discrete consumers. Is that accurate?
-Precisely, you can use either approach, and even combine them, depending on what is more convenient for the use case. The general traits to choose one or the other are: 
+Precisely, you can use either approach, and even combine them, depending on what is more convenient for the use case. The general traits to choose one or the other are:
 
 - Partitions -> Maintain a single “logical” topic but scale throughput to multiple machines. Also, ability to consume in order for a “partition” of the keys. In general, consumers are assigned a partition (and thus a subset of keys) without specifying anything.
 
@@ -258,7 +258,7 @@ Main difference: a reader can be used when manually managing the offset/messageI
 
 
 ### Hey, question on routing mode for partitioned topics. What is the default configuration and what is used in the Kafka adaptor?
-The default is to use the hash of the key on a message. If the message has no key, the producer will use a “default” partition (picks 1 random partition and use it for all the messages it publishes). 
+The default is to use the hash of the key on a message. If the message has no key, the producer will use a “default” partition (picks 1 random partition and use it for all the messages it publishes).
 
 This is to maintain the same ordering guarantee when no partitions are there: per-producer ordering.
 

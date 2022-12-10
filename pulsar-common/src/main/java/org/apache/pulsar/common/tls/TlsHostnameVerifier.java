@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * From Apache HTTP client
  */
@@ -34,7 +33,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
-
 import javax.naming.InvalidNameException;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
@@ -46,7 +44,6 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.x500.X500Principal;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -109,8 +106,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
             final X500Principal subjectPrincipal = cert.getSubjectX500Principal();
             final String cn = extractCN(subjectPrincipal.getName(X500Principal.RFC2253));
             if (cn == null) {
-                throw new SSLException("Certificate subject for <" + host + "> doesn't contain " +
-                        "a common name and does not have alternative names");
+                throw new SSLException("Certificate subject for <" + host + "> doesn't contain "
+                        + "a common name and does not have alternative names");
             }
             matchCN(host, cn, this.publicSuffixMatcher);
         }
@@ -125,8 +122,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
                 }
             }
         }
-        throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match any " +
-                "of the subject alternative names: " + subjectAlts);
+        throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match any "
+                + "of the subject alternative names: " + subjectAlts);
     }
 
     static void matchIPv6Address(final String host, final List<SubjectName> subjectAlts) throws SSLException {
@@ -140,8 +137,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
                 }
             }
         }
-        throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match any " +
-                "of the subject alternative names: " + subjectAlts);
+        throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match any "
+                + "of the subject alternative names: " + subjectAlts);
     }
 
     static void matchDNSName(final String host, final List<SubjectName> subjectAlts,
@@ -156,8 +153,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
                 }
             }
         }
-        throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match any " +
-                "of the subject alternative names: " + subjectAlts);
+        throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match any "
+                + "of the subject alternative names: " + subjectAlts);
     }
 
     static void matchCN(final String host, final String cn,
@@ -165,8 +162,8 @@ public class TlsHostnameVerifier implements HostnameVerifier {
         final String normalizedHost = host.toLowerCase(Locale.ROOT);
         final String normalizedCn = cn.toLowerCase(Locale.ROOT);
         if (!matchIdentityStrict(normalizedHost, normalizedCn, publicSuffixMatcher)) {
-            throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match " +
-                    "common name of the certificate subject: " + cn);
+            throw new SSLPeerUnverifiedException("Certificate for <" + host + "> doesn't match "
+                    + "common name of the certificate subject: " + cn);
         }
     }
 

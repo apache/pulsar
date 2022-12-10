@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-abstract class CliCommand {
+public abstract class CliCommand {
 
     static String[] validatePropertyCluster(List<String> params) {
         return splitParameter(params, 2);

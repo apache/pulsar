@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import java.io.IOException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class FunctionStatusUtil {
     public static FunctionStatus decode(String json) throws IOException {

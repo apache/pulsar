@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
@@ -40,12 +39,12 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.awaitility.Awaitility;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -75,14 +74,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
     private static final String SOURCE_TYPE = "kafka";
 
-    final Duration ONE_MINUTE = Duration.ofMinutes(1);
-    final Duration TEN_SECONDS = Duration.ofSeconds(10);
-
-    final RetryPolicy statusRetryPolicy = new RetryPolicy()
-            .withMaxDuration(ONE_MINUTE)
-            .withDelay(TEN_SECONDS)
-            .onRetry(e -> log.error("Retry ... "));
-
     private final String kafkaTopicName = "kafkasourcetopic";
 
     private EnhancedKafkaContainer kafkaContainer;
@@ -102,7 +93,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         try {
             testSource();
         } finally {
-            stopKafkaContainers(pulsarCluster);
+            stopKafkaContainers();
         }
     }
 
@@ -155,12 +146,12 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 );
     }
 
-    public void stopKafkaContainers(PulsarCluster cluster) {
+    public void stopKafkaContainers() {
         if (null != schemaRegistryContainer) {
-            cluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
+            PulsarCluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
         }
         if (null != kafkaContainer) {
-            cluster.stopService(kafkaContainerName, kafkaContainer);
+            PulsarCluster.stopService(kafkaContainerName, kafkaContainer);
         }
     }
 
@@ -221,14 +212,34 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         getSourceInfoSuccess(tenant, namespace, sourceName);
 
         // get source status
-        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
-
+        Awaitility.with()
+                .timeout(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofSeconds(10))
+                .until(() -> {
+                    try {
+                        getSourceStatus(tenant, namespace, sourceName);
+                        return true;
+                    } catch (Throwable ex) {
+                        log.error("Error while getting source status, will retry", ex);
+                        return false;
+                    }
+                });
         // produce messages
         List<MyBean> messages = produceSourceMessages(numMessages);
 
         // wait for source to process messages
-        Failsafe.with(statusRetryPolicy).run(() ->
-                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+        Awaitility.with()
+                .timeout(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofSeconds(10))
+                .until(() -> {
+                    try {
+                        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+                        return true;
+                    } catch (Throwable ex) {
+                        log.error("Error while processing source messages, will retry", ex);
+                        return false;
+                    }
+                });
 
         // validate the source result
        validateSourceResultAvro(consumer, messages);

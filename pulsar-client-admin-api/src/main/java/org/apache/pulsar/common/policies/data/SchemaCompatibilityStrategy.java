@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -71,10 +71,13 @@ public enum SchemaCompatibilityStrategy {
     FULL_TRANSITIVE;
 
 
+    public static boolean isUndefined(SchemaCompatibilityStrategy strategy) {
+        return strategy == null || strategy == SchemaCompatibilityStrategy.UNDEFINED;
+    }
 
     public static SchemaCompatibilityStrategy fromAutoUpdatePolicy(SchemaAutoUpdateCompatibilityStrategy strategy) {
         if (strategy == null) {
-            return SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE;
+            return null;
         }
         switch (strategy) {
             case Backward:

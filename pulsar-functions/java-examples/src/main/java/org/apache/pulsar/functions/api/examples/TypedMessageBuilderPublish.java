@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Example function that uses the built in publish function in the context
@@ -45,7 +44,7 @@ public class TypedMessageBuilderPublish implements Function<String, Void> {
         try {
             TypedMessageBuilder messageBuilder = context.newOutputMessage(publishTopic, Schema.STRING).
                     value(output).properties(properties);
-            if (context.getCurrentRecord().getKey().isPresent()){
+            if (context.getCurrentRecord().getKey().isPresent()) {
                 messageBuilder.key(context.getCurrentRecord().getKey().get());
             }
             messageBuilder.eventTime(System.currentTimeMillis()).sendAsync();

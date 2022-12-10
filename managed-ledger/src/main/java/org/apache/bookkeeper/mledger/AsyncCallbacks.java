@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,13 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 
 /**
  * Definition of all the callbacks used for the ManagedLedger asynchronous API.
@@ -45,6 +45,12 @@ public interface AsyncCallbacks {
         void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx);
 
         void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx);
+    }
+
+    interface OpenReadOnlyManagedLedgerCallback {
+        void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl managedLedger, Object ctx);
+
+        void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx);
     }
 
     interface DeleteLedgerCallback {
@@ -123,6 +129,12 @@ public interface AsyncCallbacks {
         void findEntryComplete(Position position, Object ctx);
 
         void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx);
+    }
+
+    interface ScanCallback {
+        void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx);
+
+        void scanFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx);
     }
 
     interface ResetCursorCallback {

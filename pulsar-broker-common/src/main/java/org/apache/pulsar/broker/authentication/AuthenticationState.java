@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.FutureUtil;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for authentication state.
@@ -89,7 +86,7 @@ public interface AuthenticationState {
     boolean isComplete();
 
     /**
-     * Get AuthenticationState ID
+     * Get AuthenticationState ID.
      */
     default long getStateId() {
         return -1L;

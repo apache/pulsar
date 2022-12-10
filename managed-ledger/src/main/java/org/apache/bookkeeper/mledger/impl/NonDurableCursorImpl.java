@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     private final boolean readCompacted;
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition, boolean isReadCompacted) {
+                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
+                         boolean isReadCompacted) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
 
@@ -53,7 +54,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
                     break;
             }
-        } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
+        } else if (startCursorPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
             recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
         } else {
@@ -61,7 +62,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             // read-position
             recoverCursor(startCursorPosition);
         }
-
+        STATE_UPDATER.set(this, State.Open);
         log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
                 readPosition, markDeletePosition);
     }
@@ -103,14 +104,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx);
         lastMarkDeleteEntry = mdEntry;
         // it is important to advance cursor so the retention can kick in as expected.
-        ledger.updateCursor(NonDurableCursorImpl.this, mdEntry.newPosition);
+        ledger.onCursorMarkDeletePositionUpdated(NonDurableCursorImpl.this, mdEntry.newPosition);
 
         callback.markDeleteComplete(ctx);
     }
 
     @Override
     public void asyncClose(CloseCallback callback, Object ctx) {
-        // No-Op
+        STATE_UPDATER.set(this, State.Closed);
         callback.closeComplete(ctx);
     }
 

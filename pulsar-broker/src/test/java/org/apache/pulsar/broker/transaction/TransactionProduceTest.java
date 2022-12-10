@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -209,7 +209,7 @@ public class TransactionProduceTest extends TransactionTestBase {
             }
             return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(topic).getPersistenceNamingEncoding(),
-                    PositionImpl.earliest, new ManagedLedgerConfig());
+                    PositionImpl.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
             log.error("Failed to get origin topic readonly cursor.", e);
             Assert.fail("Failed to get origin topic readonly cursor.");

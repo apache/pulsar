@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,4 +36,10 @@ public interface PendingAckReplyCallBack {
      * @param pendingAckMetadataEntry {@link PendingAckMetadataEntry} the metadata entry of pending ack
      */
     void handleMetadataEntry(PendingAckMetadataEntry pendingAckMetadataEntry);
+
+    /**
+     * Pending ack replay failed callback for pending ack store.
+     */
+    void replayFailed(Throwable t);
+
 }

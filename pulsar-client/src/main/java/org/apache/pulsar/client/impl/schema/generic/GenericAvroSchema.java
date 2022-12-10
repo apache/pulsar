@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -61,7 +60,8 @@ public class GenericAvroSchema extends GenericSchemaImpl {
     @Override
     public org.apache.pulsar.client.api.Schema<GenericRecord> clone() {
         org.apache.pulsar.client.api.Schema<GenericRecord> schema =
-                GenericAvroSchema.of(schemaInfo, ((AbstractMultiVersionGenericReader) reader).useProvidedSchemaAsReaderSchema);
+                GenericAvroSchema.of(schemaInfo,
+                        ((AbstractMultiVersionGenericReader) reader).useProvidedSchemaAsReaderSchema);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,7 +37,7 @@ public class PulsarEvent {
     private ActionType actionType;
     private TopicPoliciesEvent topicPoliciesEvent;
     /**
-     * Which remote clusters to replicate to
+     * Which remote clusters to replicate to.
      */
     private HashSet<String> replicateTo;
 }

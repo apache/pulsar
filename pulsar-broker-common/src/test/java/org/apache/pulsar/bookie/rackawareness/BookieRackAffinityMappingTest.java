@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import java.util.HashMap;
@@ -48,7 +49,7 @@ public class BookieRackAffinityMappingTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
         BOOKIE1 = new BookieSocketAddress("127.0.0.1:3181");
         BOOKIE2 = new BookieSocketAddress("127.0.0.2:3181");
         BOOKIE3 = new BookieSocketAddress("127.0.0.3:3181");
@@ -67,17 +68,53 @@ public class BookieRackAffinityMappingTest {
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
 
         // Case1: ZKCache is given
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        mapping.setConf(bkClientConf);
+        List<String> racks = mapping
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
+
+        assertEquals(racks.get(0), "/rack0");
+        assertEquals(racks.get(1), "/rack1");
+        assertNull(racks.get(2));
+    }
+
+    @Test
+    public void testMultipleMetadataServiceUris() {
+        BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf1 = new ClientConfiguration();
+        bkClientConf1.setProperty("metadataServiceUri", "memory:local,memory:local");
+        bkClientConf1.setProperty("zkTimeout", "100000");
+
+        mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        // This previously threw an exception when the metadataServiceUri was a comma delimited list.
+        mapping1.setConf(bkClientConf1);
+    }
+
+    @Test
+    public void testInvalidRackName() {
+        String data = "{\"group1\": {\"" + BOOKIE1
+                + "\": {\"rack\": \"/\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
+                + "\": {\"rack\": \"\", \"hostname\": \"bookie2.example.com\"}}}";
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
+
+        // Case1: ZKCache is given
         BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf1 = new ClientConfiguration();
         bkClientConf1.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
         mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping1.setConf(bkClientConf1);
-        List<String> racks1 = mapping1
+        List<String> racks = mapping1
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
-        assertEquals(racks1.get(0), "/rack0");
-        assertEquals(racks1.get(1), "/rack1");
-        assertEquals(racks1.get(2), null);
+
+        assertNull(racks.get(0));
+        assertNull(racks.get(1));
+        assertNull(racks.get(2));
     }
 
     @Test
@@ -89,9 +126,9 @@ public class BookieRackAffinityMappingTest {
         mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping.setConf(bkClientConf);
         List<String> racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
-        assertEquals(racks.get(0), null);
-        assertEquals(racks.get(1), null);
-        assertEquals(racks.get(2), null);
+        assertNull(racks.get(0));
+        assertNull(racks.get(1));
+        assertNull(racks.get(2));
 
         Map<String, Map<BookieSocketAddress, BookieInfo>> bookieMapping = new HashMap<>();
         Map<BookieSocketAddress, BookieInfo> mainBookieGroup = new HashMap<>();
@@ -108,7 +145,7 @@ public class BookieRackAffinityMappingTest {
             List<String> r = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
             assertEquals(r.get(0), "/rack0");
             assertEquals(r.get(1), "/rack1");
-            assertEquals(r.get(2), null);
+            assertNull(r.get(2));
         });
 
     }
@@ -136,7 +173,7 @@ public class BookieRackAffinityMappingTest {
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
-        assertEquals(racks.get(2), null);
+        assertNull(racks.get(2));
 
         // add info for BOOKIE3 and check if the mapping picks up the change
         Map<BookieSocketAddress, BookieInfo> secondaryBookieGroup = new HashMap<>();
@@ -145,20 +182,20 @@ public class BookieRackAffinityMappingTest {
         bookieMapping.put("group2", secondaryBookieGroup);
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
                 Optional.empty()).join();
-
-        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
-        assertEquals(racks.get(0), "/rack0");
-        assertEquals(racks.get(1), "/rack1");
-        assertEquals(racks.get(2), "/rack0");
-
+        Awaitility.await().untilAsserted(() -> {
+            List<String> r = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
+            assertEquals(r.get(0), "/rack0");
+            assertEquals(r.get(1), "/rack1");
+            assertEquals(r.get(2), "/rack0");
+        });
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(),
                 Optional.empty()).join();
 
         Awaitility.await().untilAsserted(() -> {
             List<String> r = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
-            assertEquals(r.get(0), null);
-            assertEquals(r.get(1), null);
-            assertEquals(r.get(2), null);
+            assertNull(r.get(0));
+            assertNull(r.get(1));
+            assertNull(r.get(2));
         });
     }
 }

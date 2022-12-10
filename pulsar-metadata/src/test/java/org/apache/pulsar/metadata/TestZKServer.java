@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -65,6 +65,7 @@ public class TestZKServer implements AutoCloseable {
 
     public void start() throws Exception {
         this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, TICK_TIME);
+        this.zks.setMaxSessionTimeout(300_000);
         this.serverFactory = new NIOServerCnxnFactory();
         this.serverFactory.configure(new InetSocketAddress(zkPort), 1000);
         this.serverFactory.startup(zks, true);
@@ -161,7 +162,7 @@ public class TestZKServer implements AutoCloseable {
 
     public static boolean waitForServerUp(String hp, long timeout) {
         long start = System.currentTimeMillis();
-        String split[] = hp.split(":");
+        String[] split = hp.split(":");
         String host = split[0];
         int port = Integer.parseInt(split[1]);
         while (true) {

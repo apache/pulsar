@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -63,56 +63,75 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.client.ConnectStringParser;
 
 @Slf4j
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
 
-    private final String metadataURL;
+    public static final String ZK_SCHEME_IDENTIFIER = "zk:";
+
+    private final String zkConnectString;
+    private final String rootPath;
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
-    private Optional<ZKSessionWatcher> sessionWatcher;
+    private final ZKSessionWatcher sessionWatcher;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
             throws MetadataStoreException {
         super(metadataStoreConfig);
 
         try {
-            this.metadataURL = metadataURL;
+            if (metadataURL.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                this.zkConnectString = metadataURL.substring(ZK_SCHEME_IDENTIFIER.length());
+            } else {
+                this.zkConnectString = metadataURL;
+            }
             this.metadataStoreConfig = metadataStoreConfig;
+            this.rootPath = new ConnectStringParser(zkConnectString).getChrootPath();
+
             isZkManaged = true;
-            zkc = PulsarZooKeeperClient.newBuilder().connectString(metadataURL)
+            zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
-                    .watchers(Collections.singleton(event -> {
-                        if (sessionWatcher != null) {
-                            sessionWatcher.ifPresent(sw -> sw.process(event));
-                        }
-                    }))
+                    .watchers(Collections.singleton(this::processSessionWatcher))
                     .build();
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
             if (enableSessionWatcher) {
-                sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+                sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
             } else {
-                sessionWatcher = Optional.empty();
+                sessionWatcher = null;
             }
+            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
+        }
+    }
+
+    private void processSessionWatcher(WatchedEvent event) {
+        if (sessionWatcher != null) {
+            executor.execute(() -> sessionWatcher.process(event));
         }
     }
 
     @VisibleForTesting
     @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc) {
-        super(MetadataStoreConfig.builder().build());
+        this(zkc, MetadataStoreConfig.builder().build());
+    }
 
-        this.metadataURL = null;
+    @VisibleForTesting
+    @SneakyThrows
+    public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config) {
+        super(config);
+
+        this.zkConnectString = null;
+        this.rootPath = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
-        this.sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
     }
 
@@ -126,9 +145,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                             super.receivedSessionEvent(event);
                         } else {
                             log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
-                            sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
-                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and
-                            // we will have the chance to set the watch again.
+                            if (sessionWatcher != null) {
+                                sessionWatcher.setSessionInvalid();
+                            }
+                            // On the re-connectable client, mark the session as expired to trigger a new reconnect,
+                            // and we will have the chance to set the watch again.
                             if (zkc instanceof PulsarZooKeeperClient) {
                                 ((PulsarZooKeeperClient) zkc).process(
                                         new WatchedEvent(Watcher.Event.EventType.None,
@@ -380,7 +401,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
                                                 s -> future.complete(s))
                                         .exceptionally(ex -> {
-                                            future.completeExceptionally(new MetadataStoreException(ex.getCause()));
+                                            if (ex.getCause() instanceof BadVersionException) {
+                                                // The z-node exist now, let's overwrite it
+                                                internalStorePut(opPut);
+                                            } else {
+                                                future.completeExceptionally(
+                                                        MetadataStoreException.wrap(ex.getCause()));
+                                            }
                                             return null;
                                         });
                             }
@@ -400,8 +427,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         if (isZkManaged) {
             zkc.close();
         }
-        if (sessionWatcher.isPresent()) {
-            sessionWatcher.get().close();
+        if (sessionWatcher != null) {
+            sessionWatcher.close();
         }
         super.close();
     }
@@ -498,16 +525,16 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     public CompletableFuture<Void> initializeCluster() {
-        if (this.metadataURL == null) {
+        if (this.zkConnectString == null) {
             return FutureUtil.failedFuture(new MetadataStoreException("metadataURL is not set"));
         }
         if (this.metadataStoreConfig == null) {
             return FutureUtil.failedFuture(new MetadataStoreException("metadataStoreConfig is not set"));
         }
-        int chrootIndex = metadataURL.indexOf("/");
+        int chrootIndex = zkConnectString.indexOf("/");
         if (chrootIndex > 0) {
-            String chrootPath = metadataURL.substring(chrootIndex);
-            String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
+            String chrootPath = zkConnectString.substring(chrootIndex);
+            String zkConnectForChrootCreation = zkConnectString.substring(0, chrootIndex);
             try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
@@ -561,5 +588,9 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         if (rc.get() != Code.OK.intValue()) {
             throw KeeperException.create(Code.get(rc.get()));
         }
+    }
+
+    public String getRootPath() {
+        return rootPath;
     }
 }

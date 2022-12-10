@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,7 +44,7 @@ public class BundlesQuotasTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
 
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));

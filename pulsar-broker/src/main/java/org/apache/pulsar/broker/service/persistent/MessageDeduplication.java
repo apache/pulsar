@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -36,13 +35,11 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -79,7 +76,8 @@ public class MessageDeduplication {
         Failed,
     }
 
-    enum MessageDupStatus {
+    @VisibleForTesting
+    public enum MessageDupStatus {
         // whether a message is a definitely a duplicate or not cannot be determined at this time
         Unknown,
         // message is definitely NOT a duplicate
@@ -100,12 +98,20 @@ public class MessageDeduplication {
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPushed = new ConcurrentOpenHashMap<>(16, 1);
+    final ConcurrentOpenHashMap<String, Long> highestSequencedPushed =
+            ConcurrentOpenHashMap.<String, Long>newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(1)
+                    .build();
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted = new ConcurrentOpenHashMap<>(16, 1);
+    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted =
+            ConcurrentOpenHashMap.<String, Long>newBuilder()
+            .expectedItems(16)
+            .concurrencyLevel(1)
+            .build();
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -187,7 +193,7 @@ public class MessageDeduplication {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, null, PositionImpl.latest);
+        }, null, PositionImpl.LATEST);
     }
 
     public Status getStatus() {
@@ -311,7 +317,7 @@ public class MessageDeduplication {
      * @return true if the message should be published or false if it was recognized as a duplicate
      */
     public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
-        if (!isEnabled()) {
+        if (!isEnabled() || publishContext.isMarkerMessage()) {
             return MessageDupStatus.NotDup;
         }
 
@@ -364,7 +370,7 @@ public class MessageDeduplication {
      * Call this method whenever a message is persisted to get the chance to trigger a snapshot.
      */
     public void recordMessagePersisted(PublishContext publishContext, PositionImpl position) {
-        if (!isEnabled()) {
+        if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
 
@@ -396,7 +402,7 @@ public class MessageDeduplication {
         }
     }
 
-    private void takeSnapshot(PositionImpl position) {
+    private void takeSnapshot(Position position) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
@@ -407,7 +413,7 @@ public class MessageDeduplication {
             }
         });
 
-        managedCursor.asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
+        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
                 if (log.isDebugEnabled()) {
@@ -451,18 +457,22 @@ public class MessageDeduplication {
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
 
         Iterator<java.util.Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
+        boolean hasInactive = false;
         while (mapIterator.hasNext()) {
             java.util.Map.Entry<String, Long> entry = mapIterator.next();
             String producerName = entry.getKey();
             long lastActiveTimestamp = entry.getValue();
 
-            mapIterator.remove();
-
             if (lastActiveTimestamp < minimumActiveTimestamp) {
                 log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
+                mapIterator.remove();
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
+                hasInactive = true;
             }
+        }
+        if (hasInactive && isEnabled()) {
+            takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }
 
@@ -472,26 +482,7 @@ public class MessageDeduplication {
     }
 
     public void takeSnapshot() {
-        // try to get topic-level policies
-        Integer interval = topic.getTopicPolicies()
-                .map(TopicPolicies::getDeduplicationSnapshotIntervalSeconds)
-                .orElse(null);
-        try {
-            //if topic-level policies not exists, try to get namespace-level policies
-            if (interval == null) {
-                final Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources()
-                        .getPolicies(TopicName.get(topic.getName()).getNamespaceObject());
-                if (policies.isPresent()) {
-                    interval = policies.get().deduplicationSnapshotIntervalSeconds;
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to get namespace policies", e);
-        }
-        //There is no other level of policies, use the broker-level by default
-        if (interval == null) {
-            interval = pulsar.getConfiguration().getBrokerDeduplicationSnapshotIntervalSeconds();
-        }
+        Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
         long currentTimeStamp = System.currentTimeMillis();
         if (interval == null || interval <= 0
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {

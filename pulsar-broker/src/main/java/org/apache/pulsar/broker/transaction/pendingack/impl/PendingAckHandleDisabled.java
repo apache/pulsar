@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -42,26 +43,22 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions,
-                                                                boolean isInCacheRequest) {
+                                                                List<MutablePair<PositionImpl, Integer>> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions,
-                                                                boolean isInCacheRequest) {
+    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark,
-                                             boolean isInCacheRequest) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark,
-                                            boolean isInCacheRequest) {
+    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
@@ -91,7 +88,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public TransactionPendingAckStats getStats() {
+    public TransactionPendingAckStats getStats(boolean lowWaterMarks) {
         return null;
     }
 
@@ -103,5 +100,10 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     @Override
     public boolean checkIfPendingAckStoreInit() {
         return false;
+    }
+
+    @Override
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        return null;
     }
 }

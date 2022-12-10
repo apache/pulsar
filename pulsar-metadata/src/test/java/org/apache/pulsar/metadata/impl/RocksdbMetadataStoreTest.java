@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.metadata.impl;
 
 import java.nio.charset.StandardCharsets;
@@ -70,7 +69,7 @@ public class RocksdbMetadataStoreTest {
         String optionFilePath =
                 getClass().getClassLoader().getResource("rocksdb_option_file_example.ini").getPath();
         log.info("optionFilePath={}", optionFilePath);
-        store = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+        store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
         Assert.assertTrue(store instanceof RocksdbMetadataStore);
 
@@ -97,7 +96,7 @@ public class RocksdbMetadataStoreTest {
 
         //reopen db
         store.close();
-        store = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+        store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
 
         //test get
@@ -118,10 +117,10 @@ public class RocksdbMetadataStoreTest {
 
         Path tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
         log.info("Temp dir:{}", tempDir.toAbsolutePath());
-        MetadataStore store1 = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+        MetadataStore store1 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().build());
 
-        MetadataStore store2 = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+        MetadataStore store2 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().build());
 
         // We should get the same instance
