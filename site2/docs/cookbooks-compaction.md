@@ -92,20 +92,16 @@ Consumer<byte[]> compactedTopicConsumer = client.newConsumer()
 As mentioned above, topic compaction in Pulsar works on a *per-key basis*. That means that messages that you produce on compacted topics need to have keys (the content of the key will depend on your use case). Messages that don't have keys will be ignored by the compaction process. Here's an example Pulsar message with a key:
 
 ```java
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 
-Message<byte[]> msg = MessageBuilder.create()
-        .setContent(someByteArray)
-        .setKey("some-key")
-        .build();
+TypedMessageBuilder<byte[]> msg = producer.newMessage()
+        .key("some-key")
+        .value(someByteArray);
 ```
 
 The example below shows a message with a key being produced on a compacted Pulsar topic:
 
 ```java
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -117,11 +113,8 @@ Producer<byte[]> compactedTopicProducer = client.newProducer()
         .topic("some-compacted-topic")
         .create();
 
-Message<byte[]> msg = MessageBuilder.create()
-        .setContent(someByteArray)
-        .setKey("some-key")
-        .build();
-
-compactedTopicProducer.send(msg);
+compactedTopicProducer.newMessage()
+        .key("some-key")
+        .value(someByteArray)
+        .send();
 ```
-
