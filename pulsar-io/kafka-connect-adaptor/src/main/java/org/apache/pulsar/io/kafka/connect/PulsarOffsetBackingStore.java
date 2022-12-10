@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,17 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -51,9 +55,11 @@ import org.apache.pulsar.client.api.Schema;
 @Slf4j
 public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
+    private final ObjectMapper mapper = new ObjectMapper();
     private final Map<ByteBuffer, ByteBuffer> data = new ConcurrentHashMap<>();
     private PulsarClient client;
     private String topic;
+    private Map<String, Object> readerConfigMap = new HashMap<>();
     private Producer<byte[]> producer;
     private Reader<byte[]> reader;
     private volatile CompletableFuture<Void> outstandingReadToEnd = null;
@@ -67,6 +73,13 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     public void configure(WorkerConfig workerConfig) {
         this.topic = workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG);
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
+        try {
+            this.readerConfigMap = loadConfigFromJsonString(
+                    workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG));
+        } catch (JsonProcessingException exception) {
+            log.warn("The provided reader configs are invalid, "
+                    + "will not passing any extra config to the reader builder.", exception);
+        }
 
         log.info("Configure offset backing store on pulsar topic {}", topic);
     }
@@ -148,6 +161,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             reader = client.newReader(Schema.BYTES)
                     .topic(topic)
                     .startMessageId(MessageId.earliest)
+                    .loadConf(readerConfigMap)
                 .create();
             log.info("Successfully created reader to replay updates from topic {}", topic);
 
@@ -237,5 +251,13 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 readToEnd(new CompletableFuture<>());
             }
         });
+    }
+
+    private Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
+        if (!isBlank(config)) {
+            return mapper.readValue(config, new TypeReference<>() {});
+        } else {
+            return Collections.emptyMap();
+        }
     }
 }

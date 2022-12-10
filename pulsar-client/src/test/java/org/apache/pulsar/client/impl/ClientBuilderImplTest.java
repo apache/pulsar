@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.fail;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
@@ -78,6 +79,20 @@ public class ClientBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithIllegalLargePort() throws PulsarClientException {
         PulsarClient.builder().dnsLookupBind("localhost", 65536).build();
+    }
+
+    @Test
+    public void testConnectionMaxIdleSeconds() throws Exception {
+        // test config disabled.
+        PulsarClient.builder().connectionMaxIdleSeconds(-1);
+        // test config correct
+        PulsarClient.builder().connectionMaxIdleSeconds(60);
+        // test config not correct.
+        try {
+            PulsarClient.builder().connectionMaxIdleSeconds(30);
+            fail();
+        } catch (IllegalArgumentException e){
+        }
     }
 
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import io.netty.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -37,7 +38,10 @@ public class InMemTransactionMetadataStoreProvider implements TransactionMetadat
                                                                  ManagedLedgerFactory managedLedgerFactory,
                                                                  ManagedLedgerConfig managedLedgerConfig,
                                                                  TransactionTimeoutTracker timeoutTracker,
-                                                                 TransactionRecoverTracker recoverTracker) {
+                                                                 TransactionRecoverTracker recoverTracker,
+                                                                 long maxActiveTransactionsPerCoordinator,
+                                                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+                                                                 Timer timer) {
         return CompletableFuture.completedFuture(
             new InMemTransactionMetadataStore(transactionCoordinatorId));
     }

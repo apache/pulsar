@@ -39,4 +39,11 @@ openssl pkcs8 -topk8 -inform PEM -outform PEM -in client-keys/admin.key.pem -out
 
 The client is then configured with admin.key-pk8.pem and admin.cert.pem.
 
+## JKS
 
+The following command is used to generate the JKS certificate:
+```shell
+./generate_keystore.sh
+```
+
+These certificate type is JKS, password is 111111.

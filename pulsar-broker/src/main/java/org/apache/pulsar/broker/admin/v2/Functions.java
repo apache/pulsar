@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -53,7 +53,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class Functions extends AdminResource {
 
     FunctionsV2<? extends WorkerService> functions() {
-        return pulsar().getWorkerService().getFunctionsV2();
+        return validateAndGetWorkerService().getFunctionsV2();
     }
 
     @POST

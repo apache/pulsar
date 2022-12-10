@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,12 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
+import java.util.Collection;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.WindowContext;
+import org.apache.pulsar.functions.api.WindowFunction;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -100,5 +106,83 @@ public class FunctionCommonTest {
         MessageIdImpl id = (MessageIdImpl) FunctionCommon.getMessageId(sequenceId);
         assertEquals(lid, id.getLedgerId());
         assertEquals(eid, id.getEntryId());
+    }
+
+    @DataProvider(name = "function")
+    public Object[][] functionProvider() {
+        return new Object[][] {
+            {
+                new Function<String, Integer>() {
+                    @Override
+                    public Integer process(String input, Context context) throws Exception {
+                        return null;
+                    }
+                }, false
+            },
+            {
+                new Function<String, Record<Integer>>() {
+                    @Override
+                    public Record<Integer> process(String input, Context context) throws Exception {
+                        return null;
+                    }
+                }, false
+            },
+            {
+                new java.util.function.Function<String, Integer>() {
+                    @Override
+                    public Integer apply(String s) {
+                        return null;
+                    }
+                }, false
+            },
+            {
+                new java.util.function.Function<String, Record<Integer>>() {
+                    @Override
+                    public Record<Integer> apply(String s) {
+                        return null;
+                    }
+                }, false
+            },
+            {
+                new WindowFunction<String, Integer>() {
+                    @Override
+                    public Integer process(Collection<Record<String>> input, WindowContext context) throws Exception {
+                        return null;
+                    }
+                }, true
+            },
+            {
+                new WindowFunction<String, Record<Integer>>() {
+                    @Override
+                    public Record<Integer> process(Collection<Record<String>> input, WindowContext context) throws Exception {
+                        return null;
+                    }
+                }, true
+            },
+            {
+                new java.util.function.Function<Collection<String>, Integer>() {
+                    @Override
+                    public Integer apply(Collection<String> strings) {
+                        return null;
+                    }
+                }, true
+            },
+            {
+                new java.util.function.Function<Collection<String>, Record<Integer>>() {
+                    @Override
+                    public Record<Integer> apply(Collection<String> strings) {
+                        return null;
+                    }
+                }, true
+            }
+        };
+    }
+
+    @Test(dataProvider = "function")
+    public void testGetFunctionTypes(Object function, boolean isWindowConfigPresent) {
+        Class<?>[] types = FunctionCommon.getFunctionTypes(function.getClass(), isWindowConfigPresent);
+        assertEquals(types.length, 2);
+        assertEquals(types[0], String.class);
+        assertEquals(types[1], Integer.class);
     }
 }

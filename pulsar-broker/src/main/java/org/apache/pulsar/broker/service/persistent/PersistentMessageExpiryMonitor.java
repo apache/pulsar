@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,10 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -191,7 +193,29 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && (exception instanceof NonRecoverableLedgerException)) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
                     exception.getMessage());
-            findEntryComplete(failedReadPosition.get(), ctx);
+            if (exception instanceof LedgerNotExistException) {
+                long failedLedgerId = failedReadPosition.get().getLedgerId();
+                ManagedLedgerImpl ledger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+                Position lastPositionInLedger = ledger.getOptionalLedgerInfo(failedLedgerId)
+                        .map(ledgerInfo -> PositionImpl.get(failedLedgerId, ledgerInfo.getEntries() - 1))
+                        .orElseGet(() -> {
+                            Long nextExistingLedger = ledger.getNextValidLedger(failedReadPosition.get().getLedgerId());
+                            if (nextExistingLedger == null) {
+                                log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
+                                                + "entry failed {}", ledger.getName(), ledger.getName(),
+                                        failedReadPosition);
+                                return (PositionImpl) failedReadPosition.get();
+                            } else {
+                                return PositionImpl.get(nextExistingLedger, -1);
+                            }
+                        });
+                log.info("[{}][{}] ledger not existed, will complete the last position of the non-existed"
+                        + " ledger:{}", topicName, subName, lastPositionInLedger);
+                findEntryComplete(lastPositionInLedger, ctx);
+            } else {
+                findEntryComplete(failedReadPosition.get(), ctx);
+            }
+            return;
         }
         expirationCheckInProgress = FALSE;
         updateRates();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import static org.testng.Assert.assertEquals;
+import java.util.Properties;
+import org.testng.annotations.Test;
 
 public class TestRunMain {
 
@@ -40,7 +39,40 @@ public class TestRunMain {
         PulsarAdminTool.resetLastExitCode();
         PulsarAdminTool.setAllowSystemExit(false);
         Path dummyEmptyFile = Files.createTempFile("test", ".conf");
-        PulsarAdminTool.main(new String[] {dummyEmptyFile.toAbsolutePath().toString()});
+        PulsarAdminTool.main(new String[]{dummyEmptyFile.toAbsolutePath().toString()});
         assertEquals(PulsarAdminTool.getLastExitCode(), 1);
+    }
+
+    @Test
+    public void testRunWithTlsProviderFlag() throws Exception {
+        var pulsarAdminTool = new PulsarAdminTool(new Properties());
+        pulsarAdminTool.run(new String[]{
+                "--admin-url", "https://localhost:8081",
+                "--tls-provider", "JDK",
+                "tenants"});
+        assertEquals(pulsarAdminTool.rootParams.tlsProvider, "JDK");
+    }
+
+    @Test
+    public void testRunWithTlsProviderConfigFile() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("webserviceTlsProvider", "JDK");
+        var pulsarAdminTool = new PulsarAdminTool(properties);
+        pulsarAdminTool.run(new String[]{
+                "--admin-url", "https://localhost:8081",
+                "tenants"});
+        assertEquals(pulsarAdminTool.rootParams.tlsProvider, "JDK");
+    }
+
+    @Test
+    public void testRunWithTlsProviderFlagWithConfigFile() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("webserviceTlsProvider", "JDK");
+        var pulsarAdminTool = new PulsarAdminTool(properties);
+        pulsarAdminTool.run(new String[]{
+                "--admin-url", "https://localhost:8081",
+                "--tls-provider", "OPENSSL",
+                "tenants"});
+        assertEquals(pulsarAdminTool.rootParams.tlsProvider, "OPENSSL");
     }
 }

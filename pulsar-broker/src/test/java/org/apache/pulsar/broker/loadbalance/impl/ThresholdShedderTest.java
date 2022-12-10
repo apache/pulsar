@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,16 +21,16 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -47,6 +47,7 @@ public class ThresholdShedderTest {
 
     @BeforeMethod
     public void setup() {
+        conf.setLowerBoundarySheddingEnabled(false);
         thresholdShedder = new ThresholdShedder();
     }
 
@@ -86,6 +87,40 @@ public class ThresholdShedderTest {
 
         loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
+    }
+
+    @Test
+    public void testBrokerReachThreshold() {
+        LoadData loadData = new LoadData();
+
+        LocalBrokerData broker1 = new LocalBrokerData();
+        broker1.setCpu(new ResourceUsage(140, 100));
+        broker1.setMemory(new ResourceUsage(10, 100));
+        broker1.setDirectMemory(new ResourceUsage(10, 100));
+        broker1.setBandwidthIn(new ResourceUsage(500, 1000));
+        broker1.setBandwidthOut(new ResourceUsage(500, 1000));
+        broker1.setBundles(Sets.newHashSet("bundle-1", "bundle-2"));
+        broker1.setMsgThroughputIn(Double.MAX_VALUE);
+
+        LocalBrokerData broker2 = new LocalBrokerData();
+        broker2.setCpu(new ResourceUsage(10, 100));
+        broker2.setMemory(new ResourceUsage(10, 100));
+        broker2.setDirectMemory(new ResourceUsage(10, 100));
+        broker2.setBandwidthIn(new ResourceUsage(500, 1000));
+        broker2.setBandwidthOut(new ResourceUsage(500, 1000));
+        broker2.setBundles(Sets.newHashSet("bundle-3", "bundle-4"));
+
+        BundleData bundleData = new BundleData();
+        TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+        timeAverageMessageData.setMsgThroughputIn(1000);
+        timeAverageMessageData.setMsgThroughputOut(1000);
+        bundleData.setShortTermData(timeAverageMessageData);
+
+        loadData.getBundleData().put("bundle-2", bundleData);
+        loadData.getBrokerData().put("broker-2", new BrokerData(broker1));
+        loadData.getBrokerData().put("broker-3", new BrokerData(broker2));
+
+        assertFalse(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
     @Test
@@ -154,7 +189,7 @@ public class ThresholdShedderTest {
         Multimap<String, String> bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
         assertEquals(bundlesToUnload.get("broker-1"),
-            Lists.newArrayList("bundle-10", "bundle-9", "bundle-8"));
+            List.of("bundle-10", "bundle-9", "bundle-8"));
     }
 
     @Test
@@ -202,7 +237,7 @@ public class ThresholdShedderTest {
         Multimap<String, String> bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
         assertEquals(bundlesToUnload.get("broker-1"),
-            Lists.newArrayList("bundle-8", "bundle-7", "bundle-6", "bundle-5"));
+            List.of("bundle-8", "bundle-7", "bundle-6", "bundle-5"));
     }
 
     @Test
@@ -217,5 +252,115 @@ public class ThresholdShedderTest {
 
         assertEquals(data.printResourceUsage(),
             "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
+    }
+
+    @Test
+    public void testLowerBoundaryShedding() {
+        int numBundles = 10;
+        int brokerNum = 11;
+        int lowLoadNode = 10;
+        LoadData loadData = new LoadData();
+        double throughput = 100 * 1024 * 1024;
+        //There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+        //At this time, the average load is 80*10/11 = 72.73, and the threshold for rebalancing is 72.73 + 10 = 82.73.
+        //Since 80 < 82.73, rebalancing will not be trigger, and there is one Broker with load of 0.
+        for (int i = 0; i < brokerNum; i++) {
+            LocalBrokerData broker = new LocalBrokerData();
+            for (int j = 0; j < numBundles; j++) {
+                broker.getBundles().add("bundle-" + j);
+                BundleData bundle = new BundleData();
+                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+                timeAverageMessageData.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
+                timeAverageMessageData.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
+                bundle.setShortTermData(timeAverageMessageData);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
+                loadData.getBundleData().put(broker2BundleName, bundle);
+                broker.getBundles().add(broker2BundleName);
+            }
+            broker.setBandwidthIn(new ResourceUsage(i == lowLoadNode ? 0 : 80, 100));
+            broker.setBandwidthOut(new ResourceUsage(i == lowLoadNode ? 0 : 80, 100));
+            broker.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
+            broker.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
+            loadData.getBrokerData().put("broker-" + i, new BrokerData(broker));
+        }
+        ThresholdShedder shedder = new ThresholdShedder();
+        Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
+        assertTrue(bundlesToUnload.isEmpty());
+        conf.setLowerBoundarySheddingEnabled(true);
+        bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
+        assertFalse(bundlesToUnload.isEmpty());
+    }
+
+    @Test
+    public void testLowerBoundarySheddingNoBrokerToOffload() {
+        int numBundles = 10;
+        int brokerNum = 11;
+        LoadData loadData = new LoadData();
+        double throughput = 80 * 1024 * 1024;
+        //Load of all Brokers are 80%, and no Broker needs to offload.
+        for (int i = 0; i < brokerNum; i++) {
+            LocalBrokerData broker = new LocalBrokerData();
+            for (int j = 0; j < numBundles; j++) {
+                broker.getBundles().add("bundle-" + j);
+                BundleData bundle = new BundleData();
+                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+                timeAverageMessageData.setMsgThroughputIn(throughput);
+                timeAverageMessageData.setMsgThroughputOut(throughput);
+                bundle.setShortTermData(timeAverageMessageData);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
+                loadData.getBundleData().put(broker2BundleName, bundle);
+                broker.getBundles().add(broker2BundleName);
+            }
+            broker.setBandwidthIn(new ResourceUsage(80, 100));
+            broker.setBandwidthOut(new ResourceUsage(80, 100));
+            broker.setMsgThroughputIn(throughput);
+            broker.setMsgThroughputOut(throughput);
+            loadData.getBrokerData().put("broker-" + i, new BrokerData(broker));
+        }
+        ThresholdShedder shedder = new ThresholdShedder();
+        Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
+        assertTrue(bundlesToUnload.isEmpty());
+        conf.setLowerBoundarySheddingEnabled(true);
+        bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
+        assertTrue(bundlesToUnload.isEmpty());
+    }
+
+    @Test
+    public void testLowerBoundarySheddingBrokerWithOneBundle() {
+        int brokerNum = 11;
+        int lowLoadNode = 5;
+        int brokerWithManyBundles = 3;
+        LoadData loadData = new LoadData();
+        double throughput = 100 * 1024 * 1024;
+        //There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+        //Only broker3 has 10 bundles.
+        for (int i = 0; i < brokerNum; i++) {
+            LocalBrokerData broker = new LocalBrokerData();
+            //Broker3 has 10 bundles
+            int numBundles = i == brokerWithManyBundles ? 10 : 1;
+            for (int j = 0; j < numBundles; j++) {
+                BundleData bundle = new BundleData();
+                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+                timeAverageMessageData.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
+                timeAverageMessageData.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
+                bundle.setShortTermData(timeAverageMessageData);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
+                loadData.getBundleData().put(broker2BundleName, bundle);
+                broker.getBundles().add(broker2BundleName);
+            }
+            broker.setBandwidthIn(new ResourceUsage(i == lowLoadNode ? 0 : 80, 100));
+            broker.setBandwidthOut(new ResourceUsage(i == lowLoadNode ? 0 : 80, 100));
+            broker.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
+            broker.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
+            loadData.getBrokerData().put("broker-" + i, new BrokerData(broker));
+        }
+        ThresholdShedder shedder = new ThresholdShedder();
+        Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
+        assertTrue(bundlesToUnload.isEmpty());
+        conf.setLowerBoundarySheddingEnabled(true);
+        bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
+        assertFalse(bundlesToUnload.isEmpty());
+        assertEquals(bundlesToUnload.size(), 1);
+        assertTrue(bundlesToUnload.containsKey("broker-3"));
     }
 }

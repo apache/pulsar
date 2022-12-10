@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 public class InstanceConfig {
     private int instanceId;
     private String functionId;
+    private String transformFunctionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,14 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.List;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -37,7 +38,7 @@ public class PrometheusMetricsGeneratorUtils {
     public static void generate(String cluster, OutputStream out,
                                 List<PrometheusRawMetricsProvider> metricsProviders)
             throws IOException {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
             generateSystemMetrics(stream, cluster);
@@ -59,22 +60,28 @@ public class PrometheusMetricsGeneratorUtils {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
             // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(' ')
+            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
                     .write(getTypeStr(metricFamily.type)).write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {
                 Collector.MetricFamilySamples.Sample sample = metricFamily.samples.get(i);
                 stream.write(sample.name);
+                stream.write("{");
                 if (!sample.labelNames.contains("cluster")) {
-                    stream.write("{cluster=\"").write(cluster).write('"');
+                    stream.write("cluster=\"").write(cluster).write('"');
+                    // If label is empty, should not append ','.
+                    if (!CollectionUtils.isEmpty(sample.labelNames)){
+                        stream.write(",");
+                    }
                 }
                 for (int j = 0; j < sample.labelNames.size(); j++) {
                     String labelValue = sample.labelValues.get(j);
                     if (labelValue != null) {
                         labelValue = labelValue.replace("\"", "\\\"");
                     }
-
-                    stream.write(",");
+                    if (j > 0) {
+                        stream.write(",");
+                    }
                     stream.write(sample.labelNames.get(j));
                     stream.write("=\"");
                     stream.write(labelValue);
@@ -88,19 +95,27 @@ public class PrometheusMetricsGeneratorUtils {
         }
     }
 
+    static String getTypeNameSuffix(Collector.Type type) {
+        if (type.equals(Collector.Type.INFO)) {
+            return "_info";
+        }
+        return "";
+    }
+
     static String getTypeStr(Collector.Type type) {
         switch (type) {
             case COUNTER:
                 return "counter";
             case GAUGE:
+            case INFO:
                 return "gauge";
-            case SUMMARY        :
+            case SUMMARY:
                 return "summary";
             case HISTOGRAM:
                 return "histogram";
-            case UNTYPED:
+            case UNKNOWN:
             default:
-                return "untyped";
+                return "unknown";
         }
     }
 
