@@ -1321,6 +1321,7 @@ public class CmdTopics extends CmdBase {
 
                 System.out.println("Publish time: " + message.getPublishTime());
                 System.out.println("Event time: " + message.getEventTime());
+                System.out.println("Redelivery count: " + message.getRedeliveryCount());
 
                 if (message.getDeliverAtTime() != 0) {
                     System.out.println("Deliver at time: " + message.getDeliverAtTime());
