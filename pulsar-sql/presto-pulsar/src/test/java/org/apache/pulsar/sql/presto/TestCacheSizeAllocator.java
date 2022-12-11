@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,9 @@ package org.apache.pulsar.sql.presto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
-import io.prestosql.spi.connector.ConnectorContext;
-import io.prestosql.spi.predicate.TupleDomain;
-import io.prestosql.testing.TestingConnectorContext;
+import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.testing.TestingConnectorContext;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
@@ -58,7 +58,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -72,12 +72,12 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @DataProvider(name = "cacheSizeProvider")
-    private Object[][] dataProvider() {
+    public Object[][] dataProvider() {
         return new Object[][] {
                 {-1}, {0}, {2000}, {5000}
         };

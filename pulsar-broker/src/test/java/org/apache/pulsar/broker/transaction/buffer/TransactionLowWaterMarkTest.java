@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -321,12 +321,20 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(txn1, TransactionImpl.State.OPEN);
+
+        PersistentTopic t = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(TOPIC).toString(), false)
+                .get()
+                .orElseThrow();
         try {
             producer.newMessage(txn1).send();
             fail();
         } catch (PulsarClientException.NotAllowedException ignore) {
             // no-op
         }
+
+        assertEquals(t.getPendingWriteOps().get(), 0);
     }
 
     @Test

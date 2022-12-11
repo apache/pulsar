@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,8 +89,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "us-east-1");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(1));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(1));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
         assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
     }
     
@@ -99,7 +99,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void awsS3BackwardCompatiblePropertiesTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put(BC_S3_BUCKET, "test bucket");
         map.put(BC_S3_ENDPOINT, "http://some-url:9093");
@@ -110,8 +110,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "test region");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(12));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
         assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
     }
 
@@ -129,19 +129,21 @@ public class TieredStorageConfigurationTests {
         // set the aws properties with fake creds so the defaultProviderChain works
         System.setProperty("aws.accessKeyId", "fakeid1");
         System.setProperty("aws.secretKey", "fakekey1");
-        Credentials creds1 = config.getProviderCredentials().get();
-        assertEquals(creds1.identity, "fakeid1");
-        assertEquals(creds1.credential, "fakekey1");
+        try {
+            Credentials creds1 = config.getProviderCredentials().get();
+            assertEquals(creds1.identity, "fakeid1");
+            assertEquals(creds1.credential, "fakekey1");
 
-        // reset the properties and ensure we get different values by re-evaluating the chain
-        System.setProperty("aws.accessKeyId", "fakeid2");
-        System.setProperty("aws.secretKey", "fakekey2");
-        Credentials creds2 = config.getProviderCredentials().get();
-        assertEquals(creds2.identity, "fakeid2");
-        assertEquals(creds2.credential, "fakekey2");
-
-        System.clearProperty("aws.accessKeyId");
-        System.clearProperty("aws.secretKey");
+            // reset the properties and ensure we get different values by re-evaluating the chain
+            System.setProperty("aws.accessKeyId", "fakeid2");
+            System.setProperty("aws.secretKey", "fakekey2");
+            Credentials creds2 = config.getProviderCredentials().get();
+            assertEquals(creds2.identity, "fakeid2");
+            assertEquals(creds2.credential, "fakekey2");
+        } finally {
+            System.clearProperty("aws.accessKeyId");
+            System.clearProperty("aws.secretKey");
+        }
     }
 
     /**
@@ -185,8 +187,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "us-east-1");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(1));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(1));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
     }
     
     /**
@@ -204,8 +206,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "test region");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(12));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
     }
 
     @Test
@@ -215,11 +217,15 @@ public class TieredStorageConfigurationTests {
         map.put("s3ManagedLedgerOffloadRegion", "my-region");
         System.setProperty("jclouds.SystemPropertyA", "A");
         System.setProperty("jclouds.region", "jclouds-region");
-        TieredStorageConfiguration config = new TieredStorageConfiguration(map);
-        Properties properties = config.getOverrides();
-        System.out.println(properties.toString());
-        assertEquals(properties.get("jclouds.region"), "jclouds-region");
-        assertEquals(config.getServiceEndpoint(), "http://localhost");
-        assertEquals(properties.get("jclouds.SystemPropertyA"), "A");
+        try {
+            TieredStorageConfiguration config = new TieredStorageConfiguration(map);
+            Properties properties = config.getOverrides();
+            assertEquals(properties.get("jclouds.region"), "jclouds-region");
+            assertEquals(config.getServiceEndpoint(), "http://localhost");
+            assertEquals(properties.get("jclouds.SystemPropertyA"), "A");
+        } finally {
+            System.clearProperty("jclouds.SystemPropertyA");
+            System.clearProperty("jclouds.region");
+        }
     }
 }

@@ -4,8 +4,7 @@ title: RabbitMQ sink connector
 sidebar_label: "RabbitMQ sink connector"
 ---
 
-The RabbitMQ sink connector pulls messages from Pulsar topics 
-and persist the messages to RabbitMQ queues.
+The RabbitMQ sink connector pulls messages from Pulsar topics and persists the messages to RabbitMQ queues.
 
 
 ## Configuration 
@@ -40,7 +39,6 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "host": "localhost",
@@ -59,13 +57,11 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
         "routingKey": "test-key"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       host: "localhost"
       port: 5672
@@ -81,6 +77,5 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
       requestedHeartbeat: 60
       exchangeName: "test-exchange"
       routingKey: "test-key"
-  
   ```
 

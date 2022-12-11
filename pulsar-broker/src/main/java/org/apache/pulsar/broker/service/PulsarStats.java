@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
@@ -65,12 +65,12 @@ public class PulsarStats implements Closeable {
         this.nsStats = new NamespaceStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
-        this.bundleStats = Maps.newConcurrentMap();
-        this.tempMetricsCollection = Lists.newArrayList();
-        this.metricsCollection = Lists.newArrayList();
+        this.bundleStats = new ConcurrentHashMap<>();
+        this.tempMetricsCollection = new ArrayList<>();
+        this.metricsCollection = new ArrayList<>();
         this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getAdvertisedAddress());
-        this.tempNonPersistentTopics = Lists.newArrayList();
+        this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
     }
@@ -137,6 +137,7 @@ public class PulsarStats implements Closeable {
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
                                 topic.checkBackloggedCursors();
+                                topic.checkCursorsToCacheEntries();
                                 // check if topic is inactive and require ledger rollover
                                 ((PersistentTopic) topic).checkInactiveLedgers();
                             } else if (topic instanceof NonPersistentTopic) {

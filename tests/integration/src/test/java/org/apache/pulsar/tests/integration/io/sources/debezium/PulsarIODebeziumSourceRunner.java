@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -88,7 +88,7 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
+        Consumer<?> consumer = client.newConsumer(getSchema(jsonWithEnvelope))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)

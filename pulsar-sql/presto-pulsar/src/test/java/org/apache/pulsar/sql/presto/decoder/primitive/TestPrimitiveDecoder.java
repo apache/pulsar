@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,31 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeType.TIME_MILLIS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
 import io.airlift.slice.Slices;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.type.Timestamps;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -29,27 +51,6 @@ import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 import org.apache.pulsar.sql.presto.decoder.AbstractDecoderTester;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-
-import static io.prestosql.spi.type.DateType.DATE;
-import static io.prestosql.spi.type.SmallintType.SMALLINT;
-import static io.prestosql.spi.type.TimeType.TIME;
-import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
-import static io.prestosql.spi.type.TinyintType.TINYINT;
-import static io.prestosql.spi.type.VarbinaryType.VARBINARY;
-import static io.prestosql.spi.type.VarcharType.VARCHAR;
-import static io.prestosql.spi.type.BigintType.BIGINT;
-import static io.prestosql.spi.type.BooleanType.BOOLEAN;
-import static io.prestosql.spi.type.DoubleType.DOUBLE;
-import static io.prestosql.spi.type.IntegerType.INTEGER;
-import static io.prestosql.spi.type.RealType.REAL;
-import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
 
 public class TestPrimitiveDecoder extends AbstractDecoderTester {
 
@@ -63,7 +64,6 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
 
     @Test(singleThreaded = true)
     public void testPrimitiveType() {
-
         byte int8Value = 1;
         SchemaInfo schemaInfoInt8 = SchemaInfo.builder().type(SchemaType.INT8).build();
         Schema schemaInt8 = Schema.getSchema(schemaInfoInt8);
@@ -200,7 +200,8 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PRIMITIVE_COLUMN_NAME, DATE, false, false, PRIMITIVE_COLUMN_NAME, null, null,
                 PulsarColumnHandle.HandleKeyValueType.NONE), dateValue.getTime());
 
-        Time timeValue = new Time(System.currentTimeMillis());
+        LocalTime now = LocalTime.now(ZoneId.systemDefault());
+        Time timeValue = Time.valueOf(now);
         SchemaInfo schemaInfoTime = SchemaInfo.builder().type(SchemaType.TIME).build();
         Schema schemaTime = Schema.getSchema(schemaInfoTime);
         List<PulsarColumnHandle> pulsarColumnHandleTime = getColumnColumnHandles(topicName, schemaInfoTime,
@@ -211,8 +212,8 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 pulsarRowDecoderTime.decodeRow(io.netty.buffer.Unpooled
                         .copiedBuffer(schemaTime.encode(timeValue))).get();
         checkValue(decodedRowTime, new PulsarColumnHandle(getPulsarConnectorId().toString(),
-                PRIMITIVE_COLUMN_NAME, TIME, false, false, PRIMITIVE_COLUMN_NAME, null, null,
-                PulsarColumnHandle.HandleKeyValueType.NONE), timeValue.getTime());
+                PRIMITIVE_COLUMN_NAME, TIME_MILLIS, false, false, PRIMITIVE_COLUMN_NAME, null, null,
+                PulsarColumnHandle.HandleKeyValueType.NONE), timeValue.getTime() * Timestamps.PICOSECONDS_PER_MILLISECOND);
 
         Timestamp timestampValue = new Timestamp(System.currentTimeMillis());
         SchemaInfo schemaInfoTimestamp = SchemaInfo.builder().type(SchemaType.TIMESTAMP).build();
@@ -225,8 +226,8 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 pulsarRowDecoderTimestamp.decodeRow(io.netty.buffer.Unpooled
                         .copiedBuffer(schemaTimestamp.encode(timestampValue))).get();
         checkValue(decodedRowTimestamp, new PulsarColumnHandle(getPulsarConnectorId().toString(),
-                PRIMITIVE_COLUMN_NAME, TIMESTAMP, false, false, PRIMITIVE_COLUMN_NAME, null, null,
-                PulsarColumnHandle.HandleKeyValueType.NONE), timestampValue.getTime());
+                PRIMITIVE_COLUMN_NAME, TIMESTAMP_MILLIS, false, false, PRIMITIVE_COLUMN_NAME, null, null,
+                PulsarColumnHandle.HandleKeyValueType.NONE), timestampValue.getTime() * Timestamps.MICROSECONDS_PER_MILLISECOND);
 
     }
 

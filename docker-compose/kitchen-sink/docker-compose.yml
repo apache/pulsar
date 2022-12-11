@@ -368,7 +368,7 @@ services:
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
     command: >
-      bash -c "bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ conf/presto/catalog/pulsar.properties && \
+      bash -c "bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ trino/conf/catalog/pulsar.properties && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
                exec bin/pulsar sql-worker run"
@@ -377,6 +377,7 @@ services:
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
       configurationStoreServers: zk1:2181,zk2:2181,zk3:2181
       pulsar.zookeeper-uri: zk1:2181,zk2:2181,zk3:2181
+      pulsar.web-service-url: http://proxy1:8080
       coordinator: "true"
     volumes:
       - ./../../docker/pulsar/scripts/apply-config-from-env-with-prefix.py:/pulsar/bin/apply-config-from-env-with-prefix.py

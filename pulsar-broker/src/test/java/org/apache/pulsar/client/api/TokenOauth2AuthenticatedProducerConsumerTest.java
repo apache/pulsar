@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -61,6 +62,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
+    private final String ISSUER_URL = "https://dev-kt-aa9ne.us.auth0.com";
+    private final String AUDIENCE = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -76,6 +79,13 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
+
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationOAuth2.class.getName());
+        conf.setBrokerClientAuthenticationParameters("{\n"
+                + "  \"privateKey\": \"" + CREDENTIALS_FILE + "\",\n"
+                + "  \"issuerUrl\": \"" + ISSUER_URL + "\",\n"
+                + "  \"audience\": \"" + AUDIENCE + "\",\n"
+                + "}\n");
 
         conf.setClusterName("test");
 
@@ -94,9 +104,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
         // AuthenticationOAuth2
         Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
-                new URL("https://dev-kt-aa9ne.us.auth0.com"),
+                new URL(ISSUER_URL),
                 path.toUri().toURL(),  // key file path
-                "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
+                AUDIENCE
         );
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
@@ -132,7 +142,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -184,7 +194,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -221,7 +231,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         msg = null;
-        messageSet = Sets.newHashSet();
+        messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());

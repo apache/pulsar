@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,15 +28,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import org.apache.commons.lang3.mutable.MutableBoolean;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.jute.Record;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,16 +44,8 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.proto.ReplyHeader;
-import org.apache.zookeeper.server.Request;
-import org.apache.zookeeper.server.ServerCnxn;
-import org.apache.zookeeper.server.ZooKeeperServer;
 import org.mockito.stubbing.Answer;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -97,7 +85,7 @@ public class TopicOwnerTest {
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
-            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             configurations[i] = config;
@@ -136,6 +124,7 @@ public class TopicOwnerTest {
     }
 
     @SuppressWarnings("unchecked")
+    @SneakyThrows(IllegalAccessException.class)
     private MutableObject<PulsarService> spyLeaderNamespaceServiceForAuthorizedBroker() {
         // Spy leader namespace service to inject authorized broker for namespace-bundle from leader,
         // this is a safe operation since it is just an recommendation if namespace-bundle has no owner
@@ -157,83 +146,8 @@ public class TopicOwnerTest {
             return CompletableFuture.completedFuture(Optional.of(lookupResult));
         };
         doAnswer(answer).when(spyLeaderNamespaceService).getBrokerServiceUrlAsync(any(TopicName.class), any(LookupOptions.class));
-        Whitebox.setInternalState(leaderPulsar, "nsService", spyLeaderNamespaceService);
+        FieldUtils.writeField(leaderPulsar, "nsService", spyLeaderNamespaceService, true);
         return leaderAuthorizedBroker;
-    }
-
-    private CompletableFuture<Void> watchMetadataStoreReconnect(MetadataStoreExtended store) {
-        CompletableFuture<Void> reconnectedFuture = new CompletableFuture<>();
-        store.registerSessionListener(event -> {
-            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
-                reconnectedFuture.complete(null);
-            }
-        });
-
-        return reconnectedFuture;
-    }
-
-    @FunctionalInterface
-    interface RequestMatcher {
-        boolean match(Request request) throws Exception;
-    }
-
-    private void spyZookeeperToDisconnectBeforePersist(ZooKeeper zooKeeper, RequestMatcher matcher) {
-        ZooKeeperServer zooKeeperServer = bkEnsemble.getZkServer();
-        ServerCnxn zkServerConnection = bkEnsemble.getZookeeperServerConnection(zooKeeper);
-        ZooKeeperServer spyZooKeeperServer = spy(zooKeeperServer);
-
-        // Spy zk server connection to close connection to cause connection loss after namespace-bundle
-        // deleted successfully. This mimics crash of connected zk server after committing requested operation.
-        Whitebox.setInternalState(zkServerConnection, "zkServer", spyZooKeeperServer);
-        doAnswer(invocation -> {
-            Request request = invocation.getArgument(0);
-            if (request.sessionId != zooKeeper.getSessionId()) {
-                return invocation.callRealMethod();
-            }
-            if (!matcher.match(request)) {
-                return invocation.callRealMethod();
-            }
-            Whitebox.setInternalState(zkServerConnection, "zkServer", zooKeeperServer);
-            bkEnsemble.disconnectZookeeper(zooKeeper);
-            return null;
-        }).when(spyZooKeeperServer).submitRequest(any(Request.class));
-    }
-
-    private void spyZookeeperToDisconnectAfterPersist(ZooKeeper zooKeeper, RequestMatcher matcher) {
-        ZooKeeperServer zooKeeperServer = bkEnsemble.getZkServer();
-        ServerCnxn zkServerConnection = bkEnsemble.getZookeeperServerConnection(zooKeeper);
-        ZooKeeperServer spyZooKeeperServer = spy(zooKeeperServer);
-
-        // Spy zk server connection to close connection to cause connection loss after namespace-bundle
-        // deleted successfully. This mimics crash of connected zk server after committing requested operation.
-        Whitebox.setInternalState(zkServerConnection, "zkServer", spyZooKeeperServer);
-        MutableBoolean disconnected = new MutableBoolean();
-        doAnswer(invocation -> {
-            Request request = invocation.getArgument(0);
-            if (request.sessionId != zooKeeper.getSessionId()) {
-                return invocation.callRealMethod();
-            }
-            if (!matcher.match(request)) {
-                return invocation.callRealMethod();
-            }
-
-            ServerCnxn spyZkServerConnection1 = spy(zkServerConnection);
-            doAnswer(responseInvocation -> {
-                synchronized (disconnected) {
-                    ReplyHeader replyHeader = responseInvocation.getArgument(0);
-                    if (replyHeader.getXid() == request.cxid && replyHeader.getErr() == 0) {
-                        Whitebox.setInternalState(zkServerConnection, "zkServer", zooKeeperServer);
-                        disconnected.setTrue();
-                        bkEnsemble.disconnectZookeeper(zooKeeper);
-                    } else if (disconnected.isFalse()) {
-                        return responseInvocation.callRealMethod();
-                    }
-                    return null;
-                }
-            }).when(spyZkServerConnection1).sendResponse(any(ReplyHeader.class), nullable(Record.class), any(String.class));
-            Whitebox.setInternalState(request, "cnxn", spyZkServerConnection1);
-            return invocation.callRealMethod();
-        }).when(spyZooKeeperServer).submitRequest(any(Request.class));
     }
 
     @Test
@@ -254,12 +168,11 @@ public class TopicOwnerTest {
         Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
 
         OwnershipCache ownershipCache1 = pulsar1.getNamespaceService().getOwnershipCache();
-        AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache1 = Whitebox.getInternalState(ownershipCache1, "ownedBundlesCache");
 
         leaderAuthorizedBroker.setValue(null);
 
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
-        ownedBundlesCache1.synchronous().invalidate(namespaceBundle);
+        ownershipCache1.invalidateLocalOwnerCache(namespaceBundle);
         Assert.assertNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // pulsar1 is still owner in zk.

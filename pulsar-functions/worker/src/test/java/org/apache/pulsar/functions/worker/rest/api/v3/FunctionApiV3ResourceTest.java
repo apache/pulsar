@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -29,9 +28,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,7 +41,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.ws.rs.core.Response;
@@ -57,6 +56,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
@@ -72,11 +72,14 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
-import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.io.Connector;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.LeaderService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -144,6 +147,16 @@ public class FunctionApiV3ResourceTest {
     private Packages mockedPackages;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
     private static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
+
+    private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
+            "pulsar-functions-api-examples.nar.path";
+
+    public static File getPulsarApiExamplesNar() {
+        return new File(Objects.requireNonNull(
+                System.getProperty(SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH)
+                , "pulsar-functions-api-examples.nar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH + " system property"));
+    }
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -298,7 +311,7 @@ public class FunctionApiV3ResourceTest {
     }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function package is not provided")
     public void testRegisterFunctionMissingPackage() {
         try {
             testRegisterFunctionMissingArguments(
@@ -326,7 +339,7 @@ public class FunctionApiV3ResourceTest {
                     tenant,
                     namespace,
                     function,
-                    null,
+                    mockedInputStream,
                     null,
                     mockedFormData,
                     outputTopic,
@@ -361,7 +374,9 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function package does not have"
+            + " the correct format. Pulsar cannot determine if the package is a NAR package or JAR package. Function "
+            + "classname is not provided and attempts to load it as a NAR package produced the following error.*")
     public void testRegisterFunctionMissingClassName() {
         try {
             testRegisterFunctionMissingArguments(
@@ -725,6 +740,123 @@ public class FunctionApiV3ResourceTest {
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
+        }
+    }
+
+    /*
+    Externally managed runtime,
+    uploadBuiltinSinksSources == false
+    Make sure uploadFileToBookkeeper is not called
+    */
+    @Test
+    public void testRegisterFunctionSuccessK8sNoUpload() throws Exception {
+        mockedWorkerService.getWorkerConfig().setUploadBuiltinSinksSources(false);
+
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class)))
+                    .thenThrow(new RuntimeException("uploadFileToBookkeeper triggered"));
+
+        });
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(FunctionConfig.class), any(Class.class))).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.convertRuntime(any(FunctionConfig.Runtime.class))).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
+
+        });
+
+        doReturn(Function.class).when(mockedClassLoader).loadClass(anyString());
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+
+        when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
+        functionConfig.setJar("builtin://exclamation");
+
+        try (FileInputStream inputStream = new FileInputStream(getPulsarApiExamplesNar())) {
+            resource.registerFunction(
+                    tenant,
+                    namespace,
+                    function,
+                    inputStream,
+                    mockedFormData,
+                    null,
+                    functionConfig,
+                    null, null);
+        }
+    }
+
+    /*
+    Externally managed runtime,
+    uploadBuiltinSinksSources == true
+    Make sure uploadFileToBookkeeper is called
+    */
+    @Test
+    public void testRegisterFunctionSuccessK8sWithUpload() throws Exception {
+        final String injectedErrMsg = "uploadFileToBookkeeper triggered";
+        mockedWorkerService.getWorkerConfig().setUploadBuiltinSinksSources(true);
+
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class)))
+                    .thenThrow(new RuntimeException(injectedErrMsg));
+
+        });
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(FunctionConfig.class), any(Class.class))).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.convertRuntime(any(FunctionConfig.Runtime.class))).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
+        });
+
+        doReturn(Function.class).when(mockedClassLoader).loadClass(anyString());
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+
+        when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
+        functionConfig.setJar("builtin://exclamation");
+
+        try (FileInputStream inputStream = new FileInputStream(getPulsarApiExamplesNar())) {
+            try {
+                resource.registerFunction(
+                        tenant,
+                        namespace,
+                        function,
+                        inputStream,
+                        mockedFormData,
+                        null,
+                        functionConfig,
+                        null, null);
+                Assert.fail();
+            } catch (RuntimeException e) {
+                Assert.assertEquals(e.getMessage(), injectedErrMsg);
+            }
         }
     }
 
@@ -1349,6 +1481,7 @@ public class FunctionApiV3ResourceTest {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setClassName(className)
                 .setSink(sinkSpec)
+                .setAutoAck(true)
                 .setName(function)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
@@ -1470,20 +1603,13 @@ public class FunctionApiV3ResourceTest {
         String jarHttpUrl =
                 "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        PulsarWorkerService worker = mock(PulsarWorkerService.class);
-        doReturn(true).when(worker).isInitialized();
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(worker.getWorkerConfig()).thenReturn(config);
-        FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl, null, null);
+
+        StreamingOutput streamOutput = resource.downloadFunction(jarHttpUrl, null, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
+        pkgFile.delete();
     }
 
     @Test
@@ -1492,53 +1618,32 @@ public class FunctionApiV3ResourceTest {
         File file = Paths.get(fileUrl.toURI()).toFile();
         String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        PulsarWorkerService worker = mock(PulsarWorkerService.class);
-        doReturn(true).when(worker).isInitialized();
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(worker.getWorkerConfig()).thenReturn(config);
-        FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction("file:///" + fileLocation, null, null);
+
+        StreamingOutput streamOutput = resource.downloadFunction("file:///" + fileLocation, null, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
     }
 
     @Test
-    public void testDownloadFunctionBuiltin() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-        });
-
+    public void testDownloadFunctionBuiltinConnector() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
 
-        PulsarWorkerService worker = mock(PulsarWorkerService.class);
-        doReturn(true).when(worker).isInitialized();
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
 
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(config.getUploadBuiltinSinksSources()).thenReturn(false);
-        when(config.getConnectorsDirectory()).thenReturn("/connectors");
+        Connector connector = Connector.builder().archivePath(file.toPath()).build();
+        ConnectorsManager connectorsManager = mock(ConnectorsManager.class);
+        when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
 
-        when(worker.getDlogNamespace()).thenReturn(mock(Namespace.class));
-        when(worker.getWorkerConfig()).thenReturn(config);
-        FunctionsImpl function = new FunctionsImpl(() -> worker);
-
-        TreeMap<String, FunctionArchive> functions = new TreeMap<>();
-        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
-        functions.put("cassandra", functionArchive);
-
-        mockStatic(FunctionUtils.class, ctx -> {
-            ctx.when(() -> FunctionUtils.searchForFunctions(anyString(), anyBoolean())).thenReturn(functions);
-
-        });
-
-        StreamingOutput streamOutput = function.downloadFunction("builtin://cassandra", null, null);
+        StreamingOutput streamOutput = resource.downloadFunction("builtin://cassandra", null, null);
 
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
@@ -1546,13 +1651,138 @@ public class FunctionApiV3ResourceTest {
         output.flush();
         output.close();
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            Assert.assertEquals(file.length(), pkgFile.length());
-            pkgFile.delete();
-        } else {
-            fail("expected file");
-        }
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
     }
+
+    @Test
+    public void testDownloadFunctionBuiltinFunction() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        FunctionsManager functionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
+        when(functionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction("builtin://exclamation", null, null);
+
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        output.flush();
+        output.close();
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
+    }
+
+    @Test
+    public void testDownloadFunctionBuiltinConnectorByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
+                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("builtin://cassandra"))
+                .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+                .setFunctionDetails(FunctionDetails.newBuilder().setComponentType(FunctionDetails.ComponentType.SINK))
+                .build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+
+        Connector connector = Connector.builder().archivePath(file.toPath()).build();
+        ConnectorsManager connectorsManager = mock(ConnectorsManager.class);
+        when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, false);
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
+    }
+
+    @Test
+    public void testDownloadFunctionBuiltinFunctionByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
+            .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("builtin://exclamation"))
+            .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+            .setFunctionDetails(FunctionDetails.newBuilder().setComponentType(FunctionDetails.ComponentType.FUNCTION))
+            .build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+
+        FunctionsManager functionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
+        when(functionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, false);
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
+    }
+
+    @Test
+    public void testDownloadTransformFunctionByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+
+        WorkerConfig workerConfig = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
+                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+                .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder()
+                        .setPackagePath("builtin://exclamation"))
+                .build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+
+        FunctionsManager functionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
+        when(functionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, true);
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
+    }
+
 
     @Test
     public void testRegisterFunctionFileUrlWithValidSinkClass() throws Exception {

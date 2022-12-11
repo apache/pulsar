@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,14 +23,14 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORD
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -40,8 +40,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -210,7 +210,7 @@ public class PulsarStandalone implements AutoCloseable {
         return help;
     }
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Parameter(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 
     @Parameter(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
@@ -222,6 +222,10 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "--metadata-dir" },
             description = "Directory for storing metadata")
     private String metadataDir = "data/metadata";
+
+    @Parameter(names = { "--metadata-url" },
+            description = "Metadata store url")
+    private String metadataStoreUrl = "";
 
     @Parameter(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
             hidden = true)
@@ -248,8 +252,7 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean noFunctionsWorker = false;
 
     @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
-    private String fnWorkerConfigFile =
-            Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+    private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
     @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
     private boolean noStreamStorage = false;
@@ -266,6 +269,11 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean usingNewDefaultsPIP117;
 
     public void start() throws Exception {
+        if (config == null) {
+            log.error("Failed to load configuration");
+            System.exit(1);
+        }
+
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
 
         // Allow forcing to use ZK mode via an env variable. eg:
@@ -281,16 +289,11 @@ public class PulsarStandalone implements AutoCloseable {
             usingNewDefaultsPIP117 = true;
         }
 
-        if (config == null) {
-            log.error("Failed to load configuration");
-            System.exit(1);
-        }
-
         log.debug("--- setup PulsarStandaloneStarter ---");
 
         if (!this.isOnlyBroker()) {
             if (usingNewDefaultsPIP117) {
-                startBookieWithRocksDB();
+                startBookieWithMetadataStore();
             } else {
                 startBookieWithZookeeper();
             }
@@ -302,8 +305,8 @@ public class PulsarStandalone implements AutoCloseable {
 
         // initialize the functions worker
         if (!this.isNoFunctionsWorker()) {
-            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
-                config, this.getFnWorkerConfigFile());
+            final String filepath = Path.of(getFnWorkerConfigFile()).toAbsolutePath().normalize().toString();
+            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, filepath);
             if (usingNewDefaultsPIP117) {
                 workerConfig.setStateStorageProviderImplementation(
                         PulsarMetadataStateStoreProviderImpl.class.getName());
@@ -390,9 +393,7 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         if (!nsr.namespaceExists(ns)) {
-            Policies nsp = new Policies();
-            nsp.replication_clusters = Collections.singleton(config.getClusterName());
-            nsr.createPolicies(ns, nsp);
+            broker.getAdminClient().namespaces().createNamespace(ns.toString());
         }
     }
 
@@ -434,15 +435,25 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
+    @VisibleForTesting
+    void startBookieWithMetadataStore() throws Exception {
+        if (StringUtils.isBlank(metadataStoreUrl)){
+            log.info("Starting BK with RocksDb metadata store");
+            metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+        } else {
+            log.info("Starting BK with metadata store: {}", metadataStoreUrl);
+        }
 
-    private void startBookieWithRocksDB() throws Exception {
-        log.info("Starting BK with RocksDb metadata store");
-        String metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+        ServerConfiguration bkServerConf = new ServerConfiguration();
+        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        calculateCacheSize(bkServerConf);
         bkCluster = BKCluster.builder()
+                .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)
                 .bkPort(bkPort)
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
+                .clearOldData(wipeData)
                 .build();
         config.setBookkeeperNumberOfChannelsPerBookie(1);
         config.setMetadataStoreUrl(metadataStoreUrl);
@@ -452,20 +463,34 @@ public class PulsarStandalone implements AutoCloseable {
         log.info("Starting BK & ZK cluster");
         ServerConfiguration bkServerConf = new ServerConfiguration();
         bkServerConf.loadConf(new File(configFile).toURI().toURL());
-
+        calculateCacheSize(bkServerConf);
         // Start LocalBookKeeper
         bkEnsemble = new LocalBookkeeperEnsemble(
                 this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
                 this.getBkDir(), this.isWipeData(), "127.0.0.1");
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
+    }
 
-        config.setZookeeperServers("127.0.0.1:" + zkPort);
+    private void calculateCacheSize(ServerConfiguration bkServerConf) {
+        String writeCacheMaxSizeMb = "dbStorage_writeCacheMaxSizeMb";
+        String readAheadCacheMaxSizeMb = "dbStorage_readAheadCacheMaxSizeMb";
+        Object writeCache = bkServerConf.getProperty(writeCacheMaxSizeMb);
+        Object readCache = bkServerConf.getProperty(readAheadCacheMaxSizeMb);
+        // we need to add one broker and one zk (if needed) to calculate the default cache
+        int instanceCount = usingNewDefaultsPIP117 ? (1 + numOfBk) : (2 + numOfBk);
+        long defaultCacheMB = PlatformDependent.maxDirectMemory() / (1024 * 1024) / instanceCount / 4;
+        if (writeCache == null || writeCache.equals("")) {
+            bkServerConf.setProperty(writeCacheMaxSizeMb, defaultCacheMB);
+        }
+        if (readCache == null || readCache.equals("")) {
+            bkServerConf.setProperty(readAheadCacheMaxSizeMb, defaultCacheMB);
+        }
     }
 
     private static void processTerminator(int exitCode) {
         log.info("Halting standalone process with code {}", exitCode);
-        LogManager.shutdown();
-        Runtime.getRuntime().halt(exitCode);
+        ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
     }
 
 

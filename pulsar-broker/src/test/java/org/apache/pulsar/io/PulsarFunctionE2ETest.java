@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.io;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesNar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -124,7 +125,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic2).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                jarFilePathUrl.startsWith(Utils.BUILTIN), "my.*", sinkTopic, subscriptionName);
+                jarFilePathUrl.startsWith(Utils.BUILTIN) || jarFilePathUrl.endsWith(".nar"), "my.*",
+                sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
@@ -196,9 +198,20 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         testE2EPulsarFunction(jarFilePathUrl);
     }
 
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionWithNarFile() throws Exception {
+        String jarFilePathUrl = getPulsarApiExamplesNar().toURI().toString();
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
     @Test(timeOut = 40000)
     public void testE2EPulsarFunctionWithUrl() throws Exception {
         testE2EPulsarFunction(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
+    }
+
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionWithNarUrl() throws Exception {
+        testE2EPulsarFunction(fileServer.getUrl("/pulsar-functions-api-examples.nar"));
     }
 
     @Test(timeOut = 20000, groups = "builtin")
@@ -371,7 +384,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_received_total_1min");
+        m = metrics.get("pulsar_function_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -385,7 +398,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_user_exceptions_total_1min");
+        m = metrics.get("pulsar_function_user_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -413,7 +426,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_system_exceptions_total_1min");
+        m = metrics.get("pulsar_function_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -434,7 +447,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_processed_successfully_total_1min");
+        m = metrics.get("pulsar_function_processed_successfully_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -531,7 +544,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_function_received_total_1min");
+        m = metrics.get("pulsar_function_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -545,7 +558,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_user_exceptions_total_1min");
+        m = metrics.get("pulsar_function_user_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -573,7 +586,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, 0.0);
-        m = metrics.get("pulsar_function_system_exceptions_total_1min");
+        m = metrics.get("pulsar_function_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -594,7 +607,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
         assertEquals(m.value, (double) totalMsgs);
-        m = metrics.get("pulsar_function_processed_successfully_total_1min");
+        m = metrics.get("pulsar_function_processed_successfully_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);

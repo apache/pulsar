@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,21 +33,12 @@ import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     protected ClientConfigurationData conf;
-    private int connectTimeout = PulsarAdminImpl.DEFAULT_CONNECT_TIMEOUT_SECONDS;
-    private int readTimeout = PulsarAdminImpl.DEFAULT_READ_TIMEOUT_SECONDS;
-    private int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
-    private int autoCertRefreshTime = PulsarAdminImpl.DEFAULT_CERT_REFRESH_SECONDS;
-    private TimeUnit connectTimeoutUnit = TimeUnit.SECONDS;
-    private TimeUnit readTimeoutUnit = TimeUnit.SECONDS;
-    private TimeUnit requestTimeoutUnit = TimeUnit.SECONDS;
-    private TimeUnit autoCertRefreshTimeUnit = TimeUnit.SECONDS;
+
     private ClassLoader clientBuilderClassLoader = null;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, connectTimeout, connectTimeoutUnit, readTimeout,
-                readTimeoutUnit, requestTimeout, requestTimeoutUnit, autoCertRefreshTime,
-                autoCertRefreshTimeUnit, clientBuilderClassLoader);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -96,6 +87,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder tlsKeyFilePath(String tlsKeyFilePath) {
+        conf.setTlsKeyFilePath(tlsKeyFilePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsCertificateFilePath(String tlsCertificateFilePath) {
+        conf.setTlsCertificateFilePath(tlsCertificateFilePath);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder tlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
         conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
         return this;
@@ -122,6 +125,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder sslProvider(String sslProvider) {
         conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStoreType(String tlsKeyStoreType) {
+        conf.setTlsKeyStoreType(tlsKeyStoreType);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStorePath(String tlsTrustStorePath) {
+        conf.setTlsKeyStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStorePassword(String tlsKeyStorePassword) {
+        conf.setTlsKeyStorePassword(tlsKeyStorePassword);
         return this;
     }
 
@@ -157,29 +178,25 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder connectionTimeout(int connectionTimeout, TimeUnit connectionTimeoutUnit) {
-        this.connectTimeout = connectionTimeout;
-        this.connectTimeoutUnit = connectionTimeoutUnit;
+        this.conf.setConnectionTimeoutMs((int) connectionTimeoutUnit.toMillis(connectionTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit) {
-        this.readTimeout = readTimeout;
-        this.readTimeoutUnit = readTimeoutUnit;
+        this.conf.setReadTimeoutMs((int) readTimeoutUnit.toMillis(readTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit) {
-        this.requestTimeout = requestTimeout;
-        this.requestTimeoutUnit = requestTimeoutUnit;
+        this.conf.setRequestTimeoutMs((int) requestTimeoutUnit.toMillis(requestTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder autoCertRefreshTime(int autoCertRefreshTime, TimeUnit autoCertRefreshTimeUnit) {
-        this.autoCertRefreshTime = autoCertRefreshTime;
-        this.autoCertRefreshTimeUnit = autoCertRefreshTimeUnit;
+        this.conf.setAutoCertRefreshSeconds((int) autoCertRefreshTimeUnit.toSeconds(autoCertRefreshTime));
         return this;
     }
 

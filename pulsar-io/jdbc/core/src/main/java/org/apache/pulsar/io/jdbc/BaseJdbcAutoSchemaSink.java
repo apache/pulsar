@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -44,37 +43,32 @@ import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
 public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObject> {
 
     @Override
-    public void bindValue(PreparedStatement statement,
-                          Record<GenericObject> message, String action) throws Exception {
-        final GenericObject record = message.getValue();
-        Function<String, Object> recordValueGetter;
-        if (message.getSchema() != null && message.getSchema() instanceof KeyValueSchema) {
-            KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) message.getSchema();
+    public String generateUpsertQueryStatement() {
+        throw new IllegalStateException("UPSERT not supported");
+    }
 
-            final org.apache.pulsar.client.api.Schema<GenericObject> keySchema = keyValueSchema.getKeySchema();
-            final org.apache.pulsar.client.api.Schema<GenericObject> valueSchema = keyValueSchema.getValueSchema();
-            KeyValue<GenericObject, GenericObject> keyValue =
-                    (KeyValue<GenericObject, GenericObject>) record.getNativeObject();
+    @Override
+    public List<ColumnId> getColumnsForUpsert() {
+        throw new IllegalStateException("UPSERT not supported");
+    }
 
-            final GenericObject key = keyValue.getKey();
-            final GenericObject value = keyValue.getValue();
-
-            Map<String, Object> data = new HashMap<>();
-            fillKeyValueSchemaData(keySchema, key, data);
-            fillKeyValueSchemaData(valueSchema, value, data);
-            recordValueGetter = (k) -> data.get(k);
-        } else {
-            recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
-        }
-
-        List<ColumnId> columns = Lists.newArrayList();
-        if (action == null || action.equals(INSERT)) {
-            columns = tableDefinition.getColumns();
-        } else if (action.equals(DELETE)){
-            columns.addAll(tableDefinition.getKeyColumns());
-        } else if (action.equals(UPDATE)){
-            columns.addAll(tableDefinition.getNonKeyColumns());
-            columns.addAll(tableDefinition.getKeyColumns());
+    @Override
+    public void bindValue(PreparedStatement statement, Mutation mutation) throws Exception {
+        final List<ColumnId> columns = new ArrayList<>();
+        switch (mutation.getType()) {
+            case INSERT:
+                columns.addAll(tableDefinition.getColumns());
+                break;
+            case UPSERT:
+                columns.addAll(getColumnsForUpsert());
+                break;
+            case UPDATE:
+                columns.addAll(tableDefinition.getNonKeyColumns());
+                columns.addAll(tableDefinition.getKeyColumns());
+                break;
+            case DELETE:
+                columns.addAll(tableDefinition.getKeyColumns());
+                break;
         }
 
         int index = 1;
@@ -82,10 +76,10 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             String colName = columnId.getName();
             int colType = columnId.getType();
             if (log.isDebugEnabled()) {
-                log.debug("colName: {} colType: {}", colName, colType);
+                log.debug("getting value for column: {} type: {}", colName, colType);
             }
             try {
-                Object obj = recordValueGetter.apply(colName);
+                Object obj = mutation.getValues().apply(colName);
                 if (obj != null) {
                     setColumnValue(statement, index++, obj);
                 } else {
@@ -103,6 +97,66 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                 setColumnNull(statement, index++, colType);
             }
         }
+    }
+
+    @Override
+    public Mutation createMutation(Record<GenericObject> message) {
+        final GenericObject record = message.getValue();
+        Function<String, Object> recordValueGetter;
+        MutationType mutationType = null;
+        if (message.getSchema() != null && message.getSchema() instanceof KeyValueSchema) {
+            KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) message.getSchema();
+
+            final org.apache.pulsar.client.api.Schema<GenericObject> keySchema = keyValueSchema.getKeySchema();
+            final org.apache.pulsar.client.api.Schema<GenericObject> valueSchema = keyValueSchema.getValueSchema();
+            KeyValue<GenericObject, GenericObject> keyValue =
+                    (KeyValue<GenericObject, GenericObject>) record.getNativeObject();
+
+            final GenericObject key = keyValue.getKey();
+            final GenericObject value = keyValue.getValue();
+
+            boolean isDelete = false;
+            if (value == null) {
+                switch (jdbcSinkConfig.getNullValueAction()) {
+                    case DELETE:
+                        isDelete = true;
+                        break;
+                    case FAIL:
+                        throw new IllegalArgumentException("Got record with value NULL with nullValueAction=FAIL");
+                    default:
+                        break;
+                }
+            }
+            Map<String, Object> data = new HashMap<>();
+            fillKeyValueSchemaData(keySchema, key, data);
+            if (isDelete) {
+                mutationType = MutationType.DELETE;
+            } else {
+                fillKeyValueSchemaData(valueSchema, value, data);
+            }
+            recordValueGetter = (k) -> data.get(k);
+        } else {
+            recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
+        }
+        String action = message.getProperties().get(ACTION_PROPERTY);
+        if (action != null) {
+            mutationType = MutationType.valueOf(action);
+        } else if (mutationType == null) {
+            switch (jdbcSinkConfig.getInsertMode()) {
+                case INSERT:
+                    mutationType = MutationType.INSERT;
+                    break;
+                case UPSERT:
+                    mutationType = MutationType.UPSERT;
+                    break;
+                case UPDATE:
+                    mutationType = MutationType.UPDATE;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown insert mode: " + jdbcSinkConfig.getInsertMode());
+            }
+        }
+        return new Mutation(mutationType, recordValueGetter);
     }
 
     private static void setColumnNull(PreparedStatement statement, int index, int type) throws Exception {
@@ -163,6 +217,9 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
     private static void fillKeyValueSchemaData(org.apache.pulsar.client.api.Schema<GenericObject> schema,
                                         GenericObject record,
                                         Map<String, Object> data) {
+        if (record == null) {
+            return;
+        }
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
                 final JsonNode jsonNode = (JsonNode) record.getNativeObject();
@@ -190,6 +247,9 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
 
     @VisibleForTesting
     static Object convertAvroField(Object avroValue, Schema schema) {
+        if (avroValue == null) {
+            return null;
+        }
         switch (schema.getType()) {
             case NULL:
             case INT:

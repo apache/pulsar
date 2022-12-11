@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,10 +31,10 @@ public class BytesSchema extends AbstractSchema<byte[]> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfoImpl()
-            .setName("Bytes")
-            .setType(SchemaType.BYTES)
-            .setSchema(new byte[0]);
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("Bytes")
+            .type(SchemaType.BYTES)
+            .schema(new byte[0]).build();
         INSTANCE = new BytesSchema();
     }
 

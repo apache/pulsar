@@ -45,7 +45,7 @@
 PULSAR_MEM=${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=4g"}
 
 # Garbage collection options
-PULSAR_GC=${PULSAR_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC"}
+PULSAR_GC=${PULSAR_GC:-"-XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"}
 
 if [ -z "$JAVA_HOME" ]; then
   JAVA_BIN=java
@@ -53,12 +53,16 @@ else
   JAVA_BIN="$JAVA_HOME/bin/java"
 fi
 for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
-    if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)\.(.*)\" ]]; then
+    if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)(.*)\" ]]; then
         if [[ ${BASH_REMATCH[1]} == "1" ]]; then
           JAVA_MAJOR_VERSION=${BASH_REMATCH[2]}
         else
           JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
         fi
+        break
+    elif [[ $token =~ \"([[:digit:]]+)(.*)\" ]]; then
+        # Process the java versions without dots, such as `17-internal`.
+        JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
         break
     fi
 done

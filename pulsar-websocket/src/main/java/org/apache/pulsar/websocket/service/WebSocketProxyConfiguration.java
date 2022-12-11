@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -244,6 +244,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
                     + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
     private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(
+            doc = "CryptoKeyReader factory classname to support encryption at websocket."
+    )
+    private String cryptoKeyReaderFactoryClassName;
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();

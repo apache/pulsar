@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals("sample/standalone/functions", wc.getPulsarFunctionsNamespace());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals(TEST_NAME + "-worker", wc.getWorkerId());
-        assertEquals(new Integer(1234), wc.getWorkerPort());
+        assertEquals(Integer.valueOf(1234), wc.getWorkerPort());
     }
 
     @Test
@@ -66,7 +66,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals("test-function-metadata-topic", wc.getFunctionMetadataTopicName());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals("test-worker", wc.getWorkerId());
-        assertEquals(new Integer(7654), wc.getWorkerPort());
+        assertEquals(Integer.valueOf(7654), wc.getWorkerPort());
         assertEquals(200, wc.getMaxPendingAsyncRequests());
     }
 

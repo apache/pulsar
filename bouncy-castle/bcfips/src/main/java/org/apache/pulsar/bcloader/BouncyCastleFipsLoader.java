@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.bcloader;
 
 import static org.apache.pulsar.common.util.SecurityUtility.BC_FIPS;
-
 import java.security.Provider;
 import java.security.Security;
 import lombok.extern.slf4j.Slf4j;

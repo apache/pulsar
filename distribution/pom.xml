@@ -44,6 +44,7 @@
         <module>io</module>
         <module>offloaders</module>
         <module>server</module>
+        <module>shell</module>
       </modules>
     </profile>
 

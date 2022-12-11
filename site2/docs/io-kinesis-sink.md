@@ -38,12 +38,10 @@ The following are built-in `AwsCredentialProviderPlugin` plugins:
   
   This plugin takes a configuration (via the `awsCredentialPluginParam`) that describes a role to assume when running the KCL.
 
-  This configuration takes the form of a small json document like:
+  This configuration takes the form of a small JSON document like:
 
   ```json
-  
   {"roleArn": "arn...", "roleSessionName": "name"}
-  
   ```
 
 ### Example
@@ -53,7 +51,6 @@ Before using the Kinesis sink connector, you need to create a configuration file
 * JSON
 
   ```json
-  
   {
      "configs": {
         "awsEndpoint": "some.endpoint.aws",
@@ -64,13 +61,11 @@ Before using the Kinesis sink connector, you need to create a configuration file
         "retainOrdering": "true"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       awsEndpoint: "some.endpoint.aws"
       awsRegion: "us-east-1"
@@ -78,6 +73,5 @@ Before using the Kinesis sink connector, you need to create a configuration file
       awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
       messageFormat: "ONLY_RAW_PAYLOAD"
       retainOrdering: "true"
-  
   ```
 

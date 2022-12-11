@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -85,15 +85,13 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             long startRange = cursor;
             long endRange = Math.min(cursor + bufferSize - 1,
                                      objectLen - 1);
-
+            if (log.isDebugEnabled()) {
+                log.info("refillBufferIfNeeded {} - {} ({} bytes to fill)",
+                        startRange, endRange, (endRange - startRange));
+            }
             try {
                 long startReadTime = System.nanoTime();
                 Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
-                if (this.offloaderStats != null) {
-                    this.offloaderStats.recordReadOffloadDataLatency(managedLedgerName,
-                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
-                    this.offloaderStats.recordReadOffloadBytes(managedLedgerName, endRange - startRange + 1);
-                }
                 versionCheck.check(key, blob);
 
                 try (InputStream stream = blob.getPayload().openStream()) {
@@ -106,6 +104,15 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                         bytesToCopy -= buffer.writeBytes(stream, bytesToCopy);
                     }
                     cursor += buffer.readableBytes();
+                }
+
+                // here we can get the metrics
+                // because JClouds streams the content
+                // and actually the HTTP call finishes when the stream is fully read
+                if (this.offloaderStats != null) {
+                    this.offloaderStats.recordReadOffloadDataLatency(managedLedgerName,
+                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    this.offloaderStats.recordReadOffloadBytes(managedLedgerName, endRange - startRange + 1);
                 }
             } catch (Throwable e) {
                 if (null != this.offloaderStats) {
@@ -145,6 +152,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             long newIndex = position - bufferOffsetStart;
             buffer.readerIndex((int) newIndex);
         } else {
+            bufferOffsetStart = bufferOffsetEnd = -1;
             this.cursor = position;
             buffer.clear();
         }
@@ -160,6 +168,13 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         }
     }
 
+    public long getCurrentPosition() {
+        if (bufferOffsetStart != -1) {
+            return bufferOffsetStart + buffer.readerIndex();
+        }
+        return cursor + buffer.readerIndex();
+    }
+
     @Override
     public void close() {
         buffer.release();
@@ -167,6 +182,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public int available() throws IOException {
-        return (int) (objectLen - cursor) + buffer.readableBytes();
+        long available = objectLen - cursor + buffer.readableBytes();
+        return available > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) available;
     }
 }

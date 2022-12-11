@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,13 @@ public interface ConsumerStats {
     /** Number of available message permits for the consumer. */
     int getAvailablePermits();
 
-    /** Number of unacknowledged messages for the consumer. */
+    /**
+     * Number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been
+     * sent to the consumer but not yet acknowledged. This field is only meaningful when using a
+     * {@link org.apache.pulsar.client.api.SubscriptionType} that tracks individual message acknowledgement, like
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Shared} or
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Key_Shared}.
+     */
     int getUnackedMessages();
 
     /** Number of average messages per entry for the consumer consumed. */
@@ -77,6 +83,7 @@ public interface ConsumerStats {
 
     long getLastAckedTimestamp();
     long getLastConsumedTimestamp();
+    long getLastConsumedFlowTimestamp();
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     List<String> getKeyHashRanges();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -105,9 +105,12 @@ public class TransactionMetaStoreHandler extends HandlerState
                 .create(),
             this);
         this.connectFuture = connectFuture;
-        this.connectionHandler.grabCnx();
+        this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
         this.timer = pulsarClient.timer();
-        internalPinnedExecutor = pulsarClient.getInternalExecutorService();
+    }
+
+    public void start() {
+        this.connectionHandler.grabCnx();
     }
 
     @Override

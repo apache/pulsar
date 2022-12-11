@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.common.base.Strings;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,9 @@ import org.apache.pulsar.common.util.CmdGenerateDocs;
 
 @Slf4j
 public class PulsarStandaloneStarter extends PulsarStandalone {
+
+    private static final String PULSAR_CONFIG_FILE = "pulsar.config.file";
+
     @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
 
@@ -41,9 +45,18 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         try {
             jcommander.addObject(this);
             jcommander.parse(args);
-            if (this.isHelp() || isBlank(this.getConfigFile())) {
+            if (this.isHelp()) {
                 jcommander.usage();
-                return;
+                System.exit(0);
+            }
+            if (Strings.isNullOrEmpty(this.getConfigFile())) {
+                String configFile = System.getProperty(PULSAR_CONFIG_FILE);
+                if (Strings.isNullOrEmpty(configFile)) {
+                    throw new IllegalArgumentException(
+                            "Config file not specified. Please use -c, --config-file or -Dpulsar.config.file to "
+                                    + "specify the config file.");
+                }
+                this.setConfigFile(configFile);
             }
             if (this.generateDocs) {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
@@ -60,7 +73,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         } catch (Exception e) {
             jcommander.usage();
             log.error(e.getMessage());
-            return;
+            System.exit(1);
         }
 
         try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
@@ -121,7 +134,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         return Arrays.asList(args).contains(arg);
     }
 
-    public static void main(String args[]) throws Exception {
+    public static void main(String[] args) throws Exception {
         // Start standalone
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         try {

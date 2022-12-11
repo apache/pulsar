@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,7 +37,6 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
@@ -68,7 +67,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
-        MetadataDrivers.registerClientDriver("metadata-store", PulsarMetadataClientDriver.class);
+        PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
         if (properties != null) {
@@ -80,14 +79,22 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
         try {
-            return BookKeeper.forConfig(bkConf)
-                    .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .eventLoopGroup(eventLoopGroup)
-                    .statsLogger(statsLogger)
-                    .build();
+            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }
+    }
+
+    @VisibleForTesting
+    BookKeeper.Builder getBookKeeperBuilder(ServiceConfiguration conf, EventLoopGroup eventLoopGroup,
+                                            StatsLogger statsLogger, ClientConfiguration bkConf) {
+        BookKeeper.Builder builder = BookKeeper.forConfig(bkConf)
+                .allocator(PulsarByteBufAllocator.DEFAULT)
+                .statsLogger(statsLogger);
+        if (!conf.isBookkeeperClientSeparatedIoThreadsEnabled()) {
+            builder.eventLoopGroup(eventLoopGroup);
+        }
+        return builder;
     }
 
     @VisibleForTesting
@@ -125,8 +132,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
-
         bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
+        bkConf.setLimitStatsLogging(conf.isBookkeeperClientLimitStatsLogging());
 
         if (!conf.isBookkeeperMetadataStoreSeparated()) {
             // If we're connecting to the same metadata service, with same config, then
@@ -150,6 +157,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
                 conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setNumIOThreads(conf.getBookkeeperClientNumIoThreads());
         PropertiesUtils.filterAndMapProperties(conf.getProperties(), "bookkeeper_")
                 .forEach((key, value) -> {
                     log.info("Applying BookKeeper client configuration setting {}={}", key, value);

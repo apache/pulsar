@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     private static final Logger log = LoggerFactory.getLogger(PulsarAuthorizationProvider.class);
 
     public ServiceConfiguration conf;
-    private PulsarResources pulsarResources;
+
+    protected PulsarResources pulsarResources;
 
 
     public PulsarAuthorizationProvider() {
@@ -552,6 +553,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case COMPACT:
                             case OFFLOAD:
                             case UNLOAD:
+                            case DELETE_METADATA:
+                            case UPDATE_METADATA:
                             case ADD_BUNDLE_RANGE:
                             case GET_BUNDLE_RANGE:
                             case DELETE_BUNDLE_RANGE:

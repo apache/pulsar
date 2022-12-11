@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,12 +23,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -87,6 +87,7 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -597,12 +598,7 @@ public abstract class PulsarWebResource {
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
-        try {
-            return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
-        } catch (Exception e) {
-            log.error("Failed to check whether namespace bundle is owned {}/{}", fqnn.toString(), bundleRange, e);
-            throw new RestException(e);
-        }
+        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
     }
 
     protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
@@ -618,6 +614,18 @@ public abstract class PulsarWebResource {
                     fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(NamespaceName fqnn,
+              BundlesData bundles, String bundleRange, boolean authoritative, boolean readOnly) {
+        NamespaceBundle nsBundle;
+        try {
+            nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
+        } catch (WebApplicationException wae) {
+            return CompletableFuture.failedFuture(wae);
+        }
+        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
+                .thenApply(__ -> nsBundle);
     }
 
     public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
@@ -678,6 +686,39 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException wae) {
             throw wae;
         }
+    }
+
+    public CompletableFuture<Void> validateBundleOwnershipAsync(NamespaceBundle bundle, boolean authoritative,
+                                                                boolean readOnly) {
+        NamespaceService nsService = pulsar().getNamespaceService();
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(authoritative)
+                .requestHttps(isRequestHttps())
+                .readOnly(readOnly)
+                .loadTopicsInBundle(false).build();
+        return nsService.getWebServiceUrlAsync(bundle, options)
+                .thenCompose(webUrl -> {
+                    if (webUrl == null || !webUrl.isPresent()) {
+                        log.warn("Unable to get web service url");
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Failed to find ownership for ServiceUnit:" + bundle.toString());
+                    }
+                    return nsService.isServiceUnitOwnedAsync(bundle)
+                            .thenAccept(owned -> {
+                                if (!owned) {
+                                    boolean newAuthoritative = this.isLeaderBroker();
+                                    // Replace the host and port of the current request and redirect
+                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
+                                                    newAuthoritative).build();
+
+                                    log.debug("{} is not a service unit owned", bundle);
+                                    // Redirect
+                                    log.debug("Redirecting the rest call to {}", redirect);
+                                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                                }
+                            });
+                });
     }
 
     /**
@@ -781,8 +822,9 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException e) {
             throw e;
         } catch (Exception e) {
-            if (e.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) e.getCause();
+            Throwable throwable = FutureUtil.unwrapCompletionException(e);
+            if (throwable instanceof WebApplicationException webApplicationException) {
+                throw webApplicationException;
             }
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
@@ -815,6 +857,11 @@ public abstract class PulsarWebResource {
 
     public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
                                                                                            NamespaceName namespace) {
+        return checkLocalOrGetPeerReplicationCluster(pulsarService, namespace, false);
+    }
+    public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
+                                                                                     NamespaceName namespace,
+                                                                                     boolean allowDeletedNamespace) {
         if (!namespace.isGlobal() || NamespaceService.isHeartbeatNamespace(namespace)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -826,10 +873,10 @@ public abstract class PulsarWebResource {
                 .getPoliciesAsync(namespace).thenAccept(policiesResult -> {
             if (policiesResult.isPresent()) {
                 Policies policies = policiesResult.get();
-                if (policies.deleted) {
+                if (!allowDeletedNamespace && policies.deleted) {
                     String msg = String.format("Namespace %s is deleted", namespace.toString());
                     log.warn(msg);
-                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                    validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND,
                             "Namespace is deleted"));
                 } else if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(
@@ -867,10 +914,11 @@ public abstract class PulsarWebResource {
                 validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Namespace not found"));
             }
         }).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
             String msg = String.format("Failed to validate global cluster configuration : cluster=%s ns=%s  emsg=%s",
-                    localCluster, namespace, ex.getMessage());
+                    localCluster, namespace, cause.getMessage());
             log.error(msg);
-            validationFuture.completeExceptionally(new RestException(ex));
+            validationFuture.completeExceptionally(new RestException(cause));
             return null;
         });
         return validationFuture;
@@ -1105,7 +1153,7 @@ public abstract class PulsarWebResource {
 
     protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
             Set<String> newClusters) {
-        List<CompletableFuture<Void>> activeNamespaceFuture = Lists.newArrayList();
+        List<CompletableFuture<Void>> activeNamespaceFuture = new ArrayList<>();
         for (String cluster : oldClusters) {
             if (Constants.GLOBAL_CLUSTER.equals(cluster) || newClusters.contains(cluster)) {
                 continue;
@@ -1237,6 +1285,10 @@ public abstract class PulsarWebResource {
             asyncResponse.resume(realCause);
         } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
             asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
+        } else if (realCause instanceof MetadataStoreException.NotFoundException) {
+            asyncResponse.resume(new RestException(Status.NOT_FOUND, realCause));
+        } else if (realCause instanceof MetadataStoreException.BadVersionException) {
+            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
         } else if (realCause instanceof PulsarAdminException) {
             asyncResponse.resume(new RestException(((PulsarAdminException) realCause)));
         } else {

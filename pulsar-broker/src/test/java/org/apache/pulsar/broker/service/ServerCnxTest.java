@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,18 +22,22 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
@@ -44,9 +48,11 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -91,17 +97,20 @@ import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -115,7 +124,9 @@ import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
@@ -201,10 +212,12 @@ public class ServerCnxTest {
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
         doReturn(brokerService).when(pulsar).getBrokerService();
+        doReturn(CompletableFuture.completedFuture(Collections.emptyMap())).when(brokerService).fetchTopicPropertiesAsync(anyObject());
+
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
         PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
-        namespaceResources = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
+        namespaceResources = spyWithClassAndConstructorArgs(NamespaceResources.class, store, 30);
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
@@ -213,9 +226,12 @@ public class ServerCnxTest {
         doReturn(namespaceService).when(pulsar).getNamespaceService();
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
         doReturn(true).when(namespaceService).isServiceUnitActive(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
+                NamespaceName.get("use", "ns-abc"));
 
         setupMLAsyncCallbackMocks();
 
@@ -234,12 +250,13 @@ public class ServerCnxTest {
         if (channel != null) {
             channel.close();
         }
-        pulsar.close();
         brokerService.close();
-        executor.shutdownNow();
-        if (eventLoopGroup != null) {
-            eventLoopGroup.shutdownGracefully().get();
-        }
+        pulsar.close();
+        GracefulExecutorServicesShutdown.initiate()
+                .timeout(Duration.ZERO)
+                .shutdown(executor)
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
         store.close();
     }
 
@@ -486,7 +503,8 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Force the case where the broker doesn't own any topic
-        doReturn(false).when(namespaceService).isServiceUnitActive(any(TopicName.class));
+        doReturn(CompletableFuture.completedFuture(false)).when(namespaceService)
+                .isServiceUnitActiveAsync(any(TopicName.class));
 
         // test PRODUCER failure case
         ByteBuf clientCommand = Commands.newProducer(nonOwnedTopicName, 1 /* producer id */, 1 /* request id */,
@@ -1407,17 +1425,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1443,17 +1461,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1484,16 +1502,16 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         // Namespace policy doesn't require encryption
         policies.encryption_required = false;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1521,17 +1539,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1565,17 +1583,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1605,7 +1623,7 @@ public class ServerCnxTest {
             channel.close().get();
         }
         serverCnx = new ServerCnx(pulsar);
-        serverCnx.authRole = "";
+        serverCnx.setAuthRole("");
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(
                 MaxMessageSize,
                 0,
@@ -1961,6 +1979,26 @@ public class ServerCnxTest {
     }
 
     @Test
+    public void testWatchTopicList() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        resetChannel();
+        setChannelConnected();
+        BaseCommand command = Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null);
+        ByteBuf serializedCommand = Commands.serializeWithSize(command);
+
+        channel.writeInbound(serializedCommand);
+        Object resp = getResponse();
+        System.out.println(resp);
+        CommandWatchTopicListSuccess response = (CommandWatchTopicListSuccess) resp;
+
+        assertEquals(response.getTopicsList(), matchingTopics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
+        assertEquals(response.getWatcherId(), 3);
+
+        channel.finish();
+    }
+
+    @Test
     public void testNeverDelayConsumerFutureWhenNotFail() throws Exception{
         // Mock ServerCnx.field: consumers
         ConcurrentLongHashMap.Builder mapBuilder = Mockito.mock(ConcurrentLongHashMap.Builder.class);
@@ -2100,5 +2138,192 @@ public class ServerCnxTest {
             assertTrue(channel.isOpen());
             channel.finish();
         }
+    }
+
+    @Test
+    public void testHandleAuthResponseWithoutClientVersion() {
+        ServerCnx cnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        CommandAuthResponse authResponse = mock(CommandAuthResponse.class);
+        org.apache.pulsar.common.api.proto.AuthData authData = mock(org.apache.pulsar.common.api.proto.AuthData.class);
+        when(authResponse.getResponse()).thenReturn(authData);
+        when(authResponse.hasResponse()).thenReturn(true);
+        when(authResponse.getResponse().hasAuthMethodName()).thenReturn(true);
+        when(authResponse.getResponse().hasAuthData()).thenReturn(true);
+        when(authResponse.hasClientVersion()).thenReturn(false);
+        try {
+            cnx.handleAuthResponse(authResponse);
+        } catch (Exception ignore) {
+        }
+        verify(authResponse, times(1)).hasClientVersion();
+        verify(authResponse, times(0)).getClientVersion();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleLookup() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleLookup(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandlePartitionMetadataRequest() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handlePartitionMetadataRequest(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleConsumerStats() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleConsumerStats(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleGetTopicsOfNamespace() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleGetTopicsOfNamespace(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleGetSchema() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleGetSchema(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleGetOrCreateSchema() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleGetOrCreateSchema(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleTcClientConnectRequest() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleTcClientConnectRequest(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleNewTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleNewTxn(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleAddPartitionToTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleAddPartitionToTxn(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleEndTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleEndTxn(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleEndTxnOnPartition() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleEndTxnOnPartition(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleEndTxnOnSubscription() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleEndTxnOnSubscription(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleAddSubscriptionToTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleAddSubscriptionToTxn(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleCommandWatchTopicList() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleCommandWatchTopicList(any());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void shouldFailHandleCommandWatchTopicListClose() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        serverCnx.handleCommandWatchTopicListClose(any());
+    }
+
+    @Test(timeOut = 30000)
+    public void handleConnectWithServiceNotReady() throws Exception {
+        resetChannel();
+        doReturn(false).when(pulsar).isRunning();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // test server response to CONNECT
+        ByteBuf clientCommand = Commands.newConnect("none", "", null);
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Start);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        CommandError error = (CommandError) response;
+        assertEquals(error.getError(), ServerError.ServiceNotReady);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void handlePartitionMetadataRequestWithServiceNotReady() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        doReturn(false).when(pulsar).isRunning();
+        assertTrue(channel.isActive());
+
+        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
+        channel.writeInbound(clientCommand);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);
+        assertEquals(((CommandPartitionedTopicMetadataResponse) response).getError(), ServerError.ServiceNotReady);
+        channel.finish();
     }
 }

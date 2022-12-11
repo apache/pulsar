@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,7 +39,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     /**
      * Insert an entry in the cache.
      *
-     * <p/>If the overall limit have been reached, this will triggered the eviction of other entries, possibly from
+     * <p/>If the overall limit have been reached, this will trigger the eviction of other entries, possibly from
      * other EntryCache instances
      *
      * @param entry
@@ -49,7 +49,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     boolean insert(EntryImpl entry);
 
     /**
-     * Remove from cache all the entries related to a ledger up to lastPosition included.
+     * Remove from cache all the entries related to a ledger up to lastPosition excluded.
      *
      * @param lastPosition
      *            the position of the last entry to be invalidated (non-inclusive)
@@ -91,14 +91,14 @@ public interface EntryCache extends Comparable<EntryCache> {
      *            the first entry to read (inclusive)
      * @param lastEntry
      *            the last entry to read (inclusive)
-     * @param isSlowestReader
-     *            whether the reader cursor is the most far behind in the stream
+     * @param shouldCacheEntry
+     *            whether the read entry should be cached
      * @param callback
      *            the callback object that will be notified when read is done
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
             ReadEntriesCallback callback, Object ctx);
 
     /**

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,9 +89,12 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                     schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
         }
         ClassLoader pojoClassLoader = null;
-        if (schemaDefinition.getPojo() != null) {
+        if (schemaDefinition.getClassLoader() != null) {
+            pojoClassLoader = schemaDefinition.getClassLoader();
+        } else if (schemaDefinition.getPojo() != null) {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
         }
+
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
 
@@ -115,6 +118,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.LocalTimestampMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.LocalTimestampMicrosConversion());
         if (jsr310ConversionEnabled) {
             // The conversion that is registered first is higher priority than the registered later.
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
@@ -125,8 +130,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
             } catch (ClassNotFoundException e) {
                 // Skip if have not provide joda-time dependency.
             }
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         }
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
     }
 

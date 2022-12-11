@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -32,18 +34,24 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class ClientCnxTest {
@@ -71,6 +79,113 @@ public class ClientCnxTest {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
         }
 
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testPendingLookupRequestSemaphore() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10_000);
+        conf.setKeepAliveIntervalSeconds(0);
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        cnx.channelActive(ctx);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                Thread.sleep(1_000);
+                CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
+                        cnx.newLookup(null, 123);
+                countDownLatch.countDown();
+                future.get();
+            } catch (Exception e) {
+                completableFuture.complete(e);
+            }
+        }).start();
+        countDownLatch.await();
+        cnx.channelInactive(ctx);
+        assertTrue(completableFuture.get().getCause() instanceof PulsarClientException.ConnectException);
+        // wait for subsequent calls over
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
+        });
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testPendingLookupRequestSemaphoreServiceNotReady() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10_000);
+        conf.setKeepAliveIntervalSeconds(0);
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        cnx.channelActive(ctx);
+        cnx.state = ClientCnx.State.Ready;
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                Thread.sleep(1_000);
+                CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
+                        cnx.newLookup(null, 123);
+                countDownLatch.countDown();
+                future.get();
+            } catch (Exception e) {
+                completableFuture.complete(e);
+            }
+        }).start();
+        countDownLatch.await();
+        CommandError commandError = new CommandError();
+        commandError.setRequestId(123L);
+        commandError.setError(ServerError.ServiceNotReady);
+        commandError.setMessage("Service not ready");
+        cnx.handleError(commandError);
+        assertTrue(completableFuture.get().getCause() instanceof PulsarClientException.LookupException);
+        // wait for subsequent calls over
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
+        });
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testPendingWaitingLookupRequestSemaphore() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10_000);
+        conf.setKeepAliveIntervalSeconds(0);
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        cnx.channelActive(ctx);
+        for (int i = 0; i < 5001; i++) {
+            cnx.newLookup(null, i);
+        }
+        cnx.channelInactive(ctx);
+        // wait for subsequent calls over
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
+        });
         eventLoop.shutdownGracefully();
     }
 
@@ -190,4 +305,107 @@ public class ClientCnxTest {
 
         eventLoop.shutdownGracefully();
     }
+
+    @Test
+    public void testNoWatchersWhenNoServerSupport() {
+        withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
+            cnx.handleConnected(new CommandConnected()
+                    .setServerVersion("Some old Server")
+                    .setProtocolVersion(1));
+
+            CompletableFuture<CommandWatchTopicListSuccess> result =
+                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
+                            ".*", null), 7);
+            assertTrue(result.isCompletedExceptionally());
+            assertFalse(cnx.getTopicListWatchers().containsKey(5));
+        });
+    }
+
+    @Test
+    public void testCreateWatcher() {
+        withConnection("testCreateWatcher", cnx -> {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("Some strange Server")
+                    .setProtocolVersion(1);
+            connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            cnx.handleConnected(connected);
+
+            CompletableFuture<CommandWatchTopicListSuccess> result =
+                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
+                            ".*", null), 7);
+            verify(cnx.ctx()).writeAndFlush(any(ByteBuf.class));
+            assertFalse(result.isDone());
+
+            CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess()
+                    .setRequestId(7)
+                    .setWatcherId(5).setTopicsHash("f00");
+            cnx.handleCommandWatchTopicListSuccess(success);
+            assertEquals(result.getNow(null), success);
+        });
+    }
+
+
+
+    @Test
+    public void testUpdateWatcher() {
+        withConnection("testUpdateWatcher", cnx -> {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("Some Strange Server")
+                    .setProtocolVersion(1);
+            connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            cnx.handleConnected(connected);
+
+            cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns", ".*", null), 7);
+
+            CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess()
+                    .setRequestId(7)
+                    .setWatcherId(5).setTopicsHash("f00");
+            cnx.handleCommandWatchTopicListSuccess(success);
+
+            TopicListWatcher watcher = mock(TopicListWatcher.class);
+            cnx.registerTopicListWatcher(5, watcher);
+
+            CommandWatchTopicUpdate update = new CommandWatchTopicUpdate()
+                    .setWatcherId(5)
+                    .setTopicsHash("ADD");
+            update.addNewTopic("persistent://tenant/ns/topic");
+            cnx.handleCommandWatchTopicUpdate(update);
+            verify(watcher).handleCommandWatchTopicUpdate(update);
+        });
+    }
+
+    private void withConnection(String testName, Consumer<ClientCnx> test) {
+        ThreadFactory threadFactory = new DefaultThreadFactory(testName);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
+        try {
+
+            ClientConfigurationData conf = new ClientConfigurationData();
+            ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+            Channel channel = mock(Channel.class);
+            when(ctx.channel()).thenReturn(channel);
+
+            ChannelFuture listenerFuture = mock(ChannelFuture.class);
+            when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+            when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+
+            Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
+            ctxField.setAccessible(true);
+            ctxField.set(cnx, ctx);
+
+            // set connection as SentConnectFrame
+            Field cnxField = ClientCnx.class.getDeclaredField("state");
+            cnxField.setAccessible(true);
+            cnxField.set(cnx, ClientCnx.State.SentConnectFrame);
+
+            test.accept(cnx);
+
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            fail("Error using reflection on ClientCnx", e);
+        } finally {
+            eventLoop.shutdownGracefully();
+        }
+    }
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,13 +22,15 @@ import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.AbstractSubscription;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -48,7 +50,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NonPersistentSubscription implements Subscription {
+public class NonPersistentSubscription extends AbstractSubscription implements Subscription {
     private final NonPersistentTopic topic;
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
@@ -66,8 +68,6 @@ public class NonPersistentSubscription implements Subscription {
     // Timestamp of when this subscription was last seen active
     private volatile long lastActive;
 
-    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
-    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
     private volatile Map<String, String> subscriptionProperties;
 
     // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
@@ -462,6 +462,11 @@ public class NonPersistentSubscription implements Subscription {
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
             });
+
+            subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();
+            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
+            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
+            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
         }
 
         subStats.type = getTypeString();
@@ -511,6 +516,14 @@ public class NonPersistentSubscription implements Subscription {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(
                 new Exception("Unsupported operation end txn for NonPersistentSubscription"));
+        return completableFuture;
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
+        CompletableFuture<AnalyzeBacklogResult> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(
+                new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));
         return completableFuture;
     }
 

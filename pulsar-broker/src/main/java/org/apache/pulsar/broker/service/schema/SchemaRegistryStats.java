@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,16 +59,16 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     }
 
     private SchemaRegistryStats(ScheduledExecutorService scheduler) {
-        this.deleteOpsFailedCounter = Counter.build("pulsar_schema_del_ops_failed_count", "-")
+        this.deleteOpsFailedCounter = Counter.build("pulsar_schema_del_ops_failed_total", "-")
                 .labelNames(NAMESPACE).create().register();
-        this.getOpsFailedCounter = Counter.build("pulsar_schema_get_ops_failed_count", "-")
+        this.getOpsFailedCounter = Counter.build("pulsar_schema_get_ops_failed_total", "-")
                 .labelNames(NAMESPACE).create().register();
-        this.putOpsFailedCounter = Counter.build("pulsar_schema_put_ops_failed_count", "-")
+        this.putOpsFailedCounter = Counter.build("pulsar_schema_put_ops_failed_total", "-")
                 .labelNames(NAMESPACE).create().register();
 
-        this.compatibleCounter = Counter.build("pulsar_schema_compatible_count", "-")
+        this.compatibleCounter = Counter.build("pulsar_schema_compatible_total", "-")
                 .labelNames(NAMESPACE).create().register();
-        this.incompatibleCounter = Counter.build("pulsar_schema_incompatible_count", "-")
+        this.incompatibleCounter = Counter.build("pulsar_schema_incompatible_total", "-")
                 .labelNames(NAMESPACE).create().register();
 
         this.deleteOpsLatency = this.buildSummary("pulsar_schema_del_ops_latency", "-");
