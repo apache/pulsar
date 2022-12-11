@@ -54,6 +54,13 @@ functionsWorkerEnablePackageManagement: false
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName:
 
+################################
+# Function Metrics
+################################
+
+# Whether the '/metrics' endpoint requires authentication. Defaults to true
+authenticateMetricsEndpoint: true
+
 #################################################################
 # Function metadata management (assignment, scheduling, and etc)
 #################################################################
