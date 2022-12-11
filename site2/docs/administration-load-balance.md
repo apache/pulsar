@@ -58,6 +58,13 @@ Since the load for the topics in a bundle might change over time and predicting 
 Pulsar supports the following two bundle split algorithms:
 * `range_equally_divide`: split the bundle into two parts with the same hash range size.
 * `topic_count_equally_divide`: split the bundle into two parts with the same number of topics.
+* `specified_positions_divide`: split the bundle into several parts by the specified positions.
+
+:::tip
+
+* The `specified_positions_divide` algorithms only support use by admin API and do not support set into `defaultNamespaceBundleSplitAlgorithm`.
+
+:::
 
 To enable bundle split, you need to configure the following settings in the `broker.conf` file, and set `defaultNamespaceBundleSplitAlgorithm` based on your needs.
 
