@@ -1178,10 +1178,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return null;
             });
 
-                closeClientFuture.thenAccept(__ -> {
+                closeClientFuture.thenAccept(delete -> {
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
-                    deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
+                    deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema ? deleteSchema() :
+                                    CompletableFuture.completedFuture(null))
                             .thenCompose(ignore -> {
                                 if (!EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                     return deleteTopicPolicies();
