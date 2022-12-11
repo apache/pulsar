@@ -343,45 +343,6 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setPermissionOnSubscriptionRequired(String namespace, boolean permissionOnSubscriptionRequired)
-            throws PulsarAdminException {
-        sync(() -> setPermissionOnSubscriptionRequiredAsync(namespace, permissionOnSubscriptionRequired));
-    }
-
-    @Override
-    public CompletableFuture<Void> setPermissionOnSubscriptionRequiredAsync(String namespace,
-                                                                            boolean permissionOnSubscriptionRequired) {
-        NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "permissionOnSubscriptionRequired");
-        return asyncPostRequest(path, Entity.entity(permissionOnSubscriptionRequired, MediaType.APPLICATION_JSON));
-    }
-
-    @Override
-    public boolean getPermissionOnSubscriptionRequired(String namespace) throws PulsarAdminException {
-        return sync(() -> getPermissionOnSubscriptionRequiredAsync(namespace));
-    }
-
-    @Override
-    public CompletableFuture<Boolean> getPermissionOnSubscriptionRequiredAsync(String namespace) {
-        NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "permissionOnSubscriptionRequired");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
-                    @Override
-                    public void completed(Boolean enabled) {
-                        future.complete(enabled);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
-    }
-
-    @Override
     public List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
         return sync(() -> getNamespaceReplicationClustersAsync(namespace));
     }

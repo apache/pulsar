@@ -30,14 +30,6 @@ public interface AuthPolicies {
     Map<String, Map<String, Set<AuthAction>>> getTopicAuthentication();
     Map<String, Set<String>> getSubscriptionAuthentication();
 
-    /**
-     * Whether an empty set of subscription authentication roles returned by {@link #getSubscriptionAuthentication()}
-     * requires explicit permission to consume from the target subscription.
-     * @return
-     */
-    boolean isSubscriptionAuthRequired();
-    void setSubscriptionAuthRequired(boolean subscriptionAuthRequired);
-
     static Builder builder() {
         return ReflectionUtils.newBuilder("org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl");
     }
@@ -47,6 +39,5 @@ public interface AuthPolicies {
         Builder namespaceAuthentication(Map<String, Set<AuthAction>> namespaceAuthentication);
         Builder topicAuthentication(Map<String, Map<String, Set<AuthAction>>> topicAuthentication);
         Builder subscriptionAuthentication(Map<String, Set<String>> subscriptionAuthentication);
-        Builder subscriptionAuthRequired(boolean subscriptionAuthRequired);
     }
 }
