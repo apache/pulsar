@@ -45,6 +45,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -85,6 +86,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected AbstractMetadataStore(String metadataStoreName) {
         this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(metadataStoreName));
+        ThreadPoolMonitor.register(10, TimeUnit.SECONDS, executor);
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()

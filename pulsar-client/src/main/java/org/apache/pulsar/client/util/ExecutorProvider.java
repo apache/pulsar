@@ -31,6 +31,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 
 @Slf4j
 public class ExecutorProvider {
@@ -69,6 +70,7 @@ public class ExecutorProvider {
             ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
                     poolName, Thread.currentThread().isDaemon());
             ExecutorService executor = createExecutor(threadFactory);
+            ThreadPoolMonitor.register(10, TimeUnit.SECONDS, executor);
             executors.add(Pair.of(executor, threadFactory));
         }
         isShutdown = false;

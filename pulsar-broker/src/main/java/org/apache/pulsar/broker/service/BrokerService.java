@@ -71,6 +71,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.core.Response;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -164,6 +165,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
@@ -311,9 +313,19 @@ public class BrokerService implements Closeable {
                 ConcurrentOpenHashMap.<TopicName,
                         PersistentOfflineTopicStats>newBuilder().build();
 
+        int nonPersistentTopicWorkerThreadNumber = pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic();
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
-                .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
+                .numThreads(nonPersistentTopicWorkerThreadNumber)
                 .name("broker-topic-workers").build();
+        if (pulsar.getConfiguration().isThreadMonitorEnabled()) {
+            long monitorIntervalSec = pulsar.getConfiguration().getThreadMonitorIntervalSec();
+            for (int i = 0; i < nonPersistentTopicWorkerThreadNumber; i++) {
+                ThreadPoolMonitor.register(monitorIntervalSec,
+                        TimeUnit.SECONDS,
+                        topicOrderedExecutor.chooseThread(i));
+            }
+        }
+
         final DefaultThreadFactory acceptorThreadFactory =
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-acceptor");
 
@@ -374,6 +386,25 @@ public class BrokerService implements Closeable {
                     "Disabling per broker unack-msg blocking due invalid"
                             + " unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
                     pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
+        }
+
+        if (pulsar.getConfiguration().isThreadMonitorEnabled()) {
+            long monitorIntervalSec = pulsar.getConfiguration().getThreadMonitorIntervalSec();
+            ThreadPoolMonitor.register(monitorIntervalSec,
+                    TimeUnit.SECONDS,
+                    statsUpdater,
+                    inactivityMonitor,
+                    messageExpiryMonitor,
+                    compactionMonitor,
+                    consumedLedgersMonitor,
+                    backlogQuotaChecker);
+
+            // workerGroup is already registered.
+
+            for(EventExecutor eventExecutor: acceptorGroup) {
+                ThreadPoolMonitor.register(monitorIntervalSec,
+                        TimeUnit.SECONDS, eventExecutor);
+            }
         }
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
@@ -553,11 +584,17 @@ public class BrokerService implements Closeable {
     }
 
     protected void startDeduplicationSnapshotMonitor() {
-        int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
-        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
+        ServiceConfiguration conf = pulsar.getConfiguration();
+        int interval = conf.getBrokerDeduplicationSnapshotFrequencyInSeconds();
+        if (interval > 0 && conf.isBrokerDeduplicationEnabled()) {
             this.deduplicationSnapshotMonitor =
                     Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));
+            if (conf.isThreadMonitorEnabled()) {
+                long monitorIntervalSec = conf.getThreadMonitorIntervalSec();
+                ThreadPoolMonitor.register(monitorIntervalSec,
+                        TimeUnit.SECONDS, deduplicationSnapshotMonitor);
+            }
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);

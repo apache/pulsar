@@ -61,6 +61,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -144,6 +145,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
@@ -332,6 +334,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
+        if (this.config.isThreadMonitorEnabled()) {
+            long monitorIntervalSec = this.config.getThreadMonitorIntervalSec();
+
+            ThreadPoolMonitor.register(monitorIntervalSec,
+                    TimeUnit.SECONDS,
+                    loadManagerExecutor,
+                    executor,
+                    cacheExecutor);
+
+            for (EventExecutor eventExecutor : ioEventLoopGroup) {
+                ThreadPoolMonitor.register(monitorIntervalSec,
+                        TimeUnit.SECONDS,
+                        eventExecutor);
+            }
+        }
+
         // the internal executor is not used in the broker client or replication clients since this executor is
         // used for consumers and the transaction support in the client.
         // since an instance is required, a single threaded shared instance is used for all broker client instances
@@ -738,10 +756,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
 
+            int orderedExecutorThreadNumber = config.getNumOrderedExecutorThreads();
             orderedExecutor = OrderedExecutor.newBuilder()
-                    .numThreads(config.getNumOrderedExecutorThreads())
+                    .numThreads(orderedExecutorThreadNumber)
                     .name("pulsar-ordered")
                     .build();
+
+            if (config.isThreadMonitorEnabled()) {
+                ThreadPoolMonitor.register(config.getThreadMonitorIntervalSec(),
+                        TimeUnit.SECONDS, orderedExecutor);
+            }
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);

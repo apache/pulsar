@@ -69,6 +69,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -258,6 +259,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         bundleSplitStrategy = new BundleSplitterTask();
 
         conf = pulsar.getConfiguration();
+
+        if (conf.isThreadMonitorEnabled()) {
+            long monitorIntervalSec = conf.getThreadMonitorIntervalSec();
+            ThreadPoolMonitor.register(monitorIntervalSec, TimeUnit.SECONDS, scheduler);
+        }
 
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
         defaultStats.msgThroughputIn = DEFAULT_MESSAGE_THROUGHPUT;
