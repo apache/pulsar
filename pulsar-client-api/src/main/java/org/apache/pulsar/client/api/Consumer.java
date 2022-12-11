@@ -77,6 +77,8 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      *
      * <p>This calls blocks until a message is available.
      *
+     * <p>When thread is Interrupted, return a null value and reset interrupted flag.
+     *
      * @return the received message
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
