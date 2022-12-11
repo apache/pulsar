@@ -784,42 +784,6 @@ public interface Namespaces {
     CompletableFuture<Void> revokePermissionOnSubscriptionAsync(String namespace, String subscription, String role);
 
     /**
-     * Get whether a role requires explicit permission to consume from a subscription that has no subscription
-     * permission defined in the namespace.
-     *
-     * @param namespace Pulsar namespace name
-     * @return
-     * @throws PulsarAdminException
-     */
-    boolean getPermissionOnSubscriptionRequired(String namespace) throws PulsarAdminException;
-
-    /**
-     * Get whether a role requires explicit permission to consume from a subscription that has no subscription
-     * permission defined in the namespace.
-     * @param namespace Pulsar namespace name
-     * @return
-     */
-    CompletableFuture<Boolean> getPermissionOnSubscriptionRequiredAsync(String namespace);
-
-    /**
-     * Set whether a role requires explicit permission to consume from a subscription that has no subscription
-     * permission defined in the namespace.
-     * @param namespace Pulsar namespace name
-     * @throws PulsarAdminException
-     */
-    void setPermissionOnSubscriptionRequired(String namespace, boolean permissionOnSubscriptionRequired)
-            throws PulsarAdminException;
-
-    /**
-     * Set whether a role requires explicit permission to consume from a subscription that has no subscription
-     * permission defined in the namespace.
-     * @param namespace Pulsar namespace name
-     * @return
-     */
-    CompletableFuture<Void> setPermissionOnSubscriptionRequiredAsync(String namespace,
-                                                                     boolean permissionOnSubscriptionRequired);
-
-    /**
      * Get the replication clusters for a namespace.
      * <p/>
      * Response example:

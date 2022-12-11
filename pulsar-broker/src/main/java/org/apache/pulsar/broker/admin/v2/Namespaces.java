@@ -365,36 +365,6 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
-    @POST
-    @Path("/{property}/{namespace}/permissionOnSubscriptionRequired")
-    @ApiOperation(hidden = true, value = "Allow a consumer's role to have implicit permission to consume from a"
-            + " subscription.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification"),
-            @ApiResponse(code = 501, message = "Authorization is not enabled")})
-    public void setPermissionOnSubscriptionRequired(
-            @Suspended final AsyncResponse asyncResponse,
-            @PathParam("property") String property,
-            @PathParam("namespace") String namespace,
-            boolean required) {
-        validateNamespaceName(property, namespace);
-        internalSetPermissionOnSubscriptionRequired(asyncResponse, required);
-    }
-
-    @GET
-    @Path("/{property}/{namespace}/permissionOnSubscriptionRequired")
-    @ApiOperation(value = "Get permission on subscription required for namespace.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Namespace is not empty")})
-    public void getPermissionOnSubscriptionRequired(@Suspended final AsyncResponse asyncResponse,
-                                                       @PathParam("property") String property,
-                                                       @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
-        getPermissionOnSubscriptionRequired(asyncResponse);
-    }
-
     @GET
     @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Get the replication clusters for a namespace.",

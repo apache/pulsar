@@ -2561,39 +2561,4 @@ public abstract class NamespacesBase extends AdminResource {
                     return null;
                 });
     }
-
-    protected void getPermissionOnSubscriptionRequired(AsyncResponse asyncResponse) {
-        validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName).thenApply(policies ->
-                        asyncResponse.resume(Response.ok(policies.auth_policies.isSubscriptionAuthRequired()).build())
-                )).exceptionally(ex -> {
-                    log.error("[{}] Failed to get PermissionOnSubscriptionRequired", clientAppId(), ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
-    }
-
-    protected void internalSetPermissionOnSubscriptionRequired(AsyncResponse asyncResponse,
-                                                               boolean permissionOnSubscriptionRequired) {
-        CompletableFuture<Void> isAuthorized;
-        if (permissionOnSubscriptionRequired) {
-            isAuthorized = validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
-        } else {
-            isAuthorized = validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION);
-        }
-        isAuthorized
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.auth_policies.setSubscriptionAuthRequired(permissionOnSubscriptionRequired);
-                    return policies;
-                })).thenAccept(__ -> {
-                    log.info("[{}] Updated PermissionOnSubscriptionRequired for namespace {} to {}", clientAppId(),
-                            namespaceName, permissionOnSubscriptionRequired);
-                    asyncResponse.resume(Response.ok().build());
-                }).exceptionally(ex -> {
-                    log.error("[{}] Failed to update PermissionOnSubscriptionRequired", clientAppId(), ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
-    }
 }
