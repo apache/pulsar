@@ -108,16 +108,21 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(policies -> {
                     if (!policies.isPresent()) {
+                        // TODO this case seems like it could bypass authorization checks.
                         if (log.isDebugEnabled()) {
                             log.debug("Policies node couldn't be found for topic : {}", topicName);
                         }
                     } else {
                         if (isNotBlank(subscription)) {
-                            // validate if role is authorized to access subscription. (skip validation if authorization
-                            // list is empty)
+                            // Reject request if role is unauthorized to access subscription.
+                            // If subscriptionAuthRequired is enabled, role must be in the set of roles.
+                            // Otherwise, set of roles must be null or empty, or role must be in set of roles.
                             Set<String> roles = policies.get().auth_policies
                                     .getSubscriptionAuthentication().get(subscription);
-                            if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                            boolean isUnauthorized = policies.get().auth_policies.isSubscriptionAuthRequired()
+                                    ? (roles == null || roles.isEmpty() || !roles.contains(role))
+                                    : (roles != null && !roles.isEmpty() && !roles.contains(role));
+                            if (isUnauthorized) {
                                 log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
                                 return CompletableFuture.completedFuture(false);
                             }
@@ -483,6 +488,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GET_TOPICS:
                             case GET_BUNDLE:
                                 return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
+                            // TODO these only require ability to consume on namespace; ignore namespace's subscription
+                            // permission.
                             case UNSUBSCRIBE:
                             case CLEAR_BACKLOG:
                                 return allowTheSpecifiedActionOpsAsync(
@@ -537,6 +544,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                 return canLookupAsync(topicName, role, authData);
                             case PRODUCE:
                                 return canProduceAsync(topicName, role, authData);
+                            // TODO consume from single subscription lets role view all subscriptions on a topic
                             case GET_SUBSCRIPTIONS:
                             case CONSUME:
                             case SUBSCRIBE:

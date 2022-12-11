@@ -419,6 +419,37 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/permissionOnSubscriptionRequired")
+    @ApiOperation(hidden = true, value = "Set whether a role requires explicit permission to consume from a "
+            + "subscription that has no subscription permission defined in the namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
+    public void setPermissionOnSubscriptionRequired(
+            @Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            boolean permissionOnSubscriptionRequired) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetPermissionOnSubscriptionRequired(asyncResponse, permissionOnSubscriptionRequired);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/permissionOnSubscriptionRequired")
+    @ApiOperation(value = "Get whether a role requires explicit permission to consume from a "
+            + "subscription that has no subscription permission defined in the namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Namespace is not empty")})
+    public void getPermissionOnSubscriptionRequired(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("property") String property,
+                                                    @PathParam("cluster") String cluster,
+                                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        getPermissionOnSubscriptionRequired(asyncResponse);
+    }
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/replication")
     @ApiOperation(hidden = true, value = "Get the replication clusters for a namespace.",

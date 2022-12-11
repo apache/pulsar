@@ -304,6 +304,42 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription =
+            "Get whether a namespace requires explicit permission to consume from a subscription when no permission is "
+                    + "defined.")
+    private class GetSubscriptionPermissionRequired extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getPermissionOnSubscriptionRequired(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set whether a role requires explicit permission to consume from a subscription "
+            + "that has no subscription permission defined in the namespace.")
+    private class SetSubscriptionPermissionRequired extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable message encryption required")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable message encryption required")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            getAdmin().namespaces().setPermissionOnSubscriptionRequired(namespace, enable);
+        }
+    }
+
     @Parameters(commandDescription = "Get the permissions on a namespace")
     private class Permissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2669,6 +2705,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("subscription-permission", new SubscriptionPermissions());
         jcommander.addCommand("grant-subscription-permission", new GrantSubscriptionPermissions());
         jcommander.addCommand("revoke-subscription-permission", new RevokeSubscriptionPermissions());
+
+        jcommander.addCommand("get-subscription-permission-required", new GetSubscriptionPermissionRequired());
+        jcommander.addCommand("set-subscription-permission-required", new SetSubscriptionPermissionRequired());
 
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());

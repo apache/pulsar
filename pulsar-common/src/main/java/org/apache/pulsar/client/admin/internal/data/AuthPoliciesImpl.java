@@ -42,6 +42,9 @@ public final class AuthPoliciesImpl implements AuthPolicies {
     @JsonProperty("subscription_auth_roles")
     private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();
 
+    @JsonProperty(value = "subscription_auth_required")
+    private boolean subscriptionAuthRequired;
+
     public static AuthPolicies.Builder builder() {
         return new AuthPoliciesImplBuilder();
     }
@@ -51,6 +54,7 @@ public final class AuthPoliciesImpl implements AuthPolicies {
         private Map<String, Set<AuthAction>> namespaceAuthentication = new TreeMap<>();
         private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();;
         private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();;
+        private boolean subscriptionAuthRequired = false;
 
         AuthPoliciesImplBuilder() {
         }
@@ -73,14 +77,21 @@ public final class AuthPoliciesImpl implements AuthPolicies {
             return this;
         }
 
+        public AuthPoliciesImplBuilder subscriptionAuthRequired(boolean explicitSubscriptionAuth) {
+            this.subscriptionAuthRequired = explicitSubscriptionAuth;
+            return this;
+        }
+
         public AuthPoliciesImpl build() {
-            return new AuthPoliciesImpl(namespaceAuthentication, topicAuthentication, subscriptionAuthentication);
+            return new AuthPoliciesImpl(namespaceAuthentication, topicAuthentication, subscriptionAuthentication,
+                    subscriptionAuthRequired);
         }
 
         public String toString() {
             return "AuthPoliciesImpl.AuthPoliciesImplBuilder(namespaceAuthentication=" + this.namespaceAuthentication
                     + ", topicAuthentication=" + this.topicAuthentication + ", subscriptionAuthentication="
-                    + this.subscriptionAuthentication + ")";
+                    + this.subscriptionAuthentication + ", subscriptionAuthRequired="
+                    + this.subscriptionAuthRequired + ")";
         }
     }
 }
