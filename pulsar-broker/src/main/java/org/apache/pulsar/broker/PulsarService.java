@@ -61,6 +61,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -144,6 +145,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
@@ -201,8 +203,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
 
-    private final ScheduledExecutorService executor;
-    private final ScheduledExecutorService cacheExecutor;
+    private final OrderedScheduler executor;
+    private final OrderedScheduler cacheExecutor;
 
     private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
@@ -316,12 +318,25 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
+        ThreadPoolMonitor.register(loadManagerExecutor);
         this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
-        this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
-                new ExecutorProvider.ExtendedThreadFactory("pulsar"));
-        this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
-                new ExecutorProvider.ExtendedThreadFactory("zk-cache-callback"));
+        int numExecutorThreadPoolSize = config.getNumExecutorThreadPoolSize();
+        this.executor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(numExecutorThreadPoolSize)
+                .name("pulsar").build();
+
+        for (int i = 0; i < numExecutorThreadPoolSize; i++) {
+            ThreadPoolMonitor.register(executor.chooseThread(i));
+        }
+
+        int numCacheExecutorThreadPoolSize = config.getNumCacheExecutorThreadPoolSize();
+        this.cacheExecutor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(numCacheExecutorThreadPoolSize)
+                .name("zk-cache-callback").build();
+        for (int i = 0; i < numCacheExecutorThreadPoolSize; i++) {
+            ThreadPoolMonitor.register(cacheExecutor.chooseThread(i));
+        }
 
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
@@ -332,6 +347,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
+
+        ThreadPoolMonitor.register(
+                loadManagerExecutor,
+                executor,
+                cacheExecutor);
+
+        for (EventExecutor eventExecutor : ioEventLoopGroup) {
+            ThreadPoolMonitor.register(eventExecutor);
+        }
+
+
         // the internal executor is not used in the broker client or replication clients since this executor is
         // used for consumers and the transaction support in the client.
         // since an instance is required, a single threaded shared instance is used for all broker client instances
@@ -738,10 +764,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
 
+            int orderedExecutorThreadNumber = config.getNumOrderedExecutorThreads();
             orderedExecutor = OrderedExecutor.newBuilder()
-                    .numThreads(config.getNumOrderedExecutorThreads())
+                    .numThreads(orderedExecutorThreadNumber)
                     .name("pulsar-ordered")
                     .build();
+
+            for (int i = 0; i < orderedExecutorThreadNumber; i++) {
+                ThreadPoolMonitor.register(orderedExecutor.chooseThread(i));
+            }
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);

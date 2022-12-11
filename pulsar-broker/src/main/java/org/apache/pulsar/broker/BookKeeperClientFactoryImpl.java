@@ -44,6 +44,7 @@ import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPol
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
@@ -79,7 +80,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
         try {
-            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            BookKeeper bookkeeper = getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+
+            int mainWorkerPoolNumber = bkConf.getNumWorkerThreads();
+
+            for (int i = 0; i < mainWorkerPoolNumber; i++) {
+                ThreadPoolMonitor.register(bookkeeper.getMainWorkerPool().chooseThread(i));
+            }
+
+            return bookkeeper;
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }
@@ -94,6 +103,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         if (!conf.isBookkeeperClientSeparatedIoThreadsEnabled()) {
             builder.eventLoopGroup(eventLoopGroup);
         }
+
         return builder;
     }
 

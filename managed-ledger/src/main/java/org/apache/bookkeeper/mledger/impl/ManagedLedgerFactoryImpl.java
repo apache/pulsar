@@ -85,6 +85,7 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Runnables;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -181,14 +182,24 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                      BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                      boolean isBookkeeperManaged,
                                      ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
+        int mlSchedulerThreadNumber = config.getNumManagedLedgerSchedulerThreads();
+
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(config.getNumManagedLedgerSchedulerThreads())
+                .numThreads(mlSchedulerThreadNumber)
                 .statsLogger(statsLogger)
                 .traceTaskExecution(config.isTraceTaskExecution())
                 .name("bookkeeper-ml-scheduler")
                 .build();
+
+        for (int i = 0; i < mlSchedulerThreadNumber; i++) {
+            ThreadPoolMonitor.register(scheduledExecutor.chooseThread(i));
+        }
+
         cacheEvictionExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
+
+        ThreadPoolMonitor.register(cacheEvictionExecutor);
+
         this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;

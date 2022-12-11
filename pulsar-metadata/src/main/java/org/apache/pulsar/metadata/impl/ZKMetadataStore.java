@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -161,6 +162,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         } else {
             super.receivedSessionEvent(event);
         }
+    }
+
+    public ExecutorService getExecutor() {
+        return this.executor;
     }
 
     @Override

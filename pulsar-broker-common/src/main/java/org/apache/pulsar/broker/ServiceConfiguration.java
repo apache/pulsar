@@ -2540,6 +2540,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int clusterMigrationCheckDurationSeconds = 0;
 
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "")
+    private boolean threadMonitorEnabled;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "")
+    private long threadMonitorIntervalSec;
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"

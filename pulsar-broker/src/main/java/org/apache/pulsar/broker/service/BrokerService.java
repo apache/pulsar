@@ -71,6 +71,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.core.Response;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -164,6 +165,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
@@ -311,9 +313,16 @@ public class BrokerService implements Closeable {
                 ConcurrentOpenHashMap.<TopicName,
                         PersistentOfflineTopicStats>newBuilder().build();
 
+        int nonPersistentTopicWorkerThreadNumber = pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic();
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
-                .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
+                .numThreads(nonPersistentTopicWorkerThreadNumber)
                 .name("broker-topic-workers").build();
+
+        for (int i = 0; i < nonPersistentTopicWorkerThreadNumber; i++) {
+            ThreadPoolMonitor.register(topicOrderedExecutor.chooseThread(i));
+        }
+
+
         final DefaultThreadFactory acceptorThreadFactory =
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-acceptor");
 
@@ -322,6 +331,21 @@ public class BrokerService implements Closeable {
         this.workerGroup = eventLoopGroup;
         this.statsUpdater = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-stats-updater"));
+
+
+        for (EventExecutor eventExecutor : this.workerGroup) {
+            ThreadPoolMonitor.register(eventExecutor);
+        }
+
+        for (EventExecutor eventExecutor : acceptorGroup) {
+            ThreadPoolMonitor.register(eventExecutor);
+        }
+
+        ThreadPoolMonitor.register(statsUpdater);
+
+
+
+
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
         if (!pulsar.getConfiguration().getEntryFilterNames().isEmpty()) {
@@ -375,6 +399,12 @@ public class BrokerService implements Closeable {
                             + " unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
                     pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
+
+        ThreadPoolMonitor.register(inactivityMonitor);
+        ThreadPoolMonitor.register(messageExpiryMonitor);
+        ThreadPoolMonitor.register(compactionMonitor);
+        ThreadPoolMonitor.register(consumedLedgersMonitor);
+        ThreadPoolMonitor.register(backlogQuotaChecker);
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
@@ -553,11 +583,15 @@ public class BrokerService implements Closeable {
     }
 
     protected void startDeduplicationSnapshotMonitor() {
-        int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
-        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
+        ServiceConfiguration conf = pulsar.getConfiguration();
+        int interval = conf.getBrokerDeduplicationSnapshotFrequencyInSeconds();
+        if (interval > 0 && conf.isBrokerDeduplicationEnabled()) {
             this.deduplicationSnapshotMonitor =
                     Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));
+
+            ThreadPoolMonitor.register(deduplicationSnapshotMonitor);
+
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);

@@ -33,12 +33,7 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
@@ -54,6 +49,8 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.common.util.ThreadMonitor;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.eclipse.jetty.server.HttpOutput;
 
 /**
@@ -205,6 +202,8 @@ public class PrometheusMetricsGenerator {
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
+            generateThreadMonitorMetrics(pulsar, stream);
+
             if (metricsProviders != null) {
                 for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
                     metricsProvider.generate(stream);
@@ -221,6 +220,55 @@ public class PrometheusMetricsGenerator {
             //if exception happens, release buffer
             if (exceptionHappens) {
                 buf.release();
+            }
+        }
+    }
+
+    private static void generateThreadMonitorMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
+        String clusterName = pulsar.getConfiguration().getClusterName();
+
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME).write(' ')
+                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
+                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME)
+                .write("{cluster=\"").write(clusterName).write('"').write("} ")
+                .write(ThreadPoolMonitor.isEnabled() ? "1" : "0").write(' ')
+                .write(System.currentTimeMillis()).write("\n");
+
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME).write(' ')
+                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
+                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
+                .write("{cluster=\"").write(clusterName).write('"').write("} ")
+                .write(String.valueOf(ThreadPoolMonitor.checkIntervalMs())).write(' ')
+                .write(System.currentTimeMillis()).write("\n");
+
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME).write(' ')
+                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
+                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
+                .write("{cluster=\"").write(clusterName).write('"').write("} ")
+                .write(String.valueOf(ThreadPoolMonitor.registeredThreadPool())).write(' ')
+                .write(System.currentTimeMillis()).write("\n");
+
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME).write(' ')
+                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
+                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
+                .write("{cluster=\"").write(clusterName).write('"').write("} ")
+                .write(String.valueOf(ThreadPoolMonitor.submittedThreadPool())).write(' ')
+                .write(System.currentTimeMillis()).write("\n");
+
+        Map<String, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+        if (!threadStat.isEmpty()) {
+            stream.write("# TYPE ").write(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME).write(' ')
+                    .write(getTypeStr(Collector.Type.GAUGE)).write('\n');
+
+            for (Map.Entry<String, Long> stat : threadStat.entrySet()) {
+                String threadName = stat.getKey();
+                long lastActiveMs = stat.getValue();
+
+                stream.write(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME)
+                        .write("{cluster=\"").write(clusterName).write('"').write(", ")
+                        .write("threadName=\"").write(threadName).write('"').write("} ")
+                        .write(String.valueOf(lastActiveMs)).write(' ')
+                        .write(System.currentTimeMillis()).write("\n");
             }
         }
     }
