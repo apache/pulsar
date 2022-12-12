@@ -288,13 +288,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscription.getPendingAckHandleInitFuture()
                         .thenAccept(unused -> {
                             subscriptions.put(subscriptionName, subscription);
-                            // subscription-cursor gets activated by default: deactivate as there is no active subscription right
-                            // now
+                            // subscription-cursor gets activated by default: deactivate as there is no active
+                            // subscription right now
                             subscriptions.get(subscriptionName).deactivateCursor();
                         })
                         .exceptionally(t -> {
-                            log.warn("PersistentSubscription [{}] pendingAckHandleImpl relay failed " +
-                                    "when initialize topic [{}].", subscriptionName, topic, t);
+                            log.warn("PersistentSubscription [{}] pendingAckHandleImpl relay failed "
+                                    + "when initialize topic [{}].", subscriptionName, topic, t);
                             subscription.retryClose();
                             return null;
                         });
@@ -861,11 +861,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                                 decrementUsageCount();
                                 return FutureUtil.failedFuture(
-                                        new BrokerServiceException("Connection was closed while the opening the cursor "));
+                                                new BrokerServiceException(
+                                                        "Connection was closed while the opening the cursor "));
                             } else {
                                 checkReplicatedSubscriptionControllerState();
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                                    log.debug("[{}][{}] Created new subscription for {}",
+                                            topic, subscriptionName, consumerId);
                                 }
                                 return CompletableFuture.completedFuture(consumer);
                             }
