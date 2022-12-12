@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -111,7 +112,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
-            CompletableFuture future = new CompletableFuture();
+            CompletableFuture<Void> future = new CompletableFuture();
             managedLedger.trimConsumedLedgersInBackground(future);
             future.join();
             return managedLedger.getLedgersInfo().size() == 1;
@@ -122,12 +123,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdWhenLedgerEmpty() throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)
-                .readCompacted(true)
-                .subscribe();
+        Consumer<String> consumer = createConsumer(topicName, subName);
         MessageIdImpl messageId = (MessageIdImpl) consumer.getLastMessageId();
         assertEquals(messageId.getLedgerId(), -1);
         assertEquals(messageId.getEntryId(), -1);
@@ -135,6 +131,27 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         admin.topics().delete(topicName, false);
+    }
+
+    private Producer<String> createProducer(boolean enabledBatch, String topicName) throws Exception {
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(enabledBatch);
+        if (enabledBatch){
+            producerBuilder.batchingMaxBytes(Integer.MAX_VALUE)
+                    .batchingMaxPublishDelay(3, TimeUnit.HOURS)
+                    .batchingMaxBytes(Integer.MAX_VALUE);
+        }
+        return producerBuilder.create();
+    }
+
+    private Consumer<String> createConsumer(String topicName, String subName) throws Exception {
+        return pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .receiverQueueSize(1)
+                .readCompacted(true)
+                .subscribe();
     }
 
     @Test
@@ -149,10 +166,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 .readCompacted(false)
                 .create();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
+        Producer<String> producer = createProducer(false, topicName);
 
         producer.newMessage().key("k0").value("v0").sendAsync().get();
         reader.readNext();
@@ -181,16 +195,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdBeforeCompaction(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)
-                .readCompacted(true)
-                .subscribe();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(enabledBatch)
-                .create();
+        Consumer<String> consumer = createConsumer(topicName, subName);
+        Producer<String> producer = createProducer(enabledBatch, topicName);
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
@@ -224,16 +230,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdAfterCompaction(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)
-                .readCompacted(true)
-                .subscribe();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(enabledBatch)
-                .create();
+        Consumer<String> consumer = createConsumer(topicName, subName);
+        Producer<String> producer = createProducer(enabledBatch, topicName);
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
@@ -269,27 +267,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdAfterCompactionEndWithNullMsg(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)
-                .readCompacted(true)
-                .subscribe();
-        Producer<String> producer;
-        if (enabledBatch){
-            producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(true)
-                    .batchingMaxMessages(Integer.MAX_VALUE)
-                    .batchingMaxBytes(Integer.MAX_VALUE)
-                    .batchingMaxPublishDelay(2, TimeUnit.DAYS)
-                    .create();
-        } else {
-            producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(false)
-                    .create();
-        }
+        Consumer<String> consumer = createConsumer(topicName, subName);
+        Producer<String> producer = createProducer(enabledBatch, topicName);
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
@@ -328,27 +307,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdAfterCompactionEndWithNullMsg2(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)
-                .readCompacted(true)
-                .subscribe();
-        Producer<String> producer;
-        if (enabledBatch){
-            producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(true)
-                    .batchingMaxMessages(Integer.MAX_VALUE)
-                    .batchingMaxBytes(Integer.MAX_VALUE)
-                    .batchingMaxPublishDelay(2, TimeUnit.DAYS)
-                    .create();
-        } else {
-            producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(false)
-                    .create();
-        }
+        Consumer<String> consumer = createConsumer(topicName, subName);
+        Producer<String> producer = createProducer(enabledBatch, topicName);
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
@@ -386,27 +346,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdAfterCompactionAllNullMsg(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)
-                .readCompacted(true)
-                .subscribe();
-        Producer<String> producer;
-        if (enabledBatch){
-            producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(true)
-                    .batchingMaxMessages(Integer.MAX_VALUE)
-                    .batchingMaxBytes(Integer.MAX_VALUE)
-                    .batchingMaxPublishDelay(2, TimeUnit.DAYS)
-                    .create();
-        } else {
-            producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .enableBatching(false)
-                    .create();
-        }
+        Consumer<String> consumer = createConsumer(topicName, subName);
+        Producer<String> producer = createProducer(enabledBatch, topicName);
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
