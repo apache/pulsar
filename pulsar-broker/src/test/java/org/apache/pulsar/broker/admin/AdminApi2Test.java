@@ -1422,6 +1422,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testDeleteNamespace(NamespaceAttr namespaceAttr) throws Exception {
         // Set conf.
         internalCleanup();
+        conf.setTopicLevelPoliciesEnabled(true);
         NamespaceAttr originalNamespaceAttr = markOriginalNamespaceAttr();
         setNamespaceAttr(namespaceAttr);
         setup();
@@ -1440,12 +1441,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList(namespace));
 
         // create topic
-        String topic = namespace + "/test-topic";
+        String topic = "persistent://" + namespace + "/test-topic";
         admin.topics().createPartitionedTopic(topic, 10);
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         // Wait for change event topic and compaction create finish.
-        awaitChangeEventTopicAndCompactionCreateFinish(namespace, String.format("persistent://%s", topic));
+        awaitChangeEventTopicAndCompactionCreateFinish(namespace, topic);
 
         try {
             admin.namespaces().deleteNamespace(namespace, false);
@@ -1456,7 +1457,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // delete topic
         admin.topics().deletePartitionedTopic(topic);
-        assertTrue(admin.topics().getList(namespace).isEmpty());
 
         // delete namespace
         admin.namespaces().deleteNamespace(namespace, false);
