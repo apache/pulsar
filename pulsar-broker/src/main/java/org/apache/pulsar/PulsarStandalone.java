@@ -396,7 +396,7 @@ public class PulsarStandalone implements AutoCloseable {
             try {
                 broker.getAdminClient().namespaces().createNamespace(ns.toString());
             } catch (Exception e) {
-                log.warn(e.getMessage());
+                log.warn("Failed to create the default namespace {}: {}", ns, e.getMessage());
             }
         }
     }
