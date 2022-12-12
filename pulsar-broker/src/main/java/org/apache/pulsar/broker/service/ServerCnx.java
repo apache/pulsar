@@ -1113,8 +1113,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
                                     .build();
-                            if (schema != null && schema.getType() != SchemaType.AUTO_PUBLISH
-                                    && schema.getType() != SchemaType.AUTO_CONSUME) {
+                            if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema, subscriptionName)
                                         .thenCompose(v -> topic.subscribe(option, schema.getType()));
                             } else {
