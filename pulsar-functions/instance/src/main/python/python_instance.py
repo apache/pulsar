@@ -46,9 +46,6 @@ from functools import partial
 from collections import namedtuple
 from function_stats import Stats
 
-from watchdog.observers import Observer
-from watchdog.events import PatternMatchingEventHandler
-
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
 InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_details max_buffered_tuples')
@@ -84,8 +81,7 @@ class PythonInstance(object):
                secrets_provider,
                cluster_name,
                state_storage_serviceurl,
-               config_file,
-               enable_live_update):
+               config_file):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     # set queue size to one since consumers already have internal queues. Just use queue to communicate message from
@@ -120,8 +116,6 @@ class PythonInstance(object):
                            "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name)]
     self.stats = Stats(self.metrics_labels)
     self.config_file = config_file
-    self.enable_live_update = enable_live_update
-    self.config_file_observer_thread = None
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -223,11 +217,6 @@ class PythonInstance(object):
     # Now launch a thread that does execution
     self.execution_thread = threading.Thread(target=self.actual_execution)
     self.execution_thread.start()
-
-    # Launch a thread to observe the configuration file if required
-    if self.enable_live_update:
-      self.config_file_observer_thread = threading.Thread(target=self.setup_config_observer)
-      self.config_file_observer_thread.start()
 
     # start proccess spawner health check timer
     self.last_health_check_ts = time.time()
@@ -454,32 +443,9 @@ class PythonInstance(object):
     status.lastInvocationTime = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
     return status
 
-  def config_observer_on_modified(self, event):
-    # TODO: This function is used for runtime parameters handling logic
-    #  when listening to changes in the configuration file (self.config_file)
-    Log.debug("Configuration file %s modified detected", self.config_file)
-
-  def setup_config_observer(self):
-    Log.debug("Started Thread for observing the configuration file")
-    event_handler = PatternMatchingEventHandler(patterns="*", ignore_patterns="", ignore_directories=False,
-                                                case_sensitive=True)
-    event_handler.on_modified = self.config_observer_on_modified
-    observer = Observer()
-    observer.schedule(event_handler, self.config_file, recursive=True)
-    observer.start()
-    try:
-      while True:
-        pass
-    except Exception as e:
-      Log.error("Uncaught exception in Python instance (config observer): %s", e)
-      observer.stop()
-      observer.join()
-
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)
     self.execution_thread.join()
-    if self.config_file_observer_thread:
-      self.config_file_observer_thread.join()
     self.close()
 
   def close(self):

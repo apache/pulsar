@@ -97,8 +97,6 @@ def merge_arguments(args, config_file):
     args.extra_dependency_repository = default_config.get("extra_dependency_repository")
   if not args.state_storage_serviceurl and default_config.get("state_storage_serviceurl", None):
     args.state_storage_serviceurl = default_config.get("state_storage_serviceurl")
-  if not args.enable_live_update and default_config.get("enable_live_update", None):
-    args.enable_live_update = default_config.get("enable_live_update")
 
 def main():
   # Setup signal handlers
@@ -135,7 +133,6 @@ def main():
   parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
   parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
   parser.add_argument('--config_file', required=False, default="", help='Configuration file name', type=str)
-  parser.add_argument('--enable_live_update', required=False, default=False, help='Configuration file name', type=bool)
 
   args = parser.parse_args()
   merge_arguments(args, args.config_file)
@@ -266,8 +263,7 @@ def main():
                                               secrets_provider,
                                               args.cluster_name,
                                               state_storage_serviceurl,
-                                              args.config_file,
-                                              args.enable_live_update)
+                                              args.config_file)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 
