@@ -1408,12 +1408,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .enableBatching(false).create();
         producer.newMessage(abortTransaction).value("aborted".getBytes(StandardCharsets.UTF_8)).send();
         abortTransaction.abort().get();
+        assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
 
         TransactionImpl transaction = (TransactionImpl) client.newTransaction()
                 .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
 
         producer.newMessage(transaction).value("1".getBytes(StandardCharsets.UTF_8)).send();
-        Assert.assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
+        assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
         transaction.commit();
 
         Awaitility.await().untilAsserted(() -> {

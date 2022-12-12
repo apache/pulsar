@@ -24,8 +24,10 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.protocol.Markers;
@@ -86,6 +88,16 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     entry.release();
                     msg.recycle();
                     continue;
+                }
+                if (msg.getMessageBuilder().hasTxnidLeastBits() && msg.getMessageBuilder().hasTxnidMostBits()) {
+                    TxnID tx = new TxnID(msg.getMessageBuilder().getTxnidMostBits(),
+                            msg.getMessageBuilder().getTxnidLeastBits());
+                    if (topic.isTxnAborted(tx, (PositionImpl) entry.getPosition())) {
+                        cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                        entry.release();
+                        msg.recycle();
+                        continue;
+                    }
                 }
 
                 if (isEnableReplicatedSubscriptions) {
