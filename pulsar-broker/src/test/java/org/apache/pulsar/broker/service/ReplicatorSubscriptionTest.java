@@ -181,7 +181,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .getTopic(topicName, false).get().get();
         ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
         // no snapshot should have been created before any messages are published
-        assertTrue(rsc1.getLastCompletedSnapshotId().isEmpty());
+        assertFalse(rsc1.getLastCompletedSnapshotId().isPresent());
 
         @Cleanup
         PulsarClient client2 = PulsarClient.builder()
