@@ -48,7 +48,6 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -175,11 +174,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void recoverExceptionally(Throwable e) {
-                        if (e instanceof TransactionBufferException.TBRecoverCantCompletedException){
-                            changeToNoneState();
-                            recover();
-                            return;
-                        }
+
                         log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
                                 + "transaction buffer throw exception", topic.getName(), e);
                         // when create reader or writer fail throw PulsarClientException,
