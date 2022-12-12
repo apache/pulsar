@@ -164,7 +164,7 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> sendTimeout(int sendTimeout, TimeUnit unit);
 
     /**
-     * Set the max size of the messages pending queue to receive an acknowledgment from the broker.
+     * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
      *
      * <p>When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync}
      * will fail unless {@code blockIfQueueFull=true}. Use {@link #blockIfQueueFull(boolean)}
@@ -177,7 +177,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>Default is 0, which disables the pending messages check.
      *
      * @param maxPendingMessages
-     *            the max size of the messages pending queue for the producer
+     *            the max size of the pending messages queue for the producer
      * @return the producer builder instance
      */
     ProducerBuilder<T> maxPendingMessages(int maxPendingMessages);
@@ -281,7 +281,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <li>{@link CompressionType#NONE}: No compression (default)</li>
      * <li>{@link CompressionType#LZ4}: Compress with LZ4 algorithm. Faster but lower compression than ZLib.</li>
      * <li>{@link CompressionType#ZLIB}: Standard ZLib compression.</li>
-     * <li>{@link CompressionType#ZSTD} Compress with Zstandard codec. Since Pulsar 2.3, Zstandard can only be used
+     * <li>{@link CompressionType#ZSTD} Compress with Zstd codec. Since Pulsar 2.3, Zstd can only be used
      * if consumer applications are also in version >= 2.3.</li>
      * <li>{@link CompressionType#SNAPPY} Compress with Snappy codec. Since Pulsar 2.4, Snappy can only be used if
      * consumer applications are also in version >= 2.4.</li>
