@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 @Slf4j
@@ -77,6 +78,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
+                    continue;
+                }
+
+                if (Markers.isTxnMarker(msg.getMessageBuilder())) {
+                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    entry.release();
+                    msg.recycle();
                     continue;
                 }
 
@@ -162,6 +170,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
+                    msg.getMessageBuilder().clearTxnidMostBits();
+                    msg.getMessageBuilder().clearTxnidMostBits();
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }
