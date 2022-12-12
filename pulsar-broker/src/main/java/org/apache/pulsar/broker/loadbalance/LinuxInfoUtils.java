@@ -164,6 +164,21 @@ public class LinuxInfoUtils {
     }
 
     /**
+     * Determine whether nic is up.
+     * @param nicPath Nic path
+     * @return whether nic is up.
+     */
+    private static boolean isUp(Path nicPath) {
+        try {
+            String operateState = readTrimStringFromFile(nicPath.resolve("operstate"));
+            return operateState.equals("up");
+        } catch (Exception e) {
+            log.warn("[LinuxInfo] Failed to read {} NIC operstate, the detail is: {}", nicPath, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Get all physical nic limit.
      * @param nics All nic path
      * @param bitRateUnit Bit rate unit
@@ -199,12 +214,13 @@ public class LinuxInfoUtils {
     }
 
     /**
-     * Get all physical nic path.
-     * @return All physical nic path
+     * Get all path of physical nic whose state are up.
+     * @return All physical nic path whose state are up
      */
     public static List<String> getPhysicalNICs() {
         try (Stream<Path> stream = Files.list(Paths.get(NIC_PATH))) {
             return stream.filter(LinuxInfoUtils::isPhysicalNic)
+                    .filter(LinuxInfoUtils::isUp)
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
         } catch (IOException e) {
