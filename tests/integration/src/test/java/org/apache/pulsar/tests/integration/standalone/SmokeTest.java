@@ -39,7 +39,7 @@ public class SmokeTest extends PulsarStandaloneTestSuite {
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(getHttpServiceUrl()).build();
 
-        String topic = "test-get-bundle-range-topic";
+        String topic = "test-get-topic-bundle-range";
         admin.topics().createNonPartitionedTopic(topic);
         assertEquals(admin.lookups().getBundleRange(topic), "0xc0000000_0xffffffff");
     }
