@@ -1779,7 +1779,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testForceDeleteNamespaceWithAutomaticTopicCreation() throws Exception {
         conf.setForceDeleteNamespaceAllowed(true);
         final String namespaceName = "prop-xyz2/ns1";
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace(namespaceName, 1);
         admin.namespaces().setAutoTopicCreation(namespaceName,
