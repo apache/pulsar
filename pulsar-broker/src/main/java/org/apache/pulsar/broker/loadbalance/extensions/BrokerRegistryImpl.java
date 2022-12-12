@@ -27,10 +27,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -65,27 +66,27 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     private final String lookupServiceAddress;
 
     @VisibleForTesting
-    protected final Map<String, BrokerLookupData> brokerLookupDataMap;
+    protected final Map<String, BrokerLookupData> brokerLookupDataCache;
 
     private final ScheduledExecutorService scheduler;
 
     private final List<BiConsumer<String, NotificationType>> listeners;
 
-    private final AtomicBoolean registered;
-
     private volatile ResourceLock<BrokerLookupData> brokerLookupDataLock;
+
+    private volatile boolean registered = false;
+
+    private volatile CompletableFuture<Void> cacheReloadFuture;
 
     public BrokerRegistryImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
         this.brokerLookupDataLockManager = pulsar.getCoordinationService().getLockManager(BrokerLookupData.class);
         this.scheduler = pulsar.getLoadManagerExecutor();
-        this.brokerLookupDataMap = new ConcurrentHashMap<>();
+        this.brokerLookupDataCache = new ConcurrentHashMap<>();
         this.listeners = new ArrayList<>();
-
-        this.registered = new AtomicBoolean(false);
-        this.lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                + conf.getWebServicePort().orElseGet(() -> conf.getWebServicePortTls().get());
+        this.cacheReloadFuture = CompletableFuture.completedFuture(null);
+        this.lookupServiceAddress = pulsar.getLookupServiceAddress();
         this.brokerZNodePath = LOOKUP_DATA_PATH + "/" + lookupServiceAddress;
         this.brokerLookupData = new BrokerLookupData(
                 pulsar.getSafeWebServiceAddress(),
@@ -100,24 +101,38 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     }
 
     @Override
-    public void start() {
+    public void start() throws PulsarServerException {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
-    }
-
-    @Override
-    public void register() {
-        if (registered.compareAndSet(false, true)) {
-            this.brokerLookupDataLock =
-                    brokerLookupDataLockManager.acquireLock(brokerZNodePath, brokerLookupData).join();
+        try {
+            this.register();
+            // Update all lookup data to cache
+            this.reloadAllBrokerLookupCacheAsync()
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (MetadataStoreException | ExecutionException | InterruptedException | TimeoutException e) {
+            throw new PulsarServerException(e);
         }
     }
 
     @Override
-    public void unregister() throws MetadataStoreException {
-        if (registered.compareAndSet(true, false)) {
+    public synchronized void register() throws MetadataStoreException {
+        if (!registered) {
             try {
-                brokerLookupDataLock.release().join();
-            } catch (CompletionException e) {
+                this.brokerLookupDataLock = brokerLookupDataLockManager.acquireLock(brokerZNodePath, brokerLookupData)
+                        .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                registered = true;
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                throw MetadataStoreException.unwrap(e);
+            }
+        }
+    }
+
+    @Override
+    public synchronized void unregister() throws MetadataStoreException {
+        if (registered) {
+            try {
+                brokerLookupDataLock.release().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                registered = false;
+            } catch (CompletionException | InterruptedException | ExecutionException | TimeoutException e) {
                 throw MetadataStoreException.unwrap(e);
             }
         }
@@ -132,11 +147,17 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public CompletableFuture<List<String>> getAvailableBrokersAsync() {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
         brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH)
-                .thenAccept(listLocks -> future.complete(Lists.newArrayList(listLocks)))
+                .thenAccept(listLocks ->  {
+                    if (this.brokerLookupDataCache.size() != listLocks.size()
+                            || !this.brokerLookupDataCache.keySet().containsAll(listLocks)) {
+                        this.triggerCacheReload();
+                    }
+                    future.complete(Lists.newArrayList(listLocks));
+                })
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     log.warn("Error when trying to get active brokers", realCause);
-                    future.complete(Lists.newArrayList(this.brokerLookupDataMap.keySet()));
+                    future.complete(Lists.newArrayList(this.brokerLookupDataCache.keySet()));
                     return null;
                 });
         return future;
@@ -149,7 +170,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public void forEach(BiConsumer<String, BrokerLookupData> action) {
-        this.brokerLookupDataMap.forEach(action);
+        this.brokerLookupDataCache.forEach(action);
     }
 
     public void listen(BiConsumer<String, NotificationType> listener) {
@@ -198,17 +219,62 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                             brokerLookupDataLockManager.readLock(keyPath(lookupServiceAddress))
                                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
                     if (lookupData.isEmpty()) {
-                        brokerLookupDataMap.remove(lookupServiceAddress);
+                        brokerLookupDataCache.remove(lookupServiceAddress);
                         log.info("[{}] Broker lookup data is not present", lookupServiceAddress);
                         break;
                     }
-                    brokerLookupDataMap.put(lookupServiceAddress, lookupData.get());
+                    brokerLookupDataCache.put(lookupServiceAddress, lookupData.get());
                 } catch (Exception e) {
                     log.warn("Error reading broker data from cache for broker - [{}], [{}]",
                             lookupServiceAddress, e.getMessage());
                 }
             }
-            case Deleted -> brokerLookupDataMap.remove(lookupServiceAddress);
+            case Deleted -> brokerLookupDataCache.remove(lookupServiceAddress);
+        }
+    }
+
+    private synchronized CompletableFuture<Void> reloadAllBrokerLookupCacheAsync() {
+        if (!cacheReloadFuture.isDone()) {
+            return cacheReloadFuture;
+        }
+        cacheReloadFuture = new CompletableFuture<>();
+        brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH).thenAccept(activeBrokers -> {
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (String broker : activeBrokers) {
+                futures.add(brokerLookupDataLockManager.readLock(keyPath(broker)).thenAccept(lookupData -> {
+                    if (lookupData.isEmpty()) {
+                        brokerLookupDataCache.remove(broker);
+                        log.info("[{}] Broker lookup data is not present", broker);
+                        return;
+                    }
+                    // Replace or initialize the lookup data.
+                    brokerLookupDataCache.put(broker, lookupData.get());
+                }).exceptionally(ex -> {
+                    log.warn("Error reading broker lookup data from cache for broker - [{}], [{}]",
+                            broker, ex.getMessage());
+                    return null;
+                }));
+            }
+            FutureUtil.waitForAll(futures).thenAccept(__ -> {
+                // Remove obsolete brokers.
+                for (final String broker : brokerLookupDataCache.keySet()) {
+                    if (!activeBrokers.contains(broker)) {
+                        brokerLookupDataCache.remove(broker);
+                    }
+                }
+                cacheReloadFuture.complete(null);
+            }).exceptionally(e -> {
+                log.warn("Error to reload the broker lookup cache, [{}]", e.getMessage());
+                cacheReloadFuture.complete(null);
+                return null;
+            });
+        });
+        return cacheReloadFuture;
+    }
+
+    private synchronized void triggerCacheReload() {
+        if (cacheReloadFuture.isDone()) {
+            scheduler.submit(this::reloadAllBrokerLookupCacheAsync);
         }
     }
 

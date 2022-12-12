@@ -27,11 +27,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.util.ZkUtils;
+import lombok.SneakyThrows;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -39,17 +40,13 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
@@ -58,13 +55,12 @@ import org.testng.annotations.Test;
  */
 public class BrokerRegistryTest {
 
+    private final List<PulsarService> pulsarServices = new CopyOnWriteArrayList<>();
+
     private ExecutorService executor;
 
     private LocalBookkeeperEnsemble bkEnsemble;
 
-    private PulsarService pulsar1;
-
-    private PulsarService pulsar2;
 
     // Make sure the load manager don't register itself to `/loadbalance/brokers/{lookupServiceAddress}`
     public static class MockLoadManager implements LoadManager {
@@ -145,56 +141,58 @@ public class BrokerRegistryTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeClass
     void setup() throws Exception {
         executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>());
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
-
-        // Start broker 1
-        ServiceConfiguration config1 = new ServiceConfiguration();
-        config1.setLoadBalancerEnabled(false);
-        config1.setLoadManagerClassName(MockLoadManager.class.getName());
-        config1.setClusterName("use");
-        config1.setWebServicePort(Optional.of(0));
-        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
-        config1.setBrokerShutdownTimeoutMs(0L);
-        config1.setBrokerServicePort(Optional.of(0));
-        config1.setAdvertisedAddress("localhost");
-        createCluster(bkEnsemble.getZkClient(), config1);
-        pulsar1 = new PulsarService(config1);
-        pulsar1.start();
-
-        // Start broker 2
-        ServiceConfiguration config2 = new ServiceConfiguration();
-        config2.setLoadBalancerEnabled(false);
-        config2.setLoadManagerClassName(MockLoadManager.class.getName());
-        config2.setClusterName("use");
-        config2.setWebServicePort(Optional.of(0));
-        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
-        config2.setBrokerShutdownTimeoutMs(0L);
-        config2.setBrokerServicePort(Optional.of(0));
-        config2.setAdvertisedAddress("localhost");
-        pulsar2 = new PulsarService(config2);
-        pulsar2.start();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @SneakyThrows
+    private PulsarService createPulsarService() {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadBalancerEnabled(false);
+        config.setLoadManagerClassName(MockLoadManager.class.getName());
+        config.setClusterName("use");
+        config.setWebServicePort(Optional.of(0));
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        PulsarService pulsar = new PulsarService(config);
+        pulsarServices.add(pulsar);
+        return pulsar;
+    }
+
+    @AfterClass(alwaysRun = true)
     void shutdown() throws Exception {
         executor.shutdownNow();
-
-        pulsar2.close();
-        pulsar1.close();
-
         bkEnsemble.stop();
     }
 
+    @AfterMethod(alwaysRun = true)
+    void cleanUp() {
+        pulsarServices.forEach(pulsarService -> {
+            if (pulsarService.isRunning()) {
+                pulsarService.shutdownNow();
+            }
+        });
+        pulsarServices.clear();
+    }
+
     @Test(timeOut = 30 * 1000)
-    public void testRegister() throws Exception {
+    public void testRegisterAndLookupCache() throws Exception {
+        PulsarService pulsar1 = createPulsarService();
+        PulsarService pulsar2 = createPulsarService();
+        PulsarService pulsar3 = createPulsarService();
+        pulsar1.start();
+        pulsar2.start();
+        pulsar3.start();
         BrokerRegistryImpl brokerRegistry1 = new BrokerRegistryImpl(pulsar1);
         BrokerRegistryImpl brokerRegistry2 = new BrokerRegistryImpl(pulsar2);
+        BrokerRegistryImpl brokerRegistry3 = new BrokerRegistryImpl(pulsar3);
 
         Set<String> address = new HashSet<>();
         brokerRegistry1.listen((lookupServiceAddress, type) -> {
@@ -203,20 +201,28 @@ public class BrokerRegistryTest {
 
         brokerRegistry1.start();
         brokerRegistry2.start();
-        brokerRegistry1.register();
-        brokerRegistry2.register();
+
+        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 2);
+        assertEquals(brokerRegistry2.brokerLookupDataCache.size(), 2);
+        assertEquals(address.size(), 2);
 
         assertEquals(brokerRegistry1.getAvailableBrokersAsync().get().size(), 2);
         assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
+
+        // Check three broker cache are flush successes.
+        brokerRegistry3.start();
+        assertEquals(brokerRegistry3.brokerLookupDataCache.size(), 3);
+        assertEquals(brokerRegistry3.getAvailableBrokersAsync().get().size(), 3);
         Awaitility.await().atMost(Duration.ofSeconds(5))
                         .untilAsserted(() -> {
-                            assertEquals(brokerRegistry1.brokerLookupDataMap.size(), 2);
-                            assertEquals(brokerRegistry2.brokerLookupDataMap.size(), 2);
-                            assertEquals(address.size(), 2);
+                            assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 3);
+                            assertEquals(brokerRegistry2.brokerLookupDataCache.size(), 3);
+                            assertEquals(address.size(), 3);
                         });
 
-        assertEquals(address, brokerRegistry1.brokerLookupDataMap.keySet());
-        assertEquals(address, brokerRegistry2.brokerLookupDataMap.keySet());
+        assertEquals(address, brokerRegistry1.brokerLookupDataCache.keySet());
+        assertEquals(address, brokerRegistry2.brokerLookupDataCache.keySet());
+        assertEquals(address, brokerRegistry3.brokerLookupDataCache.keySet());
 
         Optional<BrokerLookupData> lookupDataOpt =
                 brokerRegistry1.lookupAsync(brokerRegistry2.getLookupServiceAddress()).get();
@@ -224,21 +230,16 @@ public class BrokerRegistryTest {
         assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
 
         brokerRegistry1.unregister();
-        assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 1);
+        assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
 
         brokerRegistry1.close();
         brokerRegistry2.close();
+        brokerRegistry3.close();
     }
 
+    @Test
+    public void test() {
 
-    private void createCluster(ZooKeeper zk, ServiceConfiguration config) throws Exception {
-        ZkUtils.createFullPathOptimistic(zk, "/admin/clusters/" + config.getClusterName(),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                        ClusterData.builder()
-                                .serviceUrl("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort()
-                                        .get())
-                                .build()),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 }
 
