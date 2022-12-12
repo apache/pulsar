@@ -47,9 +47,9 @@ public class LinuxInfoUtilsTest {
             linuxInfoUtils.when(() -> LinuxInfoUtils.getTotalCpuLimit(true)).thenCallRealMethod();
             assertEquals(LinuxInfoUtils.getTotalCpuLimit(true), 1500);
 
-            // invalid CGroup CPU settings test.
+            // invalid CGroup CPU settings test, fallback to JVM reported CPU quota.
             linuxInfoUtils.when(() -> LinuxInfoUtils.readTrimStringFromFile(any())).thenReturn("0-a,1-30");
-            assertThrows(NumberFormatException.class, () -> LinuxInfoUtils.getTotalCpuCount());
+            assertEquals(LinuxInfoUtils.getTotalCpuLimit(true), 100 * Runtime.getRuntime().availableProcessors());
         }
     }
 }
