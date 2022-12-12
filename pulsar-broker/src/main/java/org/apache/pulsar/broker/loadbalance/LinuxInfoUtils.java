@@ -218,7 +218,7 @@ public class LinuxInfoUtils {
             switch (operState) {
                 case UP:
                 case UNKNOWN:
-                case LOWERLAYERDOWN:
+                case DORMANT:
                     return true;
                 default:
                     return false;
