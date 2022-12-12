@@ -180,6 +180,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     @Override
     public void close() throws PulsarServerException {
         try {
+            this.listeners.clear();
             this.unregister();
         } catch (MetadataStoreException ex) {
             if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
@@ -188,8 +189,6 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 throw new PulsarServerException(MetadataStoreException.unwrap(ex));
             }
         }
-
-        this.listeners.clear();
     }
 
     private void handleMetadataStoreNotification(Notification t) {
