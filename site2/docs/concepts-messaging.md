@@ -603,15 +603,27 @@ In the *Key_Shared* type, multiple consumers can attach to the same subscription
 
 ![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.svg)
 
-There are three types of mapping algorithms dictating how to select a consumer for a given message key (or ordering key): Sticky, Auto-split Hash Range, and Auto-split Consistent Hashing. Before using the algorithm, the message key (or ordering key) is first passed to a hash function (e.g., Murmur3 32-bit), yielding a 32-bit integer hash. That hash number is then fed to the algorithm to select a consumer from the existing connected consumers.
+There are three types of mapping algorithms dictating how to select a consumer for a given message key (or ordering key): Sticky, Auto-split Hash Range, and Auto-split Consistent Hashing. The steps for all algorithms are:
+1. The message key (or ordering key) is passed to a hash function (e.g., Murmur3 32-bit), yielding a 32-bit integer hash. 
+2. That hash number is fed to the algorithm to select a consumer from the existing connected consumers.
+
+```
+                      +--------------+                              +-----------+
+Message Key ----->  / Hash Function / ----- hash (32-bit) -------> / Algorithm / ----> Consumer   
+                   +---------------+                               +----------+
+```
+
+
 When a new consumer is connected and thus added to the list of connected consumers, the algorithm re-adjusts the mapping such that some keys currently mapped to existing consumers will be mapped to the newly added consumer. When a consumer is disconnected, thus removed from the list of connected consumers, keys mapped to it will be mapped to other consumers. The sections below will explain how a consumer is selected given the message hash and how the mapping is adjusted given a new consumer is connected or an existing consumer disconnects for each algorithm.
 
 ##### Auto-split Hash Range
+
 The algorithm assumes there is a range of numbers between 0 to 2^16 (65,536). Each consumer is mapped into a single region in this range, so all mapped regions cover the entire range, and no regions overlap. A consumer is selected for a given key by running a modulo operation on the message hash by the range size (65,536). The number received ( 0 <= i < 65,536) is contained within a single region. The consumer mapped to that region is the one selected.
 
 Example:
 
 Suppose we have 4 consumers (C1, C2, C3 and C4), then:
+
 ```
  0               16,384            32,768           49,152             65,536
  |------- C3 ------|------- C2 ------|------- C1 ------|------- C4 ------|
@@ -638,11 +650,13 @@ C4 connected:
 When a consumer is disconnected its region will be merged into the region on its right. Examples:
 
 C4 is disconnected:
+
 ```
 |------- C3 ------|------- C2 ------|---------------- C1 ---------------|
 ```
 
 C1 is disconnected:
+
 ```
 |------- C3 ------|-------------------------- C2 -----------------------|
 ```
@@ -650,6 +664,7 @@ C1 is disconnected:
 The advantages of this algorithm is that it affects only a single existing consumer upon add/delete consumer, at the expense of regions not evenly sized. Thi means some consumers gets more keys that others. The next algorithm does the other way around. 
 
 ##### Auto-split Consistent Hashing
+
 This algorithm uses a Hash Ring. It's a range of number from 0 to MAX_INT (32-bit) in which if you traverse the range, when reaching MAX_INT, the next number would be zero. It is as if you took a line starting from 0 ending at MAX_INT and bent into a circle such that the end glues to the start:
 
 ```
@@ -676,7 +691,8 @@ When adding a consumer, we mark 100 points on that circle and associate them to 
     murmur32("orders-aggregator-pod-2345-consumer100") = 320276078
 ```
 
-Since the hash function has the uniform distribution attribute, those points would be uniformly distributed across the circle. 
+Since the hash function has the uniform distribution attribute, those points would be uniformly distributed across the circle.
+
 ```
     C1-100                 
          , - ~ ~ ~ - ,   C1-1
@@ -705,6 +721,7 @@ In this algorithm you have full control. Every newly added consumer specifies th
 Example:
 
 Suppose we have 2 consumers (C1 and C2) each specified their ranges, then:
+
 ```
 C1 = [0, 16384), (32768, 49152]
 C2 = [16384, 32768), (49,152, 65536]
@@ -718,6 +735,7 @@ Given a message key `Order-3459134`, it's hash would be `murmur32("Order-3459134
 If the newly connected consumer didn't supply their ranges, or they overlap with existing consumer ranges, it's disconnected, removed from the consumers list and reverted as if it never tried to connect.
 
 ##### How to use them?
+
 When building the consumer, you can specify the Key Shared Mode: 
 * AUTO_SPLIT - Auto-split Hash Range
 * STICKY - Sticky
@@ -726,10 +744,12 @@ Consistent Hashing will be used instead of Hash Range for Auto-split if the brok
 
 ##### Preserving order of processing
 
-Key Shared Subscription type guarantees a key will be processed by a *single* consumer at any given time. When a new consumer a connected, some key will be mapped to it from existing consumers. The broker will not deliver messages to the new consumer until all messages delivered up until connection time will be acknowledged. This will guarantee a certain key is processed by a single consumer at any given time. The trade-off is that if one of the existing consumers is stuck and no time-out was defined (acknowledging for you), the new consumer won't receive any messages until the stuck consumer will resume or gets disconnected. 
+Key Shared Subscription type guarantees a key will be processed by a *single* consumer at any given time. When a new consumer a connected, some key will be mapped to it from existing consumers. The broker will not deliver messages to the new consumer until all messages delivered up until connection time will be acknowledged. This will guarantee a certain key is processed by a single consumer at any given time. The trade-off is that if one of the existing consumers is stuck and no time-out was defined (acknowledging for you), the new consumer won't receive any messages until the stuck consumer will resume or gets disconnected.
+
 That requirement can be relaxed by enabling `allowOutOfOrderDelivery` via the Consumer API. If set on the new consumer, then when it is connected, the broker will allow it to receive messages knowing some messages of that key may be still be processing in other consumers at the time, thus order may be affected for that short period of adding a new consumer.
 
 ##### Batching for Key Shared Subscriptions
+
 :::note
 
 When the consumers are using the Key_Shared subscription type, you need to **disable batching** or **use key-based batching** for the producers. 
