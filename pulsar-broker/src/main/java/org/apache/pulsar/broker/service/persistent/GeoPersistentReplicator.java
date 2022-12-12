@@ -171,7 +171,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
-                    msg.getMessageBuilder().clearTxnidMostBits();
+                    msg.getMessageBuilder().clearTxnidLeastBits();
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }
