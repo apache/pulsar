@@ -110,6 +110,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -164,7 +165,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceGraceFullyByMultiPulsars(namespace, true, admin, pulsar,
+                deleteNamespaceWithRetry(namespace, true, admin, pulsar,
                         mockPulsarSetup.getPulsar());
             }
             admin.tenants().deleteTenant(tenant, true);
@@ -1515,7 +1516,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         try {
-            deleteNamespaceGraceFully(namespace, false);
+            admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
         } catch (PulsarAdminException e) {
             // Expected: cannot delete non-empty tenant
@@ -1526,7 +1527,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertTrue(admin.topics().getList(namespace).isEmpty());
 
         // delete namespace
-        deleteNamespaceGraceFully(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -1554,7 +1555,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @AllArgsConstructor
     private static class NamespaceAttr {
         private boolean systemTopicEnabled;
-        private String autoTopicCreationType;
+        private TopicType autoTopicCreationType;
         private int defaultNumPartitions;
         private boolean forceDeleteNamespaceAllowed;
     }
@@ -1562,9 +1563,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "namespaceAttrs")
     public Object[][] namespaceAttributes(){
         return new Object[][]{
-                {new NamespaceAttr(false, "non-partitioned", 0, false)},
-                {new NamespaceAttr(true, "non-partitioned", 0, false)},
-                {new NamespaceAttr(true, "partitioned", 3, false)}
+                {new NamespaceAttr(false, TopicType.NON_PARTITIONED, 0, false)},
+                {new NamespaceAttr(true, TopicType.NON_PARTITIONED, 0, false)},
+                {new NamespaceAttr(true, TopicType.PARTITIONED, 3, false)}
         };
     }
 
@@ -1607,7 +1608,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         try {
-            deleteNamespaceGraceFully(namespace, false);
+            admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
         } catch (PulsarAdminException e) {
             // Expected: cannot delete non-empty tenant
@@ -1618,7 +1619,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertTrue(admin.topics().getList(namespace).isEmpty());
 
         // delete namespace
-        deleteNamespaceGraceFully(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -1667,7 +1668,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         });
         producer.close();
         admin.topics().delete(topic);
-        deleteNamespaceGraceFully(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
         });
@@ -1880,7 +1881,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + namespaceName + "/test" + UUID.randomUUID();
         pulsarClient.newProducer(Schema.DOUBLE).topic(topic).create().close();
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.schemas().getSchemaInfo(topic)));
-        deleteNamespaceGraceFully(namespaceName, true);
+        deleteNamespaceWithRetry(namespaceName, true);
         try {
             admin.schemas().getSchemaInfo(topic);
             Assert.fail("fail");
@@ -2071,7 +2072,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         cleanup();
         conf.setMaxTopicsPerNamespace(10);
         conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreationType("partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         setup();
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Set.of("test"));
@@ -2089,7 +2090,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // check producer/consumer auto create non-partitioned topic
         cleanup();
         conf.setMaxTopicsPerNamespace(3);
-        conf.setAllowAutoTopicCreationType("non-partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         setup();
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Set.of("test"));
@@ -2661,6 +2662,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Shared).subscribe();

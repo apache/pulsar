@@ -18,17 +18,25 @@
 # under the License.
 #
 
-##
-## Edit a properties config file and replace values based on
-## the ENV variables
-## export prefix_my-key=new-value
-## ./apply-config-from-env-with-prefix prefix_ file.conf
-##
+############################################################
+# Edit a properties config file and replace values based on
+# the ENV variables
+# export prefix_my-key=new-value
+# ./apply-config-from-env-with-prefix prefix_ file.conf
+#
+# Environment variables that are prefixed with the command
+# line prefix will be used to updated file properties if
+# they exist and create new ones if they don't.
+#
+# Environment variables not prefixed will be used only to
+# update if they exist and ignored if they don't.
+############################################################
 
-import os, sys
+import os
+import sys
 
 if len(sys.argv) < 3:
-    print('Usage: %s' % (sys.argv[0]))
+    print('Usage: %s <PREFIX> <FILE> [<FILE>...]' % (sys.argv[0]))
     sys.exit(1)
 
 # Always apply env config to env scripts as well

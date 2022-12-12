@@ -13,7 +13,7 @@ When the stateful APIs of Pulsar Functions are required – for example, `putSta
 1. Enable the `streamStorage` service in BookKeeper.
    Currently, the service uses the NAR package, so you need to set the configuration in the `conf/bookkeeper.conf` file.
 
-   ```text
+   ```shell
    ##################################################################
    ##################################################################
    # Settings below are used by stream/table service
@@ -63,6 +63,6 @@ When the stateful APIs of Pulsar Functions are required – for example, `putSta
 3. Configure `stateStorageServiceUrl` in the `conf/functions_worker.yml` file. 
    `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
-   ```shell
+   ```yaml
    stateStorageServiceUrl: bk://<bk-service-url>:4181
    ```

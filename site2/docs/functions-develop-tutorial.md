@@ -38,7 +38,7 @@ The following example is a stateful function. By default, the state of a functio
 2. Bundle and build the JAR file, and then deploy it in your Pulsar cluster using the `pulsar-admin` command.
 
    ```bash
-    bin/pulsar-admin functions create \
+   bin/pulsar-admin functions create \
       --jar target/my-jar-with-dependencies.jar \
       --classname org.example.functions.WordCountFunction \
       --tenant public \
@@ -79,7 +79,7 @@ The following example is a stateful function. By default, the state of a functio
 2. Suppose this code is stored in `~/router.py`, then you can deploy it in your Pulsar cluster using the `pulsar-admin` command.
 
    ```bash
-    bin/pulsar-admin functions create \
+   bin/pulsar-admin functions create \
       --py ~/router.py \
       --classname router.RoutingFunction \
       --tenant public \

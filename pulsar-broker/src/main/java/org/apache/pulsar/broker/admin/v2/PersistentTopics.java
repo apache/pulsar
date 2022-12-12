@@ -2109,7 +2109,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
+            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
+            @ApiParam(value = "backlog quota policies for the specified topic") BacklogQuotaImpl backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota, isGlobal))
@@ -2274,7 +2275,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
+            @ApiParam(value = "TTL in seconds for the specified topic", required = true)
             @QueryParam("messageTTL") Integer messageTTL,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
@@ -2436,7 +2437,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+            @ApiParam(value = "Retention policies for the specified topic") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetRetention(retention, isGlobal))

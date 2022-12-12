@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -235,10 +234,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
         for (Map.Entry<Consumer, List<Entry>> current : groupedEntries.entrySet()) {
             Consumer consumer = current.getKey();
+            assert consumer != null; // checked when added to groupedEntries
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
-            if (consumer != null && consumer.getMaxUnackedMessages() > 0) {
+            int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
+            if (consumer.getMaxUnackedMessages() > 0) {
                 int remainUnAckedMessages =
                         // Avoid negative number
                         Math.max(consumer.getMaxUnackedMessages() - consumer.getUnackedMessages(), 0);
@@ -249,7 +249,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     readType, consumerStickyKeyHashesMap.get(consumer));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer == null ? "null" : consumer.consumerName(), messagesForC, readType);
+                        name, consumer.consumerName(), messagesForC, readType);
             }
 
             if (messagesForC < entriesWithSameKeyCount) {
@@ -320,17 +320,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 isDispatcherStuckOnReplays = true;
                 stuckConsumers.addAll(nextStuckConsumers);
             }
-            // readMoreEntries should run regardless whether or not stuck is caused by
-            // stuckConsumers for avoid stopping dispatch.
-            sendInProgress = false;
-            topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
+            return true;
         }  else if (currentThreadKeyNumber == 0) {
-            sendInProgress = false;
-            topic.getBrokerService().executor().schedule(safeRun(() -> {
-                synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                    readMoreEntries();
-                }
-            }), 100, TimeUnit.MILLISECONDS);
+            return true;
         }
         return false;
     }

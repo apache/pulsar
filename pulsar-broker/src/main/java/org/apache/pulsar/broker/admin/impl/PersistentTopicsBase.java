@@ -154,40 +154,6 @@ public class PersistentTopicsBase extends AdminResource {
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
-    protected List<String> internalGetList(Optional<String> bundle) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
-
-        // Validate that namespace exists, throws 404 if it doesn't exist
-        try {
-            if (!namespaceResources().namespaceExists(namespaceName)) {
-                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
-
-        try {
-            List<String> topics = topicResources().listPersistentTopicsAsync(namespaceName).join();
-            return topics.stream().filter(topic -> {
-                if (isTransactionInternalName(TopicName.get(topic))) {
-                    return false;
-                }
-                if (bundle.isPresent()) {
-                    NamespaceBundle b = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                            .getBundle(TopicName.get(topic));
-                    return b != null && bundle.get().equals(b.getBundleRange());
-                }
-                return true;
-            }).collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
     protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
             .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
@@ -1219,7 +1185,14 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 })
-        );
+        ).exceptionally(ex -> {
+            // If the exception is not redirect exception we need to log it.
+            if (!isRedirectException(ex)) {
+                log.error("[{}] Failed to get subscriptions for {}", clientAppId(), topicName, ex);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
     private void resumeAsyncResponse(AsyncResponse asyncResponse, Set<String> subscriptions,
@@ -1897,7 +1870,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(__ -> {
                 // If the topic name is a partition name, no need to get partition topic metadata again
                 if (topicName.isPartitioned()) {
-                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName, authoritative);
+                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                 } else {
                     return getPartitionedTopicMetadataAsync(topicName,
                         authoritative, false).thenCompose(partitionMetadata -> {
@@ -1938,8 +1911,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                         } else {
-                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName,
-                                authoritative);
+                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName);
                         }
                     });
                 }
@@ -1955,8 +1927,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalSkipAllMessagesForNonPartitionedTopicAsync(AsyncResponse asyncResponse,
-                                                                                       String subName,
-                                                                                       boolean authoritative) {
+                                                                                       String subName) {
         return getTopicReferenceAsync(topicName).thenCompose(t -> {
                     PersistentTopic topic = (PersistentTopic) t;
                     BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
@@ -4514,12 +4485,13 @@ public class PersistentTopicsBase extends AdminResource {
                         // We must not re-create non-durable subscriptions on the new partitions
                         return;
                     }
+                    boolean replicated = ss.isReplicated();
 
                     for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
                         final String topicNamePartition = topicName.getPartition(i).toString();
                         CompletableFuture<Void> future = new CompletableFuture<>();
                         admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest).whenComplete((__, ex) -> {
+                                        subscription, MessageId.latest, replicated).whenComplete((__, ex) -> {
                             if (ex == null) {
                                 future.complete(null);
                             } else {

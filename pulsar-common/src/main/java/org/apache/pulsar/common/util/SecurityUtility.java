@@ -124,7 +124,12 @@ public class SecurityUtility {
             conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             conscryptClazz.getMethod("checkAvailability").invoke(null);
         } catch (Throwable e) {
-            log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            if (e.getCause() instanceof UnsatisfiedLinkError) {
+                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
+                        System.getProperty("os.name"), System.getProperty("os.arch"));
+            } else {
+                log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            }
             return null;
         }
 

@@ -113,12 +113,18 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      */
     @Override
     public boolean isDuplicate(MessageId messageId) {
-        final MessageIdImpl messageIdOfLastAck = lastCumulativeAck.getMessageId();
-        if (messageIdOfLastAck != null && messageId.compareTo(messageIdOfLastAck) <= 0) {
+        if (!(messageId instanceof MessageIdImpl)) {
+            throw new IllegalArgumentException("isDuplicated cannot accept "
+                    + messageId.getClass().getName() + ": " + messageId);
+        }
+        if (lastCumulativeAck.compareTo(messageId) >= 0) {
             // Already included in a cumulative ack
             return true;
         } else {
-            return pendingIndividualAcks.contains((MessageIdImpl) messageId);
+            final MessageIdImpl messageIdImpl = (messageId instanceof BatchMessageIdImpl)
+                    ? ((BatchMessageIdImpl) messageId).toMessageIdImpl()
+                    : (MessageIdImpl) messageId;
+            return pendingIndividualAcks.contains(messageIdImpl);
         }
     }
 
@@ -622,7 +628,7 @@ class LastCumulativeAck {
     private boolean flushRequired = false;
 
     public synchronized void update(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
-        if (messageId.compareTo(this.messageId) > 0) {
+        if (compareTo(messageId) < 0) {
             if (this.bitSetRecyclable != null && this.bitSetRecyclable != bitSetRecyclable) {
                 this.bitSetRecyclable.recycle();
             }
@@ -654,6 +660,24 @@ class LastCumulativeAck {
         messageId = DEFAULT_MESSAGE_ID;
         bitSetRecyclable = null;
         flushRequired = false;
+    }
+
+    public synchronized int compareTo(MessageId messageId) {
+        if (this.messageId instanceof BatchMessageIdImpl && (!(messageId instanceof BatchMessageIdImpl))) {
+            final BatchMessageIdImpl lhs = (BatchMessageIdImpl) this.messageId;
+            final MessageIdImpl rhs = (MessageIdImpl) messageId;
+            return MessageIdImpl.messageIdCompare(
+                    lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), lhs.getBatchIndex(),
+                    rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), Integer.MAX_VALUE);
+        } else if (messageId instanceof BatchMessageIdImpl && (!(this.messageId instanceof BatchMessageIdImpl))){
+            final MessageIdImpl lhs = this.messageId;
+            final BatchMessageIdImpl rhs = (BatchMessageIdImpl) messageId;
+            return MessageIdImpl.messageIdCompare(
+                    lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), Integer.MAX_VALUE,
+                    rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), rhs.getBatchIndex());
+        } else {
+            return this.messageId.compareTo(messageId);
+        }
     }
 
     private synchronized void set(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {

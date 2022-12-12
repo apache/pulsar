@@ -51,6 +51,12 @@
       <artifactId>jackson-databind</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf3.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <packaging>jar</packaging>
 

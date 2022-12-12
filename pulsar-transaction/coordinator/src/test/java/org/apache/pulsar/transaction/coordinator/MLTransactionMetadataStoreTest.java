@@ -196,9 +196,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
             stateUpdater.setAccessible(true);
             stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
             managedLedger.rollCurrentLedgerIfFull();
-            Awaitility.await().until(() -> {
-                return !managedLedger.ledgerExists(position.getLedgerId());
-            });
+            //There is new ledger been created
+            Awaitility.await().until(() -> managedLedger.getLedgersInfo().ceilingEntry(position.getLedgerId()) != null);
         }
         mlTransactionLog.closeAsync().get(2, TimeUnit.SECONDS);
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
