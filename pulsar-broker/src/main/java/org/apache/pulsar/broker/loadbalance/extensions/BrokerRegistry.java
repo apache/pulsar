@@ -39,6 +39,11 @@ public interface BrokerRegistry extends AutoCloseable {
     void start() throws PulsarServerException;
 
     /**
+     * Return the broker registry is started.
+     */
+    boolean isStarted();
+
+    /**
      * Register local broker to metadata store.
      */
     void register() throws MetadataStoreException;

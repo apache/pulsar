@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.time.Duration;
 import java.util.HashSet;
@@ -33,6 +36,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -53,9 +57,11 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link BrokerRegistry}.
  */
+@Slf4j
 public class BrokerRegistryTest {
 
     private final List<PulsarService> pulsarServices = new CopyOnWriteArrayList<>();
+    private final List<BrokerRegistryImpl> brokerRegistries = new CopyOnWriteArrayList<>();
 
     private ExecutorService executor;
 
@@ -161,9 +167,15 @@ public class BrokerRegistryTest {
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
-        PulsarService pulsar = new PulsarService(config);
+        PulsarService pulsar = spy(new PulsarService(config));
         pulsarServices.add(pulsar);
         return pulsar;
+    }
+
+    private BrokerRegistryImpl createBrokerRegistryImpl(PulsarService pulsar) {
+        BrokerRegistryImpl brokerRegistry = spy(new BrokerRegistryImpl(pulsar));
+        brokerRegistries.add(brokerRegistry);
+        return brokerRegistry;
     }
 
     @AfterClass(alwaysRun = true)
@@ -174,6 +186,18 @@ public class BrokerRegistryTest {
 
     @AfterMethod(alwaysRun = true)
     void cleanUp() {
+        log.info("Cleaning up the broker registry...");
+        brokerRegistries.forEach(brokerRegistry -> {
+            if (brokerRegistry.isStarted()) {
+                try {
+                    brokerRegistry.close();
+                } catch (PulsarServerException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        brokerRegistries.clear();
+        log.info("Cleaning up the pulsar services...");
         pulsarServices.forEach(pulsarService -> {
             if (pulsarService.isRunning()) {
                 pulsarService.shutdownNow();
@@ -190,9 +214,9 @@ public class BrokerRegistryTest {
         pulsar1.start();
         pulsar2.start();
         pulsar3.start();
-        BrokerRegistryImpl brokerRegistry1 = new BrokerRegistryImpl(pulsar1);
-        BrokerRegistryImpl brokerRegistry2 = new BrokerRegistryImpl(pulsar2);
-        BrokerRegistryImpl brokerRegistry3 = new BrokerRegistryImpl(pulsar3);
+        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
+        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
+        BrokerRegistryImpl brokerRegistry3 = createBrokerRegistryImpl(pulsar3);
 
         Set<String> address = new HashSet<>();
         brokerRegistry1.listen((lookupServiceAddress, type) -> {
@@ -232,14 +256,29 @@ public class BrokerRegistryTest {
         brokerRegistry1.unregister();
         assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
 
-        brokerRegistry1.close();
-        brokerRegistry2.close();
-        brokerRegistry3.close();
     }
 
     @Test
-    public void test() {
+    public void testRegisterFail() throws Exception {
+        PulsarService pulsar1 = createPulsarService();
+        PulsarService pulsar2 = createPulsarService();
+        pulsar1.start();
+        pulsar2.start();
 
+        doReturn(pulsar1.getLookupServiceAddress()).when(pulsar2).getLookupServiceAddress();
+        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
+        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
+        brokerRegistry1.start();
+        try {
+            brokerRegistry2.start();
+            fail();
+        } catch (Exception ex) {
+            log.info("Broker registry start failed.", ex);
+            assertTrue(ex instanceof PulsarServerException);
+            assertTrue(ex.getMessage().contains("LockBusyException"));
+        }
     }
+
+    // TODO: Add more unit tests
 }
 

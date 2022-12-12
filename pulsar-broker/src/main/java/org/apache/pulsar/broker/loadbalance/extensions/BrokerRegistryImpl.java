@@ -32,6 +32,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -76,6 +77,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     private volatile boolean registered = false;
 
+    private AtomicBoolean started = new AtomicBoolean(false);
+
     private volatile CompletableFuture<Void> cacheReloadFuture;
 
     public BrokerRegistryImpl(PulsarService pulsar) {
@@ -108,9 +111,15 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             // Update all lookup data to cache
             this.reloadAllBrokerLookupCacheAsync()
                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            this.started.set(true);
         } catch (MetadataStoreException | ExecutionException | InterruptedException | TimeoutException e) {
             throw new PulsarServerException(e);
         }
+    }
+
+    @Override
+    public boolean isStarted() {
+        return this.started.get();
     }
 
     @Override
@@ -179,6 +188,9 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public void close() throws PulsarServerException {
+        if (!started.compareAndSet(true, false)) {
+            return;
+        }
         try {
             this.listeners.clear();
             this.unregister();
