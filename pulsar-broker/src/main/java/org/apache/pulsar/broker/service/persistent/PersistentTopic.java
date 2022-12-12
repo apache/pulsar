@@ -282,12 +282,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // ignore it for now and let the message dedup logic to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
+                PersistentSubscription subscription = createPersistentSubscription(subscriptionName, cursor,
                         PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
-                        cursor.getCursorProperties()));
-                // subscription-cursor gets activated by default: deactivate as there is no active subscription right
-                // now
-                subscriptions.get(subscriptionName).deactivateCursor();
+                        cursor.getCursorProperties());
+                subscription.getPendingAckHandleInitFuture()
+                        .thenAccept(unused -> {
+                            subscriptions.put(subscriptionName, subscription);
+                            // subscription-cursor gets activated by default: deactivate as there is no active subscription right
+                            // now
+                            subscriptions.get(subscriptionName).deactivateCursor();
+                        })
+                        .exceptionally(t -> {
+                            log.warn("PersistentSubscription [{}] pendingAckHandleImpl relay failed " +
+                                    "when initialize topic [{}].", subscriptionName, topic, t);
+                            subscription.retryClose();
+                            return null;
+                        });
             }
         }
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
@@ -805,44 +815,62 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
-            CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
-                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
-                        consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch);
+            CompletableFuture<Consumer> future = subscriptionFuture
+                    .thenCompose(subscription -> {
+                        CompletableFuture<Subscription> f = new CompletableFuture<>();
+                        PersistentSubscription psub = (PersistentSubscription) subscription;
+                        psub.getPendingAckHandleInitFuture()
+                                .thenAccept(unused -> f.complete(subscription))
+                                .exceptionally(t -> {
+                                    log.warn("Subscription [{}] pendingAckHandle initialize failed. Ready to close.",
+                                            subscriptionName, t);
+                                    psub.deactivateCursor();
+                                    subscriptions.remove(subscriptionName);
+                                    f.completeExceptionally(t);
+                                    // No need to close cursor.
+                                    psub.retryClose();
+                                    return null;
+                                });
+                        return f;
+                    })
+                    .thenCompose(subscription -> {
+                        Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
+                                consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
+                                readCompacted, keySharedMeta, startMessageId, consumerEpoch);
 
-                return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
-                    checkBackloggedCursors();
-                    if (!cnx.isActive()) {
-                        try {
-                            consumer.close();
-                        } catch (BrokerServiceException e) {
-                            if (e instanceof ConsumerBusyException) {
-                                log.warn("[{}][{}] Consumer {} {} already connected",
-                                        topic, subscriptionName, consumerId, consumerName);
-                            } else if (e instanceof SubscriptionBusyException) {
-                                log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                        return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
+                            checkBackloggedCursors();
+                            if (!cnx.isActive()) {
+                                try {
+                                    consumer.close();
+                                } catch (BrokerServiceException e) {
+                                    if (e instanceof ConsumerBusyException) {
+                                        log.warn("[{}][{}] Consumer {} {} already connected",
+                                                topic, subscriptionName, consumerId, consumerName);
+                                    } else if (e instanceof SubscriptionBusyException) {
+                                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                                    }
+
+                                    decrementUsageCount();
+                                    return FutureUtil.failedFuture(e);
+                                }
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
+                                            consumer.consumerName(), currentUsageCount());
+                                }
+
+                                decrementUsageCount();
+                                return FutureUtil.failedFuture(
+                                        new BrokerServiceException("Connection was closed while the opening the cursor "));
+                            } else {
+                                checkReplicatedSubscriptionControllerState();
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                                }
+                                return CompletableFuture.completedFuture(consumer);
                             }
-
-                            decrementUsageCount();
-                            return FutureUtil.failedFuture(e);
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
-                                    consumer.consumerName(), currentUsageCount());
-                        }
-
-                        decrementUsageCount();
-                        return FutureUtil.failedFuture(
-                                new BrokerServiceException("Connection was closed while the opening the cursor "));
-                    } else {
-                        checkReplicatedSubscriptionControllerState();
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
-                        }
-                        return CompletableFuture.completedFuture(consumer);
-                    }
-                });
-            });
+                        });
+                    });
 
             future.exceptionally(ex -> {
                 decrementUsageCount();

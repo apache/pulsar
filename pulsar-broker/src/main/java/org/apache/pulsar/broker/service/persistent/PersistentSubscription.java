@@ -31,6 +31,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -125,6 +127,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
+    private final CompletableFuture<Void> pendingAckHandleInitFuture;
     private volatile Map<String, String> subscriptionProperties;
 
     static {
@@ -155,11 +158,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.setReplicated(replicated);
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
+        this.pendingAckHandleInitFuture = new CompletableFuture<>();
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
+            pendingAckHandle.pendingAckHandleFuture()
+                    .thenAccept(__ -> pendingAckHandleInitFuture.complete(null))
+                    .exceptionally(t -> {
+                        pendingAckHandleInitFuture.completeExceptionally(t);
+                        return null;
+                    });
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
+            pendingAckHandleInitFuture.complete(null);
         }
         IS_FENCED_UPDATER.set(this, FALSE);
     }
@@ -890,6 +901,23 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }
     }
 
+    protected void retryClose() {
+        ScheduledExecutorService scheduler = topic.getBrokerService().pulsar().getExecutor();
+        scheduler.schedule(() -> {
+            close()
+                    .thenAccept(unused -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Close subscription {} finished.", subName);
+                        }
+                    })
+                    .exceptionally(t -> {
+                        log.warn("Close subscription {} failed.", subName, t);
+                        retryClose();
+                        return null;
+                    });
+        }, 20, TimeUnit.SECONDS);
+    }
+
     /**
      * Disconnect all consumers attached to the dispatcher and close this subscription.
      *
@@ -1291,6 +1319,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     @VisibleForTesting
     public PendingAckHandle getPendingAckHandle() {
         return pendingAckHandle;
+    }
+
+    public CompletableFuture<Void> getPendingAckHandleInitFuture() {
+        return this.pendingAckHandleInitFuture;
     }
 
     public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
