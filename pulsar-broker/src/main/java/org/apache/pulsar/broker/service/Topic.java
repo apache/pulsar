@@ -366,4 +366,5 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+    AvgMessagesPerEntryAccumulator getAvgMessagesPerEntryAccumulator();
 }

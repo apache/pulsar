@@ -282,6 +282,14 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return ACTIVE_CONSUMER_UPDATER.get(this) != null;
     }
 
+    protected int calculateAvgMessagesPerEntry(){
+        Consumer activeConsumer = getActiveConsumer();
+        if (activeConsumer == null){
+            return 0;
+        }
+        return Math.max(0, activeConsumer.getAvgMessagesPerEntry());
+    }
+
     private static final Logger log = LoggerFactory.getLogger(AbstractDispatcherSingleActiveConsumer.class);
 
 }

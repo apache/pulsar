@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -46,6 +48,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Codec;
 
 @Slf4j
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
@@ -384,5 +387,97 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected final void updatePendingBytesToDispatch(long size) {
         PENDING_BYTES_TO_DISPATCH.inc(size);
+    }
+
+    /**
+     * Calculate messages count & bytes size to read by rate-limiters.
+     * @return left pair is messagesToRead, right pair is bytesToRead
+     */
+    protected Pair<Integer, Long> calculateToReadByRateLimiter(int messageCountToReadDefault,
+                                                  @Nullable ManagedCursor cursor,
+                                                  Optional<DispatchRateLimiter>...rateLimiters){
+        int messageCountToRead = messageCountToReadDefault;
+        long bytesToReadDefault = serviceConfig.getDispatcherMaxReadSizeBytes();
+
+        // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
+        // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
+        // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
+        boolean cursorActive = cursor == null /* NonDurableCursor has no backlog */ || cursor.isActive();
+        if (!serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() && cursorActive) {
+            return Pair.of(messageCountToRead, bytesToReadDefault);
+        }
+
+        for (Optional<DispatchRateLimiter> rateLimiterOptional : rateLimiters){
+            if (!rateLimiterOptional.isPresent()){
+                continue;
+            }
+            DispatchRateLimiter rateLimiter = rateLimiterOptional.get();
+            if (reachDispatchRateLimit(rateLimiter)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}",
+                            buildName(cursor), rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                            MESSAGE_RATE_BACKOFF_MS);
+                }
+                return Pair.of(-1, -1L);
+            } else {
+                if (rateLimiter.getAvailableDispatchRateLimitOnMsg() > 0) {
+                    messageCountToRead =
+                            Math.min(messageCountToRead, (int) rateLimiter.getAvailableDispatchRateLimitOnMsg());
+                }
+                if (rateLimiter.getAvailableDispatchRateLimitOnByte() > 0){
+                    bytesToReadDefault =
+                            Math.min(bytesToReadDefault, rateLimiter.getAvailableDispatchRateLimitOnByte());
+                }
+            }
+        }
+        // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+        messageCountToRead = Math.max(messageCountToRead, 1);
+        bytesToReadDefault = Math.max(bytesToReadDefault, 1);
+        return Pair.of(messageCountToRead, bytesToReadDefault);
+    }
+
+    protected String buildName(@Nullable ManagedCursor cursor){
+        // NonDurableCursor doesn't have cursor.
+        String cursorName = cursor == null || cursor.getName() == null ? "" : Codec.decode(cursor.getName());
+        return subscription.getTopic().getName() + " / " + cursorName;
+    }
+
+    protected int calculateEntryCountToReadIfEnabledBatch(Topic topic, int messageCountToRead){
+        // if turn of precise dispatcher flow control, adjust the records to read.
+        if (!serviceConfig.isPreciseDispatcherFlowControl()) {
+            return messageCountToRead;
+        }
+        // When calculating the "avgMessagesPerEntry,"
+        // 1. look up the attribute avgMessagesPerEntry from the consumers under subscription.
+        // 2. if all consumers avgMessagesPerEntry is zero, look up from other subscriptions under this topic.
+        // 3. if still is zero, directly call "topic.getAvgMessagesPerEntryAccumulator()".
+        // 3. if still is zero too, just read one entry.
+        int avgMessagesPerEntry = calculateAvgMessagesPerEntryInTopic(topic);
+        if (avgMessagesPerEntry < 1){
+            return 1;
+        }
+        return Math.min((int) Math.ceil(messageCountToRead * 1.0 / avgMessagesPerEntry),
+                serviceConfig.getDispatcherMaxReadBatchSize());
+    }
+
+    protected int calculateAvgMessagesPerEntry(){
+        return 0;
+    }
+
+    protected int calculateAvgMessagesPerEntryInTopic(Topic topic){
+        int avgMessagesPerEntry = calculateAvgMessagesPerEntry();
+        if (avgMessagesPerEntry > 0){
+            return avgMessagesPerEntry;
+        }
+        for (Subscription sub : topic.getSubscriptions().values()){
+            if (sub.getDispatcher() instanceof AbstractBaseDispatcher otherDispatcher){
+                int avgMessagesPerEntryInOtherSub = otherDispatcher.calculateAvgMessagesPerEntry();
+                if (avgMessagesPerEntryInOtherSub > 0){
+                    return avgMessagesPerEntryInOtherSub;
+                }
+            }
+        }
+        return Math.max(0,
+                Double.valueOf(topic.getAvgMessagesPerEntryAccumulator().getAvgMessagesPerEntry()).intValue());
     }
 }

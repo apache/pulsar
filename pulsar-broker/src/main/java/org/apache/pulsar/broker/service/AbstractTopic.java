@@ -150,6 +150,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected Map<String, EntryFilterWithClassLoader> entryFilters;
 
+    @Getter
+    protected final AvgMessagesPerEntryAccumulator avgMessagesPerEntryAccumulator =
+            new AvgMessagesPerEntryAccumulator();
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
