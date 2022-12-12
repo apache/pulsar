@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
-    int nicCount;
+    int usableNicCount;
 
     @BeforeClass
     @Override
@@ -39,7 +39,7 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         if (SystemUtils.IS_OS_LINUX) {
-            nicCount = new LinuxBrokerHostUsageImpl(pulsar).getNicCount();
+            usableNicCount = new LinuxBrokerHostUsageImpl(pulsar).getNicCount();
         }
     }
 
@@ -56,8 +56,8 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = admin.brokerStats().getLoadReport();
 
         if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, nicCount * 5.4 * 1000 * 1000);
-            assertEquals(report.getBandwidthOut().limit, nicCount * 5.4 * 1000 * 1000);
+            assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000);
+            assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000);
         } else {
             // On non-Linux system we don't report the network usage
             assertEquals(report.getBandwidthIn().limit, -1.0);

@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -100,7 +101,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = getNics();
+        List<String> nics = getUsablePhysicalNICs();
         double totalNicLimit = getTotalNicLimitKbps(nics);
         double totalNicUsageTx = getTotalNicUsageTxKb(nics);
         double totalNicUsageRx = getTotalNicUsageRxKb(nics);
@@ -212,9 +213,11 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         return new ResourceUsage(total - free, total);
     }
 
-    private List<String> getNics() {
+    private List<String> getUsablePhysicalNICs() {
         try (Stream<Path> stream = Files.list(Paths.get("/sys/class/net/"))) {
-            return stream.filter(this::isPhysicalNic).map(path -> path.getFileName().toString())
+            return stream.filter(this::isPhysicalNic)
+                    .filter(this::isUsable)
+                    .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Failed to find NICs", e);
@@ -223,7 +226,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     public int getNicCount() {
-        return getNics().size();
+        return getUsablePhysicalNICs().size();
     }
 
     private boolean isPhysicalNic(Path path) {
@@ -237,6 +240,25 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             return Integer.parseInt(type) == 1;
         } catch (Exception e) {
             // Read type got error.
+            return false;
+        }
+    }
+
+    private boolean isUsable(Path nicPath) {
+        try {
+            String operstate = readTrimStringFromFile(nicPath.resolve("operstate"));
+            Operstate operState = Operstate.valueOf(operstate.toUpperCase(Locale.ROOT));
+            switch (operState) {
+                case UP:
+                case UNKNOWN:
+                case DORMANT:
+                    return true;
+                default:
+                    return false;
+            }
+        } catch (Exception e) {
+            log.warn("[LinuxInfo] Failed to read {} NIC operstate, the detail is: {}", nicPath, e.getMessage());
+            // Read operstate got error.
             return false;
         }
     }
@@ -293,5 +315,29 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     private static long readLongFromFile(String path) throws IOException {
         return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8).trim());
+    }
+
+
+    /**
+     * TLV IFLA_OPERSTATE
+     * contains RFC2863 state of the interface in numeric representation:
+     * See <a href="https://www.kernel.org/doc/Documentation/networking/operstates.txt">...</a>
+     */
+    enum Operstate {
+        // Interface is in unknown state, neither driver nor userspace has set
+        // operational state. Interface must be considered for user data as
+        // setting operational state has not been implemented in every driver.
+        UNKNOWN,
+        // Interface is unable to transfer data on L1, f.e. ethernet is not
+        // plugged or interface is ADMIN down.
+        DOWN,
+        // Interfaces stacked on an interface that is IF_OPER_DOWN show this
+        // state (f.e. VLAN).
+        LOWERLAYERDOWN,
+        // Interface is L1 up, but waiting for an external event, f.e. for a
+        // protocol to establish. (802.1X)
+        DORMANT,
+        // Interface is operational up and can be used.
+        UP
     }
 }
