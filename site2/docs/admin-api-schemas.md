@@ -403,7 +403,7 @@ To enable schema validation enforcement at the **namespace** level, you can use 
 
 <TabItem value="Admin CLI">
 
-Use the `set-is-allow-auto-update-schema` subcommand. 
+Use the `set-schema-validation-enforce` subcommand. 
 
 ```bash
 bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namespace
@@ -446,7 +446,7 @@ To disable schema validation enforcement at the **namespace** level, you can use
 
 <TabItem value="Admin CLI">
 
-Use the `set-is-allow-auto-update-schema` subcommand. 
+Use the `set-schema-validation-enforce` subcommand. 
 
 ```bash
 bin/pulsar-admin namespaces set-schema-validation-enforce --disable tenant/namespace

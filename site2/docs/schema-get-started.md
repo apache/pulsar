@@ -15,18 +15,7 @@ This hands-on tutorial provides instructions and examples on how to construct sc
 
 ## Construct a schema
 
-- [Construct a bytes schema](#bytes)
-- [Construct a string schema](#string)
-- [Construct a key/value schema](#keyvalue)
-- [Construct an Avro schema](#avro)
-- [Construct a JSON schema](#json)
-- [Construct a Protobuf schema](#protobuf)
-- [Construct a ProtobufNative schema](#protobufnative)
-- [Construct a native Avro schema](#nativeavro)
-- [Construct an AUTO_PRODUCE schema](#auto_produce)
-- [Construct an AUTO_CONSUME schema](#auto_consume)
-
-### `bytes`
+### bytes
 
 This example demonstrates how to construct a [bytes schema](schema-understand.md#primitive-type) using language-specific clients and use it to produce and consume messages.
 
@@ -107,7 +96,7 @@ consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 </Tabs>
 ````
 
-### `string`
+### string
 
 This example demonstrates how to construct a [string schema](schema-understand.md#primitive-type) using language-specific clients and use it to produce and consume messages.
 
@@ -183,7 +172,7 @@ msg, err := consumer.Receive(context.Background())
 </Tabs>
 ````
 
-### `key/value`
+### key/value
 
 This example shows how to construct a [key/value schema](schema-understand.md#keyvalue-schema) using language-specific clients and use it to produce and consume messages.
 
@@ -508,25 +497,25 @@ Suppose you have an `avroExampleStruct` class as follows, and you'd like to tran
 Similar to using `AvroSchema`, you can declare a `JsonSchema` by passing a class. The only difference is to use  `JsonSchema` instead of `AvroSchema` when defining the schema type, as shown below. For how to use `AvroSchema` via record, see [Method 1 - Record](#method-1-record).
 
 ```java
-static class SchemaDema {
+static class SchemaDemo {
    public String name;
    public int age;
 }
 
-Producer<SchemaDema> producer = pulsarClient.newProducer(Schema.JSON(SchemaDema.class))
+Producer<SchemaDemo> producer = pulsarClient.newProducer(Schema.JSON(SchemaDemo.class))
        .topic("my-topic")
        .create();
-Consumer<SchemaDema> consumer = pulsarClient.newConsumer(Schema.JSON(SchemaDema.class))
+Consumer<SchemaDemo> consumer = pulsarClient.newConsumer(Schema.JSON(SchemaDemo.class))
        .topic("my-topic")
        .subscriptionName("my-sub")
        .subscribe();
 
-SchemaDema schemaDema = new SchemaDema();
-schemaDema.name = "puslar";
-schemaDema.age = 20;
-producer.newMessage().value(schemaDema).send();
+SchemaDemo schemaDemo = new SchemaDemo();
+schemaDemo.name = "puslar";
+schemaDemo.age = 20;
+producer.newMessage().value(schemaDemo).send();
 
-Message<SchemaDema> message = consumer.receive(5, TimeUnit.SECONDS);
+Message<SchemaDemo> message = consumer.receive(5, TimeUnit.SECONDS);
 ```
 
 </TabItem>
@@ -660,9 +649,9 @@ The following example shows how to create a producer/consumer with a ProtobufNat
        .subscriptionName("my-sub")
        .subscribe();
 
-   SchemaDema schemaDema = new SchemaDema();
-   schemaDema.name = "puslar";
-   schemaDema.age = 20;
+   SchemaDemo schemaDemo = new SchemaDemo();
+   schemaDemo.name = "puslar";
+   schemaDemo.age = 20;
    producer.newMessage().value(DemoMessage.newBuilder().setStringField("string-field-value")
        .setIntField(1).build()).send();
 
@@ -761,9 +750,9 @@ Constructing a protobuf schema using Java is similar to constructing a `Protobuf
           .subscriptionName("my-sub")
           .subscribe();
 
-   SchemaDema schemaDema = new SchemaDema();
-   schemaDema.name = "puslar";
-   schemaDema.age = 20;
+   SchemaDemo schemaDemo = new SchemaDemo();
+   schemaDemo.name = "puslar";
+   schemaDemo.age = 20;
    producer.newMessage().value(DemoMessage.newBuilder().setStringField("string-field-value")
        .setIntField(1).build()).send();
 
@@ -869,7 +858,7 @@ Suppose you have a Pulsar topic _P_, a producer processing messages from a Kafka
 This example shows how to construct an [AUTO_PRODUCE](schema-understand.md#auto-schema) schema to verify whether the bytes produced by _K_ can be sent to _P_.
 
 ```java
-Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
+Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES())
     …
     .create();
 byte[] kafkaMessageBytes = … ; 
