@@ -369,8 +369,7 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup completed ---");
     }
 
-    @VisibleForTesting
-    void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
         PulsarAdmin admin = broker.getAdminClient();
         try {
             final List<String> clusters = admin.clusters().getClusters();

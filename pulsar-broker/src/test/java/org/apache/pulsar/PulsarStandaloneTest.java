@@ -19,14 +19,6 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.io.FileUtils.cleanDirectory;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -36,16 +28,7 @@ import java.util.List;
 import lombok.Cleanup;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
-import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.resources.ClusterResources;
-import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -58,60 +41,6 @@ public class PulsarStandaloneTest {
     @DataProvider
     public Object[][] enableBrokerClientAuth() {
         return new Object[][] { { true }, { false } };
-    }
-
-    @Test
-    public void testCreateNameSpace() throws Exception {
-        final String cluster = "cluster1";
-        final String tenant = "tenant1";
-        final NamespaceName ns = NamespaceName.get(tenant, "ns1");
-
-        ClusterResources cr = mock(ClusterResources.class);
-        when(cr.clusterExists(cluster)).thenReturn(false).thenReturn(true);
-        doNothing().when(cr).createCluster(eq(cluster), any());
-
-        TenantResources tr = mock(TenantResources.class);
-        when(tr.tenantExists(tenant)).thenReturn(false).thenReturn(true);
-        doNothing().when(tr).createTenant(eq(tenant), any());
-
-        NamespaceResources nsr = mock(NamespaceResources.class);
-        when(nsr.namespaceExists(ns)).thenReturn(false).thenReturn(true).thenReturn(false);
-        doNothing().when(nsr).createPolicies(eq(ns), any());
-
-        PulsarResources resources = mock(PulsarResources.class);
-        when(resources.getClusterResources()).thenReturn(cr);
-        when(resources.getTenantResources()).thenReturn(tr);
-        when(resources.getNamespaceResources()).thenReturn(nsr);
-
-        Namespaces namespaces = mock(Namespaces.class);
-        doNothing().when(namespaces).createNamespace(any());
-        PulsarAdmin admin = mock(PulsarAdmin.class);
-        when(admin.namespaces()).thenReturn(namespaces);
-
-        PulsarService broker = mock(PulsarService.class);
-        when(broker.getPulsarResources()).thenReturn(resources);
-        when(broker.getWebServiceAddress()).thenReturn("pulsar://localhost:8080");
-        when(broker.getWebServiceAddressTls()).thenReturn(null);
-        when(broker.getBrokerServiceUrl()).thenReturn("pulsar://localhost:6650");
-        when(broker.getBrokerServiceUrlTls()).thenReturn(null);
-        when(broker.getAdminClient()).thenReturn(admin);
-
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setClusterName(cluster);
-
-        PulsarStandalone standalone = new PulsarStandalone();
-        standalone.setBroker(broker);
-        standalone.setConfig(config);
-
-        standalone.createNameSpace(cluster, tenant, ns);
-        standalone.createNameSpace(cluster, tenant, ns);
-        verify(cr, times(1)).createCluster(eq(cluster), any());
-        verify(tr, times(1)).createTenant(eq(tenant), any());
-        verify(admin, times(1)).namespaces();
-        verify(admin.namespaces(), times(1)).createNamespace(eq(ns.toString()));
-
-        doThrow(new PulsarAdminException("No permission")).when(namespaces).createNamespace(any());
-        standalone.createNameSpace(cluster, tenant, ns);
     }
 
     @Test
