@@ -164,13 +164,9 @@ def main():
     args.function_details = args.function_details[:-1]
   json_format.Parse(args.function_details, function_details)
 
-  if function_details.processingGuarantees == "EFFECTIVELY_ONCE":
-    print("Python instance current not support EFFECTIVELY_ONCE processing guarantees.")
-    sys.exit(1)
-
-  if function_details.autoAck == False and function_details.processingGuarantees == "ATMOST_ONCE" \
-          or function_details.processingGuarantees == "ATLEAST_ONCE":
-    print("When Guarantees == " + function_details.processingGuarantees + ", autoAck must be equal to true, "
+  if function_details.autoAck is False and function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("ATMOST_ONCE") \
+          or function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("ATLEAST_ONCE"):
+    print("When Guarantees == " + Function_pb2.ProcessingGuarantees.Name(function_details.processingGuarantees) + ", autoAck must be equal to true, "
           "This is a contradictory configuration, autoAck will be removed later,"
           "If you want not to automatically ack, please configure the processing guarantees as MANUAL."
           "This is a contradictory configuration, autoAck will be removed later," 

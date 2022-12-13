@@ -143,11 +143,15 @@ class PythonInstance(object):
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
+    if self.instance_config.function_details.retainOrdering or \
+      self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE"):
+      mode = pulsar._pulsar.ConsumerType.Failover
+
     position = pulsar._pulsar.InitialPosition.Latest
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
       position = pulsar._pulsar.InitialPosition.Earliest
 
-    subscription_name = self.instance_config.function_details.source.subscriptionName    
+    subscription_name = self.instance_config.function_details.source.subscriptionName
 
     if not (subscription_name and subscription_name.strip()):
       subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
