@@ -68,6 +68,7 @@ import org.testng.annotations.Test;
  * Unit test for {@link BrokerRegistry}.
  */
 @Slf4j
+@Test(groups = "broker")
 public class BrokerRegistryTest {
 
     private final List<PulsarService> pulsarServices = new CopyOnWriteArrayList<>();
