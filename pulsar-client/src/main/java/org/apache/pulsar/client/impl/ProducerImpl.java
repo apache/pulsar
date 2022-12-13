@@ -481,6 +481,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
+        // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
+        // into chunks.
+        updateMessageMetadata(msgMetadata, uncompressedSize);
 
         // send in chunks
         int totalChunks;
@@ -549,7 +552,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 synchronized (this) {
                     // Update the message metadata before computing the payload chunk size
                     // to avoid a large message cannot be split into chunks.
-                    final long sequenceId = updateMessageMetadata(msgMetadata, uncompressedSize);
+                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
                     String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
 
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
@@ -574,15 +577,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param uncompressedSize
      * @return the sequence id
      */
-    private long updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
-        final long sequenceId;
-        if (!msgMetadata.hasSequenceId()) {
-            sequenceId = msgIdGenerator++;
-            msgMetadata.setSequenceId(sequenceId);
-        } else {
-            sequenceId = msgMetadata.getSequenceId();
-        }
-
+    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
         if (!msgMetadata.hasPublishTime()) {
             msgMetadata.setPublishTime(client.getClientClock().millis());
 
@@ -595,6 +590,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
             }
             msgMetadata.setUncompressedSize(uncompressedSize);
+        }
+    }
+
+    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata) {
+        final long sequenceId;
+        if (!msgMetadata.hasSequenceId()) {
+            sequenceId = msgIdGenerator++;
+            msgMetadata.setSequenceId(sequenceId);
+        } else {
+            sequenceId = msgMetadata.getSequenceId();
         }
         return sequenceId;
     }
