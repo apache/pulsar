@@ -26,13 +26,7 @@ Before connecting Pulsar to a database, you need to install Pulsar and the desir
 
 Read [Run a standalone Pulsar cluster locally](getting-started-standalone.md) for downloading the Pulsar distribution.
 
-Pulsar releases a separate binary distribution to contain all the built-in connectors, see [here](https://archive.apache.org/dist/pulsar/pulsar-@pulsar:version@/connectors/).
-
-To enable those connectors, you need to download the connectors' tarball release:
-
-```bash
-wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
-```
+To enable Pulsar connectors, you need to download the connectors' tarball release on [download page](https://pulsar.apache.org/download/).
 
 After you download the NAR file, copy the file to the `connectors` directory in the Pulsar directory. For example, if you download the `pulsar-io-aerospike-@pulsar:version@.nar` connector file, enter the following commands:
 

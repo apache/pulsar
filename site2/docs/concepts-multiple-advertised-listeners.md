@@ -23,7 +23,7 @@ This example shows how a Pulsar client uses multiple advertised listeners.
 
 1. Configure multiple advertised listeners in the broker configuration file.
 
-```conf
+```properties
 advertisedListeners={listenerName}:pulsar://xxxx:6650,{listenerName}:pulsar+ssl://xxxx:6651
 ```
 

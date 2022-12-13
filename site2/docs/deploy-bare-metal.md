@@ -126,13 +126,6 @@ Directory | Contains
 
 ## Install Built-in Connectors (optional)
 
-:::note
-
-Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `built-in` connectors.
-To enable the `built-in` connectors (optional), you can follow the instructions below.
-
-:::
-
 To use `built-in` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
 
 * by clicking the link below and downloading the release from an Apache mirror:
@@ -160,14 +153,6 @@ pulsar-io-aerospike-@pulsar:version@.nar
 ```
 
 ## Install Tiered Storage Offloaders (optional)
-
-:::note
-
-Since Pulsar release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
-If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
-skip this section for now.
-
-:::
 
 To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
 
