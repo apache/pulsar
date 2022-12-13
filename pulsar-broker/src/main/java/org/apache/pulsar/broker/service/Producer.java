@@ -800,9 +800,7 @@ public class Producer {
 
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked, boolean isMarker) {
-        if (!checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, null)) {
-            return;
-        }
+        checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, null);
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null);
