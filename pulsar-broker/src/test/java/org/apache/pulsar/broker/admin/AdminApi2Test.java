@@ -1483,7 +1483,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // create namespace2
         String namespace = tenant + "/test-ns2";
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        admin.topics().createNonPartitionedTopic(namespace + "/tobedeleted");
+        // verify namespace can be deleted even without topic policy events
+        admin.namespaces().deleteNamespace(namespace, true);
+
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
         // create topic
         String topic = namespace + "/test-topic2";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
@@ -1717,7 +1722,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testForceDeleteNamespace() throws Exception {
-        conf.setForceDeleteNamespaceAllowed(true);
         final String namespaceName = "prop-xyz2/ns1";
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz2", tenantInfo);

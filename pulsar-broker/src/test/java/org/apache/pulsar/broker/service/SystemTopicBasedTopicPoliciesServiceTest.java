@@ -379,6 +379,18 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         });
     }
 
+
+    @Test
+    public void testHandleNamespaceBeingDeleted() throws Exception {
+        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(NAMESPACE1),
+                old -> {
+                    old.deleted = true;
+                    return old;
+                });
+        service.deleteTopicPoliciesAsync(TOPIC1).get();
+    }
+
     @Test
     public void testGetTopicPoliciesWithCleanCache() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
