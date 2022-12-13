@@ -92,6 +92,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -267,8 +268,8 @@ flexible messaging model and an intuitive client API.</description>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.4.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
-    <properties-maven-plugin.version>1.0.0</properties-maven-plugin.version>
-    <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
+    <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
+    <nifi-nar-maven-plugin.version>1.3.4</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>

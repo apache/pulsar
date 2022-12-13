@@ -28,8 +28,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.beust.jcommander.JCommander;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -2422,6 +2424,43 @@ public class PulsarAdminToolTest {
         assertTrue(logs.contains("-bf=false")); // boolean flag, not passed = false
         assertTrue(logs.contains("main=null"));
 
+    }
+
+    @Test
+    public void testHelpFlag() {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("-h"));
+            assertTrue(cmdSchemas.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("--help"));
+            assertTrue(cmdSchemas.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("delete --help"));
+            assertFalse(cmdSchemas.isHelp());
+            JCommander commander = cmdSchemas.getJcommander();
+            JCommander subCommander = commander.getCommands().get("delete");
+            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
+            assertTrue(subcommand.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("delete -h"));
+            assertFalse(cmdSchemas.isHelp());
+            JCommander commander = cmdSchemas.getJcommander();
+            JCommander subCommander = commander.getCommands().get("delete");
+            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
+            assertTrue(subcommand.isHelp());
+        }
     }
 
     private static String runCustomCommand(String[] args) throws Exception {

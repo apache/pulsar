@@ -47,9 +47,6 @@ By default, the Pulsar Helm Chart creates Volume Claims with the expectation tha
 ```yaml
 volumes:
   persistence: true
-  # configure the components to use local persistent volume
-  # the local provisioner should be installed prior to enable local persistent volume
-  local_storage: false
 ```
 
 :::note

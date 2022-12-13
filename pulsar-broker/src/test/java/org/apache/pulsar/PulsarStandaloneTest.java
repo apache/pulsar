@@ -21,6 +21,7 @@ package org.apache.pulsar;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -33,6 +34,7 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -61,7 +63,7 @@ public class PulsarStandaloneTest {
         doNothing().when(tr).createTenant(eq(tenant), any());
 
         NamespaceResources nsr = mock(NamespaceResources.class);
-        when(nsr.namespaceExists(ns)).thenReturn(false).thenReturn(true);
+        when(nsr.namespaceExists(ns)).thenReturn(false).thenReturn(true).thenReturn(false);
         doNothing().when(nsr).createPolicies(eq(ns), any());
 
         PulsarResources resources = mock(PulsarResources.class);
@@ -95,6 +97,9 @@ public class PulsarStandaloneTest {
         verify(tr, times(1)).createTenant(eq(tenant), any());
         verify(admin, times(1)).namespaces();
         verify(admin.namespaces(), times(1)).createNamespace(eq(ns.toString()));
+
+        doThrow(new PulsarAdminException("No permission")).when(namespaces).createNamespace(any());
+        standalone.createNameSpace(cluster, tenant, ns);
     }
 
     @Test(groups = "broker")

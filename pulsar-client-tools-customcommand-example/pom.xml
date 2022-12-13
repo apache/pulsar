@@ -42,7 +42,6 @@
       <plugin>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-nar-maven-plugin</artifactId>
-        <version>1.3.2</version>
         <extensions>true</extensions>
         <configuration>
           <finalName>customCommands</finalName>

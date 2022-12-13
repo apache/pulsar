@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.standalone;
 
+import static org.testng.Assert.assertEquals;
 import java.util.function.Supplier;
+import lombok.Cleanup;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.annotations.Test;
 
@@ -29,4 +34,13 @@ public class SmokeTest extends PulsarStandaloneTestSuite {
         super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
+    @Test
+    public void testGetBundleRange() throws PulsarClientException, PulsarAdminException {
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(getHttpServiceUrl()).build();
+
+        String topic = "test-get-topic-bundle-range";
+        admin.topics().createNonPartitionedTopic(topic);
+        assertEquals(admin.lookups().getBundleRange(topic), "0xc0000000_0xffffffff");
+    }
 }
