@@ -18,8 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -33,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
@@ -45,6 +51,10 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
@@ -253,6 +263,7 @@ public class BrokerRegistryTest {
         assertTrue(lookupDataOpt.isPresent());
         assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
 
+        // Unregister and see the available brokers.
         brokerRegistry1.unregister();
         assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
 
@@ -279,6 +290,88 @@ public class BrokerRegistryTest {
         }
     }
 
-    // TODO: Add more unit tests
+    @Test
+    public void testGetAvailableBrokersAsyncAndReadFromCache() throws Exception {
+        PulsarService pulsar1 = createPulsarService();
+        PulsarService pulsar2 = createPulsarService();
+        pulsar1.start();
+        pulsar2.start();
+
+        CoordinationService coordinationService = spy(pulsar1.getCoordinationService());
+
+        doReturn(coordinationService).when(pulsar1).getCoordinationService();
+
+        LockManager<BrokerLookupData> lockManager = spy(coordinationService.getLockManager(BrokerLookupData.class));
+
+        doReturn(lockManager).when(coordinationService).getLockManager(BrokerLookupData.class);
+
+        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
+        Set<String> address = new HashSet<>();
+        brokerRegistry1.listen((lookupServiceAddress, type) -> {
+            address.add(lookupServiceAddress);
+        });
+        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
+        brokerRegistry1.start();
+        List<String> availableBrokers1 = brokerRegistry1.getAvailableBrokersAsync().get();
+        assertEquals(availableBrokers1.size(), 1);
+
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+        future.completeExceptionally(new MetadataStoreException("Mock exception"));
+        doReturn(future).when(lockManager).listLocks(anyString());
+
+        brokerRegistry2.start();
+
+        Awaitility.await().untilAsserted(() -> {
+            // The lock manager list locks will get exception, it will read the list from cache.
+            List<String> availableBrokers2 = brokerRegistry1.getAvailableBrokersAsync().get();
+            assertEquals(address.size(), 2);
+            assertEquals(availableBrokers2.size(), 2);
+        });
+    }
+
+    @Test
+    public void testGetAvailableBrokersAsyncAndReloadCache() throws Exception {
+        PulsarService pulsar1 = createPulsarService();
+        PulsarService pulsar2 = createPulsarService();
+        pulsar1.start();
+        pulsar2.start();
+
+        ScheduledExecutorService spyExecutor = spy(pulsar1.getLoadManagerExecutor());
+
+        doReturn(spyExecutor).when(pulsar1).getLoadManagerExecutor();
+        MetadataStoreExtended localMetadataStore = spy(pulsar1.getLocalMetadataStore());
+        doReturn(localMetadataStore).when(pulsar1).getLocalMetadataStore();
+
+        // Disable the register listener method, so the cache will not update.
+        doNothing().when(localMetadataStore).registerListener(any());
+
+        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
+        brokerRegistry1.start();
+
+        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 1);
+
+        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
+        brokerRegistry2.start();
+        assertEquals(brokerRegistry2.brokerLookupDataCache.size(), 2);
+        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 1);
+
+        // Sleep and check the cache not update.
+        TimeUnit.SECONDS.sleep(1);
+        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 1);
+
+        // Verify the cache reload only called in broker registry start method.
+        verify(brokerRegistry1, times(1)).reloadAllBrokerLookupCacheAsync();
+
+        // Trigger cache update.
+        List<String> availableBrokers = brokerRegistry1.getAvailableBrokersAsync().get();
+        assertEquals(availableBrokers.size(), 2);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 2);
+        });
+
+        // Verify the cache reloaded.
+        verify(brokerRegistry1, times(2)).reloadAllBrokerLookupCacheAsync();
+    }
+
 }
 

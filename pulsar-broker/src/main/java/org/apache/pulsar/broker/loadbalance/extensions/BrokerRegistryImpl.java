@@ -77,7 +77,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     private volatile boolean registered = false;
 
-    private AtomicBoolean started = new AtomicBoolean(false);
+    private final AtomicBoolean started = new AtomicBoolean(false);
 
     private volatile CompletableFuture<Void> cacheReloadFuture;
 
@@ -105,6 +105,9 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public void start() throws PulsarServerException {
+        if (started.get()) {
+            return;
+        }
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
         try {
             this.register();
@@ -165,7 +168,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 })
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.warn("Error when trying to get active brokers", realCause);
+                    log.warn("Error when trying to get active brokers, return cached active brokers.", realCause);
                     future.complete(Lists.newArrayList(this.brokerLookupDataCache.keySet()));
                     return null;
                 });
@@ -192,9 +195,12 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             return;
         }
         try {
-            this.listeners.clear();
             this.unregister();
-        } catch (MetadataStoreException ex) {
+            brokerLookupDataLockManager.close();
+            scheduler.shutdown();
+            this.brokerLookupDataCache.clear();
+            this.listeners.clear();
+        } catch (Exception ex) {
             if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
                 throw new PulsarServerException.NotFoundException(MetadataStoreException.unwrap(ex));
             } else {
@@ -244,7 +250,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         }
     }
 
-    private synchronized CompletableFuture<Void> reloadAllBrokerLookupCacheAsync() {
+    @VisibleForTesting
+    protected synchronized CompletableFuture<Void> reloadAllBrokerLookupCacheAsync() {
         if (!cacheReloadFuture.isDone()) {
             return cacheReloadFuture;
         }
