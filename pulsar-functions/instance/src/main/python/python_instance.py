@@ -106,6 +106,7 @@ class PythonInstance(object):
     self.execution_thread = None
     self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
     self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.effectively_once = None
     self.manual = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('MANUAL')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
@@ -135,6 +136,9 @@ class PythonInstance(object):
       sys.exit(1)
 
   def run(self):
+    # Check if effectively-once is enabled
+    self.effectively_once = self.can_enable_effectively_once()
+
     # Setup state
     self.state_context = self.setup_state()
 
@@ -308,12 +312,25 @@ class PythonInstance(object):
 
 
   def process_result(self, output, msg):
-    if output is not None and self.instance_config.function_details.sink.topic != None and \
+    if output is not None and self.instance_config.function_details.sink.topic is not None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       if self.output_serde is None:
         self.setup_output_serde()
+      if self.effectively_once:
+        if self.contextimpl.get_message_partition_index() is None or \
+                self.contextimpl.get_message_partition_index() >= 0:
+          Log.error("Partitioned topic is not available in effectively_once mode.")
+          return
+
+        producer_id = self.instance_config.function_details.sink.topic
+        producer = self.contextimpl.publish_producers.get(producer_id)
+        if producer is None:
+          self.setup_producer(producer_name=producer_id)
+          self.contextimpl.publish_producers[producer_id] = self.producer
+          Log.info("Setup producer [%s] successfully in effectively_once mode." % self.producer.producer_name())
       if self.producer is None:
         self.setup_producer()
+        Log.info("Setup producer successfully.")
 
       # only serialize function output when output schema is not set
       output_object = output
@@ -322,9 +339,21 @@ class PythonInstance(object):
 
       if output_object is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        self.producer.send_async(output_object, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
+        if self.effectively_once:
+          self.producer.send_async(output_bytes,
+                                   partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
+                                   properties=props,
+                                   sequence_id=self.contextimpl.get_message_sequence_id())
+          Log.debug("Send message with sequence ID [%s] using the producer [%s] in effectively_once mode." %
+                    (self.contextimpl.get_message_sequence_id(), self.producer.producer_name()))
+        else:
+          self.producer.send_async(output_bytes,
+                                   partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
+                                   properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
+    elif self.effectively_once:
+      msg.consumer.acknowledge_cumulative(msg.message)
 
   def setup_output_serde(self):
     if self.instance_config.function_details.sink.serDeClassName != None and \
@@ -336,7 +365,7 @@ class PythonInstance(object):
       serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
       self.output_serde = serde_kclass()
 
-  def setup_producer(self):
+  def setup_producer(self, producer_name=None):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
@@ -359,6 +388,7 @@ class PythonInstance(object):
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         schema=self.output_schema,
+        producer_name=producer_name,
         block_if_queue_full=True,
         batching_enabled=True,
         batching_type=batch_type,
@@ -478,6 +508,22 @@ class PythonInstance(object):
     status.averageLatency = avg_process_latency_ms
     status.lastInvocationTime = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
     return status
+
+  def can_enable_effectively_once(self):
+    """
+    The prerequisites for enabling effective-once semantics are as follows.
+    1. deduplication is enabled
+    2. set ProcessingGuarantees to EFFECTIVELY_ONCE
+    3. the function has only one source topic and one sink topic
+    4. (unsupported yet) if partitioned topic is enabled, ensure that the number of partitions
+      (of both source and sink topics) is the same
+    """
+    if self.instance_config.function_details.processingGuarantees == \
+            Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE') and \
+            len(self.instance_config.function_details.source.inputSpecs.keys()) == 1 and \
+            self.instance_config.function_details.sink.topic != "":
+      return True
+    return False
 
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)
