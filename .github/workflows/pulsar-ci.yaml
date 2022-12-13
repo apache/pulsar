@@ -45,6 +45,8 @@ jobs:
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
+      need_owasp: ${{ steps.changes.outputs.need_owasp }}
+      
     steps:
       - name: checkout
         uses: actions/checkout@v3
