@@ -136,7 +136,8 @@ public class PerformanceTransaction {
         @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
-        @Parameter(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
         private boolean replicatedSubscription = false;
 
         @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
