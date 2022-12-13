@@ -1015,24 +1015,24 @@ public class MockZooKeeper extends ZooKeeper {
         try {
             for (org.apache.zookeeper.Op op : ops) {
                 switch (op.getType()) {
-                    case ZooDefs.OpCode.create -> {
+                    case ZooDefs.OpCode.create: {
                         org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
                         CreateMode cm = CreateMode.fromFlag(opc.flags);
                         String path = this.create(op.getPath(), opc.data, null, cm);
                         res.add(new OpResult.CreateResult(path));
                     }
-                    case ZooDefs.OpCode.delete -> {
+                    case ZooDefs.OpCode.delete: {
                         this.delete(op.getPath(), (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.DeleteResult());
                     }
-                    case ZooDefs.OpCode.setData -> {
+                    case ZooDefs.OpCode.setData: {
                         Stat stat = this.setData(
                                 op.getPath(),
                                 (byte[]) FieldUtils.readField(op, "data", true),
                                 (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.SetDataResult(stat));
                     }
-                    case ZooDefs.OpCode.getChildren -> {
+                    case ZooDefs.OpCode.getChildren: {
                         try {
                             List<String> children = this.getChildren(op.getPath(), null);
                             res.add(new OpResult.GetChildrenResult(children));
@@ -1040,7 +1040,7 @@ public class MockZooKeeper extends ZooKeeper {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
                         }
                     }
-                    case ZooDefs.OpCode.getData -> {
+                    case ZooDefs.OpCode.getData: {
                         Stat stat = new Stat();
                         try {
                             byte[] payload = this.getData(op.getPath(), null, stat);
