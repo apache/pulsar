@@ -1,7 +1,7 @@
 ---
 Id: tutorials-namespace
 title: How to create a namespace
-sidebar_label: “Tutorials”
+sidebar_label: "Tutorials"
 ---
 
 

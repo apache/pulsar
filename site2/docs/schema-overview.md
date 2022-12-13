@@ -28,7 +28,7 @@ Currently, Pulsar schema is only available for the [Java client](client-librarie
 Type safety is extremely important in any application built around a messaging and streaming system. Raw bytes are flexible for data transfer, but the flexibility and neutrality come with a cost: you have to overlay data type checking and serialization/deserialization to ensure that the bytes fed into the system can be read and successfully consumed. In other words, you need to make sure the data intelligible and usable to applications.
 
 Pulsar schema resolves the pain points with the following capabilities:
-* enforces the data type safety when a topic has a schema defined. As a result, producers/consumers are only allowed to connect if they are using a “compatible” schema.
+* enforces the data type safety when a topic has a schema defined. As a result, producers/consumers are only allowed to connect if they are using a "compatible" schema.
 * provides a central location for storing information about the schemas used within your organization, in turn greatly simplifies the sharing of this information across application teams.
 * serves as a single source of truth for all the message schemas used across all your services and development teams, which makes it easier for them to collaborate.
 * keeps data compatibility on-track between schema versions. When new schemas are uploaded, the new versions can be read by old consumers. 

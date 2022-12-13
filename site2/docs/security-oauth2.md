@@ -183,11 +183,11 @@ This section describes how to use Pulsar CLI tools to connect a cluster through 
 
 ```shell
 bin/pulsar-admin --admin-url https://streamnative.cloud:443 \
---auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
---auth-params '{"privateKey":"file:///path/to/key/file.json",
-    "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
-    "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
-tenants list
+    --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+    --auth-params '{"privateKey":"file:///path/to/key/file.json",
+        "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
+        "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
+    tenants list
 ```
 
 </TabItem>
@@ -195,12 +195,12 @@ tenants list
 
 ```shell
 bin/pulsar-client \
---url SERVICE_URL \
---auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
---auth-params '{"privateKey":"file:///path/to/key/file.json",
-    "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
-    "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
-produce test-topic -m "test-message" -n 10
+    --url SERVICE_URL \
+    --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+    --auth-params '{"privateKey":"file:///path/to/key/file.json",
+        "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
+        "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
+    produce test-topic -m "test-message" -n 10
 ```
 
 </TabItem>
@@ -208,11 +208,11 @@ produce test-topic -m "test-message" -n 10
 
 ```shell
 bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
---auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
---auth-params '{"privateKey":"file:///path/to/key/file.json",
-    "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
-    "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
--r 1000 -s 1024 test-topic
+    --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+    --auth-params '{"privateKey":"file:///path/to/key/file.json",
+        "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
+        "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
+    -r 1000 -s 1024 test-topic
 ```
 
 </TabItem>

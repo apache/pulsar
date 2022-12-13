@@ -2867,8 +2867,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
-            // triggers channel read
-            ctx.read();
             throttledConnections.dec();
         }
     }
