@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -90,12 +91,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshot> message;
                             try {
-                                message = reader.readNextAsync().get(30, TimeUnit.SECONDS);
-                            } catch (Exception ex) {
+                                message = reader.readNextAsync().get(5, TimeUnit.SECONDS);
+                            } catch (TimeoutException ex) {
                                 Throwable t = FutureUtil.unwrapCompletionException(ex);
                                 log.error("[{}] Transaction buffer recover fail when read "
                                         + "transactionBufferSnapshot!", topic.getName(), t);
-                                closeReader(reader);
                                 return FutureUtil.failedFuture(t);
                             }
                             if (topic.getName().equals(message.getKey())) {

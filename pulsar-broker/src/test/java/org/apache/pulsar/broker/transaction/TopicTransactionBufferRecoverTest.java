@@ -379,7 +379,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 60 * 1000)
     public void testRecoverCantComplete() throws Exception {
         String topicNameForMakeDataForTB = String.format("persistent://%s/%s", NAMESPACE1,
                 "tx_recover_1_" + UUID.randomUUID().toString().replaceAll("-", "_"));
