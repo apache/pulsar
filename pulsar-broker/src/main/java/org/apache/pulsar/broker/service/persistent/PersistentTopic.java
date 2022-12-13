@@ -275,31 +275,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
-        for (ManagedCursor cursor : ledger.getCursors()) {
-            if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
-                    || cursor.getName().startsWith(replicatorPrefix)) {
-                // This is not a regular subscription, we are going to
-                // ignore it for now and let the message dedup logic to take care of it
-            } else {
-                final String subscriptionName = Codec.decode(cursor.getName());
-                PersistentSubscription subscription = createPersistentSubscription(subscriptionName, cursor,
-                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
-                        cursor.getCursorProperties());
-                subscription.getPendingAckHandleInitFuture()
-                        .thenAccept(unused -> {
-                            subscriptions.put(subscriptionName, subscription);
-                            // subscription-cursor gets activated by default: deactivate as there is no active
-                            // subscription right now
-                            subscriptions.get(subscriptionName).deactivateCursor();
-                        })
-                        .exceptionally(t -> {
-                            log.warn("PersistentSubscription [{}] pendingAckHandleImpl relay failed "
-                                    + "when initialize topic [{}].", subscriptionName, topic, t);
-                            subscription.retryClose();
-                            return null;
-                        });
-            }
-        }
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
         if (ledger.getProperties().containsKey(TOPIC_EPOCH_PROPERTY_NAME)) {
             topicEpoch = Optional.of(Long.parseLong(ledger.getProperties().get(TOPIC_EPOCH_PROPERTY_NAME)));
