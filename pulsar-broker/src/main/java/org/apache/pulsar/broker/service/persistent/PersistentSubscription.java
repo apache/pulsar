@@ -127,7 +127,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
-    private final CompletableFuture<Void> pendingAckHandleInitFuture;
+    private final CompletableFuture<Void> initializeFuture;
     private volatile Map<String, String> subscriptionProperties;
 
     static {
@@ -158,19 +158,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.setReplicated(replicated);
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
-        this.pendingAckHandleInitFuture = new CompletableFuture<>();
+        this.initializeFuture = new CompletableFuture<>();
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
             pendingAckHandle.pendingAckHandleFuture()
-                    .thenAccept(__ -> pendingAckHandleInitFuture.complete(null))
+                    .thenAccept(__ -> initializeFuture.complete(null))
                     .exceptionally(t -> {
-                        pendingAckHandleInitFuture.completeExceptionally(t);
+                        initializeFuture.completeExceptionally(t);
                         return null;
                     });
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
-            pendingAckHandleInitFuture.complete(null);
+            initializeFuture.complete(null);
         }
         IS_FENCED_UPDATER.set(this, FALSE);
     }
@@ -1321,8 +1321,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return pendingAckHandle;
     }
 
-    public CompletableFuture<Void> getPendingAckHandleInitFuture() {
-        return this.pendingAckHandleInitFuture;
+    public CompletableFuture<Void> getInitializeFuture() {
+        return this.initializeFuture;
     }
 
     public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {

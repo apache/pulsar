@@ -434,7 +434,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
         Mockito.doReturn(CompletableFuture.failedFuture(new RuntimeException("aaaaaaaaaaa")))
-                .when(subscription).getPendingAckHandleInitFuture();
+                .when(subscription).getInitializeFuture();
 
         Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getDurableSubscription(Mockito.any(), Mockito.any(),
                 Mockito.anyLong(), Mockito.anyBoolean(), Mockito.anyMap());

@@ -274,7 +274,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         registerTopicPolicyListener();
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
-
+        for (ManagedCursor cursor : ledger.getCursors()) {
+            if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
+                    || cursor.getName().startsWith(replicatorPrefix)) {
+                // This is not a regular subscription, we are going to
+                // ignore it for now and let the message dedup logic to take care of it
+            } else {
+                final String subscriptionName = Codec.decode(cursor.getName());
+                PersistentSubscription subscription = createPersistentSubscription(subscriptionName, cursor,
+                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
+                        cursor.getCursorProperties());
+                subscriptions.put(subscriptionName, subscription);
+                subscription.getInitializeFuture()
+                        .exceptionally(t -> {
+                            log.warn("PersistentSubscription [{}] pendingAckHandleImpl relay failed "
+                                    + "when initialize topic [{}].", subscriptionName, topic, t);
+                            if (subscriptions.remove(subscriptionName, subscription)) {
+                                subscription.retryClose();
+                            } else {
+                                log.warn("[{}] Remove subscription {} from subscriptions failed.",
+                                        topic, subscriptionName);
+                            }
+                            return null;
+                        });
+            }
+        }
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
         if (ledger.getProperties().containsKey(TOPIC_EPOCH_PROPERTY_NAME)) {
             topicEpoch = Optional.of(Long.parseLong(ledger.getProperties().get(TOPIC_EPOCH_PROPERTY_NAME)));
@@ -793,17 +817,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture
                     .thenCompose(subscription -> {
                         CompletableFuture<Subscription> f = new CompletableFuture<>();
-                        PersistentSubscription psub = (PersistentSubscription) subscription;
-                        psub.getPendingAckHandleInitFuture()
+                        PersistentSubscription persistentSub = (PersistentSubscription) subscription;
+                        persistentSub.getInitializeFuture()
                                 .thenAccept(unused -> f.complete(subscription))
                                 .exceptionally(t -> {
                                     log.warn("Subscription [{}] pendingAckHandle initialize failed. Ready to close.",
                                             subscriptionName, t);
-                                    psub.deactivateCursor();
+                                    persistentSub.deactivateCursor();
                                     subscriptions.remove(subscriptionName);
                                     f.completeExceptionally(t);
                                     // No need to close cursor.
-                                    psub.retryClose();
+                                    persistentSub.retryClose();
                                     return null;
                                 });
                         return f;
