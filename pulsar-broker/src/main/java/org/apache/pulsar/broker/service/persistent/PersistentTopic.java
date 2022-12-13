@@ -918,7 +918,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH);
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
+    @VisibleForTesting
+    public CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated,
                                                                    Map<String, String> subscriptionProperties) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
@@ -978,7 +979,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return subscriptionFuture;
     }
 
-    private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
+    @VisibleForTesting
+    public CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
             boolean isReadCompacted, Map<String, String> subscriptionProperties) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {} - {}",

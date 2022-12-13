@@ -35,8 +35,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -44,6 +46,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.*;
@@ -53,6 +56,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -279,8 +283,8 @@ public class PersistentTopicTest extends BrokerTestBase {
     @DataProvider(name = "topicAndMetricsLevel")
     public Object[][] indexPatternTestData() {
         return new Object[][]{
-                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", true},
-                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", false},
+                new Object[]{"persistent://prop/autoNs/test_delayed_message_metric", true},
+                new Object[]{"persistent://prop/autoNs/test_delayed_message_metric", false},
         };
     }
 
@@ -365,8 +369,8 @@ public class PersistentTopicTest extends BrokerTestBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        PersistentSubscription persistentSubscription =  topic.getSubscription(sharedSubName);
-        PersistentSubscription persistentSubscription2 =  topic.getSubscription(failoverSubName);
+        PersistentSubscription persistentSubscription = topic.getSubscription(sharedSubName);
+        PersistentSubscription persistentSubscription2 = topic.getSubscription(failoverSubName);
 
         // `addConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeAddConsumerTimestamp);
@@ -401,5 +405,142 @@ public class PersistentTopicTest extends BrokerTestBase {
         // `removeConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
         assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
+    }
+
+
+    @Test
+    public void testPendingAckHandleRelayFailedWhenCreateNewSub() throws Exception {
+        String topic = "persistent://prop/ns-123/aTopic";
+        admin.namespaces().createNamespace(TopicName.get(topic).getNamespace());
+        admin.topics().createNonPartitionedTopic(topic);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).get().get();
+        Assert.assertNotNull(persistentTopic);
+
+        PersistentTopic mpt = Mockito.spy(persistentTopic);
+        pulsar.getBrokerService().getTopics().put(topic, CompletableFuture.completedFuture(Optional.of(mpt)));
+
+        PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
+        Mockito.doReturn(CompletableFuture.failedFuture(new RuntimeException("aaaaaaaaaaa")))
+                .when(subscription).getPendingAckHandleInitFuture();
+
+        Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getDurableSubscription(Mockito.any(), Mockito.any(),
+                Mockito.anyLong(), Mockito.anyBoolean(), Mockito.anyMap());
+        Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getNonDurableSubscription(Mockito.anyString(), Mockito.any(),
+                Mockito.any(), Mockito.anyLong(), Mockito.anyBoolean(), Mockito.anyMap());
+
+        try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test_sub")
+                .subscribe()) {
+            Assert.fail();
+        } catch (Exception t) {
+            // ignore
+        }
+
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test_sub1")
+                .startMessageId(MessageId.earliest)
+                .startMessageFromRollbackDuration(0, TimeUnit.SECONDS)
+                .create()) {
+            Assert.fail();
+        } catch (Exception t) {
+            // ignore
+        }
+
+        Assert.assertEquals(mpt.getSubscriptions().size(), 0);
+
+        pulsar.getBrokerService().getTopics()
+                .put(topic, CompletableFuture.completedFuture(Optional.of(persistentTopic)));
+
+
+        try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test_sub")
+                .subscribe();
+             Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                     .topic(topic)
+                     .subscriptionName("test_sub1")
+                     .startMessageId(MessageId.earliest)
+                     .startMessageFromRollbackDuration(0, TimeUnit.SECONDS)
+                     .create()) {
+            Assert.assertEquals(persistentTopic.getSubscriptions().size(), 2);
+        } catch (Exception t) {
+            Assert.fail();
+        }
+    }
+
+    @Test
+    public void testPendingAckHandleRelayFailedWhenReloadTopic() throws Exception {
+        String topic = "persistent://prop/ns-123/btopic_" + UUID.randomUUID();
+        admin.namespaces().createNamespace(TopicName.get(topic).getNamespace());
+        admin.topics().createNonPartitionedTopic(topic);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).get().get();
+        Assert.assertNotNull(persistentTopic);
+
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create()) {
+            for (int a = 0; a < 100; a++) {
+                producer.send(UUID.randomUUID().toString());
+            }
+        }
+
+        int processed = 0;
+        try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test_sub")
+                .subscribe()) {
+            for (int a = 0; a < 50; a++) {
+                Message<String> message = consumer.receive(20, TimeUnit.SECONDS);
+                if (message != null) {
+                    consumer.acknowledge(message);
+                    processed++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        // Mock reload topic subscriptions failed.
+        Subscription subscription = persistentTopic.getSubscriptions().remove("test_sub");
+        subscription.close()
+                .thenAccept(unused -> latch.countDown());
+
+        if (!latch.await(1, TimeUnit.MINUTES)) {
+            Assert.fail();
+        }
+
+        int processed1 = 0;
+        try (Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test_sub")
+                .subscribe()) {
+            while (true) {
+                Message<String> message = consumer1.receive(10, TimeUnit.SECONDS);
+                if (null != message) {
+                    consumer1.acknowledge(message);
+                    processed1++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Assert.assertEquals(processed + processed1, 100);
     }
 }
