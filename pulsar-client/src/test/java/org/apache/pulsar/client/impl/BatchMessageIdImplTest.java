@@ -25,6 +25,9 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
@@ -70,6 +73,18 @@ public class BatchMessageIdImplTest {
         assertEquals(batchMsgId4, msgId);
 
         assertEquals(msgId, batchMsgId4);
+    }
+
+    @Test
+    public void notEqualsMultiTest() {
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0);
+        MessageIdImpl msgId = new MessageIdImpl(0, 0, 0);
+        MultiMessageIdImpl multiMsgId = new MultiMessageIdImpl(Collections.singletonMap("topic", msgId));
+
+        assertNotEquals(msgId, multiMsgId);
+        assertNotEquals(multiMsgId, msgId);
+        assertNotEquals(batchMsgId, multiMsgId);
+        assertNotEquals(multiMsgId, batchMsgId);
     }
 
     @Test
