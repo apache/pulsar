@@ -91,6 +91,7 @@ public class Producer {
     private final boolean isNonPersistentTopic;
     private final boolean isShadowTopic;
     private final boolean isEncrypted;
+    private final boolean blockTransactionsIfReplicationEnabled;
 
     private final ProducerAccessMode accessMode;
     private Optional<Long> topicEpoch;
@@ -153,6 +154,7 @@ public class Producer {
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
+        this.blockTransactionsIfReplicationEnabled = serviceConf.isBlockTransactionsIfReplicationEnabled();
 
         this.clientAddress = cnx.clientSourceAddress();
         this.brokerInterceptor = cnx.getBrokerService().getInterceptor();
@@ -186,7 +188,7 @@ public class Producer {
     }
 
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
-            boolean isChunked, boolean isMarker, Position position) {
+                               boolean isChunked, boolean isMarker, Position position) {
         if (checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, position)) {
             publishMessageToTopic(headersAndPayload, sequenceId, batchSize, isChunked, isMarker, position);
         }
@@ -263,6 +265,19 @@ public class Producer {
         }
 
         startPublishOperation((int) batchSize, headersAndPayload.readableBytes());
+        return true;
+    }
+
+    private boolean checkCanProduceTxnOnTopic(long sequenceId, ByteBuf headersAndPayload) {
+        if (blockTransactionsIfReplicationEnabled && topic.isReplicated()) {
+            cnx.execute(() -> {
+                cnx.getCommandSender().sendSendError(producerId,
+                        sequenceId, ServerError.NotAllowedError,
+                        "Transactions are not allowed in a namespace with replication enabled");
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            });
+            return false;
+        }
         return true;
     }
 
@@ -806,6 +821,9 @@ public class Producer {
 
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked, boolean isMarker) {
+        if (!checkCanProduceTxnOnTopic(sequenceId, headersAndPayload)) {
+            return;
+        }
         if (!checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, null)) {
             return;
         }

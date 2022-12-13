@@ -3127,6 +3127,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long transactionPendingAckLogIndexMinLag = 500L;
 
     @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Block transactions if replication is enabled on the namespace/topic."
+    )
+    private boolean blockTransactionsIfReplicationEnabled = false;
+
+    @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
             doc = "Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched"
