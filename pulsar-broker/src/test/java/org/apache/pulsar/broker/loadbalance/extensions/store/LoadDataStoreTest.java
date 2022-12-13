@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Test(groups = "broker")
 public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
     @Data
