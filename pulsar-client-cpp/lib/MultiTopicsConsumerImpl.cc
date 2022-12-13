@@ -457,8 +457,8 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         if (messages_.full()) {
             lock.unlock();
         }
-
-        if (messages_.push(msg) && messageListener_) {
+        messages_.push(msg);
+        if (messageListener_) {
             unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
