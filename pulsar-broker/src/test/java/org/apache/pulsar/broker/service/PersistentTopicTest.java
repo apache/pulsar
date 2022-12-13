@@ -116,6 +116,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -2363,4 +2364,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.initialize();
         assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), namespaceClusters);
     }
+
+    @Test
+    public void testSendProducerTxnPrechecks() throws Exception {
+        PersistentTopic topic = mock(PersistentTopic.class);
+        String role = "appid1";
+        Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 0, true,
+                ProducerAccessMode.Shared, Optional.empty(), true);
+        producer1.close(false).get();
+        producer1.publishTxnMessage(
+                new TxnID(1L, 0L),
+                1, 1, 1, null, 1, false, false
+        );
+        verify(topic, times(0)).publishTxnMessage(any(), any(), any());
+    }
+
 }
