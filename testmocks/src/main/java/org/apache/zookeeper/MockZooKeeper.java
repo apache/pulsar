@@ -1020,10 +1020,12 @@ public class MockZooKeeper extends ZooKeeper {
                         CreateMode cm = CreateMode.fromFlag(opc.flags);
                         String path = this.create(op.getPath(), opc.data, null, cm);
                         res.add(new OpResult.CreateResult(path));
+                        break;
                     }
                     case ZooDefs.OpCode.delete: {
                         this.delete(op.getPath(), (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.DeleteResult());
+                        break;
                     }
                     case ZooDefs.OpCode.setData: {
                         Stat stat = this.setData(
@@ -1031,6 +1033,7 @@ public class MockZooKeeper extends ZooKeeper {
                                 (byte[]) FieldUtils.readField(op, "data", true),
                                 (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.SetDataResult(stat));
+                        break;
                     }
                     case ZooDefs.OpCode.getChildren: {
                         try {
@@ -1039,6 +1042,7 @@ public class MockZooKeeper extends ZooKeeper {
                         } catch (KeeperException e) {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
                         }
+                        break;
                     }
                     case ZooDefs.OpCode.getData: {
                         Stat stat = new Stat();
@@ -1048,6 +1052,7 @@ public class MockZooKeeper extends ZooKeeper {
                         } catch (KeeperException e) {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
                         }
+                        break;
                     }
                 }
             }
