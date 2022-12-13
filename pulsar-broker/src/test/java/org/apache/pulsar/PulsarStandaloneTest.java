@@ -27,9 +27,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.List;
+import lombok.Cleanup;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -42,11 +46,19 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class PulsarStandaloneTest {
+
+    @DataProvider
+    public Object[][] enableBrokerClientAuth() {
+        return new Object[][] { { true }, { false } };
+    }
 
     @Test
     public void testCreateNameSpace() throws Exception {
@@ -102,7 +114,7 @@ public class PulsarStandaloneTest {
         standalone.createNameSpace(cluster, tenant, ns);
     }
 
-    @Test(groups = "broker")
+    @Test
     public void testStandaloneWithRocksDB() throws Exception {
         String[] args = new String[]{"--config",
                 "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
@@ -132,4 +144,56 @@ public class PulsarStandaloneTest {
         cleanDirectory(tempDir);
     }
 
+    @Test(dataProvider = "enableBrokerClientAuth")
+    public void testMetadataInitialization(boolean enableBrokerClientAuth) throws Exception {
+        final File metadataDir = IOUtils.createTempDir("standalone", "metadata");
+        @Cleanup final PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[]{
+                "--config",
+                "./src/test/resources/configurations/standalone_no_client_auth.conf",
+                "-nss",
+                "-nfw",
+                "--metadata-url",
+                "rocksdb://" + metadataDir.getAbsolutePath()
+        });
+        if (enableBrokerClientAuth) {
+            standalone.getConfig().setBrokerClientAuthenticationPlugin(
+                    MockTokenAuthenticationProvider.MockAuthentication.class.getName());
+        }
+        final File bkDir = IOUtils.createTempDir("standalone", "bk");
+        standalone.setNumOfBk(1);
+        standalone.setBkDir(bkDir.getAbsolutePath());
+        standalone.start();
+
+        @Cleanup PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .authentication(new MockTokenAuthenticationProvider.MockAuthentication())
+                .build();
+        if (enableBrokerClientAuth) {
+            assertTrue(admin.clusters().getClusters().contains("test_cluster"));
+            assertTrue(admin.tenants().getTenants().contains("public"));
+            assertTrue(admin.namespaces().getNamespaces("public").contains("public/default"));
+        } else {
+            assertTrue(admin.clusters().getClusters().isEmpty());
+            admin.clusters().createCluster("test_cluster", ClusterData.builder()
+                    .serviceUrl("http://localhost:8080/")
+                    .brokerServiceUrl("pulsar://localhost:6650/")
+                    .build());
+            assertTrue(admin.tenants().getTenants().isEmpty());
+            admin.tenants().createTenant("public", TenantInfo.builder()
+                    .adminRoles(Collections.singleton("admin"))
+                    .allowedClusters(Collections.singleton("test_cluster"))
+                    .build());
+
+            assertTrue(admin.namespaces().getNamespaces("public").isEmpty());
+            admin.namespaces().createNamespace("public/default");
+        }
+
+        String topic = "test-get-topic-bundle-range";
+        admin.topics().createNonPartitionedTopic(topic);
+        assertEquals(admin.lookups().getBundleRange(topic), "0xc0000000_0xffffffff");
+
+        standalone.close();
+        cleanDirectory(bkDir);
+        cleanDirectory(metadataDir);
+    }
 }
