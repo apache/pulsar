@@ -801,7 +801,7 @@ public class Producer {
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked, boolean isMarker) {
         if (!checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, null)) {
-            // return;
+            return;
         }
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
