@@ -90,14 +90,6 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (o instanceof MessageId) {
-            return compareTo((MessageId) o) == 0;
-        }
-        return false;
-    }
-
-    @Override
     public String toString() {
         return ledgerId + ":" + entryId + ":" + partitionIndex + ":" + batchIndex;
     }

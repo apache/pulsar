@@ -66,10 +66,9 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public boolean equals(Object o) {
-        if (o instanceof MessageId) {
-            return compareTo((MessageId) o) == 0;
-        }
-        return false;
+        return (o instanceof MessageId)
+                && !(o instanceof MultiMessageIdImpl)
+                && (compareTo((MessageId) o) == 0);
     }
 
     @Override
