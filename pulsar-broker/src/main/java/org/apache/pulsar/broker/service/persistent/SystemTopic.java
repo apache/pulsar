@@ -81,4 +81,10 @@ public class SystemTopic extends PersistentTopic {
         return !name.getNamespaceObject().equals(heartbeatNamespaceV1)
                 && !name.getNamespaceObject().equals(heartbeatNamespaceV2);
     }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        // System topics are only written by the broker that can't know the encryption context.
+        return false;
+    }
 }
