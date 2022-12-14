@@ -27,8 +27,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -148,7 +150,7 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public String setNamespaceBundleAffinity(String bundle, String broker) {
-        if (broker == null) {
+        if (StringUtils.isBlank(broker)) {
             return this.bundleBrokerAffinityMap.remove(bundle);
         }
         broker = broker.replaceFirst("http[s]?://", "");

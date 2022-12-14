@@ -47,6 +47,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -1449,7 +1451,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     @Override
     public String setNamespaceBundleAffinity(String bundle, String broker) {
-        if (broker == null) {
+        if (StringUtils.isBlank(broker)) {
             return this.bundleBrokerAffinityMap.remove(bundle);
         }
         broker = broker.replaceFirst("http[s]?://", "");
