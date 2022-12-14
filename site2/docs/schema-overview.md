@@ -13,100 +13,79 @@ This section introduces the following content:
 
 ## What is Pulsar Schema
 
-Pulsar messages are stored as unstructured byte arrays and the data structure (as known as schema) is applied to this data only when it's read. The schema serializes the bytes before they are published to a topic and deserializes them before they are delivered to the consumers, dictating which data types are recognized as valid for a given topic.
+Pulsar messages are stored as unstructured byte arrays and the data structure (as known as schema) is applied to this data only when it's read. So both the producer and consumer need to agree upon the data structure of the messages, including the fields and their associated types.
 
-Pulsar schema registry is a central repository to store the schema information, which enables producers/consumers to coordinate on the schema of a topic’s data through brokers.
+Pulsar schema is the metadata that defines how to translate the raw message bytes into a more formal structure type, serving as a protocol between the applications that generate messages and the applications that consume them. It serializes data into raw bytes before they are published to a topic and deserializes the raw bytes before they are delivered to consumers.
+
+Pulsar uses a schema registry as a central repository to store the registered schema information, which enables producers/consumers to coordinate the schema of a topic’s messages through brokers.
+
+![Pulsar schema](/assets/schema.svg)
 
 :::note
 
-Currently, Pulsar schema is only available for the [Java client](client-libraries-java.md), [Go client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
+Currently, Pulsar schema is available for [Java clients](client-libraries-java.md), [Go clients](client-libraries-go.md), [Python clients](client-libraries-python.md), [C++ clients](client-libraries-cpp.md), and [C# clients](client-libraries-dotnet.md).
 
 :::
 
 ## Why use it
 
-Type safety is extremely important in any application built around a messaging and streaming system. Raw bytes are flexible for data transfer, but the flexibility and neutrality come with a cost: you have to overlay data type checking and serialization/deserialization to ensure that the bytes fed into the system can be read and successfully consumed. In other words, you need to make sure the data intelligible and usable to applications.
+Type safety is extremely important in any application built around a messaging and streaming system. Raw bytes are flexible for data transfer, but the flexibility and neutrality come with a cost: you have to overlay data type checking and serialization/deserialization to ensure that the bytes fed into the system can be read and successfully consumed. In other words, you need to make sure the data is intelligible and usable to applications.
 
 Pulsar schema resolves the pain points with the following capabilities:
 * enforces the data type safety when a topic has a schema defined. As a result, producers/consumers are only allowed to connect if they are using a "compatible" schema.
 * provides a central location for storing information about the schemas used within your organization, in turn greatly simplifies the sharing of this information across application teams.
 * serves as a single source of truth for all the message schemas used across all your services and development teams, which makes it easier for them to collaborate.
 * keeps data compatibility on-track between schema versions. When new schemas are uploaded, the new versions can be read by old consumers. 
-* stored in the existing storage layer BookKeeper, no additional system required.
+* stored in the existing storage layer BookKeeper, without additional system required.
 
 ## How it works
 
-Pulsar schemas are applied and enforced at the **topic** level (schemas cannot be applied at the namespace or tenant level). 
-
-Producers and consumers upload schemas to brokers, so Pulsar schemas work on the producer side and the consumer side.
+Pulsar schemas are applied and enforced at the **topic** level. Producers and consumers can upload schemas to brokers, so Pulsar schemas work on both sides.
 
 ### Producer side
 
-This diagram illustrates how schema works on the Producer side.
+This diagram illustrates how Pulsar schema works on the Producer side.
 
-![Schema works at the producer side](/assets/schema-producer.png)
+![How Pulsar schema works on the producer side](/assets/schema-producer.svg)
 
 1. The application uses a schema instance to construct a producer instance. 
+   The schema instance defines the schema for the data being produced using the producer instance. Take Avro as an example, Pulsar extracts the schema definition from the POJO class and constructs the `SchemaInfo`.
 
-   The schema instance defines the schema for the data being produced using the producer instance. 
-
-   Take AVRO as an example, Pulsar extracts schema definition from the POJO class and constructs the `SchemaInfo` that the producer needs to pass to a broker when it connects.
-
-2. The producer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
+2. The producer requests to connect to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
-3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
-   
-4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.
+3. The broker looks up the schema registry to check if it is a registered schema. 
+   * If the schema is registered, the broker returns the schema version to the producer.
+   * Otherwise, go to step 4.
 
-5. If no, the broker verifies whether a schema can be automatically created in this namespace:
+4. The broker checks whether the schema can be auto-updated. 
+   * If it’s not allowed to be auto-updated, then the schema cannot be registered, and the broker rejects the producer.
+   * Otherwise, go to step 5.
 
-   * If `isAllowAutoUpdateSchema` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
-  
-   * If `isAllowAutoUpdateSchema` sets to **false**, then a schema can not be created, and the producer is rejected to connect to the broker.
-  
-   :::tip
-
-   `isAllowAutoUpdateSchema` can be set via **Pulsar admin API** or **REST API.** 
-
-   For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](admin-api-schemas.md#manage-autoupdate-strategy). 
-
-    :::
-
-6. If the schema is allowed to be updated, then the compatible strategy check is performed.
-  
-   * If the schema is compatible, the broker stores it and returns the schema version to the producer. All the messages produced by this producer are tagged with the schema version. 
-
-   * If the schema is incompatible, the broker rejects it.
+5. The broker performs the [schema compatibility check](schema-understand.md#schema-compatibility-check) defined for the topic.
+   * If the schema passes the compatibility check, the broker stores it in the schema registry and returns the schema version to the producer. All the messages produced by this producer are tagged with the schema version. 
+   * Otherwise, the broker rejects the producer.
 
 ### Consumer side
 
 This diagram illustrates how schema works on the consumer side. 
 
-![Schema works at the consumer side](/assets/schema-consumer.png)
+![How Pulsar schema works on the consumer side](/assets/schema-consumer.svg)
 
 1. The application uses a schema instance to construct a consumer instance.
-   
-   The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
 
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
 
-3. The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).
+3. The broker checks if the topic is in use (has at least one of the objects: schema, data, active producer or consumer).
+   * If a topic has at least one of the above objects, go to step 5.
+   * Otherwise, go to step 4.
 
-4. If a topic does not have all of them (a schema/data/a local consumer and a local producer):
-   
-     * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+4. The broker checks whether the schema can be auto-updated.
+     * If the schema can be auto-updated, the broker registers the schema and connects the consumer.
+     * Otherwise, the broker rejects the consumer.
        
-     * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
-       
-5. If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
-   
-     * If the schema passes the compatibility check, then the consumer is connected to the broker.
-       
-     * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker. 
-
-6. The consumer receives messages from the broker. 
-
-   If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the `SchemaInfo` of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.
+5. The broker performs the [schema compatibility check](schema-understand.md#schema-compatibility-check).
+     * If the schema passes the compatibility check, the broker connects the consumer.
+     * Otherwise, the broker rejects the consumer. 
 
 ## Use case
 
@@ -116,8 +95,15 @@ For example, you are using the _User_ class to define the messages sent to Pulsa
 
 ```java
 public class User {
-    String name;
-    int age;
+   public String name;
+   public int age;
+   
+   User() {}
+   
+   User(String name, int age) {
+      this.name = name;
+      this.age = age;
+   }
 }
 ```
 
@@ -139,16 +125,26 @@ producer.send(message);
 This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize POJOs into bytes.
 
 ```java
+// send with json schema
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
 User user = new User("Tom", 28);
 producer.send(user);
+
+// receive with json schema
+Consumer<User> consumer = client.newConsumer(JSONSchema.of(User.class))
+   .topic(schemaTopic)
+   .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+   .subscriptionName("schema-sub")
+   .subscribe();
+Message<User> message = consumer.receive();
+User user = message.getValue();
+assert user.age == 28 && user.name.equals("Tom");
 ```
 
 ## What's next?
 
-* [Understand basic concepts](schema-understand.md)
-* [Schema evolution and compatibility](schema-evolution-compatibility.md)
-* [Get started](schema-get-started.md)
+* [Understand schema concepts](schema-understand.md)
+* [Get started with schema](schema-get-started.md)
 * [Manage schema](admin-api-schemas.md)

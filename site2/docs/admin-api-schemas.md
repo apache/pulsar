@@ -14,7 +14,7 @@ import TabItem from '@theme/TabItem';
 
 This page only shows **some frequently used operations**.
 
-- For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+- For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/).
 
 - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 
@@ -22,53 +22,7 @@ This page only shows **some frequently used operations**.
 
 :::
 
-## Manage AutoUpdate strategy
-
-### Enable AutoUpdate
-
-To enable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
-
-```bash
-bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/namespace
-```
-
-### Disable AutoUpdate 
-
-To disable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
-
-```bash
-bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disable tenant/namespace
-```
-
-Once the `AutoUpdate` is disabled, you can only register a new schema using the `pulsar-admin` command.
-
-### Adjust compatibility
-
-To adjust the schema compatibility level on a namespace, you can use the `pulsar-admin` command.
-
-```bash
-bin/pulsar-admin namespaces set-schema-compatibility-strategy --compatibility <compatibility-level> tenant/namespace
-```
-
-## Schema validation
-
-### Enable schema validation
-
-To enable `schemaValidationEnforced` on a namespace, you can use the `pulsar-admin` command.
-
-```bash
-bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namespace
-```
-
-### Disable schema validation
-
-To disable `schemaValidationEnforced` on a namespace, you can use the `pulsar-admin` command.
-
-```bash
-bin/pulsar-admin namespaces set-schema-validation-enforce --disable tenant/namespace
-```
-
-## Schema manual management
+## Manage schema
 
 ### Upload a schema
 
@@ -97,35 +51,15 @@ The `schema-definition-file` is in JSON format.
 }
 ```
 
-The `schema-definition-file` includes the following fields:
+The following is an example of the `schema-definition-file` for a JSON schema.
 
-| Field |  Description | 
-| --- | --- |
-|  `type`  |   The schema type. | 
-|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
-
-Here are examples of the `schema-definition-file` for a JSON schema.
-
-**Example 1**
+**Example**
 
 ```json
 {
     "type": "JSON",
     "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.foo\",\"fields\":[{\"name\":\"file1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file2\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file3\",\"type\":[\"string\",\"null\"],\"default\":\"dfdf\"}]}",
     "properties": {}
-}
-```
-
-**Example 2**
-
-```json
-{
-    "type": "STRING",
-    "schema": "",
-    "properties": {
-        "key1": "value1"
-    }
 }
 ```
 
@@ -144,28 +78,12 @@ The post payload is in JSON format.
 }
 ```
 
-The post payload includes the following fields:
-
-| Field |  Description | 
-| --- | --- |
-|  `type`  |   The schema type. | 
-|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. |
-
 </TabItem>
 <TabItem value="Java Admin API">
 
 ```java
 void createSchema(String topic, PostSchemaPayload schemaPayload)
 ```
-
-The `PostSchemaPayload` includes the following fields:
-
-| Field |  Description | 
-| --- | --- |
-|  `type`  |   The schema type. | 
-|  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
 
 Here is an example of `PostSchemaPayload`:
 
@@ -180,11 +98,10 @@ admin.createSchema("my-tenant/my-ns/my-topic", payload);
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
-### Get a schema (latest)
+### Get the latest schema
 
 To get the latest schema for a topic, you can use one of the following methods. 
 
@@ -233,31 +150,12 @@ Here is an example of a response, which is returned in JSON format.
 }
 ```
 
-The response includes the following fields:
-
-| Field |  Description | 
-| --- | --- |
-|  `version`  |   The schema version, which is a long number. | 
-|  `type`  |   The schema type. | 
-|  `timestamp`  |   The timestamp of creating this version of schema. | 
-|  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. |
-
 </TabItem>
 <TabItem value="Java Admin API">
 
 ```java
 SchemaInfo createSchema(String topic)
 ```
-
-The `SchemaInfo` includes the following fields:
-
-| Field |  Description | 
-| --- | --- |
-|  `name`  |   The schema name. | 
-|  `type`  |   The schema type. | 
-|  `schema`  |   A byte array of the schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this byte array should be empty. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition converted to a byte array. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
 
 Here is an example of `SchemaInfo`:
 
@@ -268,11 +166,10 @@ SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic");
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
-### Get a schema (specific)
+### Get a specific schema
 
 To get a specific version of a schema, you can use one of the following methods.
 
@@ -306,31 +203,12 @@ Here is an example of a response, which is returned in JSON format.
 }
 ```
 
-The response includes the following fields:
-
-| Field |  Description | 
-| --- | --- |
-|  `version`  |   The schema version, which is a long number. | 
-|  `type`  |   The schema type. | 
-|  `timestamp`  |   The timestamp of creating this version of schema. | 
-|  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a **primitive** schema, this field should be blank. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. |
-
 </TabItem>
 <TabItem value="Java Admin API">
 
 ```java
 SchemaInfo createSchema(String topic, long version)
 ```
-
-The `SchemaInfo` includes the following fields:
-
-| Field |  Description | 
-| --- | --- |
-|  `name`  |  The schema name. | 
-|  `type`  |  The schema type. | 
-|  `schema`  |   A byte array of the schema definition data, which is encoded in UTF 8. <li>If the schema is a **primitive** schema, this byte array should be empty. </li><li>If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition converted to a byte array. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
 
 Here is an example of `SchemaInfo`:
 
@@ -341,13 +219,12 @@ SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic", 1L);
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
 ### Extract a schema
 
-To provide a schema via a topic, you can use the following method.
+To extract (provide) a schema via a topic, use the following method.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -363,19 +240,18 @@ pulsar-admin schemas extract --classname <class-name> --jar <jar-path> --type <t
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
 ### Delete a schema
 
-To delete a schema for a topic, you can use one of the following methods.
-
 :::note
 
-In any case, the **delete** action deletes **all versions** of a schema registered for a topic.
+In any case, the `delete` action deletes **all versions** of a schema registered for a topic.
 
 :::
+
+To delete a schema for a topic, you can use one of the following methods.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -395,19 +271,13 @@ pulsar-admin schemas delete <topic-name>
 
 Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=@pulsar:version_number@} 
 
-Here is an example of a response, which is returned in JSON format.
+Here is an example of a response returned in JSON format.
 
 ```json
 {
     "version": "<the-latest-version-number-of-the-schema>",
 }
 ```
-
-The response includes the following field:
-
-Field | Description |
----|---|
-`version` | The schema version, which is a long number. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -425,26 +295,204 @@ admin.deleteSchema("my-tenant/my-ns/my-topic");
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
-## Set schema compatibility check strategy 
+## Manage schema AutoUpdate
 
-You can set [schema compatibility check strategy](schema-evolution-compatibility.md#schema-compatibility-check-strategy) at the topic, namespace or broker level. 
+### Enable schema AutoUpdate
 
-The schema compatibility check strategy set at different levels has priority: topic level > namespace level > broker level. 
+To enable/enforce schema auto-update at the namespace level, you can use one of the following methods.
 
-- If you set the strategy at both topic and namespace levels, it uses the topic-level strategy. 
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
-- If you set the strategy at both namespace and broker levels, it uses the namespace-level strategy.
+<TabItem value="Admin CLI">
 
-- If you do not set the strategy at any level, it uses the `FULL` strategy. For all available values, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy).
+Use the `set-is-allow-auto-update-schema` subcommand. 
 
+```bash
+bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/namespace
+```
 
-### Topic level
+</TabItem>
+<TabItem value="REST API">
 
-To set a schema compatibility check strategy at the topic level, use one of the following methods.
+Send a `POST` request to a namespace endpoint: {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/isAllowAutoUpdateSchema|operation/isAllowAutoUpdateSchema?version=@pulsar:version_number@}
+
+The post payload is in JSON format.
+
+```json
+{
+“isAllowAutoUpdateSchema”: “true”
+}
+```
+
+</TabItem>
+<TabItem value="Java Admin API">
+
+Here is an example to enable schema auto-update for a tenant/namespace.
+
+```java
+admin.namespaces().setIsAllowAutoUpdateSchema("my-namspace", true);
+```
+
+</TabItem>
+</Tabs>
+````
+
+### Disable schema AutoUpdate
+
+:::note
+
+When schema auto-update is disabled, you can only [register a new schema](#upload-a-schema).
+
+:::
+
+To disable schema auto-update at the **namespace** level, you can use one of the following commands.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
+
+<TabItem value="Admin CLI">
+
+Use the `set-is-allow-auto-update-schema` subcommand. 
+
+```bash
+bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disable tenant/namespace
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+Send a `POST` request to a namespace endpoint: {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/isAllowAutoUpdateSchema|operation/isAllowAutoUpdateSchema?version=@pulsar:version_number@}
+
+The post payload is in JSON format.
+
+```json
+{
+“isAllowAutoUpdateSchema”: “false”
+}
+```
+
+</TabItem>
+<TabItem value="Java Admin API">
+
+Here is an example to enable schema auto-unpdate of a tenant/namespace.
+
+```java
+admin.namespaces().setIsAllowAutoUpdateSchema("my-namspace", false);
+```
+
+</TabItem>
+</Tabs>
+````
+
+## Manage schema validation enforcement
+
+### Enable schema validation enforcement
+
+To enforce schema validation enforcement at the **cluster** level, you can configure `schemaValidationEnforced` to `true` in the `conf/broker.conf` file. 
+
+To enable schema validation enforcement at the **namespace** level, you can use one of the following commands.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
+
+<TabItem value="Admin CLI">
+
+Use the `set-schema-validation-enforce` subcommand. 
+
+```bash
+bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namespace
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+Send a `POST` request to a namespace endpoint: {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/schemaValidationEnforced|operation/schemaValidationEnforced?version=@pulsar:version_number@}
+
+The post payload is in JSON format.
+
+```json
+{
+“schemaValidationEnforced”: “true”
+}
+```
+
+</TabItem>
+<TabItem value="Java Admin API">
+
+Here is an example to enable schema validation enforcement for a tenant/namespace.
+
+```java
+admin.namespaces().setSchemaValidationEnforced("my-namspace", true);
+```
+
+</TabItem>
+</Tabs>
+````
+
+### Disable schema validation enforcement
+
+To disable schema validation enforcement at the **namespace** level, you can use one of the following commands.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
+
+<TabItem value="Admin CLI">
+
+Use the `set-schema-validation-enforce` subcommand. 
+
+```bash
+bin/pulsar-admin namespaces set-schema-validation-enforce --disable tenant/namespace
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+Send a `POST` request to a namespace endpoint: {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/schemaValidationEnforced|operation/schemaValidationEnforced?version=@pulsar:version_number@}
+
+The post payload is in JSON format.
+
+```json
+{
+“schemaValidationEnforced”: “false”
+}
+```
+
+</TabItem>
+<TabItem value="Java Admin API">
+
+Here is an example to enable schema validation enforcement for a tenant/namespace.
+
+```java
+admin.namespaces().setSchemaValidationEnforced("my-namspace", false);
+```
+
+</TabItem>
+</Tabs>
+````
+
+## Manage schema compatibility strategy 
+
+The [schema compatibility check strategy](schema-understand.md#schema-compatibility-check-strategy) configured at different levels has priority: topic level > namespace level > cluster level. In other words:
+  * If you set the strategy at both topic and namespace levels, the topic-level strategy is used. 
+  * If you set the strategy at both namespace and cluster levels, the namespace-level strategy is used. 
+
+### Set schema compatibility strategy
+
+#### Set topic-level schema compatibility strategy
+
+To set a schema compatibility check strategy at the topic level, you can use one of the following methods.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -480,11 +528,59 @@ admin.topicPolicies().setSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
-To get the topic-level schema compatibility check strategy, use one of the following methods.
+#### Set namespace-level schema compatibility strategy
+
+To set schema compatibility check strategy at the namespace level, you can use one of the following methods.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
+
+<TabItem value="Admin CLI">
+
+Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
+
+```shell
+pulsar-admin namespaces set-schema-compatibility-strategy options
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java Admin API">
+
+Use the [`setSchemaCompatibilityStrategy`](/api/admin/) method.
+
+```java
+admin.namespaces().setSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
+```
+
+</TabItem>
+</Tabs>
+````
+
+#### Set cluster-level schema compatibility strategy
+
+To set schema compatibility check strategy at the **cluster** level, set `schemaCompatibilityStrategy` in the `conf/broker.conf` file.
+
+The following is an example:
+
+```conf
+schemaCompatibilityStrategy=ALWAYS_INCOMPATIBLE
+```
+
+### Get schema compatibility strategy
+
+#### Get topic-level schema compatibility strategy
+
+To get the topic-level schema compatibility check strategy, you can use one of the following methods.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -524,11 +620,12 @@ admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 ```
 
 </TabItem>
-
 </Tabs>
 ````
 
-To remove the topic-level schema compatibility check strategy, use one of the following methods.
+#### Get namespace-level schema compatibility strategy
+
+You can get schema compatibility check strategy at namespace level using one of the following methods.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -537,77 +634,26 @@ To remove the topic-level schema compatibility check strategy, use one of the fo
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin namespaces get-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
-pulsar-admin topicPolicies remove-schema-compatibility-strategy <topicName>
+pulsar-admin namespaces get-schema-compatibility-strategy options
 ```
 
 </TabItem>
 <TabItem value="REST API">
 
-Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
 
-```java
-void removeSchemaCompatibilityStrategy(String topic)
-```
-
-Here is an example of removing the topic-level schema compatibility check strategy.
+Use the [`getSchemaCompatibilityStrategy`](/api/admin/) method.
 
 ```java
-PulsarAdmin admin = …;
-
-admin.removeSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic");
+admin.namespaces().getSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
 ```
 
 </TabItem>
-
 </Tabs>
 ````
-
-### Namespace level
-
-You can set schema compatibility check strategy at namespace level using one of the following methods.
-
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="Admin CLI"
-  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
-
-<TabItem value="Admin CLI">
-
-Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
-
-```shell
-pulsar-admin namespaces set-schema-compatibility-strategy options
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
-
-</TabItem>
-<TabItem value="Java Admin API">
-
-Use the [`setSchemaCompatibilityStrategy`](/api/admin/) method.
-
-```java
-admin.namespaces().setSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
-```
-
-</TabItem>
-
-</Tabs>
-````
-
-### Broker level
-
-You can set schema compatibility check strategy at broker level by setting `schemaCompatibilityStrategy` in `conf/broker.conf` or `conf/standalone.conf` file.
-
-```conf
-schemaCompatibilityStrategy=ALWAYS_INCOMPATIBLE
-```
