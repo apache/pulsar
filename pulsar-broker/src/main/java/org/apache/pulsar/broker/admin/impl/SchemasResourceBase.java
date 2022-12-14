@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.MediaType;
@@ -133,9 +134,8 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void postSchema(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
-
-        getSchemaCompatibilityStrategyAsync().thenAccept(schemaCompatibilityStrategy -> {
+        validateOwnershipAndOperation(authoritative, TopicOperation.PRODUCE);
+        getSchemaCompatibilityStrategyAsyncWithoutAuth().thenAccept(schemaCompatibilityStrategy -> {
             byte[] data;
             if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
                 try {

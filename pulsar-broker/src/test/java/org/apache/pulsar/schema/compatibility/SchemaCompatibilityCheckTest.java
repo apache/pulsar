@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -478,7 +479,39 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         consumerOne.close();
         producerOne.close();
+    }
 
+    @Test
+    public void testSchemaLedgerAutoRelease() throws Exception {
+        String namespaceName = PUBLIC_TENANT + "/default";
+        String topicName = "persistent://" + namespaceName + "/tp";
+        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        // Update schema 100 times.
+        for (int i = 0; i < 100; i++){
+            Schema schema = Schema.JSON(SchemaDefinition.builder()
+                    .withJsonDef(String.format("{\n"
+                            + "    \"type\": \"record\",\n"
+                            + "    \"name\": \"Test_Pojo\",\n"
+                            + "    \"namespace\": \"org.apache.pulsar.schema.compatibility\",\n"
+                            + "    \"fields\": [{\n"
+                            + "        \"name\": \"prop_%s\",\n"
+                            + "        \"type\": [\"null\", \"string\"],\n"
+                            + "        \"default\": null\n"
+                            + "    }]\n"
+                            + "}", i))
+                    .build());
+            Producer producer = pulsarClient
+                    .newProducer(schema)
+                    .topic(topicName)
+                    .create();
+            producer.close();
+        }
+        // The other ledgers are about 5.
+        Assert.assertTrue(mockBookKeeper.getLedgerMap().values().stream()
+                .filter(ledger -> !ledger.isFenced())
+                .collect(Collectors.toList()).size() < 20);
+        admin.topics().delete(topicName, true);
     }
 
     @Test

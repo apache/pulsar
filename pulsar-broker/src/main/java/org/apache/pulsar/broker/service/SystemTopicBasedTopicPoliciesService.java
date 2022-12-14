@@ -101,6 +101,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
                                                          TopicPolicies policies) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
         try {
             createSystemTopicFactoryIfNeeded();
@@ -247,7 +251,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
                 result.complete(null);
             } else {
-                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                 prepareInitPoliciesCache(namespace, result);
             }
         }
@@ -259,6 +262,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                     createSystemTopicClientWithRetry(namespace);
             readerCaches.put(namespace, readerCompletableFuture);
+            ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
             readerCompletableFuture.thenAccept(reader -> {
                 initPolicesCache(reader, result);
                 result.thenRun(() -> readMorePolicies(reader));
@@ -523,6 +527,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         } else {
                             fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, policies, future);
                         }
+                    } else {
+                        future.complete(null);
                     }
                 });
             } else {

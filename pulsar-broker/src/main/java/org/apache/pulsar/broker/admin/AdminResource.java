@@ -65,6 +65,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -272,6 +273,14 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected WorkerService validateAndGetWorkerService() {
+        try {
+            return pulsar().getWorkerService();
+        } catch (UnsupportedOperationException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        }
+    }
+
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
             Policies policies = namespaceResources().getPolicies(namespaceName)
@@ -419,18 +428,19 @@ public abstract class AdminResource extends PulsarWebResource {
         this.servletContext = servletContext;
     }
 
+    protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
+                                                                   boolean authoritative,
+                                                                   boolean checkAllowAutoCreation) {
+        return sync(() -> getPartitionedTopicMetadataAsync(topicName, authoritative, checkAllowAutoCreation));
+    }
+
     protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
             TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
-        try {
-            validateClusterOwnership(topicName.getCluster());
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        return validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject())
+        return validateClusterOwnershipAsync(topicName.getCluster())
+                .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
@@ -440,37 +450,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }
                 });
-    }
-
-    protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
-            boolean authoritative, boolean checkAllowAutoCreation) {
-        validateClusterOwnership(topicName.getCluster());
-        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-        // producer/consumer
-        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
-
-        try {
-            validateTopicOperation(topicName, TopicOperation.LOOKUP);
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
-                    clientAppId(), e.getMessage(), e);
-            throw new RestException(e);
-        }
-
-        PartitionedTopicMetadata partitionMetadata;
-        if (checkAllowAutoCreation) {
-            partitionMetadata = fetchPartitionedTopicMetadataCheckAllowAutoCreation(pulsar(), topicName);
-        } else {
-            partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), topicName,
-                    partitionMetadata.partitions);
-        }
-        return partitionMetadata;
     }
 
     protected PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
@@ -728,38 +707,38 @@ public abstract class AdminResource extends PulsarWebResource {
         return validateTopicPolicyOperationAsync(topicName,
                 PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ)
-                .thenCompose((__) -> {
-                    CompletableFuture<SchemaCompatibilityStrategy> future;
-                    if (config().isTopicLevelPoliciesEnabled()) {
-                        future = getTopicPoliciesAsyncWithRetry(topicName)
-                                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
-                    } else {
-                        future = CompletableFuture.completedFuture(null);
-                    }
-
-                    return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
-                        if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
-                            return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
-                        }
-                        return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
-                            SchemaCompatibilityStrategy schemaCompatibilityStrategy =
-                                    policies.schema_compatibility_strategy;
-                            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                                        policies.schema_auto_update_compatibility_strategy);
-                                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                                    schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-                                }
-                            }
-                            return schemaCompatibilityStrategy;
-                        });
-                    });
-                }).whenComplete((__, ex) -> {
+                .thenCompose((__) -> getSchemaCompatibilityStrategyAsyncWithoutAuth()).whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
                                 clientAppId(), topicName, ex);
                     }
                 });
+    }
+
+    protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
+        CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
+        if (config().isTopicLevelPoliciesEnabled()) {
+            future = getTopicPoliciesAsyncWithRetry(topicName)
+                    .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
+        }
+
+        return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
+            if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
+                return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
+            }
+            return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+                        policies.schema_compatibility_strategy;
+                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                    schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                            policies.schema_auto_update_compatibility_strategy);
+                    if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                        schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+                    }
+                }
+                return schemaCompatibilityStrategy;
+            });
+        });
     }
 
     @CanIgnoreReturnValue

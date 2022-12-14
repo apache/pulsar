@@ -1267,7 +1267,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final boolean isChunkedMessage = numChunks > 1 && conf.getSubscriptionType() != SubscriptionType.Shared;
 
         MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
-        if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
+        if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()
+                && acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
                         topic, subscription, consumerName, msgId);
@@ -1531,7 +1532,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         skippedMessages++;
                         continue;
                     }
-
+                }
+                if (acknowledgmentsGroupingTracker.isDuplicate(message.getMessageId())) {
+                    skippedMessages++;
+                    continue;
                 }
                 executeNotifyCallback(message);
             }

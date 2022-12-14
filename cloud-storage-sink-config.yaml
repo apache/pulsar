@@ -1,0 +1,45 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+tenant: "public"
+namespace: "default"
+name: "Cloud Storage-sink"
+inputs: 
+  - "user-avro-topic-10"
+archive: "connectors/pulsar-io-cloud-storage-2.9.0-rc-5.nar"
+parallelism: 1
+
+configs:
+  provider: "aws-s3"
+  accessKeyId: "AKIAYWR5WIQWH67POKID"
+  secretAccessKey: "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"
+#  role: "none"
+#  roleSessionName: "none"
+  bucket: "xiangying-test"
+  region: "us-east-2"
+#  endpoint: "http://localhost:9090"
+  formatType: "bytes"
+#  bytesFormatTypeSeparator: "0x10203040"
+  partitionerType: "time"
+  timePartitionPattern: "yyyy-MM-dd"
+  timePartitionDuration: "1d"
+  batchSize: 10
+  batchTimeMs: 1000
+# arn:aws:kms:local:acct-id:key/key-id
+

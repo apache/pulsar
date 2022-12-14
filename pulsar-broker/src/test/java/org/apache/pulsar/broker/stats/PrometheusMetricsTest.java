@@ -350,6 +350,88 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
+    /**
+     * Test that the total message and byte counts for a topic are not reset when a consumer disconnects.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testPerTopicStatsReconnect() throws Exception {
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 5;
+        final int pulsarMessageOverhead = 42; // Number of extra bytes pulsar adds to each message
+        final int messageSizeBytes = "my-message-n".getBytes().length + pulsarMessageOverhead;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        c1.close();
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+        }
+
+        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        for (int i = 0; i < messages; i++) {
+            c2.acknowledge(c2.receive());
+        }
+
+        p1.close();
+        c2.close();
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        metrics.entries().forEach(e -> {
+            System.out.println(e.getKey() + ": " + e.getValue());
+        });
+
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, (messageSizeBytes * messages * 2));
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+
+        cm = (List<Metric>) metrics.get("pulsar_in_messages_total");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, (messages * 2));
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+
+        cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, (messageSizeBytes * messages * 2));
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("subscription"), "test");
+
+        cm = (List<Metric>) metrics.get("pulsar_out_messages_total");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, (messages * 2));
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(0).tags.get("subscription"), "test");
+    }
+
     @Test
     public void testPerTopicExpiredStat() throws Exception {
         String ns = "prop/ns-abc1";

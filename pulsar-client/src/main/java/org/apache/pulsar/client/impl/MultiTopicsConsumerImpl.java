@@ -260,8 +260,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
             }
+            // Stop to process the remaining message after the consumer is closed.
+            if (getState() == State.Closed) {
+                return;
+            }
             // Process the message, add to the queue and trigger listener or async callback
-            messages.forEach(msg -> messageReceived(consumer, msg));
+            messages.forEach(msg -> {
+                if (isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                    messageReceived(consumer, msg);
+                }
+            });
 
             int size = incomingMessages.size();
             if (size >= maxReceiverQueueSize
@@ -584,14 +592,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .map(ConsumerImpl::unsubscribeAsync).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
-            .thenCompose((r) -> {
+            .thenComposeAsync((r) -> {
                 setState(State.Closed);
                 cleanupMultiConsumer();
                 log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer",
                         topic, subscription, consumerName);
                 // fail all pending-receive futures to notify application
                 return failPendingReceive();
-            })
+            }, internalPinnedExecutor)
             .whenComplete((r, ex) -> {
                 if (ex == null) {
                     unsubscribeFuture.complete(null);
@@ -626,13 +634,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .map(ConsumerImpl::closeAsync).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
-            .thenCompose((r) -> {
+            .thenComposeAsync((r) -> {
                 setState(State.Closed);
                 cleanupMultiConsumer();
                 log.info("[{}] [{}] Closed Topics Consumer", topic, subscription);
                 // fail all pending-receive futures to notify application
                 return failPendingReceive();
-            })
+            }, internalPinnedExecutor)
             .whenComplete((r, ex) -> {
                 if (ex == null) {
                     closeFuture.complete(null);
@@ -687,8 +695,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             });
             clearIncomingMessages();
             unAckedMessageTracker.clear();
+            resumeReceivingFromPausedConsumersIfNeeded();
         });
-        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     @Override

@@ -312,14 +312,14 @@ The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.78.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.7.3.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.13.2.jar
-     - com.fasterxml.jackson.core-jackson-core-2.13.2.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.13.2.1.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.2.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.13.4.jar
+     - com.fasterxml.jackson.core-jackson-core-2.13.4.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.13.4.2.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.4.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.4.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.4.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.4.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.4.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.0.1.jar
@@ -352,31 +352,31 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.77.Final.jar
-    - io.netty-netty-codec-4.1.77.Final.jar
-    - io.netty-netty-codec-dns-4.1.77.Final.jar
-    - io.netty-netty-codec-http-4.1.77.Final.jar
-    - io.netty-netty-codec-http2-4.1.77.Final.jar
-    - io.netty-netty-codec-socks-4.1.77.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.77.Final.jar
-    - io.netty-netty-common-4.1.77.Final.jar
-    - io.netty-netty-handler-4.1.77.Final.jar
-    - io.netty-netty-handler-proxy-4.1.77.Final.jar
-    - io.netty-netty-resolver-4.1.77.Final.jar
-    - io.netty-netty-resolver-dns-4.1.77.Final.jar
-    - io.netty-netty-transport-4.1.77.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.77.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.77.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.77.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.77.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.77.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.52.Final.jar
+    - io.netty-netty-buffer-4.1.86.Final.jar
+    - io.netty-netty-codec-4.1.86.Final.jar
+    - io.netty-netty-codec-dns-4.1.86.Final.jar
+    - io.netty-netty-codec-http-4.1.86.Final.jar
+    - io.netty-netty-codec-http2-4.1.86.Final.jar
+    - io.netty-netty-codec-socks-4.1.86.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.86.Final.jar
+    - io.netty-netty-common-4.1.86.Final.jar
+    - io.netty-netty-handler-4.1.86.Final.jar
+    - io.netty-netty-handler-proxy-4.1.86.Final.jar
+    - io.netty-netty-resolver-4.1.86.Final.jar
+    - io.netty-netty-resolver-dns-4.1.86.Final.jar
+    - io.netty-netty-transport-4.1.86.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.86.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.86.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.86.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.86.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.86.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.54.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.54.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.54.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.54.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.54.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.54.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.54.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -563,8 +563,8 @@ MIT License
 
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-3.19.2.jar -- licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-3.19.2.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-3.19.6.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-3.19.6.jar -- licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API

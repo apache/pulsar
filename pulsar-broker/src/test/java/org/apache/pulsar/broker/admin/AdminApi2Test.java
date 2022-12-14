@@ -50,7 +50,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -522,7 +524,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
      * @param namespaceName
      * @throws Exception
      */
-    @Test(dataProvider = "namespaceNames", timeOut = 10000)
+    @Test(dataProvider = "namespaceNames", timeOut = 30000)
     public void testResetCursorOnPosition(String namespaceName) throws Exception {
         final String topicName = "persistent://prop-xyz/use/" + namespaceName + "/resetPosition";
         final int totalProducedMessages = 50;
@@ -1386,9 +1388,44 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
-    @Test
-    public void testDeleteNamespace() throws Exception {
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    @Data
+    @AllArgsConstructor
+    private static class NamespaceAttr {
+        private boolean systemTopicEnabled;
+        private String autoTopicCreationType;
+        private int defaultNumPartitions;
+        private boolean forceDeleteNamespaceAllowed;
+    }
+
+    @DataProvider(name = "namespaceAttrs")
+    public Object[][] namespaceAttributes(){
+        return new Object[][]{
+                {new NamespaceAttr(false, "non-partitioned", 0, false)},
+                {new NamespaceAttr(true, "non-partitioned", 0, false)},
+                {new NamespaceAttr(true, "partitioned", 3, false)}
+        };
+    }
+
+    private NamespaceAttr markOriginalNamespaceAttr(){
+        return new NamespaceAttr(conf.isSystemTopicEnabled(), conf.getAllowAutoTopicCreationType(),
+                conf.getDefaultNumPartitions(), conf.isForceDeleteNamespaceAllowed());
+    }
+
+    private void setNamespaceAttr(NamespaceAttr namespaceAttr){
+        conf.setSystemTopicEnabled(namespaceAttr.systemTopicEnabled);
+        conf.setAllowAutoTopicCreationType(namespaceAttr.autoTopicCreationType);
+        conf.setDefaultNumPartitions(namespaceAttr.defaultNumPartitions);
+        conf.setForceDeleteNamespaceAllowed(namespaceAttr.forceDeleteNamespaceAllowed);
+    }
+
+    @Test(dataProvider = "namespaceAttrs")
+    public void testDeleteNamespace(NamespaceAttr namespaceAttr) throws Exception {
+        // Set conf.
+        internalCleanup();
+        conf.setTopicLevelPoliciesEnabled(true);
+        NamespaceAttr originalNamespaceAttr = markOriginalNamespaceAttr();
+        setNamespaceAttr(namespaceAttr);
+        setup();
 
         String tenant = "test-tenant";
         assertFalse(admin.tenants().getTenants().contains(tenant));
@@ -1404,12 +1441,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList(namespace));
 
         // create topic
-        String topic = namespace + "/test-topic";
+        String topic = "persistent://" + namespace + "/test-topic";
         admin.topics().createPartitionedTopic(topic, 10);
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         // Wait for change event topic and compaction create finish.
-        awaitChangeEventTopicAndCompactionCreateFinish(namespace, String.format("persistent://%s", topic));
+        awaitChangeEventTopicAndCompactionCreateFinish(namespace, topic);
 
         try {
             admin.namespaces().deleteNamespace(namespace, false);
@@ -1420,7 +1457,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // delete topic
         admin.topics().deletePartitionedTopic(topic);
-        assertTrue(admin.topics().getList(namespace).isEmpty());
 
         // delete namespace
         admin.namespaces().deleteNamespace(namespace, false);
@@ -1434,6 +1470,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+
+        // Reset config
+        internalCleanup();
+        setNamespaceAttr(originalNamespaceAttr);
+        setup();
     }
 
     private void awaitChangeEventTopicAndCompactionCreateFinish(String ns, String topic) throws Exception {
@@ -1731,6 +1772,40 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.schemas().getSchemaInfo(topic);
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
+        }
+    }
+
+    @Test
+    public void testForceDeleteNamespaceWithAutomaticTopicCreation() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
+        final String namespaceName = "prop-xyz2/ns1";
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz2", tenantInfo);
+        admin.namespaces().createNamespace(namespaceName, 1);
+        admin.namespaces().setAutoTopicCreation(namespaceName,
+                AutoTopicCreationOverride.builder()
+                        .allowAutoTopicCreation(true)
+                        .topicType("partitioned")
+                        .defaultNumPartitions(20)
+                        .build());
+        final String topic = "persistent://" + namespaceName + "/test" + UUID.randomUUID();
+
+        // start a consumer, that creates the topic
+        try (Consumer<Double> consumer = pulsarClient.newConsumer(Schema.DOUBLE).topic(topic)
+                .subscriptionName("test").autoUpdatePartitions(true).subscribe()) {
+
+            // wait for the consumer to settle
+            Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                    assertNotNull(admin.topics().getSubscriptions(topic).contains("test")));
+
+            // verify that the partitioned topic is created
+            assertEquals(20, admin.topics().getPartitionedTopicMetadata(topic).partitions);
+
+            // the consumer will race with the deletion
+            // the consumer will try to re-create the partitions
+            admin.namespaces().deleteNamespace(namespaceName, true);
+
+            assertFalse(admin.namespaces().getNamespaces("prop-xyz2").contains("ns1"));
         }
     }
 

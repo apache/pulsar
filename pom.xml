@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.10.2</version>
+  <version>2.10.2-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -110,8 +110,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.77.Final</netty.version>
-    <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
+    <netty.version>4.1.86.Final</netty.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -124,14 +123,13 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.13.2</jackson.version>
-    <jackson.databind.version>2.13.2.1</jackson.databind.version>
+    <jackson.version>2.13.4.20221013</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf3.version>3.19.2</protobuf3.version>
+    <protobuf3.version>3.19.6</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.45.1</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
@@ -231,6 +229,7 @@ flexible messaging model and an intuitive client API.</description>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.0.3</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
+    <jettison.version>1.5.1</jettison.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -610,18 +609,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tc-native.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-haproxy</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
         <version>${jcommander.version}</version>
@@ -790,11 +777,13 @@ flexible messaging model and an intuitive client API.</description>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
       <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.databind.version}</version>
+        <groupId>org.codehaus.jettison</groupId>
+        <artifactId>jettison</artifactId>
+        <version>${jettison.version}</version>
       </dependency>
+
 
       <dependency>
         <groupId>org.hdrhistogram</groupId>

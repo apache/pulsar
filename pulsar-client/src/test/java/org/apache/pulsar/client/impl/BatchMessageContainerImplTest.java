@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.ReferenceCountUtil;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.apache.pulsar.client.api.CompressionType;
@@ -35,6 +42,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class BatchMessageContainerImplTest {
@@ -84,4 +92,60 @@ public class BatchMessageContainerImplTest {
                 createByteBufAllocatorMethod.invoke(null));
     }
 
+
+    @Test
+    public void testMessagesSize() throws Exception {
+        ProducerImpl producer = mock(ProducerImpl.class);
+
+        final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
+        producerConfigurationData.setCompressionType(CompressionType.NONE);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        MemoryLimitController memoryLimitController = mock(MemoryLimitController.class);
+        when(pulsarClient.getMemoryLimitController()).thenReturn(memoryLimitController);
+        try {
+            Field clientFiled = HandlerState.class.getDeclaredField("client");
+            clientFiled.setAccessible(true);
+            clientFiled.set(producer, pulsarClient);
+        } catch (Exception e){
+            Assert.fail(e.getMessage());
+        }
+
+        ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
+
+        when(producer.getConfiguration()).thenReturn(producerConfigurationData);
+        when(producer.encryptMessage(any(), any())).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(payload));
+
+        final int initNum = 32;
+        BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl();
+        batchMessageContainer.setProducer(producer);
+        assertEquals(batchMessageContainer.getMaxMessagesNum(), initNum);
+
+        addMessagesAndCreateOpSendMsg(batchMessageContainer, 10);
+        assertEquals(batchMessageContainer.getMaxMessagesNum(), initNum);
+
+        addMessagesAndCreateOpSendMsg(batchMessageContainer, 200);
+        assertEquals(batchMessageContainer.getMaxMessagesNum(), 200);
+
+        addMessagesAndCreateOpSendMsg(batchMessageContainer, 10);
+        assertEquals(batchMessageContainer.getMaxMessagesNum(), 200);
+    }
+
+    private void addMessagesAndCreateOpSendMsg(BatchMessageContainerImpl batchMessageContainer, int num)
+            throws Exception{
+        ArrayList<MessageImpl<?>> messages = new ArrayList<>();
+        for (int i = 0; i < num; ++i) {
+            MessageMetadata messageMetadata = new MessageMetadata();
+            messageMetadata.setSequenceId(i);
+            messageMetadata.setProducerName("producer");
+            messageMetadata.setPublishTime(System.currentTimeMillis());
+            ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
+            MessageImpl<?> message = MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
+            messages.add(message);
+            batchMessageContainer.add(message, null);
+        }
+
+        batchMessageContainer.createOpSendMsg();
+        batchMessageContainer.clear();
+        messages.forEach(ReferenceCountUtil::safeRelease);
+    }
 }

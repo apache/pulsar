@@ -242,10 +242,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return KeyValueSchemaImpl.kvBytes();
     }
 
-    public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
-        return KeyValueSchemaImpl.of(keySchema, valueSchema);
-    }
-
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                     KeyValueEncodingType keyValueEncodingType) {
         return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);

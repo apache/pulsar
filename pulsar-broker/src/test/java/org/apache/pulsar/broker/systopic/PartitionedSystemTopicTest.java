@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -37,6 +38,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -171,15 +173,38 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
         Assert.assertEquals(config.getLedgerOffloader(), ledgerOffloader);
-        admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
-        Awaitility.await().pollDelay(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(persistentTopic.getManagedLedger().getConfig().getLedgerOffloader(),
-                    NullLedgerOffloader.INSTANCE);
+    }
+
+    @Test
+    public void testSystemNamespaceNotCreateChangeEventsTopic() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent", namespaceName,
+                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        Optional<Topic> optionalTopic = pulsar.getBrokerService()
+                .getTopic(topicName.getPartition(1).toString(), false).join();
+        Assert.assertFalse(optionalTopic.isPresent());
+    }
+
+    @Test
+    public void testHeartbeatTopicNotAllowedToSendEvent() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent", namespaceName,
+                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        for (int partition = 0; partition < PARTITIONS; partition ++) {
+            pulsar.getBrokerService()
+                    .getTopic(topicName.getPartition(partition).toString(), true).join();
+        }
+        Assert.assertThrows(PulsarAdminException.ConflictException.class, () -> {
+            admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
         });
     }
 
     @Test
-    private void testSetBacklogCausedCreatingProducerFailure() throws Exception {
+    public void testSetBacklogCausedCreatingProducerFailure() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/topic-1";
 
@@ -233,5 +258,40 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         } catch (Exception ex) {
             Assert.fail("failed to create producer");
         }
+    }
+
+    @Test
+    public void testSystemTopicNotCheckExceed() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/topic-1";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+
+        conf.setMaxSameAddressConsumersPerTopic(1);
+        admin.namespaces().setMaxConsumersPerTopic(ns, 1);
+        admin.topicPolicies().setMaxConsumers(topic, 1);
+        NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
+        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
+
+        conf.setMaxSameAddressProducersPerTopic(1);
+        admin.namespaces().setMaxProducersPerTopic(ns, 1);
+        admin.topicPolicies().setMaxProducers(topic, 1);
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
+
+        CompletableFuture.allOf(writer1, writer2, f1).join();
+        Assert.assertTrue(reader1.hasMoreEvents());
+        Assert.assertNotNull(reader1.readNext());
+        Assert.assertTrue(reader2.hasMoreEvents());
+        Assert.assertNotNull(reader2.readNext());
+        reader1.close();
+        reader2.close();
+        writer1.get().close();
+        writer2.get().close();
     }
 }

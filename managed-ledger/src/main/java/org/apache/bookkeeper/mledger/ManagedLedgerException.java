@@ -147,6 +147,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class LedgerNotExistException extends NonRecoverableLedgerException {
+        public LedgerNotExistException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class InvalidReplayPositionException extends ManagedLedgerException {
         public InvalidReplayPositionException(String msg) {
             super(msg);
