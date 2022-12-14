@@ -114,6 +114,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.getProperties().setProperty("brokerClient_operationTimeoutMs", Integer.valueOf(10 * 1000).toString());
         setUpBase(1, NUM_PARTITIONS, RECOVER_COMMIT, 0);
         admin.topics().createNonPartitionedTopic(RECOVER_ABORT);
         admin.topics().createNonPartitionedTopic(TAKE_SNAPSHOT);
@@ -333,10 +334,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         persistentTopic.getBrokerService().getPulsar().getCompactor().compact(topicName);
         Awaitility.await().untilAsserted(() -> {
             ManagedCursorImpl compaction = (ManagedCursorImpl) managedLedger.getCursors().get("__compaction");
-            assertEquals(compaction.getMarkDeletedPosition().getLedgerId(),
-                    managedLedger.getLastConfirmedEntry().getLedgerId());
-            assertEquals(compaction.getMarkDeletedPosition().getEntryId(),
-                    managedLedger.getLastConfirmedEntry().getEntryId());
+            assertEquals(compaction.getMarkDeletedPosition(), managedLedger.getLastConfirmedEntry());
         });
         ManagedCursorImpl compaction = (ManagedCursorImpl) managedLedger.getCursors().get("__compaction");
         log.info("===> cursor-compaction mark deleted position {}:{}", compaction.getMarkDeletedPosition().getLedgerId(),
