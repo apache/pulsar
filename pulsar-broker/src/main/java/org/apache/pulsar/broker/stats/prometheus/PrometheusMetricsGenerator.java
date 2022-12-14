@@ -86,7 +86,7 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, OutputStream out) throws IOException {
+                                boolean includeProducerMetrics, OutputStream out) throws IOException {
         generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, false, out, null);
     }
 
@@ -98,10 +98,12 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, OutputStream out,
-        List<PrometheusRawMetricsProvider> metricsProviders)
-        throws IOException {
-        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();        //Used in namespace/topic and transaction aggregators as share metric names
+                                boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
+                                OutputStream out,
+                                List<PrometheusRawMetricsProvider> metricsProviders)
+            throws IOException {
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
+        //Used in namespace/topic and transaction aggregators as share metric names
         PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);

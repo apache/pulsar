@@ -22,7 +22,6 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -77,7 +76,7 @@ public class PrometheusMetricStreamsTest {
             for (int i = 0; i < readableBytes; i++) {
                 out.write(buffer.getByte(readIndex + i));
             }
-            return out.toString(StandardCharsets.UTF_8);
+            return out.toString();
         } finally {
             buffer.release();
         }
