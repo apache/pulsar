@@ -179,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
+    <scala-library.version>2.13.10</scala-library.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -1337,6 +1338,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.roaringbitmap</groupId>
         <artifactId>RoaringBitmap</artifactId>
         <version>${roaringbitmap.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>${scala-library.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-reflect</artifactId>
+        <version>${scala-library.version}</version>
       </dependency>
 
     </dependencies>
