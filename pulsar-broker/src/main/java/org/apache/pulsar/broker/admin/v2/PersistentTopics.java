@@ -1329,7 +1329,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-internalStats")
-    @ApiOperation(hidden = true, value = "Get the stats-internal for the partitioned topic.")
+    @ApiOperation(value = "Get the stats-internal for the partitioned topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
