@@ -512,7 +512,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
-
     @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
