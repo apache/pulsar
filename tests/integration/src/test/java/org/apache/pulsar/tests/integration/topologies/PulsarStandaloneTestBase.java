@@ -121,7 +121,4 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         }
     }
 
-    protected String getHttpServiceUrl() {
-        return container.getHttpServiceUrl();
-    }
 }
