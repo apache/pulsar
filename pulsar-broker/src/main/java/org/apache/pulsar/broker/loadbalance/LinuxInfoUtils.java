@@ -26,6 +26,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -164,6 +165,30 @@ public class LinuxInfoUtils {
     }
 
     /**
+     * Determine whether nic is usable.
+     * @param nicPath Nic path
+     * @return whether nic is usable.
+     */
+    private static boolean isUsable(Path nicPath) {
+        try {
+            String operstate = readTrimStringFromFile(nicPath.resolve("operstate"));
+            Operstate operState = Operstate.valueOf(operstate.toUpperCase(Locale.ROOT));
+            switch (operState) {
+                case UP:
+                case UNKNOWN:
+                case DORMANT:
+                    return true;
+                default:
+                    return false;
+            }
+        } catch (Exception e) {
+            log.warn("[LinuxInfo] Failed to read {} NIC operstate, the detail is: {}", nicPath, e.getMessage());
+            // Read operstate got error.
+            return false;
+        }
+    }
+
+    /**
      * Get all physical nic limit.
      * @param nics All nic path
      * @param bitRateUnit Bit rate unit
@@ -199,12 +224,13 @@ public class LinuxInfoUtils {
     }
 
     /**
-     * Get all physical nic path.
-     * @return All physical nic path
+     * Get paths of all usable physical nic.
+     * @return All usable physical nic paths.
      */
-    public static List<String> getPhysicalNICs() {
+    public static List<String> getUsablePhysicalNICs() {
         try (Stream<Path> stream = Files.list(Paths.get(NIC_PATH))) {
             return stream.filter(LinuxInfoUtils::isPhysicalNic)
+                    .filter(LinuxInfoUtils::isUsable)
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
         } catch (IOException e) {
@@ -218,7 +244,7 @@ public class LinuxInfoUtils {
      * @return Whether the VM has nic speed
      */
     public static boolean checkHasNicSpeeds() {
-        List<String> physicalNICs = getPhysicalNICs();
+        List<String> physicalNICs = getUsablePhysicalNICs();
         if (CollectionUtils.isEmpty(physicalNICs)) {
             return false;
         }
@@ -240,6 +266,29 @@ public class LinuxInfoUtils {
 
     private static double readDoubleFromFile(Path path) throws IOException {
         return Double.parseDouble(readTrimStringFromFile(path));
+    }
+
+    /**
+     * TLV IFLA_OPERSTATE
+     * contains RFC2863 state of the interface in numeric representation:
+     * See <a href="https://www.kernel.org/doc/Documentation/networking/operstates.txt">...</a>
+     */
+    enum Operstate {
+        // Interface is in unknown state, neither driver nor userspace has set
+        // operational state. Interface must be considered for user data as
+        // setting operational state has not been implemented in every driver.
+        UNKNOWN,
+        // Interface is unable to transfer data on L1, f.e. ethernet is not
+        // plugged or interface is ADMIN down.
+        DOWN,
+        // Interfaces stacked on an interface that is IF_OPER_DOWN show this
+        // state (f.e. VLAN).
+        LOWERLAYERDOWN,
+        // Interface is L1 up, but waiting for an external event, f.e. for a
+        // protocol to establish. (802.1X)
+        DORMANT,
+        // Interface is operational up and can be used.
+        UP
     }
 
     @AllArgsConstructor
