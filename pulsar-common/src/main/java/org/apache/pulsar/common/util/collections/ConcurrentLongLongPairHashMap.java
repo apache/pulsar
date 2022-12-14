@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Concurrent hash map where both keys and values are composed of pairs of longs.
