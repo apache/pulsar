@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -559,8 +560,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             ServiceUnitStateData next = new ServiceUnitStateData(Assigned, data.broker());
             NamespaceBundles targetNsBundle = splitBundlesPair.getLeft();
             List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
+            List<NamespaceBundle> successPublishedBundles = new CopyOnWriteArrayList<>();
             for (NamespaceBundle sBundle : splitBundles) {
-                futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> {}));
+                futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> {
+                    successPublishedBundles.add(sBundle);
+                }));
             }
             NamespaceName nsname = bundle.getNamespaceObject();
             FutureUtil.waitForAll(futures)
@@ -570,7 +574,18 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
                         updateFuture.complete(splitBundles);
                     }).exceptionally(e -> {
-                        updateFuture.completeExceptionally(e);
+                        // Clean the new bundle when has exception.
+                        List<CompletableFuture<Void>> futureList = new ArrayList<>();
+                        for (NamespaceBundle sBundle : successPublishedBundles) {
+                            futureList.add(tombstoneAsync(sBundle.toString()).thenAccept(__ -> {}));
+                        }
+                        FutureUtil.waitForAll(futureList)
+                                .whenComplete((__, ex) -> {
+                                    if (ex != null) {
+                                        log.warn("Clean new bundles failed,", ex);
+                                    }
+                                    updateFuture.completeExceptionally(e);
+                                });
                         return null;
                     });
         }).exceptionally(e -> {
