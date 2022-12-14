@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
  * <p>Keys <strong>MUST</strong> be &gt;= 0.
  */
 public class ConcurrentLongLongPairHashMap {
-    private static final Logger logger = LoggerFactory.getLogger(ConcurrentLongLongPairHashMap.class);
 
     private static final long EmptyKey = -1L;
     private static final long DeletedKey = -2L;
