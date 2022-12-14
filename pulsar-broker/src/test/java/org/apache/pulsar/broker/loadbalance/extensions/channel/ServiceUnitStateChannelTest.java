@@ -492,6 +492,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(childBundle2).get());
         assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(childBundle1).get());
         assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(childBundle2).get());
+
+        cleanTableView(channel1, childBundle1);
+        cleanTableView(channel2, childBundle1);
+        cleanTableView(channel1, childBundle2);
+        cleanTableView(channel2, childBundle2);
     }
 
     @Test(priority = 7)
@@ -605,7 +610,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, followerCleanupJobs.size());
         assertEquals(1, getCleanupMetric(leaderChannel, "totalCleanupCnt"));
         assertEquals(1, getCleanupMetric(leaderChannel, "totalBrokerCleanupTombstoneCnt"));
-        assertEquals(4, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
+        assertEquals(2, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupErrorCnt"));
         assertEquals(1, getCleanupMetric(leaderChannel, "totalCleanupScheduledCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalCleanupIgnoredCnt"));
@@ -630,7 +635,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, followerCleanupJobs.size());
         assertEquals(1, getCleanupMetric(leaderChannel, "totalCleanupCnt"));
         assertEquals(1, getCleanupMetric(leaderChannel, "totalBrokerCleanupTombstoneCnt"));
-        assertEquals(4, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
+        assertEquals(2, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupErrorCnt"));
         assertEquals(2, getCleanupMetric(leaderChannel, "totalCleanupScheduledCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalCleanupIgnoredCnt"));
@@ -646,7 +651,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, followerCleanupJobs.size());
         assertEquals(1, getCleanupMetric(leaderChannel, "totalCleanupCnt"));
         assertEquals(1, getCleanupMetric(leaderChannel, "totalBrokerCleanupTombstoneCnt"));
-        assertEquals(4, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
+        assertEquals(2, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupErrorCnt"));
         assertEquals(2, getCleanupMetric(leaderChannel, "totalCleanupScheduledCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalCleanupIgnoredCnt"));
@@ -664,7 +669,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, followerCleanupJobs.size());
         assertEquals(1, getCleanupMetric(leaderChannel, "totalCleanupCnt"));
         assertEquals(1, getCleanupMetric(leaderChannel, "totalBrokerCleanupTombstoneCnt"));
-        assertEquals(4, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
+        assertEquals(2, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupErrorCnt"));
         assertEquals(3, getCleanupMetric(leaderChannel, "totalCleanupScheduledCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalCleanupIgnoredCnt"));
@@ -682,7 +687,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, followerCleanupJobs.size());
         assertEquals(2, getCleanupMetric(leaderChannel, "totalCleanupCnt"));
         assertEquals(2, getCleanupMetric(leaderChannel, "totalBrokerCleanupTombstoneCnt"));
-        assertEquals(6, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
+        assertEquals(4, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupErrorCnt"));
         assertEquals(3, getCleanupMetric(leaderChannel, "totalCleanupScheduledCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalCleanupIgnoredCnt"));
@@ -707,7 +712,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, followerCleanupJobs.size());
         assertEquals(2, getCleanupMetric(leaderChannel, "totalCleanupCnt"));
         assertEquals(2, getCleanupMetric(leaderChannel, "totalBrokerCleanupTombstoneCnt"));
-        assertEquals(6, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
+        assertEquals(4, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupTombstoneCnt"));
         assertEquals(0, getCleanupMetric(leaderChannel, "totalServiceUnitCleanupErrorCnt"));
         assertEquals(3, getCleanupMetric(leaderChannel, "totalCleanupScheduledCnt"));
         assertEquals(1, getCleanupMetric(leaderChannel, "totalCleanupIgnoredCnt"));
