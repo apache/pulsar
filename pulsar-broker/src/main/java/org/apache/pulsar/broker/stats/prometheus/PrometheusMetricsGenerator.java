@@ -134,6 +134,8 @@ public class PrometheusMetricsGenerator {
             }
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
+            //release all the metrics buffers
+            metricStreams.releaseAll();
             buf.release();
         }
     }
