@@ -317,6 +317,10 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8).trim());
     }
 
+    private static String readTrimStringFromFile(Path path) throws IOException {
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
+    }
+
 
     /**
      * TLV IFLA_OPERSTATE
