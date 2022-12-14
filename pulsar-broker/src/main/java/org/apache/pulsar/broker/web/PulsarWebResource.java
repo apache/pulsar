@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -669,15 +670,7 @@ public abstract class PulsarWebResource {
      * @param authoritative
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
-        try {
-            validateTopicOwnershipAsync(topicName, authoritative).join();
-        } catch (CompletionException ce) {
-            if (ce.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) ce.getCause();
-            } else {
-                throw new RestException(ce.getCause());
-            }
-        }
+        sync(() -> validateTopicOwnershipAsync(topicName, authoritative));
     }
 
     protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
@@ -1177,19 +1170,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
-        try {
-            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
-            validateTopicPolicyOperationAsync(topicName, policy, operation).get(timeout, SECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(()-> validateTopicPolicyOperationAsync(topicName, policy, operation));
     }
 
     public CompletableFuture<Void> validateTopicPolicyOperationAsync(TopicName topicName,
@@ -1219,16 +1200,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
-        try {
-            validateTopicOperationAsync(topicName, operation, subscription).get();
-        } catch (InterruptedException | ExecutionException e) {
-            Throwable cause = FutureUtil.unwrapCompletionException(e);
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(() -> validateTopicOperationAsync(topicName, operation, subscription));
     }
 
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {
@@ -1267,5 +1239,21 @@ public abstract class PulsarWebResource {
             asyncResponse.resume(new RestException(realCause));
         }
         return null;
+    }
+
+    public <T> T sync(Supplier<CompletableFuture<T>> supplier) {
+        try {
+            return supplier.get().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(realCause);
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new RestException(ex);
+        }
     }
 }

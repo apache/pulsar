@@ -808,7 +808,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
+        validatePartitionedTopicMetadata();
         internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative, force);
     }
 
