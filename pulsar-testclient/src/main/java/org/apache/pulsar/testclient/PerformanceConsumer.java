@@ -131,7 +131,8 @@ public class PerformanceConsumer {
                 description = "Enable autoScaledReceiverQueueSize")
         public boolean autoScaledReceiverQueueSize = false;
 
-        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
