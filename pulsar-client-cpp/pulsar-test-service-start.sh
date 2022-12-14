@@ -79,9 +79,10 @@ $PULSAR_DIR/bin/pulsar-admin clusters list | grep -q '^standalone$' ||
                 --broker-url-secure pulsar+ssl://localhost:6651/
 
 # Update "public" tenant
-$PULSAR_DIR/bin/pulsar-admin tenants update public -r "anonymous" -c "standalone"
+$PULSAR_DIR/bin/pulsar-admin tenants create public -r "anonymous" -c "standalone"
 
-# Update "public/default" with no auth required
+# Create "public/default" with no auth required
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/default
 $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default \
                         --actions produce,consume \
                         --role "anonymous"
