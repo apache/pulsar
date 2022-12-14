@@ -327,6 +327,8 @@ public class ConcurrentLongLongPairHashMap {
             // calculate table.length / 4 as capacity to avoid rehash changing capacity
             int bucket = signSafeMod(keyHash, table.length / 4);
 
+            System.out.println("key1:" + key1 + ",key2:" + key2 + ",bucket:" + bucket);
+
             try {
                 while (true) {
                     // First try optimistic locking

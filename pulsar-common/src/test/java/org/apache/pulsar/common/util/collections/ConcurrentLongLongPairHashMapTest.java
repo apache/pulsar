@@ -174,6 +174,39 @@ public class ConcurrentLongLongPairHashMapTest {
     }
 
     @Test
+    public void testExpandAndShrinkAndGet() {
+        ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        ExecutorService service = Executors.newCachedThreadPool();
+
+        // expand hashmap
+        assertTrue(map.put(1, 1, 11, 11));
+        assertTrue(map.put(2, 2, 22, 22));
+        assertTrue(map.put(3, 3, 33, 33));
+        assertEquals(map.capacity(), 8);
+
+        service.submit(() -> {
+            while (true) {
+                map.get(1, 1);
+            }
+        });
+
+        service.submit(() -> {
+            // shrink hashmap
+            assertTrue(map.remove(1, 1, 11, 11));
+            assertTrue(map.remove(2, 2, 22, 22));
+            assertEquals(map.capacity(), 4);
+        });
+
+        // shut down pool
+        service.shutdown();
+    }
+
+    @Test
     public void testExpandShrinkAndClear() {
         ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
                 .expectedItems(2)
