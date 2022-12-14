@@ -161,7 +161,6 @@
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.objenesis:*</include>
-                  <include>org.yaml:snakeyaml</include>
 
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->

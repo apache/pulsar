@@ -119,7 +119,6 @@
                                     <include>org.reactivestreams:reactive-streams</include>
                                     <include>org.apache.commons:*</include>
                                     <include>io.swagger:*</include>
-                                    <include>org.yaml:snakeyaml</include>
                                     <include>io.perfmark:*</include>
                                     <include>io.prometheus:*</include>
                                     <include>io.prometheus.jmx:*</include>

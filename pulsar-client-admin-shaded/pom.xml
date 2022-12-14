@@ -145,7 +145,6 @@
                   <include>org.jvnet.mimepull:*</include>
                   <include>io.opencensus:*</include>
                   <include>org.objenesis:*</include>
-                  <include>org.yaml:snakeyaml</include>
                   <include>io.swagger:*</include>
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>

@@ -185,7 +185,6 @@
                   <include>org.jvnet.mimepull:*</include>
                   <include>io.opencensus:*</include>
                   <include>org.objenesis:*</include>
-                  <include>org.yaml:snakeyaml</include>
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
                   <include>com.thoughtworks.paranamer:paranamer</include>
