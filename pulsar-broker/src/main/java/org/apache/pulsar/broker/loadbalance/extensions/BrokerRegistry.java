@@ -56,11 +56,11 @@ public interface BrokerRegistry extends AutoCloseable {
     void unregister() throws MetadataStoreException;
 
     /**
-     * Get the current broker lookup service address.
+     * Get the current broker ID.
      *
      * @return The service url without the protocol prefix, 'http://'. e.g. broker-xyz:port
      */
-    String getLookupServiceAddress();
+    String getBrokerId();
 
     /**
      * Async get available brokers.
@@ -78,14 +78,14 @@ public interface BrokerRegistry extends AutoCloseable {
 
     /**
      * For each the broker lookup data.
-     * The key is lookupServiceAddress{@link BrokerRegistry#getLookupServiceAddress()}
+     * The key is lookupServiceAddress{@link BrokerRegistry#getBrokerId()}
      */
     void forEach(BiConsumer<String, BrokerLookupData> action);
 
     /**
      * Listen the broker register change.
      *
-     * @param listener Key is lookup service address{@link BrokerRegistry#getLookupServiceAddress()}
+     * @param listener Key is lookup service address{@link BrokerRegistry#getBrokerId()}
      *                 Value is notification type.
      */
     void listen(BiConsumer<String, NotificationType> listener);

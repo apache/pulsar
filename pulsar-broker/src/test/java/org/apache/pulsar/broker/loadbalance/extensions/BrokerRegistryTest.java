@@ -260,7 +260,7 @@ public class BrokerRegistryTest {
         assertEquals(address, brokerRegistry3.brokerLookupDataCache.keySet());
 
         Optional<BrokerLookupData> lookupDataOpt =
-                brokerRegistry1.lookupAsync(brokerRegistry2.getLookupServiceAddress()).get();
+                brokerRegistry1.lookupAsync(brokerRegistry2.getBrokerId()).get();
         assertTrue(lookupDataOpt.isPresent());
         assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
 

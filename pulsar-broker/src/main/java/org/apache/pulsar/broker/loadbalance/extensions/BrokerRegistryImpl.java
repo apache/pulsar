@@ -64,7 +64,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     private final String brokerZNodePath;
 
-    private final String lookupServiceAddress;
+    private final String brokerId;
 
     @VisibleForTesting
     protected final Map<String, BrokerLookupData> brokerLookupDataCache;
@@ -89,8 +89,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         this.brokerLookupDataCache = new ConcurrentHashMap<>();
         this.listeners = new ArrayList<>();
         this.cacheReloadFuture = CompletableFuture.completedFuture(null);
-        this.lookupServiceAddress = pulsar.getLookupServiceAddress();
-        this.brokerZNodePath = LOOKUP_DATA_PATH + "/" + lookupServiceAddress;
+        this.brokerId = pulsar.getLookupServiceAddress();
+        this.brokerZNodePath = LOOKUP_DATA_PATH + "/" + brokerId;
         this.brokerLookupData = new BrokerLookupData(
                 pulsar.getSafeWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
@@ -151,8 +151,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     }
 
     @Override
-    public String getLookupServiceAddress() {
-        return this.lookupServiceAddress;
+    public String getBrokerId() {
+        return this.brokerId;
     }
 
     @Override
@@ -216,10 +216,10 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                     log.debug("Handle notification: [{}]", t);
                 }
                 this.scheduler.submit(() -> {
-                    String lookupServiceAddress = t.getPath().substring(LOOKUP_DATA_PATH.length() + 1);
-                    this.updateBrokerLookupDataToLocalCache(lookupServiceAddress, t.getType());
+                    String brokerId = t.getPath().substring(LOOKUP_DATA_PATH.length() + 1);
+                    this.updateBrokerLookupDataToLocalCache(brokerId, t.getType());
                     for (BiConsumer<String, NotificationType> listener : listeners) {
-                        listener.accept(lookupServiceAddress, t.getType());
+                        listener.accept(brokerId, t.getType());
                     }
                 });
             } catch (RejectedExecutionException e) {
@@ -228,25 +228,25 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         }
     }
 
-    private void updateBrokerLookupDataToLocalCache(String lookupServiceAddress, NotificationType type) {
+    private void updateBrokerLookupDataToLocalCache(String brokerId, NotificationType type) {
         switch (type) {
             case Created, Modified, ChildrenChanged -> {
                 try {
                     Optional<BrokerLookupData> lookupData =
-                            brokerLookupDataLockManager.readLock(keyPath(lookupServiceAddress))
+                            brokerLookupDataLockManager.readLock(keyPath(brokerId))
                                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
                     if (lookupData.isEmpty()) {
-                        brokerLookupDataCache.remove(lookupServiceAddress);
-                        log.info("[{}] Broker lookup data is not present", lookupServiceAddress);
+                        brokerLookupDataCache.remove(brokerId);
+                        log.info("[{}] Broker lookup data is not present", brokerId);
                         break;
                     }
-                    brokerLookupDataCache.put(lookupServiceAddress, lookupData.get());
+                    brokerLookupDataCache.put(brokerId, lookupData.get());
                 } catch (Exception e) {
                     log.warn("Error reading broker data from cache for broker - [{}], [{}]",
-                            lookupServiceAddress, e.getMessage());
+                            brokerId, e.getMessage());
                 }
             }
-            case Deleted -> brokerLookupDataCache.remove(lookupServiceAddress);
+            case Deleted -> brokerLookupDataCache.remove(brokerId);
         }
     }
 
@@ -296,7 +296,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         }
     }
 
-    private String keyPath(String lookupServiceAddress) {
-        return String.format("%s/%s", LOOKUP_DATA_PATH, lookupServiceAddress);
+    private String keyPath(String brokerId) {
+        return String.format("%s/%s", LOOKUP_DATA_PATH, brokerId);
     }
 }
