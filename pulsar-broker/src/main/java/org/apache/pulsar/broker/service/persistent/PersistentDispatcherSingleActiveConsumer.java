@@ -340,26 +340,26 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
 
                 Pair<Integer, Long> calculateResult = calculateToRead(consumer);
-                int messagesToRead = calculateResult.getLeft();
+                int entryCountToRead = calculateResult.getLeft();
                 long bytesToRead = calculateResult.getRight();
 
-                if (-1 == messagesToRead || bytesToRead == -1) {
+                if (-1 == entryCountToRead || bytesToRead == -1) {
                     // Skip read as topic/dispatcher has exceed the dispatch rate.
                     return;
                 }
 
                 // Schedule read
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
+                    log.debug("[{}-{}] Schedule read of {} entries", name, consumer, entryCountToRead);
                 }
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
-                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, entryCountToRead, isFirstRead,
                             this, consumer);
                 } else {
                     ReadEntriesCtx readEntriesCtx =
                             ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
-                    cursor.asyncReadEntriesOrWait(messagesToRead,
+                    cursor.asyncReadEntriesOrWait(entryCountToRead,
                             bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
                 }
             }
@@ -393,75 +393,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             // socket.
             availablePermits = 1;
         }
-
-        int messagesToRead = Math.min(availablePermits, readBatchSize);
-        long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
-        // if turn of precise dispatcher flow control, adjust the records to read
-        if (consumer.isPreciseDispatcherFlowControl()) {
-            int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
-            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
-        }
-
-        // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
-        // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
-        // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(brokerRateLimiter)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
-                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
-                }
-            }
-
-            if (topic.getDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(topicRateLimiter)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
-                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
-                }
-            }
-
-            if (dispatchRateLimiter.isPresent()) {
-                if (reachDispatchRateLimit(dispatchRateLimiter.get())) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
-                                name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
-                                dispatchRateLimiter.get().getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
-                }
-            }
-        }
-
-        // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        messagesToRead = Math.max(messagesToRead, 1);
-        bytesToRead = Math.max(bytesToRead, 1);
-        return Pair.of(messagesToRead, bytesToRead);
+        Pair<Integer, Long> maxReadLimits = calculateToReadByRateLimiter(availablePermits, cursor,
+                topic.getBrokerDispatchRateLimiter(), topic.getDispatchRateLimiter(), dispatchRateLimiter);
+        int entryCountToRead = calculateEntryCountToReadIfEnabledBatch(topic, maxReadLimits.getLeft());
+        return Pair.of(entryCountToRead, maxReadLimits.getRight());
     }
 
     @Override
