@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.web;
 
-import com.google.gson.Gson;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -40,16 +40,16 @@ public class ExceptionHandler {
 
     public void handle(ServletResponse response, Exception ex) throws IOException {
         if (ex instanceof InterceptException) {
-            String errorData = new Gson().toJson(new ErrorData(ex.getMessage()));
+            String errorData = ObjectMapperFactory.getThreadLocal().writeValueAsString(new ErrorData(ex.getMessage()));
             byte[] errorBytes = errorData.getBytes(StandardCharsets.UTF_8);
-            int errCode = ((InterceptException) ex).getErrorCode();
+            int errorCode = ((InterceptException) ex).getErrorCode();
             HttpFields httpFields = new HttpFields();
             HttpField httpField = new HttpField(HttpHeader.CONTENT_TYPE, "application/json;charset=utf-8");
             httpFields.add(httpField);
-            MetaData.Response info = new MetaData.Response(HttpVersion.HTTP_1_1, errCode, httpFields);
+            MetaData.Response info = new MetaData.Response(HttpVersion.HTTP_1_1, errorCode, httpFields);
             info.setHttpVersion(HttpVersion.HTTP_1_1);
             info.setReason(errorData);
-            info.setStatus(errCode);
+            info.setStatus(errorCode);
             info.setContentLength(errorBytes.length);
             if (response instanceof org.eclipse.jetty.server.Response) {
                 ((org.eclipse.jetty.server.Response) response).getHttpChannel().sendResponse(info,
