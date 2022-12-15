@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -174,36 +175,59 @@ public class ConcurrentLongLongPairHashMapTest {
     }
 
     @Test
-    public void testExpandAndShrinkAndGet() {
+    public void testExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)
                 .mapIdleFactor(0.25f)
                 .build();
-        ExecutorService service = Executors.newCachedThreadPool();
+        assertEquals(map.capacity(), 4);
 
-        // expand hashmap
+        ExecutorService executor = Executors.newCachedThreadPool();
+        final int readThreads = 16;
+        final int writeThreads = 1;
+        final int n = 1_000_000;
+        CyclicBarrier barrier = new CyclicBarrier(writeThreads + readThreads);
+        Future<?> future = null;
+
+        for (int i = 0; i < readThreads; i++) {
+            executor.submit(() -> {
+                try {
+                    barrier.await();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                while (true) {
+                    map.get(1, 1);
+                }
+            });
+        }
+
         assertTrue(map.put(1, 1, 11, 11));
-        assertTrue(map.put(2, 2, 22, 22));
-        assertTrue(map.put(3, 3, 33, 33));
-        assertEquals(map.capacity(), 8);
+        future = executor.submit(() -> {
+            try {
+                barrier.await();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
-        service.submit(() -> {
-            while (true) {
-                map.get(1, 1);
+            for (int i = 0; i < n; i++) {
+                // expand hashmap
+                assertTrue(map.put(2, 2, 22, 22));
+                assertTrue(map.put(3, 3, 33, 33));
+                assertEquals(map.capacity(), 8);
+
+                // shrink hashmap
+                assertTrue(map.remove(2, 2, 22, 22));
+                assertTrue(map.remove(3, 3, 33, 33));
+                assertEquals(map.capacity(), 4);
             }
         });
 
-        service.submit(() -> {
-            // shrink hashmap
-            assertTrue(map.remove(1, 1, 11, 11));
-            assertTrue(map.remove(2, 2, 22, 22));
-            assertEquals(map.capacity(), 4);
-        });
-
+        future.get();
         // shut down pool
-        service.shutdown();
+        executor.shutdown();
     }
 
     @Test
