@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -38,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
@@ -51,10 +46,8 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.coordination.CoordinationService;
-import org.apache.pulsar.metadata.api.coordination.LockManager;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
@@ -218,7 +211,7 @@ public class BrokerRegistryTest {
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testRegisterAndLookupCache() throws Exception {
+    public void testRegisterAndLookup() throws Exception {
         PulsarService pulsar1 = createPulsarService();
         PulsarService pulsar2 = createPulsarService();
         PulsarService pulsar3 = createPulsarService();
@@ -229,35 +222,29 @@ public class BrokerRegistryTest {
         BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
         BrokerRegistryImpl brokerRegistry3 = createBrokerRegistryImpl(pulsar3);
 
-        Set<String> address = new HashSet<>();
-        brokerRegistry1.listen((lookupServiceAddress, type) -> {
-            address.add(lookupServiceAddress);
+        Set<String> brokerIds = new HashSet<>();
+        brokerRegistry1.listen((brokerId, type) -> {
+            brokerIds.add(brokerId);
         });
 
         brokerRegistry1.start();
         brokerRegistry2.start();
 
-        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 2);
-        assertEquals(brokerRegistry2.brokerLookupDataCache.size(), 2);
-        assertEquals(address.size(), 2);
+        Awaitility.await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertEquals(brokerIds.size(), 2));
 
         assertEquals(brokerRegistry1.getAvailableBrokersAsync().get().size(), 2);
         assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
 
         // Check three broker cache are flush successes.
         brokerRegistry3.start();
-        assertEquals(brokerRegistry3.brokerLookupDataCache.size(), 3);
         assertEquals(brokerRegistry3.getAvailableBrokersAsync().get().size(), 3);
         Awaitility.await().atMost(Duration.ofSeconds(5))
-                        .untilAsserted(() -> {
-                            assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 3);
-                            assertEquals(brokerRegistry2.brokerLookupDataCache.size(), 3);
-                            assertEquals(address.size(), 3);
-                        });
+                .untilAsserted(() -> assertEquals(brokerIds.size(), 3));
 
-        assertEquals(address, brokerRegistry1.brokerLookupDataCache.keySet());
-        assertEquals(address, brokerRegistry2.brokerLookupDataCache.keySet());
-        assertEquals(address, brokerRegistry3.brokerLookupDataCache.keySet());
+        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
+        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
+        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
 
         Optional<BrokerLookupData> lookupDataOpt =
                 brokerRegistry1.lookupAsync(brokerRegistry2.getBrokerId()).get();
@@ -271,7 +258,7 @@ public class BrokerRegistryTest {
     }
 
     @Test
-    public void testRegisterFail() throws Exception {
+    public void testRegisterFailWithSameBrokerId() throws Exception {
         PulsarService pulsar1 = createPulsarService();
         PulsarService pulsar2 = createPulsarService();
         pulsar1.start();
@@ -292,87 +279,22 @@ public class BrokerRegistryTest {
     }
 
     @Test
-    public void testGetAvailableBrokersAsyncAndReadFromCache() throws Exception {
-        PulsarService pulsar1 = createPulsarService();
-        PulsarService pulsar2 = createPulsarService();
-        pulsar1.start();
-        pulsar2.start();
-
-        CoordinationService coordinationService = spy(pulsar1.getCoordinationService());
-
-        doReturn(coordinationService).when(pulsar1).getCoordinationService();
-
-        LockManager<BrokerLookupData> lockManager = spy(coordinationService.getLockManager(BrokerLookupData.class));
-
-        doReturn(lockManager).when(coordinationService).getLockManager(BrokerLookupData.class);
-
-        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
-        Set<String> address = new HashSet<>();
-        brokerRegistry1.listen((lookupServiceAddress, type) -> {
-            address.add(lookupServiceAddress);
-        });
-        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
-        brokerRegistry1.start();
-        List<String> availableBrokers1 = brokerRegistry1.getAvailableBrokersAsync().get();
-        assertEquals(availableBrokers1.size(), 1);
-
-        CompletableFuture<List<String>> future = new CompletableFuture<>();
-        future.completeExceptionally(new MetadataStoreException("Mock exception"));
-        doReturn(future).when(lockManager).listLocks(anyString());
-
-        brokerRegistry2.start();
-
-        Awaitility.await().untilAsserted(() -> {
-            // The lock manager list locks will get exception, it will read the list from cache.
-            List<String> availableBrokers2 = brokerRegistry1.getAvailableBrokersAsync().get();
-            assertEquals(address.size(), 2);
-            assertEquals(availableBrokers2.size(), 2);
-        });
+    public void testIsVerifiedNotification() {
+        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created, "/")));
+        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
+                BrokerRegistryImpl.LOOKUP_DATA_PATH + "xyz")));
+        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
+                BrokerRegistryImpl.LOOKUP_DATA_PATH)));
+        assertTrue(BrokerRegistryImpl.isVerifiedNotification(
+                new Notification(NotificationType.Created, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId")));
+        assertTrue(BrokerRegistryImpl.isVerifiedNotification(
+                new Notification(NotificationType.Created, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId/xyz")));
     }
 
     @Test
-    public void testGetAvailableBrokersAsyncAndReloadCache() throws Exception {
-        PulsarService pulsar1 = createPulsarService();
-        PulsarService pulsar2 = createPulsarService();
-        pulsar1.start();
-        pulsar2.start();
-
-        ScheduledExecutorService spyExecutor = spy(pulsar1.getLoadManagerExecutor());
-
-        doReturn(spyExecutor).when(pulsar1).getLoadManagerExecutor();
-        MetadataStoreExtended localMetadataStore = spy(pulsar1.getLocalMetadataStore());
-        doReturn(localMetadataStore).when(pulsar1).getLocalMetadataStore();
-
-        // Disable the register listener method, so the cache will not update.
-        doNothing().when(localMetadataStore).registerListener(any());
-
-        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
-        brokerRegistry1.start();
-
-        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 1);
-
-        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
-        brokerRegistry2.start();
-        assertEquals(brokerRegistry2.brokerLookupDataCache.size(), 2);
-        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 1);
-
-        // Sleep and check the cache not update.
-        TimeUnit.SECONDS.sleep(1);
-        assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 1);
-
-        // Verify the cache reload only called in broker registry start method.
-        verify(brokerRegistry1, times(1)).reloadAllBrokerLookupCacheAsync();
-
-        // Trigger cache update.
-        List<String> availableBrokers = brokerRegistry1.getAvailableBrokersAsync().get();
-        assertEquals(availableBrokers.size(), 2);
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(brokerRegistry1.brokerLookupDataCache.size(), 2);
-        });
-
-        // Verify the cache reloaded.
-        verify(brokerRegistry1, times(2)).reloadAllBrokerLookupCacheAsync();
+    public void testKeyPath() {
+        String keyPath = BrokerRegistryImpl.keyPath("brokerId");
+        assertEquals(keyPath, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId");
     }
-
 }
 

@@ -77,12 +77,6 @@ public interface BrokerRegistry extends AutoCloseable {
     CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker);
 
     /**
-     * For each the broker lookup data.
-     * The key is lookupServiceAddress{@link BrokerRegistry#getBrokerId()}
-     */
-    void forEach(BiConsumer<String, BrokerLookupData> action);
-
-    /**
      * Listen the broker register change.
      *
      * @param listener Key is lookup service address{@link BrokerRegistry#getBrokerId()}
