@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
+import com.google.gson.Gson;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -25,6 +26,10 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.policies.data.ErrorData;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
 
@@ -35,16 +40,21 @@ public class ExceptionHandler {
 
     public void handle(ServletResponse response, Exception ex) throws IOException {
         if (ex instanceof InterceptException) {
-            String reason = ex.getMessage();
-            byte[] content = reason.getBytes(StandardCharsets.UTF_8);
-            MetaData.Response info = new MetaData.Response();
+            String errorData = new Gson().toJson(new ErrorData(ex.getMessage()));
+            byte[] errorBytes = errorData.getBytes(StandardCharsets.UTF_8);
+            int errCode = ((InterceptException) ex).getErrorCode();
+            HttpFields httpFields = new HttpFields();
+            HttpField httpField = new HttpField(HttpHeader.CONTENT_TYPE, "application/json;charset=utf-8");
+            httpFields.add(httpField);
+            MetaData.Response info = new MetaData.Response(HttpVersion.HTTP_1_1, errCode, httpFields);
             info.setHttpVersion(HttpVersion.HTTP_1_1);
-            info.setReason(reason);
-            info.setStatus(((InterceptException) ex).getErrorCode());
-            info.setContentLength(content.length);
+            info.setReason(errorData);
+            info.setStatus(errCode);
+            info.setContentLength(errorBytes.length);
             if (response instanceof org.eclipse.jetty.server.Response) {
                 ((org.eclipse.jetty.server.Response) response).getHttpChannel().sendResponse(info,
-                        ByteBuffer.wrap(content), true);
+                        ByteBuffer.wrap(errorBytes),
+                        true);
             } else {
                 ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(),
                         ex.getMessage());
