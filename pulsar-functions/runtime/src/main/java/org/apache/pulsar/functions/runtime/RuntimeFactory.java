@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime;
 
+import java.util.Optional;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-
-import java.util.Optional;
 
 /**
  * A factory to create {@link Runtime}s to invoke functions.
@@ -39,6 +38,7 @@ public interface RuntimeFactory extends AutoCloseable {
                     AuthenticationConfig authenticationConfig,
                     SecretsProviderConfigurator secretsProviderConfigurator,
                     ConnectorsManager connectorsManager,
+                    FunctionsManager functionsManager,
                     Optional<FunctionAuthProvider> authProvider,
                     Optional<RuntimeCustomizer> runtimeCustomizer) throws Exception;
 
@@ -52,11 +52,15 @@ public interface RuntimeFactory extends AutoCloseable {
      */
     Runtime createContainer(
             InstanceConfig instanceConfig, String codeFile, String originalCodeFileName,
+            String transformFunctionFile, String originalTransformFunctionFileName,
             Long expectedHealthCheckInterval) throws Exception;
 
-    default boolean externallyManaged() { return false; }
+    default boolean externallyManaged() {
+        return false;
+    }
 
-    default void doAdmissionChecks(Function.FunctionDetails functionDetails) { }
+    default void doAdmissionChecks(Function.FunctionDetails functionDetails) {
+    }
 
     default Optional<? extends FunctionAuthProvider> getAuthProvider() {
         return Optional.empty();
@@ -70,7 +74,8 @@ public interface RuntimeFactory extends AutoCloseable {
     void close();
 
     static RuntimeFactory getFuntionRuntimeFactory(String className) {
-        return Reflections.createInstance(className, RuntimeFactory.class, Thread.currentThread().getContextClassLoader());
+        return Reflections
+                .createInstance(className, RuntimeFactory.class, Thread.currentThread().getContextClassLoader());
     }
 
 }

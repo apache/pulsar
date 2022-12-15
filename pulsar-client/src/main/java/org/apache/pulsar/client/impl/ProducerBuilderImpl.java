@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -198,6 +198,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize) {
+        conf.setChunkMaxMessageSize(chunkMaxMessageSize);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
@@ -325,15 +331,32 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    /**
+     * Use this config to automatically create an initial subscription when creating the topic.
+     * If this field is not set, the initial subscription will not be created.
+     * If this field is set but the broker's `allowAutoSubscriptionCreation` is disabled, the producer will fail to
+     * be created.
+     * This method is limited to internal use. This method will only be used when the consumer creates the dlq producer.
+     *
+     * @param initialSubscriptionName Name of the initial subscription of the topic.
+     * @return the producer builder implementation instance
+     */
+    public ProducerBuilderImpl<T> initialSubscriptionName(String initialSubscriptionName) {
+        conf.setInitialSubscriptionName(initialSubscriptionName);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
         if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         } else if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
             messageRoutingMode(MessageRoutingMode.CustomPartition);
-        } else if ((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() == null)
-                || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() != null)) {
+        } else if (conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() == null) {
+            throw new PulsarClientException("When 'messageRoutingMode' is " + MessageRoutingMode.CustomPartition
+                + ", 'messageRouter' should be set");
+        } else if (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() != null) {
             throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
                     + "should be set as " + MessageRoutingMode.CustomPartition);
         }

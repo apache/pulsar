@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -58,8 +59,15 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         }
 
         if (null == authenticationException) {
+            AuthenticationMetrics.authenticateFailure(
+                    AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", "Authentication required");
             throw new AuthenticationException("Authentication required");
         } else {
+            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list",
+                    authenticationException.getMessage() != null
+                            ? authenticationException.getMessage() : "Authentication required");
             throw authenticationException;
         }
 
@@ -184,6 +192,37 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 throw authenticationException;
             } else {
                 throw new AuthenticationException("Failed to initialize a new auth state from " + remoteAddress);
+            }
+        } else {
+            return new AuthenticationListState(states);
+        }
+    }
+
+    @Override
+    public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+        final List<AuthenticationState> states = new ArrayList<>(providers.size());
+
+        AuthenticationException authenticationException = null;
+        try {
+            applyAuthProcessor(
+                    providers,
+                    provider -> {
+                        AuthenticationState state = provider.newHttpAuthState(request);
+                        states.add(state);
+                        return state;
+                    }
+            );
+        } catch (AuthenticationException ae) {
+            authenticationException = ae;
+        }
+        if (states.isEmpty()) {
+            log.debug("Failed to initialize a new http auth state from {}",
+                    request.getRemoteHost(), authenticationException);
+            if (authenticationException != null) {
+                throw authenticationException;
+            } else {
+                throw new AuthenticationException(
+                        "Failed to initialize a new http auth state from " + request.getRemoteHost());
             }
         } else {
             return new AuthenticationListState(states);

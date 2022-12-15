@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -42,6 +42,12 @@ public class OneStageAuthenticationState implements AuthenticationState {
                                        AuthenticationProvider provider) throws AuthenticationException {
         this.authenticationDataSource = new AuthenticationDataCommand(
             new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);
+        this.authRole = provider.authenticate(authenticationDataSource);
+    }
+
+    public OneStageAuthenticationState(HttpServletRequest request, AuthenticationProvider provider)
+            throws AuthenticationException {
+        this.authenticationDataSource = new AuthenticationDataHttps(request);
         this.authRole = provider.authenticate(authenticationDataSource);
     }
 

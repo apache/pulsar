@@ -1,7 +1,7 @@
 ---
 id: administration-zk-bk
 title: ZooKeeper and BookKeeper administration
-sidebar_label: ZooKeeper and BookKeeper
+sidebar_label: "ZooKeeper and BookKeeper"
 ---
 
 Pulsar relies on two external systems for essential tasks:
@@ -10,8 +10,11 @@ Pulsar relies on two external systems for essential tasks:
 * [BookKeeper](http://bookkeeper.apache.org/) is responsible for [persistent storage](concepts-architecture-overview.md#persistent-storage) of message data.
 
 ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) projects.
+This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:
 
-> Skip to the [How Pulsar uses ZooKeeper and BookKeeper](#how-pulsar-uses-zookeeper-and-bookkeeper) section below for a more schematic explanation of the role of these two systems in Pulsar.
+![ZooKeeper and BookKeeper](/assets/pulsar-system-architecture.png)
+
+Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.
 
 
 ## ZooKeeper
@@ -27,7 +30,7 @@ ZooKeeper manages a variety of essential coordination-related and configuration-
 
 To deploy a Pulsar instance, you need to stand up one local ZooKeeper cluster *per Pulsar cluster*.
 
-To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
+To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example of a three-node cluster:
 
 ```properties
 server.1=zk1.us-west.example.com:2888:3888
@@ -37,22 +40,22 @@ server.3=zk3.us-west.example.com:2888:3888
 
 On each host, you need to specify the node ID in `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
-> See the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation for detailed information on `myid` and more.
+For detailed information on `myid` and more, see the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation.
 
 
 On a ZooKeeper server at `zk1.us-west.example.com`, for example, you can set the `myid` value like this:
 
 ```shell
-$ mkdir -p data/zookeeper
-$ echo 1 > data/zookeeper/myid
+mkdir -p data/zookeeper
+echo 1 > data/zookeeper/myid
 ```
 
 On `zk2.us-west.example.com` the command is `echo 2 > data/zookeeper/myid` and so on.
 
-Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```shell
-$ bin/pulsar-daemon start zookeeper
+bin/pulsar-daemon start zookeeper
 ```
 
 ### Deploy configuration store
@@ -65,7 +68,7 @@ If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#deploy-local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -84,17 +87,13 @@ The key here is to make sure the ZK quorum members are spread across at least 3 
 
 Again, given the very low expected load on the configuration store servers, you can share the same hosts used for the local ZooKeeper quorum.
 
-For example, you can assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also you can assume, each cluster has its own local ZK servers named such as
+For example, you can assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also you can assume, each cluster has its own local ZK servers named such as `zk[1-3].${CLUSTER}.example.com`.
 
-```
-zk[1-3].${CLUSTER}.example.com
-```
+In this scenario, you want to pick the quorum participants from a few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
 
-In this scenario you want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
+This guarantees writing to the configuration store is possible even if one of these regions is unreachable.
 
-This guarantees that writes to configuration store is possible even if one of these regions is unreachable.
-
-The ZK configuration in all the servers looks like:
+The ZK configuration in all the servers looks like below:
 
 ```properties
 clientPort=2184
@@ -123,34 +122,32 @@ peerType=observer
 
 ##### Start the service
 
-Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
+Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md)
 
 ```shell
-$ bin/pulsar-daemon start configuration-store
+bin/pulsar-daemon start configuration-store
 ```
-
-
 
 ### ZooKeeper configuration
 
 In Pulsar, ZooKeeper configuration is handled by two separate configuration files in the `conf` directory of your Pulsar installation:
 * The `conf/zookeeper.conf` file handles the configuration for local ZooKeeper.
-* The `conf/global-zookeeper.conf` file handles the configuration for configuration store.
+* The `conf/global-zookeeper.conf` file handles the configuration for the configuration store.
 See [parameters](reference-configuration.md#zookeeper) for more details.
 
 #### Configure batching operations
-Using the batching operations reduces the remote procedure call (RPC) traffic between ZooKeeper client and servers. It also reduces the number of write transactions, because each batching operation corresponds to a single ZooKeeper transaction, containing multiple read and write operations.
+Using the batching operations reduces the remote procedure call (RPC) traffic between the ZooKeeper client and servers. It also reduces the number of write transactions, because each batching operation corresponds to a single ZooKeeper transaction, containing multiple read and write operations.
 
 The following figure demonstrates a basic benchmark of batching read/write operations that can be requested to ZooKeeper in one second:
 
-![Zookeeper batching benchmark](assets/zookeeper-batching.png)
+![Zookeeper batching benchmark](/assets/zookeeper-batching.png)
 
 To enable batching operations, set the [`metadataStoreBatchingEnabled`](reference-configuration.md#broker) parameter to `true` on the broker side.
 
 
 ## BookKeeper
 
-BookKeeper stores all durable message in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
+BookKeeper stores all durable messages in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
 
 > To manage message persistence, retention, and expiry in Pulsar, refer to [cookbook](cookbooks-retention-expiry.md).
 
@@ -161,16 +158,22 @@ Bookie hosts store message data on disk. To provide optimal performance, ensure 
 - Disk I/O capacity read/write
 - Storage capacity
 
-Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker by default. To ensure low write latency, BookKeeper is designed to use multiple devices:
+Message entries written to bookies are always synced to disk before returning an acknowledgment to the Pulsar broker by default. To ensure low write latency, BookKeeper is designed to use multiple devices:
 
 - A **journal** to ensure durability. For sequential writes, it is critical to have fast [fsync](https://linux.die.net/man/2/fsync) operations on bookie hosts. Typically, small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) should suffice, or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.
-- A **ledger storage device** stores data. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
+- A **ledger storage device** stores data. Writes happen in the background, so writing I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
 
 ### Configure BookKeeper
 
 You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. When you configure each bookie, ensure that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
+
+:::note
+
+Set `journalDirectory` and `ledgerDirectories` carefully. It is difficult to change them later.
+
+:::
 
 ```properties
 # Change to point to journal disk mount point
@@ -181,11 +184,14 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
+
+#It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).
+advertisedAddress=
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.
 
-> For more information about BookKeeper, refer to the official [BookKeeper docs](http://bookkeeper.apache.org).
+For more information about BookKeeper, refer to the official [BookKeeper docs](http://bookkeeper.apache.org).
 
 ### Deploy BookKeeper
 
@@ -195,22 +201,22 @@ BookKeeper provides [persistent message storage](concepts-architecture-overview.
 
 You can start a bookie in the foreground or as a background daemon.
 
-To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
+To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md) CLI tool:
 
 ```bash
-$ bin/bookkeeper bookie
+bin/bookkeeper bookie
 ```
 
-To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
-$ bin/pulsar-daemon start bookie
+bin/pulsar-daemon start bookie
 ```
 
-You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
+You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md):
 
 ```shell
-$ bin/bookkeeper shell bookiesanity
+bin/bookkeeper shell bookiesanity
 ```
 
 When you use this command, you create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.
@@ -227,35 +233,35 @@ Before you decommission a bookie, you need to check your environment and meet th
 
 And then you can decommission bookies safely. To decommission bookies, complete the following steps.
 
-1. Log in to the bookie node, check if there are underreplicated ledgers. The decommission command force to replicate the underreplicated ledgers.
-`$ bin/bookkeeper shell listunderreplicated`
+1. Log in to the bookie node, and check if there are under-replicated ledgers. The decommission command force to replicate the underreplicated ledgers.
+`bin/bookkeeper shell listunderreplicated`
 
 2. Stop the bookie by killing the bookie process. Make sure that no liveness/readiness probes setup for the bookies to spin them back up if you deploy it in a Kubernetes environment.
 
 3. Run the decommission command.
    - If you have logged in to the node to be decommissioned, you do not need to provide `-bookieid`.
    - If you are running the decommission command for the target bookie node from another bookie node, you should mention the target bookie ID in the arguments for `-bookieid`
-    `$ bin/bookkeeper shell decommissionbookie`
-    or
-    `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
+   `bin/bookkeeper shell decommissionbookie`
+   or
+   `bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
 
 4. Validate that no ledgers are on the decommissioned bookie.   
-`$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`
+`bin/bookkeeper shell listledgers -bookieid <target bookieid>`
 
-You can run the following command to check if the bookie you have decommissioned is listed in the bookies list:
+You can run the following command to check if the bookie you have decommissioned is listed:
 
 ```bash
-./bookkeeper shell listbookies -rw -h
-./bookkeeper shell listbookies -ro -h
+bin/bookkeeper shell listbookies -rw -h
+bin/bookkeeper shell listbookies -ro -h
 ```
 
 ## BookKeeper persistence policies
 
 In Pulsar, you can set *persistence policies* at the namespace level, which determines how BookKeeper handles persistent storage of messages. Policies determine four things:
 
-* The number of acks (guaranteed copies) to wait for each ledger entry.
-* The number of bookies to use for a topic.
-* The number of writes to make for each ledger entry.
+* Ensemble (E) size, Number of [bookies](reference-terminology.md#bookie) to use for storing entries in a ledger.
+* Write quorum (Q<sub>w</sub>) size, Replication factor for storing entries (messages) in a ledger.
+* Ack quorum (Q<sub>a</sub>) size, Number of guaranteed copies (acks to wait for before a write is considered completed).
 * The throttling rate for mark-delete operations.
 
 ### Set persistence policies
@@ -264,36 +270,56 @@ You can set persistence policies for BookKeeper at the [namespace](reference-ter
 
 #### Pulsar-admin
 
-Use the [`set-persistence`](reference-pulsar-admin.md#namespaces-set-persistence) subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:
+Use the [`set-persistence`](/tools/pulsar-admin/) subcommand and specify a namespace as well as any policies that you want to apply. The available flags are:
 
-Flag | Description | Default
-:----|:------------|:-------
-`-a`, `--bookkeeper-ack-quorum` | The number of acks (guaranteed copies) to wait on for each entry | 0
-`-e`, `--bookkeeper-ensemble` | The number of [bookies](reference-terminology.md#bookie) to use for topics in the namespace | 0
-`-w`, `--bookkeeper-write-quorum` | The number of writes to make for each entry | 0
-`-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle) | 0
+Flag | Description                                                                                                                | Default
+:----|:---------------------------------------------------------------------------------------------------------------------------|:-------
+`-e`, `--bookkeeper-ensemble` | Ensemble (E) size, Number of [bookies](reference-terminology.md#bookie) to use for storing entries in a ledger.| 0
+`-w`, `--bookkeeper-write-quorum` | Write quorum (Q<sub>w</sub>) size, Replication factor for storing entries (messages) in a ledger.                                            | 0
+`-a`, `--bookkeeper-ack-quorum` | Ack quorum (Q<sub>a</sub>) size, Number of guaranteed copies (acks to wait for before a write is considered completed)                          | 0
+`-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle)                                                           | 0
+
+Please notice that sticky reads enabled by `bookkeeperEnableStickyReads=true` aren’t used unless ensemble size (E) equals write quorum (Q<sub>w</sub>) size. Sticky reads improve the efficiency of the Bookkeeper read ahead cache when all reads for a single ledger are sent to a single bookie.
+
+Some rules for choosing the values:
+
+Rule | Description |
+:----|:------------|
+E >= Q<sub>w</sub> >= Q<sub>a</sub>|Ensemble size must be larger or equal than write quorum size, write quorum size must be larger or equal than ack quorum size.
+Max bookie failures = Q<sub>a</sub>-1, |This rule must be fulfilled if data durability is desired in case of bookie failures. To safely tolerate at least one bookie failure at a time in the ensemble, Q<sub>a</sub> must be set to a value at least 2.
+E == Q<sub>w</sub> | Sticky reads enabled by `bookkeeperEnableStickyReads=true` aren't used unless ensemble size (E) equals write quorum (Q<sub>w</sub>) size.
 
 The following is an example:
 
 ```shell
-$ pulsar-admin namespaces set-persistence my-tenant/my-ns \
-  --bookkeeper-ack-quorum 3 \
-  --bookkeeper-ensemble 2
+pulsar-admin namespaces set-persistence my-tenant/my-ns \
+--bookkeeper-ensemble 3 \
+--bookkeeper-write-quorum 3 \
+--bookkeeper-ack-quorum 3
 ```
+
+Short example:
+
+```shell
+pulsar-admin namespaces set-persistence my-tenant/my-ns -e 3 -w 3 -a 3
+```
+
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
-int bkEnsemble = 2;
-int bkQuorum = 3;
-int bkAckQuorum = 2;
+// The following must be true: bkEnsemble >= bkWriteQuorum >= bkAckQuorum
+// Please notice that sticky reads cannot be used unless bkEnsemble == bkWriteQuorum. 
+int bkEnsemble = 3;
+int bkWriteQuorum = 3;
+int bkAckQuorum = 3;
 double markDeleteRate = 0.7;
 PersistencePolicies policies =
-  new PersistencePolicies(ensemble, quorum, ackQuorum, markDeleteRate);
+  new PersistencePolicies(bkEnsemble, bkWriteQuorum, bkAckQuorum, markDeleteRate);
 admin.namespaces().setPersistence(namespace, policies);
 ```
 
@@ -303,12 +329,12 @@ You can see which persistence policy currently applies to a namespace.
 
 #### Pulsar-admin
 
-Use the [`get-persistence`](reference-pulsar-admin.md#namespaces-get-persistence) subcommand and specify the namespace.
+Use the [`get-persistence`](/tools/pulsar-admin/) subcommand and specify the namespace.
 
 The following is an example:
 
 ```shell
-$ pulsar-admin namespaces get-persistence my-tenant/my-ns
+pulsar-admin namespaces get-persistence my-tenant/my-ns
 {
   "bookkeeperEnsemble": 1,
   "bookkeeperWriteQuorum": 1,
@@ -319,18 +345,10 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
 PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
 ```
-
-## How Pulsar uses ZooKeeper and BookKeeper
-
-This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:
-
-![ZooKeeper and BookKeeper](assets/pulsar-system-architecture.png)
-
-Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.

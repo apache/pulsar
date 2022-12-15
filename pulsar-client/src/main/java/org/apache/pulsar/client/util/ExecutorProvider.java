@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
@@ -41,21 +40,25 @@ public class ExecutorProvider {
     private final String poolName;
     private volatile boolean isShutdown;
 
-    private static class ExtendedThreadFactory extends DefaultThreadFactory {
-
+    public static class ExtendedThreadFactory extends DefaultThreadFactory {
         @Getter
-        private Thread thread;
+        private volatile Thread thread;
+        public ExtendedThreadFactory(String poolName) {
+            super(poolName, false);
+        }
         public ExtendedThreadFactory(String poolName, boolean daemon) {
             super(poolName, daemon);
         }
 
         @Override
         public Thread newThread(Runnable r) {
-            thread = super.newThread(r);
+            Thread thread = super.newThread(r);
+            thread.setUncaughtExceptionHandler((t, e) ->
+                    log.error("Thread {} got uncaught Exception", t.getName(), e));
+            this.thread = thread;
             return thread;
         }
     }
-
 
     public ExecutorProvider(int numThreads, String poolName) {
         checkArgument(numThreads > 0);
@@ -65,11 +68,15 @@ public class ExecutorProvider {
         for (int i = 0; i < numThreads; i++) {
             ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
                     poolName, Thread.currentThread().isDaemon());
-            ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+            ExecutorService executor = createExecutor(threadFactory);
             executors.add(Pair.of(executor, threadFactory));
         }
         isShutdown = false;
         this.poolName = poolName;
+    }
+
+    protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
+       return Executors.newSingleThreadExecutor(threadFactory);
     }
 
     public ExecutorService getExecutor() {

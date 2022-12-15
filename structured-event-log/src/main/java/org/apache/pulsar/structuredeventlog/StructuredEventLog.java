@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -85,7 +85,7 @@ public interface StructuredEventLog {
     /**
      * Create a new logger object, from which root events can be created.
      */
-    public static StructuredEventLog newLogger() {
+    static StructuredEventLog newLogger() {
         return Slf4jStructuredEventLog.INSTANCE;
     }
 }

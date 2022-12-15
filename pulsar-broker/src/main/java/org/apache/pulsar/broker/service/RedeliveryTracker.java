@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,15 +25,11 @@ public interface RedeliveryTracker {
 
     int incrementAndGetRedeliveryCount(Position position);
 
-    int getRedeliveryCount(Position position);
+    int getRedeliveryCount(long ledgerId, long entryId);
 
     void remove(Position position);
 
     void removeBatch(List<Position> positions);
 
     void clear();
-
-    boolean contains(Position position);
-
-    void addIfAbsent(Position position);
 }

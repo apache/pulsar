@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,9 +27,10 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.asynchttpclient.Request;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
 
 @Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {
@@ -86,7 +87,7 @@ public class ControlledClusterFailoverTest {
             .build();
 
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
-        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
 
         controlledClusterFailover.initialize(pulsarClient);
 

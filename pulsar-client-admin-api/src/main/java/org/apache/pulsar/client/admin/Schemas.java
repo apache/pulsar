@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,6 +97,24 @@ public interface Schemas {
      * @param topic topic name, in fully qualified format
      */
     CompletableFuture<Void> deleteSchemaAsync(String topic);
+
+    /**
+     * Delete the schema associated with a given <tt>topic</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @param force whether to delete schema completely.
+     *              If true, delete all resources (including metastore and ledger),
+     *              otherwise only do a mark deletion and not remove any resources indeed
+     * @throws PulsarAdminException
+     */
+    void deleteSchema(String topic, boolean force) throws PulsarAdminException;
+
+    /**
+     * Delete the schema associated with a given <tt>topic</tt> asynchronously.
+     *
+     * @param topic topic name, in fully qualified format
+     */
+    CompletableFuture<Void> deleteSchemaAsync(String topic, boolean force);
 
     /**
      * Create a schema for a given <tt>topic</tt> with the provided schema info.

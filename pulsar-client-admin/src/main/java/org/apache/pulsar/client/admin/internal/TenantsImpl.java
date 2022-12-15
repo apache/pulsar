@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Properties;
@@ -47,20 +46,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public CompletableFuture<List<String>> getTenantsAsync() {
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(adminTenants,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> tenants) {
-                        future.complete(tenants);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(this.adminTenants, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -71,20 +57,8 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public CompletableFuture<TenantInfo> getTenantInfoAsync(String tenant) {
         WebTarget path = adminTenants.path(tenant);
-        final CompletableFuture<TenantInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TenantInfoImpl>() {
-                    @Override
-                    public void completed(TenantInfoImpl tenantInfo) {
-                        future.complete(tenantInfo);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TenantInfoImpl>(){})
+                .thenApply(tenantInfo -> tenantInfo);
     }
 
     @Override

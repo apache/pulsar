@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -105,7 +105,7 @@ public class ManagedLedgerWriter {
         public String zookeeperServers;
 
         @Parameter(names = {"-md",
-                "--metadata-store"}, description = "Metadata store service url. eg: zk:my-zk:2181")
+                "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
         private String metadataStoreUrl;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
@@ -193,7 +193,7 @@ public class ManagedLedgerWriter {
 
         @Cleanup
         MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkConf, mlFactoryConf);
 
         ManagedLedgerConfig mlConf = new ManagedLedgerConfig();

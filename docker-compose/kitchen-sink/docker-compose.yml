@@ -37,7 +37,7 @@ services:
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     networks:
       pulsar:
 
@@ -53,7 +53,7 @@ services:
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     networks:
       pulsar:
 
@@ -69,7 +69,7 @@ services:
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     networks:
       pulsar:
 
@@ -84,7 +84,7 @@ services:
       configurationStore: zk1:2181
       pulsarNode: proxy1
     volumes:
-      - ./scripts/init-cluster.sh/:/pulsar/bin/init-cluster.sh
+      - ./scripts/init-cluster.sh/:/pulsar/bin/init-cluster.sh:z
     depends_on:
       - zk1
       - zk2
@@ -109,7 +109,7 @@ services:
       numAddWorkerThreads: 8
       useHostNameAsBookieID: "true"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -135,7 +135,7 @@ services:
       numAddWorkerThreads: 8
       useHostNameAsBookieID: "true"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -162,7 +162,7 @@ services:
       numAddWorkerThreads: 8
       useHostNameAsBookieID: "true"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -190,7 +190,7 @@ services:
       webSocketServiceEnabled: "false"
       functionsWorkerEnabled: "false"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -219,7 +219,7 @@ services:
       webSocketServiceEnabled: "false"
       functionsWorkerEnabled: "false"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -249,7 +249,7 @@ services:
       webSocketServiceEnabled: "false"
       functionsWorkerEnabled: "false"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -280,7 +280,7 @@ services:
       webSocketServiceEnabled: "true"
       functionWorkerWebServiceURL: http://fnc1:6750
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     ports:
       - "6650:6650"
       - "8080:8080"
@@ -311,7 +311,7 @@ services:
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
       configurationStoreServers: zk1:2181,zk2:2181,zk3:2181
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -348,7 +348,7 @@ services:
       PF_pulsarServiceUrl: pulsar://proxy1:6650
       PF_pulsarWebServiceUrl: http://proxy1:8080
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -368,7 +368,7 @@ services:
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
     command: >
-      bash -c "bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ conf/presto/catalog/pulsar.properties && \
+      bash -c "bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ trino/conf/catalog/pulsar.properties && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
                exec bin/pulsar sql-worker run"
@@ -377,10 +377,11 @@ services:
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
       configurationStoreServers: zk1:2181,zk2:2181,zk3:2181
       pulsar.zookeeper-uri: zk1:2181,zk2:2181,zk3:2181
+      pulsar.web-service-url: http://proxy1:8080
       coordinator: "true"
     volumes:
-      - ./../../docker/pulsar/scripts/apply-config-from-env-with-prefix.py:/pulsar/bin/apply-config-from-env-with-prefix.py
-      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py
+      - ./../../docker/pulsar/scripts/apply-config-from-env-with-prefix.py:/pulsar/bin/apply-config-from-env-with-prefix.py:z
+      - ./../../docker/pulsar/scripts/apply-config-from-env.py:/pulsar/bin/apply-config-from-env.py:z
     depends_on:
       - zk1
       - zk2
@@ -406,7 +407,7 @@ services:
     depends_on:
       - broker1
     volumes:
-      - "./data/:/data"
+      - "./data/:/data:z"
     environment:
       REDIRECT_HOST: "http://127.0.0.1"
       REDIRECT_PORT: "9527"

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import java.io.FileInputStream;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -48,10 +48,10 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
-import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -94,13 +94,7 @@ public class PerformanceTransaction {
 
 
     @Parameters(commandDescription = "Test pulsar transaction performance.")
-    static class Arguments {
-
-        @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = {"--conf-file"}, description = "Configuration file")
-        public String confFile;
+    static class Arguments  extends PerformanceBaseArguments {
 
         @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
                 true)
@@ -120,25 +114,14 @@ public class PerformanceTransaction {
         @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
 
-        @Parameter(names = {"-u", "--service-url"}, description = "Pulsar Service URL")
-        public String serviceURL;
-
         @Parameter(names = {"-np",
                 "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
                 + "not trying to create a topic")
         public Integer partitions = null;
 
-        @Parameter(names = {"-c",
-                "--max-connections"}, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 100;
-
         @Parameter(names = {"-time",
                 "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
         public long testTime = 0;
-
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-                + "used for handling connections to brokers. The default value is 1.")
-        public int ioThreads = 1;
 
         @Parameter(names = {"-ss",
                 "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
@@ -152,6 +135,10 @@ public class PerformanceTransaction {
 
         @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Shared;
+
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        private boolean replicatedSubscription = false;
 
         @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
@@ -185,6 +172,16 @@ public class PerformanceTransaction {
 
         @Parameter(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
         public int openTxnRate = 0;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+            if (adminURL == null) {
+                adminURL = prop.getProperty("webServiceUrl");
+            }
+            if (adminURL == null) {
+                adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
+            }
+        }
     }
 
     public static void main(String[] args)
@@ -205,33 +202,7 @@ public class PerformanceTransaction {
             jc.usage();
             PerfClientUtils.exit(-1);
         }
-
-
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("webServiceUrl");
-            }
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-            }
-        }
-
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -246,19 +217,20 @@ public class PerformanceTransaction {
             payloadBytes[i] = (byte) (random.nextInt(26) + 65);
         }
         if (arguments.partitions != null) {
-            PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.adminURL);
-            try (PulsarAdmin client = clientBuilder.build()) {
+            final PulsarAdminBuilder adminBuilder = PerfClientUtils
+                    .createAdminBuilderFromArguments(arguments, arguments.adminURL);
+
+            try (PulsarAdmin adminClient = adminBuilder.build()) {
                 for (String topic : arguments.producerTopic) {
                     log.info("Creating  produce partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
-                        client.topics().createPartitionedTopic(topic, arguments.partitions);
+                        adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         if (log.isDebugEnabled()) {
                             log.debug("Topic {} already exists: {}", topic, alreadyExists);
                         }
                         PartitionedTopicMetadata partitionedTopicMetadata =
-                                client.topics().getPartitionedTopicMetadata(topic);
+                                adminClient.topics().getPartitionedTopicMetadata(topic);
                         if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error(
                                     "Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
@@ -270,13 +242,10 @@ public class PerformanceTransaction {
             }
         }
 
-        PulsarClient client =
-                PulsarClient.builder().enableTransaction(!arguments.isDisableTransaction)
-                        .serviceUrl(arguments.serviceURL)
-                        .connectionsPerBroker(arguments.maxConnections)
-                        .statsInterval(0, TimeUnit.SECONDS)
-                        .ioThreads(arguments.ioThreads)
-                        .build();
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                        .enableTransaction(!arguments.isDisableTransaction);
+
+        PulsarClient client = clientBuilder.build();
 
         ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
                 arguments.numTestThreads,
@@ -655,15 +624,16 @@ public class PerformanceTransaction {
     static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
     static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
-    private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
+    private static final Logger log = LoggerFactory.getLogger(PerformanceTransaction.class);
 
 
     private static  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client, Arguments arguments)
             throws ExecutionException, InterruptedException {
-        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES) //
+        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES)
                 .subscriptionType(arguments.subscriptionType)
                 .receiverQueueSize(arguments.receiverQueueSize)
-                .subscriptionInitialPosition(arguments.subscriptionInitialPosition);
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
+                .replicateSubscriptionState(arguments.replicatedSubscription);
 
         Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
         List<List<Consumer<byte[]>>> consumers = new ArrayList<>(arguments.consumerTopic.size());

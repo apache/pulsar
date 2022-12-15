@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,7 +83,7 @@ public interface TopicPoliciesService {
      * @param topicName topic name
      * @param backoff back off policy
      * @param isGlobal is global policies
-     * @return CompletableFuture<Optional<TopicPolicies>>
+     * @return CompletableFuture&lt;Optional&lt;TopicPolicies&gt;&gt;
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
               final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,18 +20,39 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Slf4j
+@Test(groups = "broker-api")
 public class ClientDeduplicationTest extends ProducerConsumerBase {
+
+    @DataProvider
+    public static Object[][] batchingTypes() {
+        return new Object[][] {
+                { BatcherBuilder.DEFAULT },
+                { BatcherBuilder.KEY_BASED }
+        };
+    }
 
     @BeforeClass
     @Override
@@ -46,7 +67,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(priority = -1)
     public void testNamespaceDeduplicationApi() throws Exception {
         final String namespace = "my-property/my-ns";
         assertNull(admin.namespaces().getDeduplicationStatus(namespace));
@@ -174,9 +195,10 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
-    public void testProducerDeduplicationWithDiscontinuousSequenceId() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId";
+    @Test(timeOut = 30000, dataProvider = "batchingTypes")
+    public void testProducerDeduplicationWithDiscontinuousSequenceId(BatcherBuilder batcherBuilder) throws Exception {
+        String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId-"
+                + System.currentTimeMillis();
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
@@ -185,7 +207,9 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
                         .topic(topic)
                         .producerName("my-producer-name")
                         .enableBatching(true)
+                        .batcherBuilder(batcherBuilder)
                         .batchingMaxMessages(10)
+                        .batchingMaxPublishDelay(1L, TimeUnit.HOURS)
                         .sendTimeout(0, TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
@@ -208,7 +232,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.flush();
 
         for (int i = 0; i < 4; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(3, TimeUnit.SECONDS);
+            assertNotNull(msg);
             assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer.acknowledge(msg);
         }
@@ -283,5 +308,118 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         assertNull(msg);
 
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testKeyBasedBatchingOrder() throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-key-based-batching-order";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .batcherBuilder(BatcherBuilder.KEY_BASED)
+                .batchingMaxMessages(100)
+                .batchingMaxBytes(1024 * 1024 * 5)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+        // | key | sequence id list |
+        // | :-- | :--------------- |
+        // | A | 0, 3, 4 |
+        // | B | 1, 2 |
+        final List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        sendFutures.add(producer.newMessage().key("A").value("msg-0").sequenceId(0L).sendAsync());
+        sendFutures.add(producer.newMessage().key("B").value("msg-1").sequenceId(1L).sendAsync());
+        sendFutures.add(producer.newMessage().key("B").value("msg-2").sequenceId(2L).sendAsync());
+        sendFutures.add(producer.newMessage().key("A").value("msg-3").sequenceId(3L).sendAsync());
+        sendFutures.add(producer.newMessage().key("A").value("msg-4").sequenceId(4L).sendAsync());
+        // The message order is expected to be [1, 2, 0, 3, 4]. The sequence ids are not ordered strictly, but:
+        // 1. The sequence ids for a given key are ordered.
+        // 2. The highest sequence ids of batches are ordered.
+        producer.flush();
+
+        FutureUtil.waitForAll(sendFutures);
+        final List<MessageId> sendMessageIds = sendFutures.stream().map(CompletableFuture::join)
+                .collect(Collectors.toList());
+        for (int i = 0; i < sendMessageIds.size(); i++) {
+            log.info("Send msg-{} to {}", i, sendMessageIds.get(i));
+        }
+
+        final List<Long> sequenceIdList = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            log.info("Received {}, key: {}, seq id: {}, msg id: {}",
+                    msg.getValue(), msg.getKey(), msg.getSequenceId(), msg.getMessageId());
+            assertNotNull(msg);
+            sequenceIdList.add(msg.getSequenceId());
+        }
+        assertEquals(sequenceIdList, Arrays.asList(1L, 2L, 0L, 3L, 4L));
+
+        for (int i = 0; i < 5; i++) {
+            // Currently sending a duplicated message won't throw an exception. Instead, an invalid result is returned.
+            final MessageId messageId = producer.newMessage().value("msg").sequenceId(i).send();
+            // a duplicated message will send in a single batch, that will perform as a non-batched sending
+            assertTrue(messageId instanceof MessageIdImpl);
+            assertFalse(messageId instanceof BatchMessageIdImpl);
+            final MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
+            assertEquals(messageIdImpl.getLedgerId(), -1L);
+            assertEquals(messageIdImpl.getEntryId(), -1L);
+        }
+
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testUpdateSequenceIdInSyncCodeSegment() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testUpdateSequenceIdInSyncCodeSegment";
+        int totalMessage = 200;
+        int threadSize = 5;
+        String topicName = "subscription";
+        ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
+        conf.setBrokerDeduplicationEnabled(true);
+
+        //build producer/consumer
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+
+        CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        //Send messages in multiple-thread
+        for (int i = 0; i < threadSize; i++) {
+            executorService.submit(() -> {
+                try {
+                    for (int j = 0; j < totalMessage; j++) {
+                        //The message will be sent with out-of-order sequence ID.
+                        producer.newMessage().sendAsync();
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to send/ack messages with transaction.", e);
+                } finally {
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        //wait the all send op is executed and store its futures in the arraylist.
+        countDownLatch.await();
+
+        for (int i = 0; i < threadSize * totalMessage; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg);
+        }
     }
 }
