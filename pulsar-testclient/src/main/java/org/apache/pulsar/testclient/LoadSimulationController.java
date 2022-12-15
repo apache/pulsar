@@ -723,7 +723,7 @@ public class LoadSimulationController {
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         (new LoadSimulationController(arguments)).run();
     }
