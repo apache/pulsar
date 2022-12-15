@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -39,6 +44,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
@@ -63,6 +71,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -778,5 +787,55 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
         patternConsumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testGetManagedLegerConfigFailThenUnload() throws Exception {
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE1), "testGetManagedLegerConfigFailThenUnload").toString();
+
+        String subscriptionName = "sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic).create();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) getPulsarServiceList()
+                        .get(0)
+                        .getBrokerService()
+                        .getTopic(topic, false)
+                        .get().orElse(null);
+
+        assertNotNull(persistentTopic);
+        BrokerService brokerService = spy(persistentTopic.getBrokerService());
+        doReturn(FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException("test")))
+                .when(brokerService).getManagedLedgerConfig(any());
+        Field field = AbstractTopic.class.getDeclaredField("brokerService");
+        field.setAccessible(true);
+        field.set(persistentTopic, brokerService);
+
+        // init pending ack store
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscribe();
+
+        producer.send("test");
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+
+        // pending ack init fail, so the ack will throw exception
+        try {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
+        }
+
+        // can unload success
+        admin.topics().unload(topic);
     }
 }
