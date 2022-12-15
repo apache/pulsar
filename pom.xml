@@ -158,7 +158,7 @@ flexible messaging model and an intuitive client API.</description>
     <opensearch.version>1.2.4</opensearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
-    <scala-library.version>2.13.6</scala-library.version>
+    <scala-library.version>2.13.10</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
     <debezium.postgresql.version>42.4.1</debezium.postgresql.version>
     <debezium.mysql.version>8.0.28</debezium.mysql.version>
@@ -1271,6 +1271,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.roaringbitmap</groupId>
         <artifactId>RoaringBitmap</artifactId>
         <version>${roaringbitmap.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>${scala-library.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-reflect</artifactId>
+        <version>${scala-library.version}</version>
       </dependency>
 
     </dependencies>
