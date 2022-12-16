@@ -284,9 +284,9 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         BlockingQueue<Message<byte[]>> receivedMsgs = new LinkedBlockingQueue<>();
         MessageListener<byte[]> listener = (consumer, msg) -> {
             try {
-                // the first msg will wait until timeout
+                // the first "Hello-0" will wait until timeout
                 if (index.getAndDecrement() == 0 && new String(msg.getData()).equals(redeliveryMsg)) {
-                    Thread.sleep(5000);
+                    Thread.sleep(3000);
                 }
                 receivedMsgs.add(msg);
                 consumer.acknowledge(msg);

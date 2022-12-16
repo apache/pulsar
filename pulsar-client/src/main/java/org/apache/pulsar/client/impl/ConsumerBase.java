@@ -222,6 +222,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected MessageId normalizeMessageId(MessageId messageId) {
+        if (messageId instanceof BatchMessageIdImpl) {
+            // do not add each item in batch message into tracker
+            return ((BatchMessageIdImpl) messageId).toMessageIdImpl();
+        }
+        return messageId;
+    }
+
     protected void reduceCurrentReceiverQueueSize() {
         if (!conf.isAutoScaledReceiverQueueSizeEnabled()) {
             return;
@@ -1106,7 +1114,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
-            unAckedMessageTracker.add(msg.getMessageId(), msg.getRedeliveryCount());
+            MessageId id;
+            if (this instanceof ConsumerImpl) {
+                id = normalizeMessageId(msg.getMessageId());
+            } else {
+                id = msg.getMessageId();
+            }
+            unAckedMessageTracker.add(id, msg.getRedeliveryCount());
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
