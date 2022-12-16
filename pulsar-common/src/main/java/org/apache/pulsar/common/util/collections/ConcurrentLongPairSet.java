@@ -331,7 +331,11 @@ public class ConcurrentLongPairSet implements LongPairSet {
         boolean contains(long item1, long item2, int hash) {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
-            int bucket = signSafeMod(hash, capacity);
+
+            // add local variable here, so OutOfBound won't happen
+            long[] table = this.table;
+            // calculate table.length / 2 as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(hash, table.length / 2);
 
             try {
                 while (true) {
@@ -353,6 +357,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
                             stamp = readLock();
                             acquiredLock = true;
 
+                            // update local variable
+                            table = this.table;
                             bucket = signSafeMod(hash, capacity);
                             storedItem1 = table[bucket];
                             storedItem2 = table[bucket + 1];
