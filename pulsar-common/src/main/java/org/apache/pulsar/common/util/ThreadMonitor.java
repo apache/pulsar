@@ -35,12 +35,16 @@ public class ThreadMonitor {
     public static class Ping implements Runnable {
         @Override
         public void run() {
-            Thread t = Thread.currentThread();
-            long id = t.getId();
-            String name = t.getName();
-            THREAD_ID_TO_NAME.put(id, name);
-            THREAD_LAST_ACTIVE_TIMESTAMP.put(id, System.currentTimeMillis());
+            refreshThreadState();
         }
+    }
+
+    public static void refreshThreadState() {
+        Thread t = Thread.currentThread();
+        long id = t.getId();
+        String name = t.getName();
+        THREAD_ID_TO_NAME.put(id, name);
+        THREAD_LAST_ACTIVE_TIMESTAMP.put(id, System.currentTimeMillis());
     }
 
     public static Runnable ping() {
