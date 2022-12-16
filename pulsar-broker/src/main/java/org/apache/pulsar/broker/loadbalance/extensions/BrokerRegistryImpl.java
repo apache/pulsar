@@ -141,8 +141,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public CompletableFuture<List<String>> getAvailableBrokersAsync() {
-        return brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH)
-                .thenCompose(listLocks -> CompletableFuture.completedFuture(Lists.newArrayList(listLocks)));
+        return brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH).thenApply(Lists::newArrayList);
     }
 
     @Override
@@ -156,7 +155,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public void close() throws PulsarServerException {
-        if (!started.compareAndSet(true, false)) {
+        if (!started.get()) {
             return;
         }
         try {
@@ -164,6 +163,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             brokerLookupDataLockManager.close();
             scheduler.shutdown();
             this.listeners.clear();
+            started.set(false);
         } catch (Exception ex) {
             if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
                 throw new PulsarServerException.NotFoundException(MetadataStoreException.unwrap(ex));
