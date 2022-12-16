@@ -233,52 +233,9 @@ public class PrometheusMetricsGenerator {
     private static void generateThreadMonitorMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
         String clusterName = pulsar.getConfiguration().getClusterName();
 
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME)
-                .write(' ')
-                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
-                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME)
-                .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(ThreadPoolMonitor.isEnabled() ? "1" : "0").write("\n");
+        List<Metrics> metrics = PrometheusMetricsGeneratorUtils.generateThreadPoolMonitorMetrics(clusterName);
 
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
-                .write(' ')
-                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
-                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
-                .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(String.valueOf(ThreadPoolMonitor.checkIntervalMs())).write("\n");
-
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
-                .write(' ')
-                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
-                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
-                .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(String.valueOf(ThreadPoolMonitor.registeredThreadPool())).write("\n");
-
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
-                .write(' ')
-                .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
-                .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
-                .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(String.valueOf(ThreadPoolMonitor.submittedThreadPool())).write("\n");
-
-        Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
-        Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME);
-        if (!threadStat.isEmpty()) {
-            stream.write("# TYPE ").write(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME).write(' ')
-                    .write(getTypeStr(Collector.Type.GAUGE)).write('\n');
-
-            for (Map.Entry<Long, Long> stat : threadStat.entrySet()) {
-                long threadId = stat.getKey();
-                String threadName = threadIdMapping.get(threadId);
-                long lastActiveMs = stat.getValue();
-
-                stream.write(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME)
-                        .write("{cluster=\"").write(clusterName).write('"').write(", ")
-                        .write("threadName=\"").write(threadName).write('"').write(", ")
-                        .write("tid=\"").write(String.valueOf(threadId)).write('"').write("} ")
-                        .write(String.valueOf(lastActiveMs)).write("\n");
-            }
-        }
+        parseMetricsToPrometheusMetrics(metrics, clusterName, Collector.Type.GAUGE, stream);
     }
 
     private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {

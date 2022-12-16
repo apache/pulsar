@@ -23,11 +23,17 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.common.util.ThreadMonitor;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 
 /**
  * Generate metrics in a text format suitable to be consumed by Prometheus.
@@ -94,6 +100,38 @@ public class PrometheusMetricsGeneratorUtils {
             }
         }
     }
+
+    public static List<Metrics> generateThreadPoolMonitorMetrics(String cluster) {
+        List<Metrics> metrics = new ArrayList<>();
+
+        Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+        Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME);
+
+        threadStat.forEach((tid, lastActiveTimestamp) -> {
+            Map<String, String> dimensionMap = new HashMap<>();
+            dimensionMap.put("cluster", cluster);
+            dimensionMap.put("threadName", threadIdMapping.getOrDefault(tid, "unknown"));
+            dimensionMap.put("tid", String.valueOf(tid));
+            Metrics m = Metrics.create(dimensionMap);
+            m.put(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME, lastActiveTimestamp);
+
+            metrics.add(m);
+        });
+
+        Map<String, String> dimensionMap = new HashMap<>();
+        dimensionMap.put("cluster", cluster);
+
+        Metrics m = Metrics.create(dimensionMap);
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME, ThreadPoolMonitor.isEnabled() ? 1 : 0);
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME, ThreadPoolMonitor.checkIntervalMs());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME, ThreadPoolMonitor.registeredThreadPool());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME, ThreadPoolMonitor.submittedThreadPool());
+
+        metrics.add(m);
+
+        return metrics;
+    }
+
 
     static String getTypeNameSuffix(Collector.Type type) {
         if (type.equals(Collector.Type.INFO)) {
