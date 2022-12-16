@@ -238,32 +238,28 @@ public class PrometheusMetricsGenerator {
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(ThreadPoolMonitor.isEnabled() ? "1" : "0").write(' ')
-                .write(System.currentTimeMillis()).write("\n");
+                .write(ThreadPoolMonitor.isEnabled() ? "1" : "0").write("\n");
 
         stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
                 .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(String.valueOf(ThreadPoolMonitor.checkIntervalMs())).write(' ')
-                .write(System.currentTimeMillis()).write("\n");
+                .write(String.valueOf(ThreadPoolMonitor.checkIntervalMs())).write("\n");
 
         stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
                 .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(String.valueOf(ThreadPoolMonitor.registeredThreadPool())).write(' ')
-                .write(System.currentTimeMillis()).write("\n");
+                .write(String.valueOf(ThreadPoolMonitor.registeredThreadPool())).write("\n");
 
         stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
                 .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
-                .write(String.valueOf(ThreadPoolMonitor.submittedThreadPool())).write(' ')
-                .write(System.currentTimeMillis()).write("\n");
+                .write(String.valueOf(ThreadPoolMonitor.submittedThreadPool())).write("\n");
 
         Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
         Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME);
@@ -280,8 +276,7 @@ public class PrometheusMetricsGenerator {
                         .write("{cluster=\"").write(clusterName).write('"').write(", ")
                         .write("threadName=\"").write(threadName).write('"').write(", ")
                         .write("tid=\"").write(String.valueOf(threadId)).write('"').write("} ")
-                        .write(String.valueOf(lastActiveMs)).write(' ')
-                        .write(System.currentTimeMillis()).write("\n");
+                        .write(String.valueOf(lastActiveMs)).write("\n");
             }
         }
     }
