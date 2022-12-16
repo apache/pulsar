@@ -332,7 +332,11 @@ public class ConcurrentOpenHashMap<K, V> {
         V get(K key, int keyHash) {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
-            int bucket = signSafeMod(keyHash, capacity);
+
+            // add local variable here, so OutOfBound won't happen
+            Object[] table = this.table;
+            // calculate table.length / 2 as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(keyHash, table.length / 2);
 
             try {
                 while (true) {
@@ -354,6 +358,8 @@ public class ConcurrentOpenHashMap<K, V> {
                             stamp = readLock();
                             acquiredLock = true;
 
+                            // update local variable
+                            table = this.table;
                             bucket = signSafeMod(keyHash, capacity);
                             storedKey = (K) table[bucket];
                             storedValue = (V) table[bucket + 1];
