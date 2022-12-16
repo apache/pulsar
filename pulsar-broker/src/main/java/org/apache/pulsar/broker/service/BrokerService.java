@@ -313,18 +313,9 @@ public class BrokerService implements Closeable {
                 ConcurrentOpenHashMap.<TopicName,
                         PersistentOfflineTopicStats>newBuilder().build();
 
-        int nonPersistentTopicWorkerThreadNumber = pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic();
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
-                .numThreads(nonPersistentTopicWorkerThreadNumber)
+                .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
                 .name("broker-topic-workers").build();
-        if (pulsar.getConfiguration().isThreadMonitorEnabled()) {
-            long monitorIntervalSec = pulsar.getConfiguration().getThreadMonitorIntervalSec();
-            for (int i = 0; i < nonPersistentTopicWorkerThreadNumber; i++) {
-                ThreadPoolMonitor.register(monitorIntervalSec,
-                        TimeUnit.SECONDS,
-                        topicOrderedExecutor.chooseThread(i));
-            }
-        }
 
         final DefaultThreadFactory acceptorThreadFactory =
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-acceptor");
@@ -388,25 +379,6 @@ public class BrokerService implements Closeable {
                     pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
 
-        if (pulsar.getConfiguration().isThreadMonitorEnabled()) {
-            long monitorIntervalSec = pulsar.getConfiguration().getThreadMonitorIntervalSec();
-            ThreadPoolMonitor.register(monitorIntervalSec,
-                    TimeUnit.SECONDS,
-                    statsUpdater,
-                    inactivityMonitor,
-                    messageExpiryMonitor,
-                    compactionMonitor,
-                    consumedLedgersMonitor,
-                    backlogQuotaChecker);
-
-            // workerGroup is already registered.
-
-            for(EventExecutor eventExecutor: acceptorGroup) {
-                ThreadPoolMonitor.register(monitorIntervalSec,
-                        TimeUnit.SECONDS, eventExecutor);
-            }
-        }
-
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
 
@@ -431,6 +403,30 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
+
+        registerThreadMonitors();
+    }
+
+    private void registerThreadMonitors() {
+        int nonPersistentTopicWorkerThreadNumber = pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic();
+        for (int i = 0; i < nonPersistentTopicWorkerThreadNumber; i++) {
+            ThreadPoolMonitor.register(topicOrderedExecutor.chooseThread(i));
+        }
+
+        for (EventExecutor eventExecutor : acceptorGroup) {
+            ThreadPoolMonitor.register(eventExecutor);
+        }
+
+        for (EventExecutor eventExecutor : this.workerGroup) {
+            ThreadPoolMonitor.register(eventExecutor);
+        }
+
+        ThreadPoolMonitor.register(statsUpdater);
+        ThreadPoolMonitor.register(inactivityMonitor);
+        ThreadPoolMonitor.register(messageExpiryMonitor);
+        ThreadPoolMonitor.register(compactionMonitor);
+        ThreadPoolMonitor.register(consumedLedgersMonitor);
+        ThreadPoolMonitor.register(backlogQuotaChecker);
     }
 
     // This call is used for starting additional protocol handlers
@@ -590,11 +586,9 @@ public class BrokerService implements Closeable {
             this.deduplicationSnapshotMonitor =
                     Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));
-            if (conf.isThreadMonitorEnabled()) {
-                long monitorIntervalSec = conf.getThreadMonitorIntervalSec();
-                ThreadPoolMonitor.register(monitorIntervalSec,
-                        TimeUnit.SECONDS, deduplicationSnapshotMonitor);
-            }
+
+            ThreadPoolMonitor.register(deduplicationSnapshotMonitor);
+
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);
@@ -728,6 +722,7 @@ public class BrokerService implements Closeable {
             }
             //start monitor.
             scheduler = Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(name));
+            ThreadPoolMonitor.register(scheduler);
             // schedule task that sums up publish-rate across all cnx on a topic ,
             // and check the rate limit exceeded or not.
             scheduler.scheduleAtFixedRate(safeRun(checkTask), tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);

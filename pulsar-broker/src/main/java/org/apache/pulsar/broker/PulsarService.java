@@ -203,8 +203,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
 
-    private final ScheduledExecutorService executor;
-    private final ScheduledExecutorService cacheExecutor;
+    private final OrderedScheduler executor;
+    private final OrderedScheduler cacheExecutor;
 
     private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
@@ -320,10 +320,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
         this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
-        this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
-                new ExecutorProvider.ExtendedThreadFactory("pulsar"));
-        this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
-                new ExecutorProvider.ExtendedThreadFactory("zk-cache-callback"));
+
+        this.executor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(config.getNumExecutorThreadPoolSize())
+                .name("pulsar").build();
+        this.cacheExecutor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(config.getNumCacheExecutorThreadPoolSize())
+                .name("zk-cache-callback").build();
 
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
@@ -334,21 +337,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
-        if (this.config.isThreadMonitorEnabled()) {
-            long monitorIntervalSec = this.config.getThreadMonitorIntervalSec();
-
-            ThreadPoolMonitor.register(monitorIntervalSec,
-                    TimeUnit.SECONDS,
-                    loadManagerExecutor,
-                    executor,
-                    cacheExecutor);
-
-            for (EventExecutor eventExecutor : ioEventLoopGroup) {
-                ThreadPoolMonitor.register(monitorIntervalSec,
-                        TimeUnit.SECONDS,
-                        eventExecutor);
-            }
-        }
 
         // the internal executor is not used in the broker client or replication clients since this executor is
         // used for consumers and the transaction support in the client.
@@ -367,6 +355,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
+
+        registerThreadMonitors();
+    }
+
+    private void registerThreadMonitors() {
+        ThreadPoolMonitor.register(loadManagerExecutor);
+
+        int numExecutorThreadPoolSize = config.getNumExecutorThreadPoolSize();
+        for (int i = 0; i < numExecutorThreadPoolSize; i++) {
+            ThreadPoolMonitor.register(executor.chooseThread(i));
+        }
+
+        int numCacheExecutorThreadPoolSize = config.getNumCacheExecutorThreadPoolSize();
+        for (int i = 0; i < numCacheExecutorThreadPoolSize; i++) {
+            ThreadPoolMonitor.register(cacheExecutor.chooseThread(i));
+        }
+
+        for (EventExecutor eventExecutor : ioEventLoopGroup) {
+            ThreadPoolMonitor.register(eventExecutor);
+        }
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
@@ -762,9 +770,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .name("pulsar-ordered")
                     .build();
 
-            if (config.isThreadMonitorEnabled()) {
-                ThreadPoolMonitor.register(config.getThreadMonitorIntervalSec(),
-                        TimeUnit.SECONDS, orderedExecutor);
+            for (int i = 0; i < orderedExecutorThreadNumber; i++) {
+                ThreadPoolMonitor.register(orderedExecutor.chooseThread(i));
             }
 
             // Initialize the message protocol handlers

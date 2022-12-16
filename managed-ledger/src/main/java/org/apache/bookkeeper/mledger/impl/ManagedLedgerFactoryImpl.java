@@ -192,13 +192,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .build();
 
         for (int i = 0; i < mlSchedulerThreadNumber; i++) {
-            ThreadPoolMonitor.register(10, TimeUnit.SECONDS, scheduledExecutor.chooseThread(i));
+            ThreadPoolMonitor.register(scheduledExecutor.chooseThread(i));
         }
 
         cacheEvictionExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
 
-        ThreadPoolMonitor.register(10, TimeUnit.SECONDS, scheduledExecutor);
+        ThreadPoolMonitor.register(cacheEvictionExecutor);
 
         this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;

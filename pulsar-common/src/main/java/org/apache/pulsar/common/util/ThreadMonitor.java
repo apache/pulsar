@@ -8,7 +8,7 @@ public class ThreadMonitor {
             new ConcurrentHashMap<>(Runtime.getRuntime().availableProcessors(),
                     0.75f, 1024);
 
-    public static final String THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME = "thread_last_active_timestamp";
+    public static final String THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME = "pulsar_thread_last_active_timestamp_ms";
 
     public static class Ping implements Runnable {
         @Override

@@ -215,6 +215,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
+        ThreadPoolMonitor.register(scheduler);
+
         this.brokerToFailureDomainMap = new HashMap<>();
 
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
@@ -258,12 +260,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         bundleSplitStrategy = new BundleSplitterTask();
 
-        conf = pulsar.getConfiguration();
-
-        if (conf.isThreadMonitorEnabled()) {
-            long monitorIntervalSec = conf.getThreadMonitorIntervalSec();
-            ThreadPoolMonitor.register(monitorIntervalSec, TimeUnit.SECONDS, scheduler);
-        }
+        ThreadPoolMonitor.register(scheduler);
 
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
         defaultStats.msgThroughputIn = DEFAULT_MESSAGE_THROUGHPUT;

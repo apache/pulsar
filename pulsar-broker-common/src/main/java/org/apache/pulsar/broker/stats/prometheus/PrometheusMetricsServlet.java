@@ -57,7 +57,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("prometheus-stats"));
-        ThreadPoolMonitor.register(10, TimeUnit.SECONDS, executor);
+        ThreadPoolMonitor.register(executor);
     }
 
     @Override
