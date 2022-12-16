@@ -59,7 +59,7 @@ public class TransferShedderTest {
 
     public LoadManagerContext setupContext(){
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerExtentionsTransferShedderDebugModeEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         brokerLoadDataStore.pushAsync("broker1", getCpuLoad(2));
@@ -79,7 +79,7 @@ public class TransferShedderTest {
 
     public LoadManagerContext setupContext(int clusterSize) {
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerExtentionsTransferShedderDebugModeEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
@@ -199,7 +199,7 @@ public class TransferShedderTest {
     public void testEmptyBrokerLoadData() {
         TransferShedder transferShedder = new TransferShedder();
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerExtentionsTransferShedderDebugModeEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
         var res = transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), new HashMap<>());
         assertEquals(res.size(), 0);
     }
@@ -208,7 +208,7 @@ public class TransferShedderTest {
     public void testEmptyTopBundlesLoadData() {
         TransferShedder transferShedder = new TransferShedder();
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerExtentionsTransferShedderDebugModeEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
 
         brokerLoadDataStore.pushAsync("broker1", getCpuLoad(1));
@@ -223,13 +223,23 @@ public class TransferShedderTest {
         TransferShedder transferShedder = new TransferShedder();
         var ctx = setupContext();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        var brokerAvgResourceUsage = (Map<String, Double>)
+                FieldUtils.readDeclaredField(transferShedder, "brokerAvgResourceUsage", true);
+        var res = transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), new HashMap<>());
+        assertEquals(res.size(), 2);
+        assertEquals(brokerAvgResourceUsage.size(), 5);
+
+
         FieldUtils.writeDeclaredField(brokerLoadDataStore.get("broker1").get(), "lastUpdatedAt", 0, true);
         FieldUtils.writeDeclaredField(brokerLoadDataStore.get("broker2").get(), "lastUpdatedAt", 0, true);
         FieldUtils.writeDeclaredField(brokerLoadDataStore.get("broker3").get(), "lastUpdatedAt", 0, true);
         FieldUtils.writeDeclaredField(brokerLoadDataStore.get("broker4").get(), "lastUpdatedAt", 0, true);
         FieldUtils.writeDeclaredField(brokerLoadDataStore.get("broker5").get(), "lastUpdatedAt", 0, true);
-        var res = transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), new HashMap<>());
+
+
+        res = transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), new HashMap<>());
         assertEquals(res.size(), 0);
+        assertEquals(brokerAvgResourceUsage.size(), 0);
     }
 
     @Test
@@ -238,7 +248,7 @@ public class TransferShedderTest {
         var ctx = setupContext();
         Map<String, Long> recentlyUnloadedBrokers = new HashMap<>();
         var oldTS = System.currentTimeMillis() - ctx.brokerConfiguration()
-                .getLoadBalancerExtentionsTransferShedderBrokerLoadDataUpdateMinWaitingTimeAfterUnloadingInSeconds() * 1001;
+                .getLoadBalancerBrokerLoadDataTTLInSeconds() * 1001;
         recentlyUnloadedBrokers.put("broker1", oldTS);
         var res = transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), recentlyUnloadedBrokers);
 
@@ -317,7 +327,7 @@ public class TransferShedderTest {
     public void testTargetStd() {
         TransferShedder transferShedder = new TransferShedder();
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerExtentionsTransferShedderDebugModeEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         brokerLoadDataStore.pushAsync("broker1", getCpuLoad(10));
         brokerLoadDataStore.pushAsync("broker2", getCpuLoad(20));
@@ -384,7 +394,7 @@ public class TransferShedderTest {
         TransferShedder transferShedder = new TransferShedder();
         var ctx = setupContext();
         ctx.brokerConfiguration()
-                .setLoadBalancerExtentionsTransferShedderMaxNumberOfBrokerTransfersPerCycle(10);
+                .setLoadBalancerMaxNumberOfBrokerTransfersPerCycle(10);
         var res = transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), new HashMap<>());
         assertEquals(res, List.of(
                 new Unload("broker5", "bundleE-1", Optional.of("broker1")),
@@ -412,9 +422,8 @@ public class TransferShedderTest {
             transferShedder.findBundlesForUnloading(ctx, new HashMap<>(), new HashMap<>());
             var stats = (TransferShedder.LoadStats)
                     FieldUtils.readDeclaredField(transferShedder, "stats", true);
-            assertTrue(stats.std <= conf.getLoadBalancerExtentionsTransferShedderTargetLoadStd()
-                    || (stats.maxBrokers.isEmpty() || stats.minBrokers.isEmpty() ||
-                    stats.minBrokers.peekLast().equals(stats.maxBrokers.peekLast())));
+            assertTrue(stats.std() <= conf.getLoadBalancerBrokerLoadTargetStd()
+                    || (!stats.hasTransferableBrokers()));
         }
     }
 
@@ -438,19 +447,19 @@ public class TransferShedderTest {
             int i = 0;
             int j = loads.length - 1;
             Arrays.sort(loads);
-            for (int k = 0; k < conf.getLoadBalancerExtentionsTransferShedderMaxNumberOfBrokerTransfersPerCycle(); k++) {
+            for (int k = 0; k < conf.getLoadBalancerMaxNumberOfBrokerTransfersPerCycle(); k++) {
                 double minLoad = loads[i];
                 double maxLoad = loads[j];
                 double offload = (maxLoad - minLoad) / 2;
                 Mean mean = new Mean();
                 StandardDeviation std = new StandardDeviation(false);
                 assertEquals(minLoad,
-                        brokerAvgResourceUsage.get(stats.minBrokers.pollLast()).doubleValue());
+                        brokerAvgResourceUsage.get(stats.minBrokers().pollLast()).doubleValue());
                 assertEquals(maxLoad,
-                        brokerAvgResourceUsage.get(stats.maxBrokers.pollLast()).doubleValue());
-                assertEquals(stats.totalBrokers, numBrokers);
-                assertEquals(stats.avg, mean.evaluate(loads), delta);
-                assertEquals(stats.std, std.evaluate(loads), delta);
+                        brokerAvgResourceUsage.get(stats.maxBrokers().pollLast()).doubleValue());
+                assertEquals(stats.totalBrokers(), numBrokers);
+                assertEquals(stats.avg(), mean.evaluate(loads), delta);
+                assertEquals(stats.std(), std.evaluate(loads), delta);
                 stats.offload(maxLoad, minLoad, offload);
                 loads[i++] = minLoad + offload;
                 loads[j--] = maxLoad - offload;

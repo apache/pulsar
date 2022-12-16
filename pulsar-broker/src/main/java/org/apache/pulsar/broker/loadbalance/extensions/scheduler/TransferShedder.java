@@ -25,7 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.ToString;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
@@ -53,20 +54,19 @@ import org.slf4j.LoggerFactory;
  * This load shedding strategy has the following goals:
  * 1. Distribute bundle load across brokers in order to make the standard deviation of the avg resource usage,
  * std(exponential-moving-avg(max(cpu, memory, network, throughput)) for each broker) below the target,
- * configurable by loadBalancerExtentionsTransferShedderTargetLoadStd.
+ * configurable by loadBalancerBrokerLoadTargetStd.
  * 2. Use the transfer protocol to transfer bundle load from the highest loaded to the lowest loaded brokers,
- * if configured by loadBalancerExtentionsTransferShedderTransferEnabled=true.
+ * if configured by loadBalancerTransferEnabled=true.
  * 3. Avoid repeated bundle unloading by recomputing historical broker resource usage after unloading and also
  * skipping the bundles that are recently unloaded.
  * 4. Prioritize unloading bundles to underloaded brokers when their message throughput is zero(new brokers).
- * 5. Do not use outdated broker load data
- * (configurable by loadBalancerExtentionsTransferShedderLoadUpdateMaxWaitingTimeInSeconds).
+ * 5. Do not use outdated broker load data (configurable by loadBalancerBrokerLoadDataTTLInSeconds).
  * 6. Give enough time for each broker to recompute its load after unloading
- * (configurable by loadBalancerExtentionsTransferShedderBrokerLoadDataUpdateMinWaitingTimeAfterUnloadingInSeconds)
+ * (configurable by loadBalanceUnloadDelayInSeconds)
  * 7. Do not transfer bundles with namespace isolation policies or anti-affinity group policies.
  * 8. Limit the max number of brokers to transfer bundle load for each cycle,
- * (loadBalancerExtentionsTransferShedderMaxNumberOfBrokerTransfersPerCycle).
- * 9. Print more logs with a debug option(loadBalancerExtentionsTransferShedderDebugModeEnabled=true).
+ * (loadBalancerMaxNumberOfBrokerTransfersPerCycle).
+ * 9. Print more logs with a debug option(loadBalancerDebugModeEnabled=true).
  */
 public class TransferShedder implements NamespaceUnloadStrategy {
     private static final Logger log = LoggerFactory.getLogger(TransferShedder.class);
@@ -92,16 +92,17 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         return (int) (usage * 100);
     }
 
-    @ToString
+    @Getter
+    @Accessors(fluent = true)
     static class LoadStats {
-        double sum;
-        double sqSum;
-        int totalBrokers;
-        double avg;
-        double std;
-        MinMaxPriorityQueue<String> minBrokers;
-        MinMaxPriorityQueue<String> maxBrokers;
-        Map<String, Double> brokerAvgResourceUsage;
+        private double sum;
+        private double sqSum;
+        private int totalBrokers;
+        private double avg;
+        private double std;
+        private MinMaxPriorityQueue<String> minBrokers;
+        private MinMaxPriorityQueue<String> maxBrokers;
+        private Map<String, Double> brokerAvgResourceUsage;
 
         LoadStats(Map<String, Double> brokerAvgResourceUsage) {
             this.brokerAvgResourceUsage = brokerAvgResourceUsage;
@@ -154,7 +155,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             double sum = 0.0;
             double sqSum = 0.0;
             int totalBrokers = 0;
-            int maxTransfers = conf.getLoadBalancerExtentionsTransferShedderMaxNumberOfBrokerTransfersPerCycle();
+            int maxTransfers = conf.getLoadBalancerMaxNumberOfBrokerTransfersPerCycle();
             long now = System.currentTimeMillis();
             for (Map.Entry<String, BrokerLoadData> entry : loadData.entrySet()) {
                 BrokerLoadData localBrokerData = entry.getValue();
@@ -162,21 +163,20 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 // We don't want to use the outdated load data.
                 if (now - localBrokerData.getLastUpdatedAt()
-                        > conf.getLoadBalancerExtentionsTransferShedderLoadUpdateMaxWaitingTimeInSeconds()
-                        * 1000) {
+                        > conf.getLoadBalancerBrokerLoadDataTTLInSeconds() * 1000) {
                     log.warn(
-                            "Skipped broker:{} load update because the load data timestamp:{} is too old.",
+                            "Ignoring broker:{} load update because the load data timestamp:{} is too old.",
                             broker, localBrokerData.getLastUpdatedAt());
+                    brokerAvgResourceUsage.remove(broker);
                     continue;
                 }
 
                 // Also, we should give enough time for each broker to recompute its load after transfers.
                 if (recentlyUnloadedBrokers.containsKey(broker)
                         && localBrokerData.getLastUpdatedAt() - recentlyUnloadedBrokers.get(broker)
-            < conf.getLoadBalancerExtentionsTransferShedderBrokerLoadDataUpdateMinWaitingTimeAfterUnloadingInSeconds()
-                        * 1000) {
+                        < conf.getLoadBalanceUnloadDelayInSeconds() * 1000) {
                     log.warn(
-                            "Broker:{} load update because the load data timestamp:{} is too early since "
+                            "Broker:{} load data timestamp:{} is too early since "
                                     + "the last transfer timestamp:{}. Stop unloading.",
                             broker, localBrokerData.getLastUpdatedAt(), recentlyUnloadedBrokers.get(broker));
                     update(0.0, 0.0, 0);
@@ -239,6 +239,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return historyUsage;
         }
 
+        boolean hasTransferableBrokers(){
+            return !(maxBrokers.isEmpty() || minBrokers.isEmpty()
+                    || maxBrokers.peekLast().equals(minBrokers().peekLast()));
+        }
+
+
 
 
         @Override
@@ -256,7 +262,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         final var conf = context.brokerConfiguration();
         selectedBundlesCache.clear();
         stats.clear();
-        boolean debugMode = conf.isLoadBalancerExtentionsTransferShedderDebugModeEnabled();
+        boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
 
         brokerAvgResourceUsage.entrySet()
                 .removeIf(e -> context.brokerLoadDataStore().get(e.getKey()).isEmpty());
@@ -269,17 +275,16 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             log.info("brokers' load stats:{}", stats);
         }
 
-        final double targetStd = conf.getLoadBalancerExtentionsTransferShedderTargetLoadStd();
-        boolean transfer = conf.isLoadBalancerExtentionsTransferShedderTransferEnabled();
+        final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
+        boolean transfer = conf.isLoadBalancerTransferEnabled();
         while (true) {
-            if (stats.maxBrokers.isEmpty() || stats.minBrokers.isEmpty()
-                    || stats.maxBrokers.peekLast().equals(stats.minBrokers.peekLast())) {
+            if (!stats.hasTransferableBrokers()) {
                 if (debugMode) {
                     log.info("Exhausted target transfer brokers. Stop unloading");
                 }
                 break;
             }
-            if (stats.std <= targetStd && hasMsgThroughput(context, stats.minBrokers.peekLast())) {
+            if (stats.std() <= targetStd && hasMsgThroughput(context, stats.minBrokers.peekLast())) {
                 if (debugMode) {
                     log.info("std:{} <= targetStd:{} and minBroker:{} has msg throughput. Stop unloading.",
                             stats.std, targetStd, stats.minBrokers.peekLast());
@@ -287,8 +292,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 break;
             }
 
-            String maxBroker = stats.maxBrokers.pollLast();
-            String minBroker = stats.minBrokers.pollLast();
+            String maxBroker = stats.maxBrokers().pollLast();
+            String minBroker = stats.minBrokers().pollLast();
             double max = brokerAvgResourceUsage.get(maxBroker);
             double min = brokerAvgResourceUsage.get(minBroker);
             Optional<BrokerLoadData> maxBrokerLoadData = context.brokerLoadDataStore().get(maxBroker);
