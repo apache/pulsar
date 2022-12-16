@@ -47,7 +47,7 @@ public class ThreadPoolMonitor {
 
         try {
             enableSysProp = Boolean.parseBoolean(System.getProperty(PULSAR_ENABLE_THREAD_MONITOR, "false"));
-            checkIntervalMs = Integer.parseInt(System.getProperty(PULSAR_THREAD_CHECK_INTERVAL_MS, "1000"));
+            checkIntervalMs = Integer.parseInt(System.getProperty(PULSAR_THREAD_CHECK_INTERVAL_MS, "10000"));
         } catch (Exception e) {
             enableSysProp = false;
         }

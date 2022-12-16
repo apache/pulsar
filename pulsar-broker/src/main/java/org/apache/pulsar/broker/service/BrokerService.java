@@ -316,7 +316,6 @@ public class BrokerService implements Closeable {
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
                 .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
                 .name("broker-topic-workers").build();
-
         final DefaultThreadFactory acceptorThreadFactory =
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-acceptor");
 
