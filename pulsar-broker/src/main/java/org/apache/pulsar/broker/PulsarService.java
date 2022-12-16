@@ -61,7 +61,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-import io.netty.util.concurrent.EventExecutor;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -360,9 +359,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private void registerThreadMonitors() {
-        ThreadPoolMonitor.register(loadManagerExecutor);
-        ThreadPoolMonitorHelper.registerOrderedExecutor(executor,config.getNumExecutorThreadPoolSize());
-        ThreadPoolMonitorHelper.registerOrderedExecutor(cacheExecutor,config.getNumCacheExecutorThreadPoolSize());
+        ThreadPoolMonitor.registerSingleThreadExecutor(loadManagerExecutor);
+        ThreadPoolMonitorHelper.registerOrderedExecutor(executor, config.getNumExecutorThreadPoolSize());
+        ThreadPoolMonitorHelper.registerOrderedExecutor(cacheExecutor, config.getNumCacheExecutorThreadPoolSize());
         ThreadPoolMonitorHelper.registerEventLoop(ioEventLoopGroup);
     }
 
@@ -424,6 +423,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             LOG.info("Closing PulsarService");
             state = State.Closing;
+
+            ThreadPoolMonitor.stop();
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
@@ -1474,9 +1475,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                     .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
                     .name("offloader").build();
-            for (int i = 0; i < offloadPolicies.getManagedLedgerOffloadMaxThreads(); i++) {
-                ThreadPoolMonitor.register(offloaderScheduler.chooseThread(i));
-            }
+            ThreadPoolMonitorHelper.registerOrderedExecutor(offloaderScheduler,
+                    offloadPolicies.getManagedLedgerOffloadMaxThreads());
         }
         return this.offloaderScheduler;
     }

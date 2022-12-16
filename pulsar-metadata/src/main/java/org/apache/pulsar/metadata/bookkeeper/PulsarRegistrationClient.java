@@ -81,7 +81,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
-        ThreadPoolMonitor.register(executor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(executor);
 
         store.registerListener(this::updatedBookies);
     }

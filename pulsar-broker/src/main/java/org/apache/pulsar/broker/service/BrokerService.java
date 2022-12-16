@@ -71,7 +71,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.core.Response;
-import io.netty.util.concurrent.EventExecutor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -414,12 +413,12 @@ public class BrokerService implements Closeable {
         ThreadPoolMonitorHelper.registerEventLoop(this.acceptorGroup);
         ThreadPoolMonitorHelper.registerEventLoop(this.workerGroup);
 
-        ThreadPoolMonitor.register(statsUpdater);
-        ThreadPoolMonitor.register(inactivityMonitor);
-        ThreadPoolMonitor.register(messageExpiryMonitor);
-        ThreadPoolMonitor.register(compactionMonitor);
-        ThreadPoolMonitor.register(consumedLedgersMonitor);
-        ThreadPoolMonitor.register(backlogQuotaChecker);
+        ThreadPoolMonitor.registerSingleThreadExecutor(statsUpdater);
+        ThreadPoolMonitor.registerSingleThreadExecutor(inactivityMonitor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(messageExpiryMonitor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(compactionMonitor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(consumedLedgersMonitor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(backlogQuotaChecker);
     }
 
     // This call is used for starting additional protocol handlers
@@ -579,7 +578,7 @@ public class BrokerService implements Closeable {
                     Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));
 
-            ThreadPoolMonitor.register(deduplicationSnapshotMonitor);
+            ThreadPoolMonitor.registerSingleThreadExecutor(deduplicationSnapshotMonitor);
 
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot))
@@ -714,7 +713,7 @@ public class BrokerService implements Closeable {
             }
             //start monitor.
             scheduler = Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(name));
-            ThreadPoolMonitor.register(scheduler);
+            ThreadPoolMonitor.registerSingleThreadExecutor(scheduler);
             // schedule task that sums up publish-rate across all cnx on a topic ,
             // and check the rate limit exceeded or not.
             scheduler.scheduleAtFixedRate(safeRun(checkTask), tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);

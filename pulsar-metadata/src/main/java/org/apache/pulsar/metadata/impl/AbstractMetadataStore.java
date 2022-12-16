@@ -86,7 +86,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected AbstractMetadataStore(String metadataStoreName) {
         this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(metadataStoreName));
-        ThreadPoolMonitor.register(executor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(executor);
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()

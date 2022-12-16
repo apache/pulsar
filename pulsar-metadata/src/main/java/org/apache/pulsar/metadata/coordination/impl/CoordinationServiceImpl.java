@@ -64,7 +64,7 @@ public class CoordinationServiceImpl implements CoordinationService {
         this.store = store;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("metadata-store-coordination-service"));
-        ThreadPoolMonitor.register(executor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(executor);
     }
 
     @Override

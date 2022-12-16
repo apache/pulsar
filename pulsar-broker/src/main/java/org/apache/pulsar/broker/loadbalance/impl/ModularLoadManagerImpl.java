@@ -215,7 +215,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
-        ThreadPoolMonitor.register(scheduler);
+        ThreadPoolMonitor.registerSingleThreadExecutor(scheduler);
 
         this.brokerToFailureDomainMap = new HashMap<>();
 

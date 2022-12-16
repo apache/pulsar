@@ -35,7 +35,7 @@ public class ScheduledExecutorProvider extends ExecutorProvider {
     @Override
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(threadFactory);
-        ThreadPoolMonitor.register(scheduler);
+        ThreadPoolMonitor.registerSingleThreadExecutor(scheduler);
         return scheduler;
     }
 }

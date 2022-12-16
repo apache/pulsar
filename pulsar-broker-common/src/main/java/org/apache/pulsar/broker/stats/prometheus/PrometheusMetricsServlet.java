@@ -26,7 +26,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -57,7 +56,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("prometheus-stats"));
-        ThreadPoolMonitor.register(executor);
+        ThreadPoolMonitor.registerSingleThreadExecutor(executor);
     }
 
     @Override

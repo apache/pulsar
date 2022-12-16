@@ -1,10 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.common.util;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +33,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 
+/**
+ * ThreadPoolMonitor
+ * A utility to schedule `ping` task periodically to registered thread's task queue.
+ * If the `ping` task is executed thread active timestamp will be refreshed,
+ * if not, the active timestamp will remain the same for a long time, which perhaps
+ * thread is blocking.
+ *
+ * Use System property to enable or disable this function.
+ * Support dynamic configuration to enable/disable or change check interval.
+ *
+ * Prefer registerSingleThreadExecutor single thread pool like
+ * `Executors.newSingleThreadExecutor`.
+ *
+ * If a thread pool has more threads, the active timestamp for **each** thread in pool
+ * may not be refreshed in time.
+ */
 public class ThreadPoolMonitor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ThreadPoolMonitor.class);
 
@@ -35,10 +67,9 @@ public class ThreadPoolMonitor {
 
     static {
         checkThreadMonitorEnabled();
-        monitorExecutor.scheduleWithFixedDelay(ThreadPoolMonitor::checkThreadMonitorEnabled,
-                1,
-                10,
-                TimeUnit.SECONDS);
+        monitorExecutor.scheduleWithFixedDelay(
+                ThreadPoolMonitor::checkThreadMonitorEnabled,
+                1, 10, TimeUnit.SECONDS);
     }
 
     private static void checkThreadMonitorEnabled() {
@@ -78,7 +109,7 @@ public class ThreadPoolMonitor {
             if (currentSetEnabled) {
                 submitMonitorTasks();
                 LOGGER.info("pulsar thread monitor start monitor task, checkIntervalMs={} " +
-                                "current register threadPool number={} submitted number={}.",
+                                "current registeredThreadPool={} submittedThreadPool={}.",
                         CHECK_INTERVAL_MS.get(),
                         registered.size(),
                         submitted.size());
@@ -86,8 +117,8 @@ public class ThreadPoolMonitor {
         }
     }
 
-    public static void register(ExecutorService... executorService) {
-        registered.addAll(Arrays.asList(executorService));
+    public static void registerSingleThreadExecutor(ExecutorService executorService) {
+        registered.add(executorService);
     }
 
     public static synchronized void submitMonitorTasks() {

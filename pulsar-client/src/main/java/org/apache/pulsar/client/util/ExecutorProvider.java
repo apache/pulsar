@@ -70,7 +70,6 @@ public class ExecutorProvider {
             ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
                     poolName, Thread.currentThread().isDaemon());
             ExecutorService executor = createExecutor(threadFactory);
-            ThreadPoolMonitor.register(executor);
             executors.add(Pair.of(executor, threadFactory));
         }
         isShutdown = false;
@@ -78,7 +77,9 @@ public class ExecutorProvider {
     }
 
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-       return Executors.newSingleThreadExecutor(threadFactory);
+        ExecutorService executor = Executors.newSingleThreadExecutor(threadFactory);
+        ThreadPoolMonitor.registerSingleThreadExecutor(executor);
+        return executor;
     }
 
     public ExecutorService getExecutor() {
