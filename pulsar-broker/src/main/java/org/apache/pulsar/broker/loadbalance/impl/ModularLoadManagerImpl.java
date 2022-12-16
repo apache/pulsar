@@ -260,8 +260,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         bundleSplitStrategy = new BundleSplitterTask();
 
-        ThreadPoolMonitor.register(scheduler);
-
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
         defaultStats.msgThroughputIn = DEFAULT_MESSAGE_THROUGHPUT;
         defaultStats.msgThroughputOut = DEFAULT_MESSAGE_THROUGHPUT;

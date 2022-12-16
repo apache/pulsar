@@ -580,9 +580,8 @@ public class BrokerService implements Closeable {
     }
 
     protected void startDeduplicationSnapshotMonitor() {
-        ServiceConfiguration conf = pulsar.getConfiguration();
-        int interval = conf.getBrokerDeduplicationSnapshotFrequencyInSeconds();
-        if (interval > 0 && conf.isBrokerDeduplicationEnabled()) {
+        int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
+        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
             this.deduplicationSnapshotMonitor =
                     Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));

@@ -66,7 +66,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
         this.scheduler = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
-        ThreadPoolMonitor.register(10, TimeUnit.SECONDS, scheduler);
+        ThreadPoolMonitor.register(scheduler);
 
         this.task =
                 scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
