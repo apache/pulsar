@@ -122,10 +122,14 @@ public class PrometheusMetricsGeneratorUtils {
         dimensionMap.put("cluster", cluster);
 
         Metrics m = Metrics.create(dimensionMap);
-        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME, ThreadPoolMonitor.isEnabled() ? 1 : 0);
-        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME, ThreadPoolMonitor.checkIntervalMs());
-        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME, ThreadPoolMonitor.registeredThreadPool());
-        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME, ThreadPoolMonitor.submittedThreadPool());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME,
+                ThreadPoolMonitor.isEnabled() ? 1 : 0);
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME,
+                ThreadPoolMonitor.checkIntervalMs());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME,
+                ThreadPoolMonitor.registeredThreadPool());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME,
+                ThreadPoolMonitor.submittedThreadPool());
 
         metrics.add(m);
 
