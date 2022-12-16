@@ -177,6 +177,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.utils.misc.ThreadPoolMonitorHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -407,18 +408,11 @@ public class BrokerService implements Closeable {
     }
 
     private void registerThreadMonitors() {
-        int nonPersistentTopicWorkerThreadNumber = pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic();
-        for (int i = 0; i < nonPersistentTopicWorkerThreadNumber; i++) {
-            ThreadPoolMonitor.register(topicOrderedExecutor.chooseThread(i));
-        }
+        ThreadPoolMonitorHelper.registerOrderedExecutor(topicOrderedExecutor,
+                pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic());
 
-        for (EventExecutor eventExecutor : acceptorGroup) {
-            ThreadPoolMonitor.register(eventExecutor);
-        }
-
-        for (EventExecutor eventExecutor : this.workerGroup) {
-            ThreadPoolMonitor.register(eventExecutor);
-        }
+        ThreadPoolMonitorHelper.registerEventLoop(this.acceptorGroup);
+        ThreadPoolMonitorHelper.registerEventLoop(this.workerGroup);
 
         ThreadPoolMonitor.register(statsUpdater);
         ThreadPoolMonitor.register(inactivityMonitor);

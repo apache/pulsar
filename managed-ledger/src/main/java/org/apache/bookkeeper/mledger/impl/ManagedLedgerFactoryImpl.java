@@ -191,7 +191,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .name("bookkeeper-ml-scheduler")
                 .build();
 
-        for (int i = 0; i < mlSchedulerThreadNumber; i++) {
+        // OrderedExecutor need threadNumber * 2 to full register all thread.
+        // because `OrderedExecutor.chooseThread` will i>>>1
+        for (int i = 0; i < mlSchedulerThreadNumber * 2; i++) {
             ThreadPoolMonitor.register(scheduledExecutor.chooseThread(i));
         }
 

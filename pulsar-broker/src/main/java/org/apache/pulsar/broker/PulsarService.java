@@ -171,6 +171,7 @@ import org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
+import org.apache.pulsar.utils.misc.ThreadPoolMonitorHelper;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -360,20 +361,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private void registerThreadMonitors() {
         ThreadPoolMonitor.register(loadManagerExecutor);
-
-        int numExecutorThreadPoolSize = config.getNumExecutorThreadPoolSize();
-        for (int i = 0; i < numExecutorThreadPoolSize; i++) {
-            ThreadPoolMonitor.register(executor.chooseThread(i));
-        }
-
-        int numCacheExecutorThreadPoolSize = config.getNumCacheExecutorThreadPoolSize();
-        for (int i = 0; i < numCacheExecutorThreadPoolSize; i++) {
-            ThreadPoolMonitor.register(cacheExecutor.chooseThread(i));
-        }
-
-        for (EventExecutor eventExecutor : ioEventLoopGroup) {
-            ThreadPoolMonitor.register(eventExecutor);
-        }
+        ThreadPoolMonitorHelper.registerOrderedExecutor(executor,config.getNumExecutorThreadPoolSize());
+        ThreadPoolMonitorHelper.registerOrderedExecutor(cacheExecutor,config.getNumCacheExecutorThreadPoolSize());
+        ThreadPoolMonitorHelper.registerEventLoop(ioEventLoopGroup);
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
@@ -769,9 +759,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .name("pulsar-ordered")
                     .build();
 
-            for (int i = 0; i < orderedExecutorThreadNumber; i++) {
-                ThreadPoolMonitor.register(orderedExecutor.chooseThread(i));
-            }
+            ThreadPoolMonitorHelper.registerOrderedExecutor(orderedExecutor, orderedExecutorThreadNumber);
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);

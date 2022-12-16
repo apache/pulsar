@@ -44,11 +44,11 @@ import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPol
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.utils.misc.ThreadPoolMonitorHelper;
 
 @SuppressWarnings("deprecation")
 @Slf4j
@@ -81,12 +81,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
         try {
             BookKeeper bookkeeper = getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
-
-            int mainWorkerPoolNumber = bkConf.getNumWorkerThreads();
-
-            for (int i = 0; i < mainWorkerPoolNumber; i++) {
-                ThreadPoolMonitor.register(bookkeeper.getMainWorkerPool().chooseThread(i));
-            }
+            ThreadPoolMonitorHelper.registerOrderedExecutor(bookkeeper.getMainWorkerPool(),
+                    bkConf.getNumWorkerThreads());
 
             return bookkeeper;
         } catch (InterruptedException | BKException e) {
