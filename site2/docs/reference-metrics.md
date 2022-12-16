@@ -122,32 +122,57 @@ All the metrics exposed by a broker are labeled with `cluster=${pulsar_cluster}`
 All the broker metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 
-| Name | Type   | Description                                          |
-|---|---|---|
-| pulsar_ml_cache_evictions | Gauge  | The number of cache evictions during the last minute. |
-| pulsar_ml_cache_inserted_entries_total | Counter | The number of entries inserted into the entry cache. |
-| pulsar_ml_cache_evicted_entries_total | Counter | The number of entries evicted from the entry cache. |
-| pulsar_ml_cache_entries | Gauge | The number of entries in the entry cache. |
-| pulsar_ml_cache_hits_rate | Gauge  | The number of cache hits per second on the broker side. |
-| pulsar_ml_cache_hits_throughput | Gauge  | The amount of data (byte per second) retrieved from the cache on the broker side. |
-| pulsar_ml_cache_misses_rate | Gauge  | The number of cache missed per second on the broker side. |
-| pulsar_ml_cache_misses_throughput | Gauge  | The amount of data (byte per second) that cannot be retrieved from the cache on the broker side. |
-| pulsar_ml_cache_pool_active_allocations | Gauge  | The number of currently active allocations in direct arena. |
+| Name                                        | Type   | Description                                          |
+|---------------------------------------------|---|---|
+| pulsar_ml_cache_evictions                   | Gauge  | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_inserted_entries_total      | Counter | The number of entries inserted into the entry cache. |
+| pulsar_ml_cache_evicted_entries_total       | Counter | The number of entries evicted from the entry cache. |
+| pulsar_ml_cache_entries                     | Gauge | The number of entries in the entry cache. |
+| pulsar_ml_cache_hits_rate                   | Gauge  | The number of cache hits per second on the broker side. |
+| pulsar_ml_cache_hits_throughput             | Gauge  | The amount of data (byte per second) retrieved from the cache on the broker side. |
+| pulsar_ml_cache_misses_rate                 | Gauge  | The number of cache missed per second on the broker side. |
+| pulsar_ml_cache_misses_throughput           | Gauge  | The amount of data (byte per second) that cannot be retrieved from the cache on the broker side. |
+| pulsar_ml_cache_pool_active_allocations     | Gauge  | The number of currently active allocations in direct arena. |
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge  | The number of currently active huge allocation in direct arena. |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge  | The number of currently active normal allocations in direct arena. |
 | pulsar_ml_cache_pool_active_allocations_small | Gauge  | The number of currently active small allocations in direct arena. |
-| pulsar_ml_cache_pool_allocated | Gauge  | The total allocated memory of chunk lists in direct arena. |
-| pulsar_ml_cache_pool_used | Gauge  | The total used memory of chunk lists in direct arena. |
-| pulsar_ml_cache_used_size | Gauge  | The size used to store the payloads of entries (in bytes). |
-| pulsar_ml_count | Gauge  | The number of currently opened managed ledgers. |
-| topic_load_times | Summary | The topic load latency calculated in milliseconds. |
-| pulsar_active_connections| Gauge | The number of active connections. |
-| pulsar_connection_created_total_count | Gauge | The total number of connections. |
-| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
-| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
-| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
-| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
+| pulsar_ml_cache_pool_allocated              | Gauge  | The total allocated memory of chunk lists in direct arena. |
+| pulsar_ml_cache_pool_used                   | Gauge  | The total used memory of chunk lists in direct arena. |
+| pulsar_ml_cache_used_size                   | Gauge  | The size used to store the payloads of entries (in bytes). |
+| pulsar_ml_count                             | Gauge  | The number of currently opened managed ledgers. |
+| topic_load_times                            | Summary | The topic load latency calculated in milliseconds. |
+| pulsar_active_connections                   | Gauge | The number of active connections. |
+| pulsar_connection_created_total_count       | Gauge | The total number of connections. |
+| pulsar_connection_create_success_count      | Gauge | The number of successfully created connections. |
+| pulsar_connection_create_fail_count         | Gauge | The number of failed connections. |
+| pulsar_connection_closed_total_count        | Gauge | The total number of closed connections. |
+| pulsar_broker_throttled_connections         | Gauge | The number of throttled connections. |
 | pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections due to per-connection limit. |
+
+### Pulsar thread monitor metrics
+`pulsar_thread_last_active_timestamp_ms` metric is labeled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+- threadName: threadName=${threadName} ${threadName} is the thread name set in code.
+- tid: tid=${tid} ${tid} is thread id specify in the runtime. thread name may duplicate,tid is unique.
+
+Other thread monitor metric is labeled with `cluster` label
+
+> You need to set `PULSAR_THREAD_MONITOR_ENABLE=true` in `pulsar_env.sh` to enabled this feature.
+> 
+> This also support dynamic configuration if change the following system property in the runtime.
+> + `pulsar.thread-pool.monitor.enabled` `true` or `false`
+> + `pulsar.thread-pool.monitor.check.ms` value must > 0
+ 
+| Name | Type| Description |
+| ---- | --- |----|
+| pulsar_thread_monitor_enabled | Gauge | If pulsar thread blocking monitor is enabled. 0 means disabled and 1 is enabled. |
+| pulsar_thread_last_active_timestamp_ms | Gauge | The last time thread task is successfully executed. an alert can be set if value remain the same for a long time. | 
+| pulsar_thread_monitor_check_interval_ms | Gauge | The interval (unit: ms) of scheduled check task. |
+| pulsar_thread_monitor_register_pool_number | Gauge | The number of registered thread pool in ThreadMonitor.|
+| pulsar_thread_monitor_submitted_monitor_task_number | Gauge | The number of thread pool has been submitted monitor task. |
+
+
+
 
 ### BookKeeper client metrics
 
