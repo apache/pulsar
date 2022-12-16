@@ -1628,8 +1628,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 //TODO: check parent consumer here
                 // we should no longer track this message, TopicsConsumer will take care from now onwards
                 unAckedMessageTracker.remove(id);
-            } else if (listener == null){
-                unAckedMessageTracker.add(id, redeliveryCount);
+            } else {
+                trackUnAckedMsgIfNoListener(messageId, redeliveryCount);
             }
         }
     }

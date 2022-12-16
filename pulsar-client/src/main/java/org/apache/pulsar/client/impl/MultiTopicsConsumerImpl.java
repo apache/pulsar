@@ -301,9 +301,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
         CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture != null) {
-            if (listener == null) {
-                unAckedMessageTracker.add(topicMessage.getMessageId(), topicMessage.getRedeliveryCount());
-            }
+            unAckedMessageTracker.add(topicMessage.getMessageId(), topicMessage.getRedeliveryCount());
             completePendingReceive(receivedFuture, topicMessage);
         } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
             notifyPendingBatchReceivedCallBack();
@@ -314,9 +312,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected synchronized void messageProcessed(Message<?> msg) {
-        if (listener == null) {
-            unAckedMessageTracker.add(msg.getMessageId(), msg.getRedeliveryCount());
-        }
+        unAckedMessageTracker.add(msg.getMessageId(), msg.getRedeliveryCount());
         decreaseIncomingMessageSize(msg);
     }
 
@@ -357,9 +353,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            if (listener == null) {
-                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
-            }
+            unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (Exception e) {
@@ -379,9 +373,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (listener == null) {
-                    unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
-                }
+                trackUnAckedMsgIfNoListener(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -439,9 +431,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 decreaseIncomingMessageSize(message);
                 checkState(message instanceof TopicMessageImpl);
-                if (listener == null) {
-                    unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
-                }
+                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
                 resumeReceivingFromPausedConsumersIfNeeded();
                 result.complete(message);
             }
