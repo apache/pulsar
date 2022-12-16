@@ -21,7 +21,6 @@ package org.apache.pulsar.client.util;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.ThreadPoolMonitor;
 
