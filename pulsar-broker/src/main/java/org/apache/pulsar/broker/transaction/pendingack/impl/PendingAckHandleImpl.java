@@ -150,9 +150,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         completeHandleFuture();
                     }
                 })
-                .exceptionally(t -> {
+                .exceptionally(e -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(e);
                     changeToErrorState();
                     exceptionHandleFuture(t);
+                    this.pendingAckStoreFuture.completeExceptionally(t);
                     return null;
                 });
     }
@@ -165,7 +167,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
                 }).exceptionally(e -> {
-                    acceptQueue.clear();
+                    handleCacheRequest();
                     changeToErrorState();
                     log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                     exceptionHandleFuture(e.getCause());
@@ -940,11 +942,29 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> closeAsync() {
         changeToCloseState();
         synchronized (PendingAckHandleImpl.this) {
             if (this.pendingAckStoreFuture != null) {
-                return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+                CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+                this.pendingAckStoreFuture.whenComplete((pendingAckStore, e) -> {
+                    if (e != null) {
+                        // init pending ack store fail, close don't need to
+                        // retry and throw exception, complete directly
+                        closeFuture.complete(null);
+                    } else {
+                        pendingAckStore.closeAsync().whenComplete((q, ex) -> {
+                            if (ex != null) {
+                                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                closeFuture.completeExceptionally(t);
+                            } else {
+                                closeFuture.complete(null);
+                            }
+                        });
+                    }
+                });
+
+                return closeFuture;
             } else {
                 return CompletableFuture.completedFuture(null);
             }
