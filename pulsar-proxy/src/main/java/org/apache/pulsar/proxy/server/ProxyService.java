@@ -46,7 +46,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -66,6 +65,8 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -186,8 +187,8 @@ public class ProxyService implements Closeable {
         proxyExtensions = ProxyExtensions.load(proxyConfig);
         proxyExtensions.initialize(proxyConfig);
 
-        statsExecutor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
+        statsExecutor = ScheduledExecutorProvider
+                .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("proxy-stats-executor"));
         statsExecutor.schedule(()->{
             this.clientCnxs.forEach(cnx -> {
                 if (cnx.getDirectProxyHandler() != null

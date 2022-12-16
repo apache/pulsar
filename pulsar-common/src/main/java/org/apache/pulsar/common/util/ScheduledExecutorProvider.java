@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.common.util;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.ThreadPoolMonitor;
 
 @Slf4j
 public class ScheduledExecutorProvider extends ExecutorProvider {
@@ -33,6 +32,10 @@ public class ScheduledExecutorProvider extends ExecutorProvider {
 
     @Override
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
+        return newSingleThreadScheduledExecutor(threadFactory);
+    }
+
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor(ExtendedThreadFactory threadFactory) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(threadFactory);
         ThreadPoolMonitor.registerSingleThreadExecutor(scheduler);
         return scheduler;

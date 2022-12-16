@@ -19,7 +19,12 @@
 package org.apache.pulsar.broker.web;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import io.netty.util.concurrent.FastThreadLocalThread;
+import org.apache.pulsar.common.util.ThreadMonitor;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
@@ -32,8 +37,34 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
     }
 
     public WebExecutorThreadPool(int maxThreads, String namePrefix, int queueCapacity) {
-        super(maxThreads, Math.min(8, maxThreads), new BlockingArrayQueue<>(queueCapacity, queueCapacity));
-        this.threadFactory = new DefaultThreadFactory(namePrefix);
+        super(new ThreadPoolExecutor(maxThreads, maxThreads,
+                60, TimeUnit.SECONDS,
+                new BlockingArrayQueue<>(queueCapacity, queueCapacity)) {
+            @Override
+            protected void beforeExecute(Thread t, Runnable r) {
+                ThreadMonitor.refreshThreadState(t);
+            }
+
+            @Override
+            protected void afterExecute(Runnable r, Throwable t) {
+                ThreadMonitor.refreshThreadState(Thread.currentThread());
+            }
+        }, Math.min(8, maxThreads));
+
+        this.threadFactory = new DefaultThreadFactory(namePrefix) {
+            @Override
+            protected Thread newThread(Runnable r, String name) {
+                return new FastThreadLocalThread(threadGroup, r, name) {
+                    @Override
+                    public void run() {
+                        super.run();
+
+                        // execute when thread exit.
+                        ThreadMonitor.remove(Thread.currentThread());
+                    }
+                };
+            }
+        };
     }
 
     @Override

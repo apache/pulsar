@@ -21,10 +21,8 @@ package org.apache.pulsar.metadata.impl;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -32,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 /**
@@ -62,8 +62,8 @@ public class EtcdSessionWatcher implements AutoCloseable {
         this.tickTimeMillis = sessionTimeoutMillis / 15;
         this.sessionListener = sessionListener;
 
-        this.scheduler = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-etcd-session-watcher"));
+        this.scheduler = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                        new ExecutorProvider.ExtendedThreadFactory("metadata-store-etcd-session-watcher"));
         this.task =
                 scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
                         tickTimeMillis,

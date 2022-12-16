@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;

@@ -20,7 +20,6 @@ package org.apache.pulsar.transaction.coordinator.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,7 +28,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -39,8 +37,10 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -100,9 +100,9 @@ public class MLTransactionMetadataStore
         this.abortedTransactionCount = new LongAdder();
         this.transactionTimeoutCount = new LongAdder();
         this.appendLogCount = new LongAdder();
-        DefaultThreadFactory threadFactory = new DefaultThreadFactory("transaction_coordinator_"
-                + tcID.toString() + "thread_factory");
-        this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        this.internalPinnedExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("transaction_coordinator_"
+                        + tcID.toString() + "thread_factory"));
     }
 
     public CompletableFuture<TransactionMetadataStore> init(TransactionRecoverTracker recoverTracker) {

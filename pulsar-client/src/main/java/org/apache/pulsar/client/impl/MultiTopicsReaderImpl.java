@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
 @Slf4j

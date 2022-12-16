@@ -84,7 +84,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;

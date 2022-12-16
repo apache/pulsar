@@ -31,7 +31,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
@@ -43,8 +42,9 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -73,7 +73,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private ControlledClusterFailover(ControlledClusterFailoverBuilderImpl builder) throws IOException {
         this.currentPulsarServiceUrl = builder.defaultServiceUrl;
         this.interval = builder.interval;
-        this.executor = Executors.newSingleThreadScheduledExecutor(
+        this.executor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
 
         this.httpClient = buildHttpClient();

@@ -35,16 +35,21 @@ public class ThreadMonitor {
     public static class Ping implements Runnable {
         @Override
         public void run() {
-            refreshThreadState();
+            refreshThreadState(Thread.currentThread());
         }
     }
 
-    public static void refreshThreadState() {
-        Thread t = Thread.currentThread();
+    public static void refreshThreadState(Thread t) {
         long id = t.getId();
         String name = t.getName();
         THREAD_ID_TO_NAME.put(id, name);
         THREAD_LAST_ACTIVE_TIMESTAMP.put(id, System.currentTimeMillis());
+    }
+
+    public static void remove(Thread t) {
+        long id = t.getId();
+        THREAD_LAST_ACTIVE_TIMESTAMP.remove(id);
+        THREAD_ID_TO_NAME.remove(id);
     }
 
     public static Runnable ping() {

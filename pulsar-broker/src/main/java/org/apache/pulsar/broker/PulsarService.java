@@ -49,7 +49,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -129,8 +128,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.internal.PropertiesUtils;
-import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -316,7 +315,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.processTerminator = processTerminator;
-        this.loadManagerExecutor = Executors
+        this.loadManagerExecutor = ScheduledExecutorProvider
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
         this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
@@ -359,10 +358,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private void registerThreadMonitors() {
-        ThreadPoolMonitor.registerSingleThreadExecutor(loadManagerExecutor);
         ThreadPoolMonitorHelper.registerOrderedExecutor(executor, config.getNumExecutorThreadPoolSize());
         ThreadPoolMonitorHelper.registerOrderedExecutor(cacheExecutor, config.getNumCacheExecutorThreadPoolSize());
-        ThreadPoolMonitorHelper.registerEventLoop(ioEventLoopGroup);
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
@@ -630,7 +627,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
-        ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
+        ScheduledExecutorService shutdownExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
         FutureUtil.addTimeoutHandling(future,
                 Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
@@ -1443,7 +1440,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     protected synchronized ScheduledExecutorService getCompactorExecutor() {
         if (this.compactorExecutor == null) {
-            compactorExecutor = Executors.newSingleThreadScheduledExecutor(
+            compactorExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                     new ExecutorProvider.ExtendedThreadFactory("compaction"));
         }
         return this.compactorExecutor;

@@ -129,7 +129,8 @@ import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -322,7 +323,7 @@ public class BrokerService implements Closeable {
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
                 pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
         this.workerGroup = eventLoopGroup;
-        this.statsUpdater = Executors.newSingleThreadScheduledExecutor(
+        this.statsUpdater = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
@@ -333,21 +334,21 @@ public class BrokerService implements Closeable {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
 
-        this.inactivityMonitor = Executors.newSingleThreadScheduledExecutor(
+        this.inactivityMonitor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-inactivity-monitor"));
-        this.messageExpiryMonitor = Executors.newSingleThreadScheduledExecutor(
+        this.messageExpiryMonitor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-msg-expiry-monitor"));
         this.compactionMonitor =
-                Executors.newSingleThreadScheduledExecutor(
+                ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                         new ExecutorProvider.ExtendedThreadFactory("pulsar-compaction-monitor"));
-        this.consumedLedgersMonitor = Executors.newSingleThreadScheduledExecutor(
+        this.consumedLedgersMonitor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("consumed-Ledgers-monitor"));
         this.topicPublishRateLimiterMonitor =
                 new PublishRateLimiterMonitor("pulsar-topic-publish-rate-limiter-monitor");
         this.brokerPublishRateLimiterMonitor =
                 new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
-        this.backlogQuotaChecker = Executors.newSingleThreadScheduledExecutor(
+        this.backlogQuotaChecker = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-backlog-quota-checker"));
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
         this.blockedDispatchers =
@@ -409,16 +410,6 @@ public class BrokerService implements Closeable {
     private void registerThreadMonitors() {
         ThreadPoolMonitorHelper.registerOrderedExecutor(topicOrderedExecutor,
                 pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic());
-
-        ThreadPoolMonitorHelper.registerEventLoop(this.acceptorGroup);
-        ThreadPoolMonitorHelper.registerEventLoop(this.workerGroup);
-
-        ThreadPoolMonitor.registerSingleThreadExecutor(statsUpdater);
-        ThreadPoolMonitor.registerSingleThreadExecutor(inactivityMonitor);
-        ThreadPoolMonitor.registerSingleThreadExecutor(messageExpiryMonitor);
-        ThreadPoolMonitor.registerSingleThreadExecutor(compactionMonitor);
-        ThreadPoolMonitor.registerSingleThreadExecutor(consumedLedgersMonitor);
-        ThreadPoolMonitor.registerSingleThreadExecutor(backlogQuotaChecker);
     }
 
     // This call is used for starting additional protocol handlers
@@ -575,11 +566,8 @@ public class BrokerService implements Closeable {
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
         if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
             this.deduplicationSnapshotMonitor =
-                    Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
+                    ScheduledExecutorProvider.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));
-
-            ThreadPoolMonitor.registerSingleThreadExecutor(deduplicationSnapshotMonitor);
-
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot))
                     , interval, interval, TimeUnit.SECONDS);
@@ -712,8 +700,7 @@ public class BrokerService implements Closeable {
                 stop();
             }
             //start monitor.
-            scheduler = Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(name));
-            ThreadPoolMonitor.registerSingleThreadExecutor(scheduler);
+            scheduler = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(name));
             // schedule task that sums up publish-rate across all cnx on a topic ,
             // and check the rate limit exceeded or not.
             scheduler.scheduleAtFixedRate(safeRun(checkTask), tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);
