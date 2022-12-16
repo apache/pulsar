@@ -1167,6 +1167,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testPersistenceInvalid() throws Exception {
+        NamespaceName testNs = this.testLocalNamespaces.get(0);
+        PersistencePolicies persistence = new PersistencePolicies(0, 2, 1, 0.0);
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.setPersistence(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.BAD_REQUEST.getStatusCode());
+
+        persistence = new PersistencePolicies(3, 0, 1, 0.0);
+        response = mock(AsyncResponse.class);
+        namespaces.setPersistence(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence);
+        errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.BAD_REQUEST.getStatusCode());
+    }
+
+    @Test
     public void testValidateTopicOwnership() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";

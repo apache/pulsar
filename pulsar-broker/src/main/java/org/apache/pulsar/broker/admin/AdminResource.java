@@ -820,8 +820,12 @@ public abstract class AdminResource extends PulsarWebResource {
         final ServiceConfiguration config = pulsar().getConfiguration();
         checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
                 "Bookkeeper-Ensemble must be <= " + config.getManagedLedgerMaxEnsembleSize());
+        checkArgument(persistence.getBookkeeperEnsemble() > 0,
+                "Bookkeeper-Ensemble must be > 0");
         checkArgument(persistence.getBookkeeperWriteQuorum() <= config.getManagedLedgerMaxWriteQuorum(),
                 "Bookkeeper-WriteQuorum must be <= " + config.getManagedLedgerMaxWriteQuorum());
+        checkArgument(persistence.getBookkeeperWriteQuorum() > 0,
+                "Bookkeeper-WriteQuorum must be > 0");
         checkArgument(persistence.getBookkeeperAckQuorum() <= config.getManagedLedgerMaxAckQuorum(),
                 "Bookkeeper-AckQuorum must be <= " + config.getManagedLedgerMaxAckQuorum());
         checkArgument(
