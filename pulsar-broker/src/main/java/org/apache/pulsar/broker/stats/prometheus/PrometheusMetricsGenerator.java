@@ -261,18 +261,21 @@ public class PrometheusMetricsGenerator {
                 .write(String.valueOf(ThreadPoolMonitor.submittedThreadPool())).write(' ')
                 .write(System.currentTimeMillis()).write("\n");
 
-        Map<String, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+        Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+        Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME);
         if (!threadStat.isEmpty()) {
             stream.write("# TYPE ").write(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME).write(' ')
                     .write(getTypeStr(Collector.Type.GAUGE)).write('\n');
 
-            for (Map.Entry<String, Long> stat : threadStat.entrySet()) {
-                String threadName = stat.getKey();
+            for (Map.Entry<Long, Long> stat : threadStat.entrySet()) {
+                long threadId = stat.getKey();
+                String threadName = threadIdMapping.get(threadId);
                 long lastActiveMs = stat.getValue();
 
                 stream.write(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME)
                         .write("{cluster=\"").write(clusterName).write('"').write(", ")
-                        .write("threadName=\"").write(threadName).write('"').write("} ")
+                        .write("threadName=\"").write(threadName).write('"').write(", ")
+                        .write("tid=\"").write(String.valueOf(threadId)).write('"').write("} ")
                         .write(String.valueOf(lastActiveMs)).write(' ')
                         .write(System.currentTimeMillis()).write("\n");
             }

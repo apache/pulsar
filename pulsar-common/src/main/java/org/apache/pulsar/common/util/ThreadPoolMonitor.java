@@ -123,6 +123,7 @@ public class ThreadPoolMonitor {
         submitted.clear();
 
         ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP.clear();
+        ThreadMonitor.THREAD_ID_TO_NAME.clear();
     }
 
     public static final String THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME = "pulsar_thread_monitor_enabled";

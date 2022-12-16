@@ -4,7 +4,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class ThreadMonitor {
-    public static final ConcurrentMap<String, Long> THREAD_LAST_ACTIVE_TIMESTAMP =
+    public static final ConcurrentMap<Long, Long> THREAD_LAST_ACTIVE_TIMESTAMP =
+            new ConcurrentHashMap<>(Runtime.getRuntime().availableProcessors(),
+                    0.75f, 1024);
+
+    public static final ConcurrentMap<Long, String> THREAD_ID_TO_NAME =
             new ConcurrentHashMap<>(Runtime.getRuntime().availableProcessors(),
                     0.75f, 1024);
 
@@ -13,7 +17,11 @@ public class ThreadMonitor {
     public static class Ping implements Runnable {
         @Override
         public void run() {
-            THREAD_LAST_ACTIVE_TIMESTAMP.put(Thread.currentThread().getName(), System.currentTimeMillis());
+            Thread t = Thread.currentThread();
+            long id = t.getId();
+            String name = t.getName();
+            THREAD_ID_TO_NAME.put(id, name);
+            THREAD_LAST_ACTIVE_TIMESTAMP.put(id, System.currentTimeMillis());
         }
     }
 

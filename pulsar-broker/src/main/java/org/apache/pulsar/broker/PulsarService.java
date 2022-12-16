@@ -1486,6 +1486,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                     .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
                     .name("offloader").build();
+            for (int i = 0; i < offloadPolicies.getManagedLedgerOffloadMaxThreads(); i++) {
+                ThreadPoolMonitor.register(offloaderScheduler.chooseThread(i));
+            }
         }
         return this.offloaderScheduler;
     }

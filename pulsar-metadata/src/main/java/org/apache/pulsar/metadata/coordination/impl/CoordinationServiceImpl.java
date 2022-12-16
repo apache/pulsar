@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -63,6 +64,7 @@ public class CoordinationServiceImpl implements CoordinationService {
         this.store = store;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("metadata-store-coordination-service"));
+        ThreadPoolMonitor.register(executor);
     }
 
     @Override
