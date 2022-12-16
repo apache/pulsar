@@ -23,6 +23,7 @@ import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.hash.Hashing;
 import io.prometheus.client.Counter;
 import java.net.URI;
@@ -1433,6 +1434,18 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public static boolean isSystemServiceNamespace(String namespace) {
+        return SYSTEM_NAMESPACE.toString().equals(namespace)
+                || SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+    }
+
+    /**
+     * used for filtering bundles in special namespace.
+     * @param namespace
+     * @return True if namespace is HEARTBEAT_NAMESPACE or SLA_NAMESPACE
+     */
+    public static boolean filterNamespaceForShedding(String namespace) {
         return SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
