@@ -548,15 +548,30 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+                                   @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        String subName = decode(encodedSubName);
+        internalDeleteSubscriptionAsync(subName, authoritative, force)
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(cause)) {
+                        log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
+                                topicName, cause);
+                    }
+
+                    if (cause instanceof BrokerServiceException.SubscriptionBusyException) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                        "Subscription has active connected consumers"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    }
+
+                    return null;
+                });
     }
 
     @POST
