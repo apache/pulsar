@@ -288,9 +288,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
                 if (index.getAndDecrement() == 0 && new String(msg.getData()).equals(redeliveryMsg)) {
                     Thread.sleep(5000);
                 }
-                System.out.println(">>>>>>> " + new String(msg.getData()));
                 receivedMsgs.add(msg);
-                System.out.println("<<<<<<<" + receivedMsgs.size());
                 consumer.acknowledge(msg);
             } catch (Exception e) {
             }
