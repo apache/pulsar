@@ -63,8 +63,9 @@ public class PulsarLedgerManager implements LedgerManager {
     private final LegacyHierarchicalLedgerManager legacyLedgerManager;
     private final LongHierarchicalLedgerManager longLedgerManager;
 
-    private final ScheduledExecutorService scheduler = ScheduledExecutorProvider
-            .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-bk-ledger-manager-scheduler"));
+    private final ScheduledExecutorService scheduler =
+            ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                    new ExecutorProvider.ExtendedThreadFactory("pulsar-bk-ledger-manager-scheduler"));
 
     // ledger metadata listeners
     protected final ConcurrentMap<Long, Set<BookkeeperInternalCallbacks.LedgerMetadataListener>> listeners =

@@ -35,7 +35,6 @@ import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,8 +54,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.common.util.ThreadMonitor;
-import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.eclipse.jetty.server.HttpOutput;
 
 /**
