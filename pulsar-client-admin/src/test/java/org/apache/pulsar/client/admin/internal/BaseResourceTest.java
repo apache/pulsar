@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import javax.ws.rs.WebApplicationException;
