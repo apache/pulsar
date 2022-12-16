@@ -19,16 +19,15 @@
 package org.apache.pulsar.io.cassandra.util;
 
 import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
-import org.junit.Ignore;
-import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertNotNull;
+import static org.testng.AssertJUnit.assertEquals;
 
 public class TableMetadataProviderTest {
 
-    @Test
-    @Ignore
+    @Test(enabled = false)
     public final void getTableDefinitionTest() {
 
         CassandraSinkConfig config = new CassandraSinkConfig();

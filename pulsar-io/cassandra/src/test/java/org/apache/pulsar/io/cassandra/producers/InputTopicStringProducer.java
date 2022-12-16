@@ -31,7 +31,7 @@ import java.util.TreeMap;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class InputTopicStringProducer extends InputTopicProducerThread<String> {
 
-    private Random rnd = new Random();
+    private final Random rnd = new Random();
     int lastReadingId = rnd.nextInt(900000);
     
     public InputTopicStringProducer(String brokerUrl, String inputTopic) {
@@ -57,13 +57,12 @@ public class InputTopicStringProducer extends InputTopicProducerThread<String> {
         elements.put("reporting_area", lastReadingId + "");
         elements.put("hour_observed", rnd.nextInt(24));
         elements.put("date_observed", "2022-06-18");
-        elements.put("latitude", Float.valueOf(40.021f));
-        elements.put("longitude", Float.valueOf(-122.33f));
+        elements.put("latitude", 40.021f);
+        elements.put("longitude", -122.33f);
 
         Gson gson = new Gson();
         Type gsonType = new TypeToken<HashMap>(){}.getType();
-        String gsonString = gson.toJson(elements,gsonType);
-        return gsonString;
+        return gson.toJson(elements,gsonType);
     }
 
     @Override

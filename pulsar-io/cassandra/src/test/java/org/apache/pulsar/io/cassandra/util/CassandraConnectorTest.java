@@ -19,19 +19,16 @@
 package org.apache.pulsar.io.cassandra.util;
 
 import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
-import org.apache.pulsar.io.cassandra.util.CassandraConnector;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 
 public class CassandraConnectorTest {
 
     private CassandraSinkConfig config;
 
-    @Test
-    @Ignore
+    @Test(enabled = false)
     public final void securedTest() {
         config = new CassandraSinkConfig();
         config.setRoots("localhost");
@@ -43,8 +40,7 @@ public class CassandraConnectorTest {
         assertNotNull(connector.getSession());
     }
 
-    @Test
-    @Ignore
+    @Test(enabled = false)
     public final void getObservationPreparedStatementTest() {
         config = new CassandraSinkConfig();
         config.setRoots("localhost");
@@ -57,8 +53,7 @@ public class CassandraConnectorTest {
         assertEquals("INSERT INTO airquality.observation (key, observed) VALUES (?, ?)", connector.getPreparedStatement().getQueryString());
     }
 
-    @Test
-    @Ignore
+    @Test(enabled = false)
     public final void getReadingPreparedStatementTest() {
         config = new CassandraSinkConfig();
         config.setRoots("localhost");

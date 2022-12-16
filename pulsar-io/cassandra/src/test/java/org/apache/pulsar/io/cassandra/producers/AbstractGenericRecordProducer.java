@@ -19,7 +19,7 @@
 package org.apache.pulsar.io.cassandra.producers;
 
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
