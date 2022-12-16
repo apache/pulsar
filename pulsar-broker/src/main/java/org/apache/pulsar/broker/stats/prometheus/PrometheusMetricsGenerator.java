@@ -233,28 +233,32 @@ public class PrometheusMetricsGenerator {
     private static void generateThreadMonitorMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
         String clusterName = pulsar.getConfiguration().getClusterName();
 
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME).write(' ')
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME)
+                .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
                 .write(ThreadPoolMonitor.isEnabled() ? "1" : "0").write(' ')
                 .write(System.currentTimeMillis()).write("\n");
 
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME).write(' ')
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
+                .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
                 .write(String.valueOf(ThreadPoolMonitor.checkIntervalMs())).write(' ')
                 .write(System.currentTimeMillis()).write("\n");
 
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME).write(' ')
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
+                .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")
                 .write(String.valueOf(ThreadPoolMonitor.registeredThreadPool())).write(' ')
                 .write(System.currentTimeMillis()).write("\n");
 
-        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME).write(' ')
+        stream.write("# TYPE ").write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
+                .write(' ')
                 .write(getTypeStr(Collector.Type.GAUGE)).write('\n')
                 .write(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME)
                 .write("{cluster=\"").write(clusterName).write('"').write("} ")

@@ -19,8 +19,6 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +29,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -99,8 +99,8 @@ public class ThreadPoolMonitor {
         // cancel first
         if (monitorStateChanged || checkIntervalChanged || (currentSetEnabled && hasNewRegisteredThreadPool)) {
             cancelAllMonitorTasks();
-            LOGGER.info("pulsar thread monitor all task canceled " +
-                            "monitorStateChanged={} checkIntervalChanged={} hasNewRegisterThreadPool={}.",
+            LOGGER.info("pulsar thread monitor all task canceled "
+                            + "monitorStateChanged={} checkIntervalChanged={} hasNewRegisterThreadPool={}.",
                     monitorStateChanged,
                     checkIntervalChanged,
                     hasNewRegisteredThreadPool);
@@ -108,8 +108,8 @@ public class ThreadPoolMonitor {
             // reschedule
             if (currentSetEnabled) {
                 submitMonitorTasks();
-                LOGGER.info("pulsar thread monitor start monitor task, checkIntervalMs={} " +
-                                "current registeredThreadPool={} submittedThreadPool={}.",
+                LOGGER.info("pulsar thread monitor start monitor task, checkIntervalMs={} "
+                                + "current registeredThreadPool={} submittedThreadPool={}.",
                         CHECK_INTERVAL_MS.get(),
                         registered.size(),
                         submitted.size());
@@ -157,10 +157,14 @@ public class ThreadPoolMonitor {
         ThreadMonitor.THREAD_ID_TO_NAME.clear();
     }
 
-    public static final String THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME = "pulsar_thread_monitor_enabled";
-    public static final String THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME = "pulsar_thread_monitor_check_interval_ms";
-    public static final String THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME = "pulsar_thread_monitor_register_pool_number";
-    public static final String THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME = "pulsar_thread_monitor_submitted_monitor_task_number";
+    public static final String THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME =
+            "pulsar_thread_monitor_enabled";
+    public static final String THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME =
+            "pulsar_thread_monitor_check_interval_ms";
+    public static final String THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME =
+            "pulsar_thread_monitor_register_pool_number";
+    public static final String THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME =
+            "pulsar_thread_monitor_submitted_monitor_task_number";
 
     public static boolean isEnabled() {
         return ENABLED.get();
