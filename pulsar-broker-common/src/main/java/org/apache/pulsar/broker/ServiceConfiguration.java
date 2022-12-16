@@ -512,7 +512,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
-
     @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
@@ -1764,6 +1763,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "whether expose managed ledger client stats to prometheus"
     )
     private boolean bookkeeperClientExposeStatsToPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "whether limit per_channel_bookie_client metrics of bookkeeper client stats"
+    )
+    private boolean bookkeeperClientLimitStatsLogging = false;
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,

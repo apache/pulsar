@@ -1,7 +1,7 @@
 ---
 Id: install-deploy-upgrade-landing
 title: Install, Deploy and Upgrade Pulsar
-sidebar_label: “Tutorials”
+sidebar_label: "Tutorials"
 ---
 
 

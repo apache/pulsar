@@ -292,6 +292,15 @@ public class PerformanceProducer {
             arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
         }
 
+        for (String arg : arguments.topics) {
+            if (arg.startsWith("-")) {
+                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
+                        + "please use a fully qualified topic name\n", arg, arg);
+                jc.usage();
+                PerfClientUtils.exit(-1);
+            }
+        }
+
         if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
             // keep compatibility with the previous version
             if (arguments.topics.size() == 1) {

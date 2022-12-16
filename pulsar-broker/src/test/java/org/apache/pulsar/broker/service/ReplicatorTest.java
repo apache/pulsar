@@ -1383,19 +1383,38 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 "testDoesNotReplicateSystemTopic").toString();
         String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT).toString();
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(pulsar2.getBrokerServiceUrl()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumerFromR2 = client2.newConsumer()
+                .topic(topic.toString())
+                .subscriptionName("sub-rep")
+                .subscribe();
+
         admin1.topics().createNonPartitionedTopic(topic);
         // Replicator will not replicate System Topic other than topic policies
         initTransaction(2, admin1, pulsar1.getBrokerServiceUrl(), pulsar1);
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl())
                 .enableTransaction(true).build();
-        TransactionImpl transaction = (TransactionImpl) client.newTransaction()
+        TransactionImpl abortTransaction = (TransactionImpl) client.newTransaction()
                 .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+
         @Cleanup
         Producer<byte[]> producer = client.newProducer().topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false).create();
+        producer.newMessage(abortTransaction).value("aborted".getBytes(StandardCharsets.UTF_8)).send();
+        abortTransaction.abort().get();
+        assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
+
+        TransactionImpl transaction = (TransactionImpl) client.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+
         producer.newMessage(transaction).value("1".getBytes(StandardCharsets.UTF_8)).send();
+        assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
         transaction.commit();
 
         Awaitility.await().untilAsserted(() -> {
@@ -1403,6 +1422,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
             Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
         });
+        Assert.assertEquals(consumerFromR2.receive(5, TimeUnit.SECONDS).getValue(),
+                "1".getBytes(StandardCharsets.UTF_8));
         cleanup();
         setup();
     }

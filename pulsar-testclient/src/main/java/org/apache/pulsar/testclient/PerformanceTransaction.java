@@ -136,6 +136,10 @@ public class PerformanceTransaction {
         @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        private boolean replicatedSubscription = false;
+
         @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
@@ -625,10 +629,11 @@ public class PerformanceTransaction {
 
     private static  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client, Arguments arguments)
             throws ExecutionException, InterruptedException {
-        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES) //
+        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES)
                 .subscriptionType(arguments.subscriptionType)
                 .receiverQueueSize(arguments.receiverQueueSize)
-                .subscriptionInitialPosition(arguments.subscriptionInitialPosition);
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
+                .replicateSubscriptionState(arguments.replicatedSubscription);
 
         Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
         List<List<Consumer<byte[]>>> consumers = new ArrayList<>(arguments.consumerTopic.size());

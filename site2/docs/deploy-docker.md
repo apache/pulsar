@@ -28,12 +28,22 @@ docker network create pulsar
 #### Create a ZooKeeper container
 Create a ZooKeeper container and start the ZooKeeper service.
 ```bash
-docker run -d -p 2181:2181 --net=pulsar -e metadataStoreUrl=zk:zookeeper:2181 -e cluster-name=cluster-a -e managedLedgerDefaultEnsembleSize=1 -e managedLedgerDefaultWriteQuorum=1 -e managedLedgerDefaultAckQuorum=1 -v $(pwd)/data/zookeeper:/pulsar/data/zookeeper --name zookeeper --hostname zookeeper apachepulsar/pulsar-all:latest bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && bin/generate-zookeeper-config.sh conf/zookeeper.conf && exec bin/pulsar zookeeper"
+docker run -d -p 2181:2181 --net=pulsar \
+    -e metadataStoreUrl=zk:zookeeper:2181 \
+    -e cluster-name=cluster-a -e managedLedgerDefaultEnsembleSize=1 \
+    -e managedLedgerDefaultWriteQuorum=1 \
+    -e managedLedgerDefaultAckQuorum=1 \
+    -v $(pwd)/data/zookeeper:/pulsar/data/zookeeper \
+    --name zookeeper --hostname zookeeper \
+    apachepulsar/pulsar-all:latest \
+    bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && bin/generate-zookeeper-config.sh conf/zookeeper.conf && exec bin/pulsar zookeeper"
 ```
 #### Initialize the cluster metadata
 After creating the ZooKeeper container successfully, you can use the following command to initialize the cluster metadata.
 ```bash
-docker run --net=pulsar --name initialize-pulsar-cluster-metadata apachepulsar/pulsar-all:latest bash -c "bin/pulsar initialize-cluster-metadata \
+docker run --net=pulsar \
+    --name initialize-pulsar-cluster-metadata \
+    apachepulsar/pulsar-all:latest bash -c "bin/pulsar initialize-cluster-metadata \
 --cluster cluster-a \
 --zookeeper zookeeper:2181 \
 --configuration-store zookeeper:2181 \
@@ -46,7 +56,13 @@ docker run --net=pulsar --name initialize-pulsar-cluster-metadata apachepulsar/p
 Create a bookie container and start the bookie service.
 
 ```bash
-docker run -d -e clusterName=cluster-a -e zkServers=zookeeper:2181 --net=pulsar -e metadataServiceUri=metadata-store:zk:zookeeper:2181 -v $(pwd)/data/bookkeeper:/pulsar/data/bookkeeper --name bookie --hostname bookie apachepulsar/pulsar-all:latest    bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
+docker run -d -e clusterName=cluster-a \
+    -e zkServers=zookeeper:2181 --net=pulsar \
+    -e metadataServiceUri=metadata-store:zk:zookeeper:2181 \
+    -v $(pwd)/data/bookkeeper:/pulsar/data/bookkeeper \
+    --name bookie --hostname bookie \
+    apachepulsar/pulsar-all:latest \
+    bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
 ```
 #### Create a broker container
 Create a broker container and start the broker service.

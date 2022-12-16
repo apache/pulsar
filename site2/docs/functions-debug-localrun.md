@@ -16,9 +16,15 @@ Before using localrun mode, you need to add the following dependency.
 
 ```xml
 <dependency>
-   <groupId>org.apache.pulsar</groupId>
-   <artifactId>pulsar-functions-local-runner</artifactId>
-   <version>${pulsar.version}</version>
+    <groupId>org.apache.pulsar</groupId>
+    <artifactId>pulsar-functions-local-runner-original</artifactId>
+    <version>${pulsar.version}</version>
+</dependency>
+
+<dependency>
+    <groupId>com.google.protobuf</groupId>
+    <artifactId>protobuf-java</artifactId>
+    <version>3.21.9</version>
 </dependency>
 ```
 

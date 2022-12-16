@@ -1,7 +1,7 @@
 ---
 Id: tutorials-topic
 title: How to create a topic
-sidebar_label: “Tutorials”
+sidebar_label: "Tutorials"
 ---
 
 

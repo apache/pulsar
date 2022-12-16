@@ -12,14 +12,14 @@ import TabItem from '@theme/TabItem';
 
 :::tip
 
- This page only shows **some frequently used operations**.
+This page only shows **some frequently used operations**.
 
- - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
- 
- - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
- 
- - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
- 
+- For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+
+- For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+
+- For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+
 :::
 
 Pulsar has persistent and non-persistent topics. A persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
@@ -593,7 +593,7 @@ admin.topics().examineMessage(topic, "latest", 1);
 </Tabs>
 ````
 
-### Get message ID 
+### Get message ID
 
 You can get message ID published at or just after the given datetime.
 
@@ -1641,7 +1641,7 @@ admin.topics().updatePartitionedTopic(topic, numPartitions);
 ````
 
 ### Delete
-You can delete partitioned topics with the [`delete-partitioned-topic`](/tools/pulsar-admin/) command, REST API and Java. 
+You can delete partitioned topics with the [`delete-partitioned-topic`](/tools/pulsar-admin/) command, REST API and Java.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1951,9 +1951,9 @@ admin.topics().getSubscriptions(topic);
 </Tabs>
 ````
 
-### Unsubscribe subscription 
+### Unsubscribe subscription
 
-When a subscription does not process messages anymore, you can unsubscribe it using one of the following methods. 
+When a subscription does not process messages anymore, you can unsubscribe it using one of the following methods.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"

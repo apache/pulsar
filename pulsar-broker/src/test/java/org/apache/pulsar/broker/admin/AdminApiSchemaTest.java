@@ -278,7 +278,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             admin.schemas().createSchema(topicName, schemaInfo);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 422);
-            Assert.assertEquals(e.getMessage(), "HTTP 422 Invalid schema definition data for AVRO schema");
+            Assert.assertTrue(e.getMessage().contains("Invalid schema definition data for AVRO schema"));
         }
     }
 

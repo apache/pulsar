@@ -455,6 +455,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageProcessed(message);
             return beforeConsume(message);
         } catch (InterruptedException e) {
+            ExceptionHandler.handleInterruptedException(e);
             stats.incrementNumReceiveFailed();
             throw PulsarClientException.unwrap(e);
         }
@@ -493,6 +494,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageProcessed(message);
             return beforeConsume(message);
         } catch (InterruptedException e) {
+            ExceptionHandler.handleInterruptedException(e);
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
                 stats.incrementNumReceiveFailed();
@@ -508,6 +510,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             return internalBatchReceiveAsync().get();
         } catch (InterruptedException | ExecutionException e) {
+            ExceptionHandler.handleInterruptedException(e);
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
                 stats.incrementNumBatchReceiveFailed();

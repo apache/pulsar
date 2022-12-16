@@ -76,4 +76,10 @@ public class SystemTopic extends PersistentTopic {
         // even though is not explicitly set in the policies.
         return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic));
     }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        // System topics are only written by the broker that can't know the encryption context.
+        return false;
+    }
 }

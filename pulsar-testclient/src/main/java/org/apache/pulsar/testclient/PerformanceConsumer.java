@@ -131,7 +131,8 @@ public class PerformanceConsumer {
                 description = "Enable autoScaledReceiverQueueSize")
         public boolean autoScaledReceiverQueueSize = false;
 
-        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
@@ -220,6 +221,15 @@ public class PerformanceConsumer {
 
         if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
             arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
+        }
+
+        for (String arg : arguments.topic) {
+            if (arg.startsWith("-")) {
+                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
+                        + "please use a fully qualified topic name\n", arg, arg);
+                jc.usage();
+                PerfClientUtils.exit(-1);
+            }
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
