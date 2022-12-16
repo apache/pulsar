@@ -179,13 +179,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
-                }).exceptionally(e -> {
+                }).exceptionallyAsync(e -> {
                     handleCacheRequest();
                     changeToErrorState();
                     log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                     exceptionHandleFuture(e.getCause());
                     return null;
-                });
+                }, internalPinnedExecutor);
             }
         }
     }
@@ -980,13 +980,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         synchronized (PendingAckHandleImpl.this) {
             if (this.pendingAckStoreFuture != null) {
                 CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-                this.pendingAckStoreFuture.whenComplete((v, e) -> {
+                this.pendingAckStoreFuture.whenComplete((pendingAckStore, e) -> {
                     if (e != null) {
                         // init pending ack store fail, close don't need to
                         // retry and throw exception, complete directly
                         closeFuture.complete(null);
                     } else {
-                        v.closeAsync().whenComplete((q, ex) -> {
+                        pendingAckStore.closeAsync().whenComplete((q, ex) -> {
                             if (ex != null) {
                                 Throwable t = FutureUtil.unwrapCompletionException(ex);
                                 closeFuture.completeExceptionally(t);
