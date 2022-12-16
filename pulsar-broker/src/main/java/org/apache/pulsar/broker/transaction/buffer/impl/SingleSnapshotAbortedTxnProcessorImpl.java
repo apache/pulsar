@@ -95,9 +95,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                     try {
                     PositionImpl startReadCursorPosition = null;
                         while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshot> message;
-                            message = reader.readNextAsync().get(getSystemClientOperationTimeoutMs(),
-                                    TimeUnit.MILLISECONDS);
+                            Message<TransactionBufferSnapshot> message = reader.readNextAsync()
+                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {

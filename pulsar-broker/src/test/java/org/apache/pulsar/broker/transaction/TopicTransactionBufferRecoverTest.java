@@ -25,6 +25,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -40,14 +41,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import lombok.AllArgsConstructor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
@@ -80,12 +79,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.events.EventType;
@@ -95,7 +91,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -259,117 +254,54 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    private ProducerAndConsumer makeManyTx(int txCount, String topicName, String subName) throws Exception {
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .subscriptionType(SubscriptionType.Shared)
-                .topic(topicName)
-                .isAckReceiptEnabled(true)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .subscriptionName(subName)
-                .subscribe();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .enableBatching(false)
-                .batchingMaxMessages(2)
-                .create();
-        producer.send("first message");
-        boolean lastTxCommitted = false;
-        Message lastMessage = null;
-        for(int i = 0; i < txCount; i++) {
-            Transaction transaction =
-                    pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
-            lastMessage = consumer.receive();
-            producer.newMessage(transaction)
-                    .value(new StringBuilder("tx message 0-")
-                            .append(String.valueOf(lastMessage.getMessageId())).toString()).sendAsync();
-            producer.newMessage(transaction)
-                    .value(new StringBuilder("tx message 1-")
-                            .append(String.valueOf(lastMessage.getMessageId())).toString()).sendAsync();
-            consumer.acknowledgeAsync(lastMessage.getMessageId(), transaction);
-            if (i % 2 == 0) {
-                transaction.commit().get();
-                lastTxCommitted = true;
+    private void makeTBSnapshotReaderTimeoutIfFirstRead(TopicName topicName) throws Exception {
+        SystemTopicClient.Reader mockReader = mock(SystemTopicClient.Reader.class);
+        AtomicBoolean isFirstCallOfMethodHasMoreEvents = new AtomicBoolean();
+        AtomicBoolean isFirstCallOfMethodHasReadNext = new AtomicBoolean();
+        AtomicBoolean isFirstCallOfMethodHasReadNextAsync = new AtomicBoolean();
+
+        doAnswer(invocation -> {
+            if (isFirstCallOfMethodHasMoreEvents.compareAndSet(false,true)){
+                return true;
             } else {
-                transaction.abort().get();
-                lastTxCommitted = false;
+                return false;
             }
-        }
-        if (lastTxCommitted){
-            Message msg = consumer.receive();
-            consumer.acknowledge(msg);
-        } else {
-            consumer.acknowledge(lastMessage);
-        }
-        return new ProducerAndConsumer(producer, consumer);
-    }
+        }).when(mockReader).hasMoreEvents();
 
-    @AllArgsConstructor
-    private static class ProducerAndConsumer {
-        public Producer<String> producer;
-        public Consumer<String> consumer;
-    }
-
-    private PersistentTopic findPersistentTopic(String topicName){
-        for (PulsarService pulsarService : pulsarServiceList){
-            CompletableFuture<Optional<Topic>> future = pulsarService.getBrokerService().getTopic(topicName, false);
-            if (future == null || !future.isDone() || future.isCompletedExceptionally() || !future.join().isPresent()){
-                continue;
+        doAnswer(invocation -> {
+            if (isFirstCallOfMethodHasReadNext.compareAndSet(false, true)){
+                // Just stuck the thread.
+                Thread.sleep(3600 * 1000);
             }
-            return  (PersistentTopic) future.join().get();
-        }
-        throw new RuntimeException("topic[" + topicName + "] not found.");
-    }
+            return null;
+        }).when(mockReader).readNext();
 
-    private void triggerSnapshot(String topicName){
-        PersistentTopic persistentTopic = findPersistentTopic(topicName);
-        TopicTransactionBuffer topicTransactionBuffer =
-                (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
-        topicTransactionBuffer.run(null);
-    }
+        doAnswer(invocation -> {
+            CompletableFuture<Message> future = new CompletableFuture<>();
+            new Thread(() -> {
+                if (isFirstCallOfMethodHasReadNextAsync.compareAndSet(false, true)){
+                    // Just stuck the thread.
+                    try {
+                        Thread.sleep(3600 * 1000);
+                    } catch (InterruptedException e) {
+                    }
+                    future.complete(null);
+                } else {
+                    future.complete(null);
+                }
+            }).start();
+            return future;
+        }).when(mockReader).readNextAsync();
 
-    private void triggerCompactAndWait(String topicName) throws Exception {
-        PersistentTopic persistentTopic = findPersistentTopic(topicName);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        persistentTopic.getBrokerService().getPulsar().getCompactor().compact(topicName);
-        Awaitility.await().untilAsserted(() -> {
-            ManagedCursorImpl compaction = (ManagedCursorImpl) managedLedger.getCursors().get("__compaction");
-            assertEquals(compaction.getMarkDeletedPosition(), managedLedger.getLastConfirmedEntry());
-        });
-        ManagedCursorImpl compaction = (ManagedCursorImpl) managedLedger.getCursors().get("__compaction");
-        log.info("===> cursor-compaction mark deleted position {}:{}", compaction.getMarkDeletedPosition().getLedgerId(),
-                compaction.getMarkDeletedPosition().getEntryId());
-    }
+        when(mockReader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
 
-    private void initPropLastMessageIdInBrokerOfTBReader(TopicName topicName) throws Exception {
         for (PulsarService pulsarService : pulsarServiceList){
             // Init prop: lastMessageIdInBroker.
             final SystemTopicTxnBufferSnapshotService tbSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
-            AtomicReference<SystemTopicClient.Reader> readerCache = new AtomicReference<>();
-            SystemTopicClient.Reader reader =
-                    (SystemTopicClient.Reader) tbSnapshotService.createReader(topicName).join();
-            ReaderImpl innerReader =
-                    WhiteboxImpl.getInternalState(reader, "reader");
-            ConsumerImpl innerConsumer = innerReader.getConsumer();
-            // Because the consumer's incoming queue is 1000, messages are placed in client memory the moment consumers
-            // are created, which prevents the consumer from pulling messages from the broker again.
-            // So we just set a fake MessageId to variable "lastMessageIdInBroker".
-            innerConsumer.hasMessageAvailable();
-            Field lastMessageInBrokerField = ConsumerImpl.class.getDeclaredField("lastMessageIdInBroker");
-            lastMessageInBrokerField.setAccessible(true);
-            lastMessageInBrokerField.set(innerConsumer, MessageId.latest);
-            readerCache.set(reader);
-            // Inject.
             SystemTopicTxnBufferSnapshotService spyTbSnapshotService = spy(tbSnapshotService);
-            doAnswer(invocation -> {
-                SystemTopicClient.Reader readerInCache = readerCache.getAndSet(null);
-                if (readerInCache != null){
-                    return CompletableFuture.completedFuture(readerInCache);
-                } else {
-                    return tbSnapshotService.createReader(topicName);
-                }
-            }).when(spyTbSnapshotService).createReader(topicName);
+            doAnswer(invocation -> CompletableFuture.completedFuture(mockReader))
+                    .when(spyTbSnapshotService).createReader(topicName);
             Field field =
                     TransactionBufferSnapshotServiceFactory.class.getDeclaredField("txnBufferSnapshotService");
             field.setAccessible(true);
@@ -378,31 +310,22 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @Test(timeOut = 60 * 1000)
-    public void testRecoverCantComplete() throws Exception {
-        String topicNameForMakeDataForTB = String.format("persistent://%s/%s", NAMESPACE1,
-                "tx_recover_1_" + UUID.randomUUID().toString().replaceAll("-", "_"));
+    public void testTBRecoverCanRetryIfTimeoutRead() throws Exception {
         String topicName = String.format("persistent://%s/%s", NAMESPACE1,
-                "tx_recover_2_" + UUID.randomUUID().toString().replaceAll("-", "_"));
-        String subName = "sub";
-        String transactionBufferTopicName =
-                String.format("persistent://%s/%s", NAMESPACE1, TRANSACTION_BUFFER_SNAPSHOT);
-
-        // Make some TB snapshot.
-        ProducerAndConsumer producerAndConsumer1 = makeManyTx(10, topicNameForMakeDataForTB, subName);
-        triggerSnapshot(topicNameForMakeDataForTB);
-        producerAndConsumer1.producer.close();
-        producerAndConsumer1.consumer.close();
-        admin.topics().delete(topicNameForMakeDataForTB);
+                "tx_recover_" + UUID.randomUUID().toString().replaceAll("-", "_"));
 
         // Make race condition of "getLastMessageId" and "compaction" to make recover can't complete.
-        initPropLastMessageIdInBrokerOfTBReader(TopicName.get(topicName));
-        triggerCompactAndWait(transactionBufferTopicName);
-        // Ensure topic works.
-        ProducerAndConsumer producerAndConsumer2 = makeManyTx(3, topicName, subName);
+        makeTBSnapshotReaderTimeoutIfFirstRead(TopicName.get(topicName));
+        // Verify( Cmd-PRODUCER will wait for TB recover finished )
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .batchingMaxMessages(2)
+                .create();
 
         // cleanup.
-        producerAndConsumer2.producer.close();
-        producerAndConsumer2.consumer.close();
+        producer.close();
         admin.topics().delete(topicName, false);
     }
 
