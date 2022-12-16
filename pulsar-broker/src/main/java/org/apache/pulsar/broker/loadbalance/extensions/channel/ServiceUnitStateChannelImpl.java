@@ -614,10 +614,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             // Retry several times on BadVersion
             if ((ex.getCause() instanceof MetadataStoreException.BadVersionException)
                     && (counter.incrementAndGet() < NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT)) {
-                pulsar.getExecutor().schedule(() -> pulsar.getOrderedExecutor()
-                                .execute(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle,
-                                        serviceUnit, data, counter, startTime, completionFuture)),
-                        100, MILLISECONDS);
+                pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory,
+                                bundle, serviceUnit, data, counter, startTime, completionFuture), 100, MILLISECONDS);
             } else if (ex instanceof IllegalArgumentException) {
                 completionFuture.completeExceptionally(ex);
             } else {
