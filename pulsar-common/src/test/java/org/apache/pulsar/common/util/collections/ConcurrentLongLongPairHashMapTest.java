@@ -175,7 +175,7 @@ public class ConcurrentLongLongPairHashMapTest {
     }
 
     @Test
-    public void testExpandAndShrinkAndGet()  throws Throwable {
+    public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
