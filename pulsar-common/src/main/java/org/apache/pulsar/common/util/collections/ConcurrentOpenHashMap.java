@@ -377,6 +377,9 @@ public class ConcurrentOpenHashMap<K, V> {
         }
 
         V put(K key, V value, int keyHash, boolean onlyIfAbsent, Function<K, V> valueProvider) {
+            if (value == null) {
+                requireNonNull(valueProvider.apply(key));
+            }
             long stamp = writeLock();
             int bucket = signSafeMod(keyHash, capacity);
 

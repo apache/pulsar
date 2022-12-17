@@ -464,6 +464,37 @@ public class ConcurrentOpenHashMapTest {
     }
 
     @Test
+    public void testPutWhenNull() {
+        ConcurrentOpenHashMap<Integer, Integer> map = ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
+        try {
+            map.put(0, null);
+            fail("should have thrown exception");
+        } catch (NullPointerException e) {
+            // ok
+        }
+    }
+
+    @Test
+    public void testComputeIfAbsentWhenNull() {
+        ConcurrentOpenHashMap<Integer, Integer> map = ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .build();
+
+        Function<Integer, Integer>  nullProvider = key -> null;
+        try {
+            map.computeIfAbsent(0, nullProvider);
+            fail("should have thrown exception");
+        } catch (NullPointerException e) {
+            // ok
+        }
+    }
+
+    @Test
     public void testEqualsKeys() {
         class T {
             int value;

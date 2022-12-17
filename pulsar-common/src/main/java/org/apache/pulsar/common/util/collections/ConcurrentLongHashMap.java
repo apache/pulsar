@@ -361,6 +361,9 @@ public class ConcurrentLongHashMap<V> {
         }
 
         V put(long key, V value, int keyHash, boolean onlyIfAbsent, LongFunction<V> valueProvider) {
+            if (value == null) {
+                requireNonNull(valueProvider.apply(key));
+            }
             int bucket = keyHash;
 
             long stamp = writeLock();
