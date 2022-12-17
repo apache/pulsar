@@ -53,12 +53,12 @@ public class CmdGenerateDocumentation {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();

@@ -132,7 +132,7 @@ public class ProxyServiceStarter {
                 }
             } catch (Exception e) {
                 jcommander.usage();
-                System.exit(-1);
+                System.exit(1);
             }
 
             // load config file

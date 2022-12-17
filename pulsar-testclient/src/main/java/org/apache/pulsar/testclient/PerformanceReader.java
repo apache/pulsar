@@ -114,12 +114,12 @@ public class PerformanceReader {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         for (String arg : arguments.topic) {
@@ -127,7 +127,7 @@ public class PerformanceReader {
                 System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
                         + "please use a fully qualified topic name\n", arg, arg);
                 jc.usage();
-                PerfClientUtils.exit(-1);
+                PerfClientUtils.exit(1);
             }
         }
 
@@ -143,7 +143,7 @@ public class PerformanceReader {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topics");
                 jc.usage();
-                PerfClientUtils.exit(-1);
+                PerfClientUtils.exit(1);
             }
         }
         arguments.fillArgumentsFromProperties();
