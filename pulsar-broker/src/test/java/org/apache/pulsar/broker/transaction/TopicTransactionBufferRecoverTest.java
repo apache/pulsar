@@ -20,9 +20,12 @@ package org.apache.pulsar.broker.transaction;
 
 import static org.apache.pulsar.common.events.EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -33,9 +36,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -91,6 +96,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.getProperties().setProperty("brokerClient_operationTimeoutMs", Integer.valueOf(10 * 1000).toString());
         setUpBase(1, NUM_PARTITIONS, RECOVER_COMMIT, 0);
         admin.topics().createNonPartitionedTopic(RECOVER_ABORT);
         admin.topics().createNonPartitionedTopic(TAKE_SNAPSHOT);
@@ -225,6 +231,81 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         consumer.close();
         producer.close();
 
+    }
+
+    private void makeTBSnapshotReaderTimeoutIfFirstRead(TopicName topicName) throws Exception {
+        SystemTopicClient.Reader mockReader = mock(SystemTopicClient.Reader.class);
+        AtomicBoolean isFirstCallOfMethodHasMoreEvents = new AtomicBoolean();
+        AtomicBoolean isFirstCallOfMethodHasReadNext = new AtomicBoolean();
+        AtomicBoolean isFirstCallOfMethodHasReadNextAsync = new AtomicBoolean();
+
+        doAnswer(invocation -> {
+            if (isFirstCallOfMethodHasMoreEvents.compareAndSet(false,true)){
+                return true;
+            } else {
+                return false;
+            }
+        }).when(mockReader).hasMoreEvents();
+
+        doAnswer(invocation -> {
+            if (isFirstCallOfMethodHasReadNext.compareAndSet(false, true)){
+                // Just stuck the thread.
+                Thread.sleep(3600 * 1000);
+            }
+            return null;
+        }).when(mockReader).readNext();
+
+        doAnswer(invocation -> {
+            CompletableFuture<Message> future = new CompletableFuture<>();
+            new Thread(() -> {
+                if (isFirstCallOfMethodHasReadNextAsync.compareAndSet(false, true)){
+                    // Just stuck the thread.
+                    try {
+                        Thread.sleep(3600 * 1000);
+                    } catch (InterruptedException e) {
+                    }
+                    future.complete(null);
+                } else {
+                    future.complete(null);
+                }
+            }).start();
+            return future;
+        }).when(mockReader).readNextAsync();
+
+        when(mockReader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+
+        for (PulsarService pulsarService : pulsarServiceList){
+            // Init prop: lastMessageIdInBroker.
+            final TransactionBufferSnapshotService tbSnapshotService =
+                    pulsarService.getTransactionBufferSnapshotService();
+            TransactionBufferSnapshotService spyTbSnapshotService = spy(tbSnapshotService);
+            doAnswer(invocation -> CompletableFuture.completedFuture(mockReader))
+                    .when(spyTbSnapshotService).createReader(topicName);
+            Field field =
+                    PulsarService.class.getDeclaredField("transactionBufferSnapshotService");
+            field.setAccessible(true);
+            field.set(pulsarService, spyTbSnapshotService);
+        }
+    }
+
+    @Test(timeOut = 60 * 1000)
+    public void testTBRecoverCanRetryIfTimeoutRead() throws Exception {
+        String topicName = String.format("persistent://%s/%s", NAMESPACE1,
+                "tx_recover_" + UUID.randomUUID().toString().replaceAll("-", "_"));
+
+        // Make race condition of "getLastMessageId" and "compaction" to make recover can't complete.
+        makeTBSnapshotReaderTimeoutIfFirstRead(TopicName.get(topicName));
+        // Verify( Cmd-PRODUCER will wait for TB recover finished )
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .batchingMaxMessages(2)
+                .create();
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topicName, false);
     }
 
     @Test
