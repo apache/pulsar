@@ -23,6 +23,8 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -76,7 +78,7 @@ public class PrometheusMetricsGeneratorUtils {
                 if (!sample.labelNames.contains("cluster")) {
                     stream.write("cluster=\"").write(cluster).write('"');
                     // If label is empty, should not append ','.
-                    if (!CollectionUtils.isEmpty(sample.labelNames)){
+                    if (!CollectionUtils.isEmpty(sample.labelNames)) {
                         stream.write(",");
                     }
                 }
@@ -101,11 +103,19 @@ public class PrometheusMetricsGeneratorUtils {
         }
     }
 
+    public static final String THREAD_BLOCK_COUNTS = "thread_blocked_count";
+    public static final String THREAD_BLOCK_TIME_MS = "thread_blocked_time_ms";
+    public static final String THREAD_WAIT_COUNTS = "thread_waited_counts";
+    public static final String THREAD_WAIT_TIME_MS = "thread_waited_time_ms";
+
     public static List<Metrics> generateThreadPoolMonitorMetrics(String cluster) {
         List<Metrics> metrics = new ArrayList<>();
 
-        Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
-        Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME);
+        Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP.size());
+        threadStat.putAll(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+
+        Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME.size());
+        threadIdMapping.putAll(ThreadMonitor.THREAD_ID_TO_NAME);
 
         threadStat.forEach((tid, lastActiveTimestamp) -> {
             Map<String, String> dimensionMap = new HashMap<>();
@@ -132,6 +142,28 @@ public class PrometheusMetricsGeneratorUtils {
                 ThreadPoolMonitor.submittedThreadPool());
 
         metrics.add(m);
+
+        ThreadMXBean threadMXBean = ThreadPoolMonitor.THREAD_MX_BEAN;
+        if (threadMXBean.isThreadContentionMonitoringSupported()) {
+            long[] allThreadIds = threadMXBean.getAllThreadIds();
+            ThreadInfo[] threadInfo = threadMXBean.getThreadInfo(allThreadIds, 0);
+            for (ThreadInfo info : threadInfo) {
+                if (info != null) {
+                    Map<String, String> dimensions = new HashMap<>();
+                    dimensions.put("cluster", cluster);
+                    dimensions.put("threadName", info.getThreadName());
+                    dimensions.put("tid", String.valueOf(info.getThreadId()));
+
+                    Metrics threadMetric = Metrics.create(dimensions);
+                    threadMetric.put(THREAD_BLOCK_COUNTS, info.getBlockedCount());
+                    threadMetric.put(THREAD_BLOCK_TIME_MS, info.getBlockedTime());
+                    threadMetric.put(THREAD_WAIT_COUNTS, info.getWaitedCount());
+                    threadMetric.put(THREAD_WAIT_TIME_MS, info.getWaitedTime());
+
+                    metrics.add(threadMetric);
+                }
+            }
+        }
 
         return metrics;
     }

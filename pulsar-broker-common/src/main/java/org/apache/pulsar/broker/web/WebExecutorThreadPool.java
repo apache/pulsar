@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.web;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-import io.netty.util.concurrent.FastThreadLocalThread;
+
+import java.lang.reflect.Field;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ThreadMonitor;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
@@ -48,22 +50,25 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
             protected void afterExecute(Runnable r, Throwable t) {
                 ThreadMonitor.refreshThreadState(Thread.currentThread());
             }
-        }, Math.min(8, maxThreads));
+        }, -1);
 
-        this.threadFactory = new DefaultThreadFactory(namePrefix) {
-            @Override
-            protected Thread newThread(Runnable r, String name) {
-                return new FastThreadLocalThread(threadGroup, r, name) {
-                    @Override
-                    public void run() {
-                        super.run();
+        this.threadFactory = new ExecutorProvider.ExtendedThreadFactory(namePrefix);
+        tryMonitorThreadExecutor(maxThreads);
+    }
 
-                        // execute when thread exit.
-                        ThreadMonitor.remove(Thread.currentThread());
-                    }
-                };
-            }
-        };
+    private void tryMonitorThreadExecutor(int threadNumber) {
+        ThreadPoolExecutor executor;
+        try {
+            Field executorField = this.getClass().getSuperclass().getDeclaredField("_executor");
+            executorField.setAccessible(true);
+            executor = (ThreadPoolExecutor) executorField.get(this);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            executor = null;
+        }
+
+        if (executor != null) {
+            ThreadPoolMonitor.registerMultiThreadExecutor(executor, threadNumber);
+        }
     }
 
     @Override
