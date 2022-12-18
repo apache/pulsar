@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import okhttp3.Call;
 import okhttp3.Callback;
