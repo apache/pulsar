@@ -41,7 +41,8 @@ public class ExceptionHandler {
     public void handle(ServletResponse response, Exception ex) throws IOException {
         if (ex instanceof InterceptException) {
             if (response instanceof org.eclipse.jetty.server.Response) {
-                String errorData = ObjectMapperFactory.getThreadLocal().writeValueAsString(new ErrorData(ex.getMessage()));
+                String errorData = ObjectMapperFactory
+                        .getThreadLocal().writeValueAsString(new ErrorData(ex.getMessage()));
                 byte[] errorBytes = errorData.getBytes(StandardCharsets.UTF_8);
                 int errorCode = ((InterceptException) ex).getErrorCode();
                 HttpFields httpFields = new HttpFields();
