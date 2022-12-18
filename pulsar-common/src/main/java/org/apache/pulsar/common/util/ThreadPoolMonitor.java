@@ -354,7 +354,7 @@ public class ThreadPoolMonitor {
 
                 int number = taskNumber.getAsInt();
                 for (int i = 0; i < number; i++) {
-                    service.submit(ThreadMonitor::ping);
+                    service.execute(ThreadMonitor.ping());
                 }
 
             }, CHECK_INTERVAL_MS.get(), CHECK_INTERVAL_MS.get(), TimeUnit.MILLISECONDS);
