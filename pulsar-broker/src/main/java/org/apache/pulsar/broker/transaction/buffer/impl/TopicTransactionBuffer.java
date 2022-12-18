@@ -651,7 +651,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     }
                                 }
                                 if (!hasSnapshot) {
-                                    closeReader(reader);
                                     callBack.noNeedToRecover();
                                     return;
                                 }
@@ -667,10 +666,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}] Transaction buffer recover fail when read "
                                         + "transactionBufferSnapshot!", topic.getName(), ex);
                                 callBack.recoverExceptionally(ex);
-                                closeReader(reader);
                                 return;
+                            } finally {
+                                closeReader(reader);
                             }
-                            closeReader(reader);
 
                             ManagedCursor managedCursor;
                             try {
