@@ -161,7 +161,7 @@ If you run functions worker embedded in a broker on Kubernetes, you can use the 
 
 ### Run standalone functions worker on Kubernetes
 
-If you run functions worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarSerivceUrl` to be the URL of the broker and `pulsarAdminUrl` as the URL to the functions worker.
+If you run functions worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarServiceUrl` to be the URL of the broker and `pulsarAdminUrl` as the URL to the functions worker.
 
 For example, both Pulsar brokers and Function Workers run in the `pulsar` K8S namespace. The brokers have a service called `brokers` and the functions worker has a service called `func-worker`. The settings are as follows:
 
