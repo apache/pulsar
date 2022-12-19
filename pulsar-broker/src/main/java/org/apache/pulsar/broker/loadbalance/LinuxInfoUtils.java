@@ -37,6 +37,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BitRateUnit;
+import oshi.SystemInfo;
+import oshi.hardware.NetworkIF;
 
 @Slf4j
 public class LinuxInfoUtils {
@@ -55,6 +57,7 @@ public class LinuxInfoUtils {
 
     /**
      * Determine whether the OS is the linux kernel.
+     *
      * @return Whether the OS is the linux kernel
      */
     public static boolean isLinux() {
@@ -75,6 +78,7 @@ public class LinuxInfoUtils {
 
     /**
      * Get total cpu limit.
+     *
      * @param isCGroupsEnabled Whether CGroup is enabled
      * @return Total cpu limit
      */
@@ -97,6 +101,7 @@ public class LinuxInfoUtils {
 
     /**
      * Get CGroup cpu usage.
+     *
      * @return Cpu usage
      */
     public static double getCpuUsageForCGroup() {
@@ -145,6 +150,7 @@ public class LinuxInfoUtils {
 
     /**
      * Determine whether the VM has physical nic.
+     *
      * @param nicPath Nic path
      * @return whether The VM has physical nic.
      */
@@ -166,6 +172,7 @@ public class LinuxInfoUtils {
 
     /**
      * Determine whether nic is usable.
+     *
      * @param nicPath Nic path
      * @return whether nic is usable.
      */
@@ -190,7 +197,8 @@ public class LinuxInfoUtils {
 
     /**
      * Get all physical nic limit.
-     * @param nics All nic path
+     *
+     * @param nics        All nic path
      * @param bitRateUnit Bit rate unit
      * @return Total nic limit
      */
@@ -207,8 +215,9 @@ public class LinuxInfoUtils {
 
     /**
      * Get all physical nic usage.
-     * @param nics All nic path
-     * @param type Nic's usage type:  transport, receive
+     *
+     * @param nics        All nic path
+     * @param type        Nic's usage type:  transport, receive
      * @param bitRateUnit Bit rate unit
      * @return Total nic usage
      */
@@ -225,6 +234,7 @@ public class LinuxInfoUtils {
 
     /**
      * Get paths of all usable physical nic.
+     *
      * @return All usable physical nic paths.
      */
     public static List<String> getUsablePhysicalNICs() {
@@ -241,6 +251,7 @@ public class LinuxInfoUtils {
 
     /**
      * Check this VM has nic speed.
+     *
      * @return Whether the VM has nic speed
      */
     public static boolean checkHasNicSpeeds() {

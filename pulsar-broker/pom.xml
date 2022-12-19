@@ -426,6 +426,11 @@
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.github.oshi</groupId>
+      <artifactId>oshi-core-java11</artifactId>
+      <version>6.4.0</version>
+    </dependency>
   </dependencies>
 
   <build>

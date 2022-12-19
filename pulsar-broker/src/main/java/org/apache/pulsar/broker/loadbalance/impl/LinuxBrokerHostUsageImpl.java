@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BitRateUnit;
 import org.apache.pulsar.broker.PulsarService;
@@ -41,6 +42,9 @@ import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import oshi.SystemInfo;
+import oshi.hardware.HardwareAbstractionLayer;
+import oshi.hardware.NetworkIF;
 
 
 /**
@@ -60,9 +64,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
-            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
-            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
-            pulsar.getLoadManagerExecutor()
+                pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
+                pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+                pulsar.getLoadManagerExecutor()
         );
     }
 
@@ -88,10 +92,16 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = getUsablePhysicalNICs();
-        double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
-        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
-        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);
+        HardwareAbstractionLayer hardware = new SystemInfo().getHardware();
+        List<NetworkIF> physicalNics = hardware.getNetworkIFs().stream()
+                .filter(ifs -> !ifs.queryNetworkInterface().isVirtual())
+                .filter(ifs -> ifs.getIfOperStatus() == NetworkIF.IfOperStatus.UP ||
+                        ifs.getIfOperStatus() == NetworkIF.IfOperStatus.UNKNOWN ||
+                        ifs.getIfOperStatus() == NetworkIF.IfOperStatus.DORMANT)
+                .collect(Collectors.toList());
+        long totalNicLimit = physicalNics.stream().mapToLong(NetworkIF::getSpeed).sum();
+        long totalNicUsageTx = physicalNics.stream().mapToLong(NetworkIF::getBytesSent).sum();
+        long totalNicUsageRx = physicalNics.stream().mapToLong(NetworkIF::getBytesRecv).sum();
         double totalCpuLimit = getTotalCpuLimit(isCGroupsEnabled);
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
@@ -153,7 +163,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      *     cpu  user   nice system idle    iowait irq softirq steal guest guest_nice
      *     cpu  317808 128  58637  2503692 7634   0   13472   0     0     0
      * </pre>
-     *
+     * <p>
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
      * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
      */
