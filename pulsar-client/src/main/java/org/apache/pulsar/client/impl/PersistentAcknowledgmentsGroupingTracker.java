@@ -666,13 +666,13 @@ class LastCumulativeAck {
         if (this.messageId instanceof BatchMessageIdImpl && (!(messageId instanceof BatchMessageIdImpl))) {
             final BatchMessageIdImpl lhs = (BatchMessageIdImpl) this.messageId;
             final MessageIdImpl rhs = (MessageIdImpl) messageId;
-            return MessageIdImpl.messageIdCompare(
+            return BatchMessageIdImpl.messageIdCompare(
                     lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), lhs.getBatchIndex(),
                     rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), Integer.MAX_VALUE);
         } else if (messageId instanceof BatchMessageIdImpl && (!(this.messageId instanceof BatchMessageIdImpl))){
             final MessageIdImpl lhs = this.messageId;
             final BatchMessageIdImpl rhs = (BatchMessageIdImpl) messageId;
-            return MessageIdImpl.messageIdCompare(
+            return BatchMessageIdImpl.messageIdCompare(
                     lhs.getLedgerId(), lhs.getEntryId(), lhs.getPartitionIndex(), Integer.MAX_VALUE,
                     rhs.getLedgerId(), rhs.getEntryId(), rhs.getPartitionIndex(), rhs.getBatchIndex());
         } else {
