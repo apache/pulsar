@@ -31,8 +31,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -685,6 +683,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .topic("persistent://my-property/use/my-ns/" + topicName)
                 .subscriptionName(sub2)
                 .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
                 .subscribe();
         // Produce messages
         final int moreMessages = 10;
