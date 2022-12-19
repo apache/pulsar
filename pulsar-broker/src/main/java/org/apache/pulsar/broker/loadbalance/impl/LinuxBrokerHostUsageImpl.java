@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForCGroup;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForEntireHost;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalCpuLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicLimit;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicUsage;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getUsablePhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.isCGroupEnabled;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
@@ -163,7 +160,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      *     cpu  user   nice system idle    iowait irq softirq steal guest guest_nice
      *     cpu  317808 128  58637  2503692 7634   0   13472   0     0     0
      * </pre>
-     * <p>
+     *
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
      * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
      */
