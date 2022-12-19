@@ -938,23 +938,18 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public void completeHandleFuture() {
-        synchronized (this.pendingAckHandleCompletableFuture) {
-            if (!this.pendingAckHandleCompletableFuture.isDone()) {
-                this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
-            }
-            if (recoverTime.getRecoverStartTime() != 0L) {
-                recoverTime.setRecoverEndTime(System.currentTimeMillis());
-            }
+        if (!this.pendingAckHandleCompletableFuture.isDone()) {
+            this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
         }
-
+        if (recoverTime.getRecoverStartTime() != 0L) {
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
+        }
     }
 
     public void exceptionHandleFuture(Throwable t) {
-        synchronized (this.pendingAckHandleCompletableFuture) {
-            if (!this.pendingAckHandleCompletableFuture.isDone()) {
-                this.pendingAckHandleCompletableFuture.completeExceptionally(t);
-                recoverTime.setRecoverEndTime(System.currentTimeMillis());
-            }
+        if (!this.pendingAckHandleCompletableFuture.isDone()) {
+            this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
 
