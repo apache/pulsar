@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSna
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
@@ -59,6 +61,7 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -601,6 +604,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             this.takeSnapshotWriter = takeSnapshotWriter;
         }
 
+        private long getSystemClientOperationTimeoutMs() throws Exception {
+            PulsarClientImpl pulsarClient = (PulsarClientImpl) topic.getBrokerService().getPulsar().getClient();
+            return pulsarClient.getConfiguration().getOperationTimeoutMs();
+        }
+
         @SneakyThrows
         @Override
         public void run() {
@@ -615,7 +623,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             try {
                                 boolean hasSnapshot = false;
                                 while (reader.hasMoreEvents()) {
-                                    Message<TransactionBufferSnapshot> message = reader.readNext();
+                                    Message<TransactionBufferSnapshot> message = reader.readNextAsync()
+                                            .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                                     if (topic.getName().equals(message.getKey())) {
                                         TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                         if (transactionBufferSnapshot != null) {
@@ -628,18 +637,25 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     }
                                 }
                                 if (!hasSnapshot) {
-                                    closeReader(reader);
                                     callBack.noNeedToRecover();
                                     return;
                                 }
+                            } catch (TimeoutException ex) {
+                                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                String errorMessage = String.format("[%s] Transaction buffer recover fail by read "
+                                        + "transactionBufferSnapshot timeout!", topic.getName());
+                                log.error(errorMessage, t);
+                                callBack.recoverExceptionally(
+                                        new BrokerServiceException.ServiceUnitNotReadyException(errorMessage, t));
+                                return;
                             } catch (Exception ex) {
                                 log.error("[{}] Transaction buffer recover fail when read "
                                         + "transactionBufferSnapshot!", topic.getName(), ex);
                                 callBack.recoverExceptionally(ex);
-                                closeReader(reader);
                                 return;
+                            } finally {
+                                closeReader(reader);
                             }
-                            closeReader(reader);
 
                             ManagedCursor managedCursor;
                             try {
