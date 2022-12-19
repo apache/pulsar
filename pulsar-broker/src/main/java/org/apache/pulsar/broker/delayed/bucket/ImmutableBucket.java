@@ -63,11 +63,12 @@ class ImmutableBucket extends Bucket {
 
         return snapshotCreateFuture.thenCompose(__ -> {
             final long bucketId = getAndUpdateBucketId();
-            CompletableFuture<Integer> loadMetaDataFuture = new CompletableFuture<>();
+            final CompletableFuture<Integer> loadMetaDataFuture;
             if (isRecover) {
                 final long cutoffTime = cutoffTimeSupplier.get();
                 // Load Metadata of bucket snapshot
-                bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId).thenAccept(snapshotMetadata -> {
+                loadMetaDataFuture = bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
+                        .thenApply(snapshotMetadata -> {
                     List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata> metadataList =
                             snapshotMetadata.getMetadataListList();
 
@@ -81,14 +82,10 @@ class ImmutableBucket extends Bucket {
                     this.setLastSegmentEntryId(metadataList.size());
                     this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
 
-                    int nextSegmentEntryId = nextSnapshotEntryIndex + 1;
-                    loadMetaDataFuture.complete(nextSegmentEntryId);
-                }).exceptionally(ex -> {
-                    loadMetaDataFuture.completeExceptionally(ex);
-                    return null;
+                    return nextSnapshotEntryIndex + 1;
                 });
             } else {
-                loadMetaDataFuture.complete(currentSegmentEntryId + 1);
+                loadMetaDataFuture = CompletableFuture.completedFuture(currentSegmentEntryId + 1);
             }
 
             return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
