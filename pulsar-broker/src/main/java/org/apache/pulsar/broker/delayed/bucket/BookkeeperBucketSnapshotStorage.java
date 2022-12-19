@@ -95,7 +95,6 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public void start() throws Exception {
-        pulsar.getBookKeeperClient();
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
                 pulsar.getConfiguration(),
                 pulsar.getLocalMetadataStore(),
@@ -204,7 +203,12 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     }
                 }, null
         );
-        return future;
+
+        return future.whenComplete((__, ex) -> {
+            if (ex != null) {
+                deleteLedger(ledgerHandle.getId());
+            }
+        });
     }
 
     CompletableFuture<Enumeration<LedgerEntry>> getLedgerEntryThenCloseLedger(LedgerHandle ledger,
