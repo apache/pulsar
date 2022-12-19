@@ -24,6 +24,8 @@ Master Issue: #xyz
 
 PIP: #xyz 
 
+<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/wiki/proposals/PIP.md -->
+
 ### Motivation
 
 <!-- Explain here the context, and why you're making that change. What is the problem you're trying to solve. -->
@@ -68,8 +70,6 @@ This change added tests and can be verified as follows:
 - [ ] The admin CLI options
 - [ ] The metrics
 - [ ] Anything that affects deployment
-
-<!-- NOTE: A PIP is required if the PR will change any parts of the above. See https://github.com/apache/pulsar/blob/master/wiki/proposals/PIP.md -->
 
 ### Documentation
 
