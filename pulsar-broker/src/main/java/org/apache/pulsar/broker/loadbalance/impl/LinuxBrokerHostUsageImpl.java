@@ -61,9 +61,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
-                pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
-                pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
-                pulsar.getLoadManagerExecutor()
+            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
+            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+            pulsar.getLoadManagerExecutor()
         );
     }
 
