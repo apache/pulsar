@@ -22,8 +22,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -87,6 +89,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
@@ -94,7 +97,9 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
@@ -137,8 +142,11 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
@@ -794,6 +802,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             brokerService.start();
 
+            if (this.loadManager.get() instanceof ExtensibleLoadManagerWrapper) {
+                // Init system namespace for extensible load manager
+                this.createNamespaceIfNotExists(this.getConfiguration().getClusterName(),
+                        SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
+            }
+
             // Load additional servlets
             this.brokerAdditionalServlets = AdditionalServlets.load(config);
 
@@ -824,6 +838,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .build();
                 this.webSocketService.setLocalCluster(clusterData);
             }
+
+            // By starting the Load manager service, the broker will also become visible
+            // to the rest of the broker by creating the registration z-node. This needs
+            // to be done only when the broker is fully operative.
+            this.startLoadManagementService();
 
             // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
             this.nsService.initialize();
@@ -865,11 +884,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
-
-            // By starting the Load manager service, the broker will also become visible
-            // to the rest of the broker by creating the registration z-node. This needs
-            // to be done only when the broker is fully operative.
-            this.startLoadManagementService();
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,
@@ -922,6 +936,36 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    protected void createNamespaceIfNotExists(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+        ClusterResources cr = this.getPulsarResources().getClusterResources();
+        TenantResources tr = this.getPulsarResources().getTenantResources();
+        NamespaceResources nsr = this.getPulsarResources().getNamespaceResources();
+
+        if (!cr.clusterExists(cluster)) {
+            cr.createCluster(cluster,
+                    ClusterData.builder()
+                            .serviceUrl(this.getWebServiceAddress())
+                            .serviceUrlTls(this.getWebServiceAddressTls())
+                            .brokerServiceUrl(this.getBrokerServiceUrl())
+                            .brokerServiceUrlTls(this.getBrokerServiceUrlTls())
+                            .build());
+        }
+
+        if (!tr.tenantExists(publicTenant)) {
+            tr.createTenant(publicTenant,
+                    TenantInfo.builder()
+                            .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
+                            .allowedClusters(Sets.newHashSet(cluster))
+                            .build());
+        }
+
+        if (!nsr.namespaceExists(ns)) {
+            Policies nsp = new Policies();
+            nsp.replication_clusters = Collections.singleton(config.getClusterName());
+            nsr.createPolicies(ns, nsp);
         }
     }
 
@@ -1085,6 +1129,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     protected void startLeaderElectionService() {
+        if (this.loadManager.get() instanceof ExtensibleLoadManagerWrapper) {
+            return;
+        }
         this.leaderElectionService = new LeaderElectionService(coordinationService, getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {

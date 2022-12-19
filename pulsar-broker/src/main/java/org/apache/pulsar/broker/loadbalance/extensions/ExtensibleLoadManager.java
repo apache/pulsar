@@ -65,6 +65,15 @@ public interface ExtensibleLoadManager extends Closeable {
     CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic, ServiceUnitId serviceUnit);
 
     /**
+     * Check the incoming service unit is owned by the current broker.
+     *
+     * @param topic The optional topic, some method won't provide topic var in this param.
+     * @param serviceUnit The service unit (e.g. bundle).
+     * @return The broker lookup data.
+     */
+    CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId serviceUnit);
+
+    /**
      * Close the load manager.
      *
      * @throws PulsarServerException if it fails to stop the load manager.

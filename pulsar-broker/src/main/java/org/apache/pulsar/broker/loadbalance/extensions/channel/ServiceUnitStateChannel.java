@@ -118,7 +118,7 @@ public interface ServiceUnitStateChannel extends Closeable {
      *                 the future object will time out.
      * Case 3: If none of them, it returns null.
      */
-    CompletableFuture<String> getOwnerAsync(String serviceUnit);
+    CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
      * Asynchronously publishes the service unit assignment event to the system topic in this channel.
@@ -132,7 +132,7 @@ public interface ServiceUnitStateChannel extends Closeable {
      * case 2: If the assigned broker does not take the ownership in time,
      *         the future object will time out.
      */
-    CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker);
+    CompletableFuture<Optional<String>> publishAssignEventAsync(String serviceUnit, String broker);
 
     /**
      * Asynchronously publishes the service unit unload event to the system topic in this channel.
