@@ -20,36 +20,51 @@ package org.apache.pulsar.common.util;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
 public class ThreadMonitor {
-    public static final ConcurrentMap<Long, Long> THREAD_LAST_ACTIVE_TIMESTAMP =
-            new ConcurrentHashMap<>(Runtime.getRuntime().availableProcessors(),
-                    0.75f, 1024);
+    @Data
+    @AllArgsConstructor
+    public static class ThreadMonitorState {
+        private volatile long lastActiveTimestamp;
+        private volatile boolean runningTask;
+        private String name;
+    }
 
-    public static final ConcurrentMap<Long, String> THREAD_ID_TO_NAME =
-            new ConcurrentHashMap<>(Runtime.getRuntime().availableProcessors(),
-                    0.75f, 1024);
+    public static final ConcurrentMap<Long, ThreadMonitorState> THREAD_ID_TO_STATE =
+            new ConcurrentHashMap<>(1024, 0.75f, 1024);
 
     public static final String THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME = "pulsar_thread_last_active_timestamp_ms";
 
     public static class Ping implements Runnable {
         @Override
         public void run() {
-            refreshThreadState(Thread.currentThread());
+            refreshThreadState(Thread.currentThread(), true);
         }
     }
 
-    public static void refreshThreadState(Thread t) {
+    public static void refreshThreadState(Thread t, boolean runningTask) {
+        if (!ThreadPoolMonitor.isEnabled()) {
+            return;
+        }
+
         long id = t.getId();
-        String name = t.getName();
-        THREAD_ID_TO_NAME.put(id, name);
-        THREAD_LAST_ACTIVE_TIMESTAMP.put(id, System.currentTimeMillis());
+
+        ThreadMonitorState threadMonitorState = THREAD_ID_TO_STATE.get(id);
+        if (threadMonitorState != null) {
+            threadMonitorState.lastActiveTimestamp = System.currentTimeMillis();
+            threadMonitorState.runningTask = runningTask;
+            return;
+        }
+
+        THREAD_ID_TO_STATE.putIfAbsent(id,
+                new ThreadMonitorState(System.currentTimeMillis(), runningTask, t.getName()));
     }
 
     public static void remove(Thread t) {
         long id = t.getId();
-        THREAD_LAST_ACTIVE_TIMESTAMP.remove(id);
-        THREAD_ID_TO_NAME.remove(id);
+        THREAD_ID_TO_STATE.remove(id);
     }
 
     public static Runnable ping() {

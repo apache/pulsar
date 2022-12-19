@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -38,6 +39,24 @@ public class ScheduledExecutorProvider extends ExecutorProvider {
     public static ScheduledExecutorService newSingleThreadScheduledExecutor(ExtendedThreadFactory threadFactory) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(threadFactory);
         ThreadPoolMonitor.registerSingleThreadExecutor(scheduler);
+        return scheduler;
+    }
+
+    public static ScheduledExecutorService newScheduledThreadPool(int numThreads,
+                                                                  ExtendedThreadFactory threadFactory) {
+        ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(numThreads, threadFactory) {
+            @Override
+            protected void beforeExecute(Thread t, Runnable r) {
+                ThreadMonitor.refreshThreadState(t, true);
+            }
+
+            @Override
+            protected void afterExecute(Runnable r, Throwable t) {
+                ThreadMonitor.refreshThreadState(Thread.currentThread(), false);
+            }
+        };
+        ThreadPoolMonitor.registerMultiThreadExecutor(scheduler, numThreads);
+
         return scheduler;
     }
 }

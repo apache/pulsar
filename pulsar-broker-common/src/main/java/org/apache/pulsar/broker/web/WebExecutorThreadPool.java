@@ -43,12 +43,12 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
                 new BlockingArrayQueue<>(queueCapacity, queueCapacity)) {
             @Override
             protected void beforeExecute(Thread t, Runnable r) {
-                ThreadMonitor.refreshThreadState(t);
+                ThreadMonitor.refreshThreadState(t, true);
             }
 
             @Override
             protected void afterExecute(Runnable r, Throwable t) {
-                ThreadMonitor.refreshThreadState(Thread.currentThread());
+                ThreadMonitor.refreshThreadState(Thread.currentThread(), false);
             }
         }, -1);
 

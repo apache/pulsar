@@ -202,8 +202,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
 
-    private final OrderedScheduler executor;
-    private final OrderedScheduler cacheExecutor;
+    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService cacheExecutor;
 
     private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
@@ -320,12 +320,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
 
-        this.executor = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(config.getNumExecutorThreadPoolSize())
-                .name("pulsar").build();
-        this.cacheExecutor = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(config.getNumCacheExecutorThreadPoolSize())
-                .name("zk-cache-callback").build();
+        this.executor = ScheduledExecutorProvider.newScheduledThreadPool(
+                config.getNumExecutorThreadPoolSize(),
+                new ExecutorProvider.ExtendedThreadFactory("pulsar"));
+        this.cacheExecutor = ScheduledExecutorProvider.newScheduledThreadPool(
+                config.getNumCacheExecutorThreadPoolSize(),
+                new ExecutorProvider.ExtendedThreadFactory("zk-cache-callback"));
+
 
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
@@ -353,13 +354,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
-
-        registerThreadMonitors();
-    }
-
-    private void registerThreadMonitors() {
-        ThreadPoolMonitorHelper.registerOrderedExecutor(executor, config.getNumExecutorThreadPoolSize());
-        ThreadPoolMonitorHelper.registerOrderedExecutor(cacheExecutor, config.getNumCacheExecutorThreadPoolSize());
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)

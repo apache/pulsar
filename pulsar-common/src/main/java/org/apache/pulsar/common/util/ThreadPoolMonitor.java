@@ -257,19 +257,18 @@ public class ThreadPoolMonitor {
 
     private static void cleanExitThread() {
         // skip check if all thread empty
-        if (ThreadMonitor.THREAD_ID_TO_NAME.isEmpty()) {
+        if (ThreadMonitor.THREAD_ID_TO_STATE.isEmpty()) {
             return;
         }
 
-        Set<Long> monitorThreads = new HashSet<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP.keySet());
+        Set<Long> monitorThreads = new HashSet<>(ThreadMonitor.THREAD_ID_TO_STATE.keySet());
 
         for (long threadId : THREAD_MX_BEAN.getAllThreadIds()) {
             monitorThreads.remove(threadId);
         }
 
         for (long exitThreadId : monitorThreads) {
-            ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP.remove(exitThreadId);
-            ThreadMonitor.THREAD_ID_TO_NAME.remove(exitThreadId);
+            ThreadMonitor.THREAD_ID_TO_STATE.remove(exitThreadId);
         }
     }
 
@@ -277,12 +276,14 @@ public class ThreadPoolMonitor {
         ThreadPoolMonitorConfig config = monitorConfig.get();
         long blockThresholdMs = config.getBlockingThreadThresholdMs();
 
-        Map<Long, Long> threadLastActiveTimestamp = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+        Map<Long, ThreadMonitor.ThreadMonitorState> threadMonitorState =
+                new HashMap<>(ThreadMonitor.THREAD_ID_TO_STATE);
         Map<Long, Long> maybeBlockThread = new HashMap<>();
 
-        threadLastActiveTimestamp.forEach((threadId, timestamp) -> {
-            long timeMs = (System.currentTimeMillis() - timestamp);
-            if (timeMs > blockThresholdMs) {
+        threadMonitorState.forEach((threadId, monitorState) -> {
+            boolean runningTask = monitorState.isRunningTask();
+            long timeMs = (System.currentTimeMillis() - monitorState.getLastActiveTimestamp());
+            if (timeMs > blockThresholdMs && runningTask) {
                 maybeBlockThread.put(threadId, timeMs);
             }
         });
@@ -371,11 +372,15 @@ public class ThreadPoolMonitor {
         try {
             for (ExecutorService service : registered) {
                 int number = multiThreadPool.getOrDefault(service, 1);
-                scheduleMonitorTask(service, () -> number);
-            }
 
-            ForkJoinPool forkJoinPool = ForkJoinPool.commonPool();
-            scheduleMonitorTask(forkJoinPool, () -> ForkJoinPool.commonPool().getParallelism());
+                IntSupplier taskNumber;
+                if (service == ForkJoinPool.commonPool()) {
+                    taskNumber = () -> ForkJoinPool.commonPool().getParallelism();
+                } else {
+                    taskNumber = () -> number;
+                }
+                scheduleMonitorTask(service, taskNumber);
+            }
 
         } catch (Exception e) {
             LOGGER.error("Unexpected throwable caught ", e);
@@ -386,8 +391,7 @@ public class ThreadPoolMonitor {
         submitted.values().forEach((future) -> future.cancel(false));
         submitted.clear();
 
-        ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP.clear();
-        ThreadMonitor.THREAD_ID_TO_NAME.clear();
+        ThreadMonitor.THREAD_ID_TO_STATE.clear();
     }
 
     public static final String THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME =

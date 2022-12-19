@@ -111,19 +111,17 @@ public class PrometheusMetricsGeneratorUtils {
     public static List<Metrics> generateThreadPoolMonitorMetrics(String cluster) {
         List<Metrics> metrics = new ArrayList<>();
 
-        Map<Long, Long> threadStat = new HashMap<>(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP.size());
-        threadStat.putAll(ThreadMonitor.THREAD_LAST_ACTIVE_TIMESTAMP);
+        Map<Long, ThreadMonitor.ThreadMonitorState> threadStat = new HashMap<>(ThreadMonitor.THREAD_ID_TO_STATE.size());
+        threadStat.putAll(ThreadMonitor.THREAD_ID_TO_STATE);
 
-        Map<Long, String> threadIdMapping = new HashMap<>(ThreadMonitor.THREAD_ID_TO_NAME.size());
-        threadIdMapping.putAll(ThreadMonitor.THREAD_ID_TO_NAME);
-
-        threadStat.forEach((tid, lastActiveTimestamp) -> {
+        threadStat.forEach((tid, threadMonitorState) -> {
             Map<String, String> dimensionMap = new HashMap<>();
             dimensionMap.put("cluster", cluster);
-            dimensionMap.put("threadName", threadIdMapping.getOrDefault(tid, "unknown"));
+            dimensionMap.put("threadName", threadMonitorState.getName());
             dimensionMap.put("tid", String.valueOf(tid));
+            dimensionMap.put("runningTask", Boolean.toString(threadMonitorState.isRunningTask()));
             Metrics m = Metrics.create(dimensionMap);
-            m.put(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME, lastActiveTimestamp);
+            m.put(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME, threadMonitorState.getLastActiveTimestamp());
 
             metrics.add(m);
         });
