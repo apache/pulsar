@@ -1029,7 +1029,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
                 subscribe.getSubscriptionPropertiesList());
 
-
         if (log.isDebugEnabled()) {
             log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
                     schema == null ? "absent" : "present");
