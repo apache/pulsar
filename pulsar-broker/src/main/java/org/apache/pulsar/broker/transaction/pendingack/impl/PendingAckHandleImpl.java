@@ -155,13 +155,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
 
         pendingAckStoreProvider.checkInitializedBefore(persistentSubscription)
-                .thenAccept(init -> {
+                .thenAcceptAsync(init -> {
                     if (init) {
                         initPendingAckStore();
                     } else {
                         completeHandleFuture();
                     }
-                })
+                }, internalPinnedExecutor)
                 .exceptionally(e -> {
                     Throwable t = FutureUtil.unwrapCompletionException(e);
                     changeToErrorState();
