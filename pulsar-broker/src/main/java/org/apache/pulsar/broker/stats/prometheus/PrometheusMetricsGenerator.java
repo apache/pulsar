@@ -51,7 +51,8 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
  * in a text format suitable to be consumed by Prometheus.
- * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
+ * Format specification can be found at <a
+ * href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
  */
 public class PrometheusMetricsGenerator {
 
@@ -85,37 +86,42 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, OutputStream out) throws IOException {
+                                boolean includeProducerMetrics, OutputStream out) throws IOException {
         generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, false, out, null);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
-        OutputStream out) throws IOException {
+                                boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
+                                OutputStream out) throws IOException {
         generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                 splitTopicAndPartitionIndexLabel, out, null);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, OutputStream out,
-        List<PrometheusRawMetricsProvider> metricsProviders)
-        throws IOException {
+                                boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
+                                OutputStream out,
+                                List<PrometheusRawMetricsProvider> metricsProviders)
+            throws IOException {
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
+        //Used in namespace/topic and transaction aggregators as share metric names
+        PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, stream);
+                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStreams);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
             }
 
             if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
-                TransactionAggregator.generate(pulsar, stream, includeTopicMetrics);
+                TransactionAggregator.generate(pulsar, metricStreams, includeTopicMetrics);
             }
+
+            metricStreams.flushAllToStream(stream);
 
             generateBrokerBasicMetrics(pulsar, stream);
 
@@ -128,6 +134,8 @@ public class PrometheusMetricsGenerator {
             }
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
+            //release all the metrics buffers
+            metricStreams.releaseAll();
             buf.release();
         }
     }
@@ -141,17 +149,17 @@ public class PrometheusMetricsGenerator {
         if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
             parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                    clusterName, Collector.Type.GAUGE, stream);
         }
 
         if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                    clusterName, Collector.Type.GAUGE, stream);
         }
 
         parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
-                .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
+                        .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics
