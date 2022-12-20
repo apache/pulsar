@@ -24,19 +24,23 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Slf4j
 public class IOConfigUtils {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     public static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, SourceContext sourceContext) {
         return loadWithSecrets(map, clazz, secretName -> sourceContext.getSecret(secretName));
     }
@@ -47,9 +51,7 @@ public class IOConfigUtils {
 
     public static Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
         if (!isBlank(config)) {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(config, new TypeReference<Map<String, Object>>() {
-            });
+            return MAPPER.readValue(config, new TypeReference<>() {});
         } else {
             return Collections.emptyMap();
         }
@@ -59,7 +61,7 @@ public class IOConfigUtils {
                                          Function<String, String> secretsGetter) {
         Map<String, Object> configs = new HashMap<>(map);
 
-        for (Field field : Reflections.getAllFields(clazz)) {
+        for (Field field : getAllFields(clazz)) {
             field.setAccessible(true);
             for (Annotation annotation : field.getAnnotations()) {
                 if (annotation.annotationType().equals(FieldDoc.class)) {
@@ -81,7 +83,7 @@ public class IOConfigUtils {
                             throw new IllegalArgumentException(field.getName() + " cannot be null");
                         }
                         String value = fieldDoc.defaultValue();
-                        if (!StringUtils.isEmpty(value)) {
+                        if (value != null && !value.isEmpty()) {
                             return value;
                         }
                         return null;
@@ -89,6 +91,15 @@ public class IOConfigUtils {
                 }
             }
         }
-        return new ObjectMapper().convertValue(configs, clazz);
+        return MAPPER.convertValue(configs, clazz);
+    }
+
+    private static List<Field> getAllFields(Class<?> type) {
+        List<Field> fields = new LinkedList<>();
+        fields.addAll(Arrays.asList(type.getDeclaredFields()));
+        if (type.getSuperclass() != null) {
+            fields.addAll(getAllFields(type.getSuperclass()));
+        }
+        return fields;
     }
 }
