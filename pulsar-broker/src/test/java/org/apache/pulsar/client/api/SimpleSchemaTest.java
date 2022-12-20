@@ -1233,9 +1233,25 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 .subscriptionName("sub0")
                 .consumerName("autoConsumer2")
                 .subscribe();
+
+        Consumer<GenericRecord> autoConsumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("autoConsumer3")
+                .subscribe();
+
+        Consumer<GenericRecord> autoConsumer4 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("autoConsumer4")
+                .subscribe();
         try {
             log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
             log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
+            log.info("The autoConsumer3 isConnected: " + autoConsumer3.isConnected());
+            log.info("The autoConsumer4 isConnected: " + autoConsumer4.isConnected());
             admin.schemas().getSchemaInfo(topic);
             fail("The schema of topic should not exist");
         } catch (PulsarAdminException e) {
@@ -1254,12 +1270,28 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 .subscriptionName("sub0")
                 .consumerName("consumerWithSchema-2")
                 .subscribe();
+        Consumer<V1Data> consumerWithSchema3 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerWithSchema-3")
+                .subscribe();
+        Consumer<V1Data> consumerWithSchema4 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerWithSchema-4")
+                .subscribe();
         try {
             log.info(admin.schemas().getSchemaInfo(topic).toString());
             log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
             log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
+            log.info("The autoConsumer3 isConnected: " + autoConsumer3.isConnected());
+            log.info("The autoConsumer4 isConnected: " + autoConsumer4.isConnected());
             log.info("The consumerWithSchema-1 isConnected: " + consumerWithSchema1.isConnected());
             log.info("The consumerWithSchema-2 isConnected: " + consumerWithSchema2.isConnected());
+            log.info("The consumerWithSchema-3 isConnected: " + consumerWithSchema3.isConnected());
+            log.info("The consumerWithSchema-4 isConnected: " + consumerWithSchema4.isConnected());
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
         }

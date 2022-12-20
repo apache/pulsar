@@ -56,6 +56,8 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -140,11 +142,13 @@ public class Consumer {
 
     private long negtiveUnackedMsgsTimestamp;
 
+    private SchemaData schemaData;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch, SchemaData schemaData) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -202,6 +206,12 @@ public class Consumer {
         this.consumerEpoch = consumerEpoch;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
+
+        if (schemaData == null) {
+            this.schemaData = SchemaData.builder().type(SchemaType.AUTO_CONSUME).build();
+        } else {
+            this.schemaData = schemaData;
+        }
     }
 
     @VisibleForTesting
@@ -229,6 +239,7 @@ public class Consumer {
         this.clientAddress = null;
         this.startMessageId = null;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
+        this.schemaData = null;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
     }
 
@@ -1084,6 +1095,10 @@ public class Consumer {
 
     public Map<String, String> getMetadata() {
         return metadata;
+    }
+
+    public SchemaData getSchemaData() {
+        return schemaData;
     }
 
     private int getStickyKeyHash(Entry entry) {

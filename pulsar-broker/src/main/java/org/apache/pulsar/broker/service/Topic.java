@@ -44,7 +44,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
@@ -160,14 +159,14 @@ public interface Topic {
                                           InitialPosition initialPosition,
                                           long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
                                           KeySharedMeta keySharedMeta,
-                                          SchemaType schemaType);
+                                          SchemaData schemaData);
 
     /**
      * Subscribe a topic.
      * @param option
      * @return
      */
-    CompletableFuture<Consumer> subscribe(SubscriptionOption option, SchemaType schemaType);
+    CompletableFuture<Consumer> subscribe(SubscriptionOption option, SchemaData schemaData);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState, Map<String, String> properties);
@@ -289,7 +288,7 @@ public interface Topic {
      * add the passed schema to the topic. Otherwise, check that the passed schema is compatible
      * with what the topic already has.
      */
-    CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema, String subscriptionName);
+    CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
 
