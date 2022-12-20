@@ -188,8 +188,6 @@ flexible messaging model and an intuitive client API.</description>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
-    <kafka.confluent.schemaregistryclient.version>${confluent.version}</kafka.confluent.schemaregistryclient.version>
-    <kafka.confluent.avroserializer.version>${confluent.version}</kafka.confluent.avroserializer.version>
     <aircompressor.version>0.20</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <jcommander.version>1.82</jcommander.version>
