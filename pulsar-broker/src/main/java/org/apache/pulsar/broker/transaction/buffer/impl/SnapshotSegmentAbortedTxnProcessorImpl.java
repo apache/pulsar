@@ -22,9 +22,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Timer;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -70,6 +70,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final ConcurrentSkipListMap<PositionImpl, ConcurrentOpenHashSet<TxnID>> segmentMap =
             new ConcurrentSkipListMap<>();
 
+    private final LinkedHashSet<TxnID> aborts = new LinkedHashSet<>();
+
     private final ConcurrentSkipListMap<PositionImpl, TransactionBufferSnapshotIndex> indexes =
             new ConcurrentSkipListMap<>();
     //The latest persistent snapshot index. This is used to combine new segment indexes with the latest metadata and
@@ -101,6 +103,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
+        aborts.add(abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             ConcurrentOpenHashSet<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
@@ -114,18 +117,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
-        if (readPosition == null) {
-            return unsealedAbortedTxnIdSegment.contains(txnID) || segmentMap.values().stream()
-                    .anyMatch(list -> list.contains(txnID));
-        } else {
-            Map.Entry<PositionImpl, ConcurrentOpenHashSet<TxnID>> cellingEntry =
-                    segmentMap.ceilingEntry((PositionImpl) readPosition);
-            if (cellingEntry != null) {
-                return cellingEntry.getValue().contains(txnID);
-            } else {
-                return unsealedAbortedTxnIdSegment.contains(txnID);
-            }
-        }
+        return aborts.contains(txnID);
     }
 
     //In this implementation, we adopt snapshot segments. And then we clear invalid segment by its max read position.
@@ -139,6 +131,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         topic.getName(), segmentMap.firstKey());
             }
             PositionImpl positionNeedToDelete = segmentMap.firstKey();
+            segmentMap.get(positionNeedToDelete).forEach(aborts::remove);
             persistentWorker.appendTask(PersistentWorker.OperationType.DeleteSegment,
                     () -> persistentWorker.deleteSnapshotSegment(positionNeedToDelete));
         }
@@ -320,7 +313,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         segmentMap.put(new PositionImpl(snapshotSegment.getMaxReadPositionLedgerId(),
                 snapshotSegment.getMaxReadPositionEntryId()), convertTypeToTxnID(
                 snapshotSegment.getAborts()));
-
+        convertTypeToTxnID(snapshotSegment.getAborts()).forEach(aborts::add);
     }
 
     private <T> void  closeReader(SystemTopicClient.Reader<T> reader) {
