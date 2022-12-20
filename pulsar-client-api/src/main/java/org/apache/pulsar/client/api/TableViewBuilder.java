@@ -108,4 +108,25 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Set the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt message payloads.
+     *
+     * @param privateKey the private key that is always used to decrypt message payloads.
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> defaultCryptoKeyReader(String privateKey);
+
+    /**
+     * Set the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt message payloads.
+     *
+     * @param privateKeys the map of private key names and their URIs
+     *                    used to decrypt message payloads.
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
 }
