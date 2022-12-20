@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -152,13 +153,22 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
-        pendingAckStoreProvider.checkInitializedBefore(persistentSubscription).thenAccept(init -> {
-            if (init) {
-                initPendingAckStore();
-            } else {
-                completeHandleFuture();
-            }
-        });
+
+        pendingAckStoreProvider.checkInitializedBefore(persistentSubscription)
+                .thenAccept(init -> {
+                    if (init) {
+                        initPendingAckStore();
+                    } else {
+                        completeHandleFuture();
+                    }
+                })
+                .exceptionally(e -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(e);
+                    changeToErrorState();
+                    exceptionHandleFuture(t);
+                    this.pendingAckStoreFuture.completeExceptionally(t);
+                    return null;
+                });
     }
 
     private void initPendingAckStore() {
@@ -169,13 +179,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
-                }).exceptionally(e -> {
-                    acceptQueue.clear();
+                }).exceptionallyAsync(e -> {
+                    handleCacheRequest();
                     changeToErrorState();
                     log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                     exceptionHandleFuture(e.getCause());
                     return null;
-                });
+                }, internalPinnedExecutor);
             }
         }
     }
@@ -931,9 +941,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
         }
-        if (recoverTime.getRecoverStartTime() == 0L) {
-            return;
-        } else {
+        if (recoverTime.getRecoverStartTime() != 0L) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
@@ -967,11 +975,29 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> closeAsync() {
         changeToCloseState();
         synchronized (PendingAckHandleImpl.this) {
             if (this.pendingAckStoreFuture != null) {
-                return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+                CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+                this.pendingAckStoreFuture.whenComplete((pendingAckStore, e) -> {
+                    if (e != null) {
+                        // init pending ack store fail, close don't need to
+                        // retry and throw exception, complete directly
+                        closeFuture.complete(null);
+                    } else {
+                        pendingAckStore.closeAsync().whenComplete((q, ex) -> {
+                            if (ex != null) {
+                                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                closeFuture.completeExceptionally(t);
+                            } else {
+                                closeFuture.complete(null);
+                            }
+                        });
+                    }
+                });
+
+                return closeFuture;
             } else {
                 return CompletableFuture.completedFuture(null);
             }
@@ -1025,6 +1051,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
+    }
+
+    @VisibleForTesting
+    public Map<PositionImpl, MutablePair<PositionImpl, Integer>> getIndividualAckPositions() {
+        return individualAckPositions;
     }
 
     @Override

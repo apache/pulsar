@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import com.google.common.collect.Maps;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -49,16 +49,16 @@ public class NamespaceEphemeralData {
         this.httpUrlTls = httpUrlTls;
         this.disabled = disabled;
         if (advertisedListeners == null) {
-            this.advertisedListeners = Collections.EMPTY_MAP;
+            this.advertisedListeners = Collections.emptyMap();
         } else {
-            this.advertisedListeners = Maps.newHashMap(advertisedListeners);
+            this.advertisedListeners = new HashMap<>(advertisedListeners);
         }
     }
 
     @NotNull
     public Map<String, AdvertisedListener> getAdvertisedListeners() {
         if (this.advertisedListeners == null) {
-            return Collections.EMPTY_MAP;
+            return Collections.emptyMap();
         }
         return Collections.unmodifiableMap(this.advertisedListeners);
     }

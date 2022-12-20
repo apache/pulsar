@@ -5,7 +5,7 @@ sidebar_label: "Authorization and ACLs"
 ---
 
 
-In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is responsible for properly identifying clients and associating the clients with [role tokens](security-overview.md#role-tokens). If you only enable authentication, an authenticated role token can access all resources in the cluster. *Authorization* is the process that determines _what_ clients can do.
+In Pulsar, the [authentication provider](security-overview.md#authentication) is responsible for properly identifying clients and associating the clients with role tokens. If you only enable authentication, an authenticated role token can access all resources in the cluster. *Authorization* is the process that determines _what_ clients can do.
 
 The role tokens with the most privileges are the *superusers*. The *superusers* can create and destroy tenants, along with having full access to all tenant resources.
 
@@ -62,8 +62,8 @@ The following is an example tenant creation command:
 
 ```shell
 bin/pulsar-admin tenants create my-tenant \
---admin-roles my-admin-role \
---allowed-clusters us-west,us-east
+    --admin-roles my-admin-role \
+    --allowed-clusters us-west,us-east
 ```
 
 This command creates a new tenant `my-tenant` that is allowed to use the clusters `us-west` and `us-east`.

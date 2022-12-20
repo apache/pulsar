@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -65,7 +65,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     // ZTSClient.cancelPrefetch() is called.
     // cf. https://github.com/AthenZ/athenz/issues/544
     private boolean autoPrefetchEnabled = false;
-    private long cachedRoleTokenTimestamp;
+    private volatile long cachedRoleTokenTimestamp;
     private String roleToken;
     // athenz will only give this token if it's at least valid for 2hrs
     private static final int minValidity = 2 * 60 * 60;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -190,6 +190,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 406, message = "The number of partitions should be "
                     + "more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist")})
@@ -218,6 +219,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist"),
             @ApiResponse(code = 412,
                     message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
@@ -272,8 +274,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0"
-                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"),
+                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"
+                    + " and number of new partitions must be greater than existing number of partitions"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist")})
     public void updatePartitionedTopic(
             @Suspended final AsyncResponse asyncResponse,
@@ -301,7 +305,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Get partitioned topic metadata.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission") })
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void getPartitionedMetadata(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -328,7 +333,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Partitioned topic does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or partitioned topic does not exist")})
     public void deletePartitionedTopic(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
@@ -348,7 +353,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}/{topic}/unload")
     @ApiOperation(hidden = true, value = "Unload a topic")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist") })
     public void unloadTopic(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
@@ -366,7 +371,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Topic has active producers/subscriptions")})
     public void deleteTopic(
             @Suspended AsyncResponse asyncResponse,
@@ -400,7 +405,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist") })
     public void getSubscriptions(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
@@ -421,7 +426,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void getStats(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -447,7 +452,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void getInternalStats(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -471,7 +476,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("{property}/{cluster}/{namespace}/{topic}/internal-info")
     @ApiOperation(hidden = true, value = "Get the stored topic metadata.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void getManagedLedgerInfo(@PathParam("property") String property, @PathParam("cluster") String cluster,
                                      @PathParam("namespace") String namespace, @PathParam("topic") @Encoded
                                                  String encodedTopic,
@@ -487,7 +492,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void getPartitionedStats(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -511,7 +516,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void getPartitionedStatsInternal(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -537,21 +542,36 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 412, message = "Subscription has active consumers")})
     public void deleteSubscription(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+                                   @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        String subName = decode(encodedSubName);
+        internalDeleteSubscriptionAsync(subName, authoritative, force)
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(cause)) {
+                        log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
+                                topicName, cause);
+                    }
+
+                    if (cause instanceof BrokerServiceException.SubscriptionBusyException) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                        "Subscription has active connected consumers"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    }
+
+                    return null;
+                });
     }
 
     @POST
@@ -562,7 +582,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist")})
     public void skipAllMessages(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
@@ -583,7 +603,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
+            @ApiResponse(code = 404, message = "Namesapce or topic or subscription does not exist") })
     public void skipMessages(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
@@ -605,7 +625,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist") })
     public void expireTopicMessages(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
@@ -630,7 +650,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -666,7 +686,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist") })
     public void expireMessagesForAllSubscriptions(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
@@ -690,7 +710,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist")})
     public void resetCursor(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
@@ -724,7 +744,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Not supported for partitioned topics")})
     public void resetCursorOnPosition(@Suspended final AsyncResponse asyncResponse,
                                       @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -752,7 +772,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 400, message = "Create subscription on non persistent topic is not supported"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Not supported for partitioned topics")})
     public void createSubscription(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -780,7 +800,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription or the message position does not"
+                    + " exist") })
     public void peekNthMessage(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -806,7 +827,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't java admin permission"),
-            @ApiResponse(code = 404, message = "Topic, subscription or the messageId does not exist")
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription or the messageId does not exist")
     })
     public void getMessageByID(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
                                @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -861,7 +882,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
             @ApiResponse(code = 406, message = "Need to provide a persistent topic name"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist") })
     public void terminate(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
@@ -888,7 +909,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "messages to be published and will let consumer to drain existing messages in backlog")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void terminatePartitionedTopic(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
@@ -904,7 +925,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 409, message = "Compaction already running")})
     public void compact(@Suspended final AsyncResponse asyncResponse,
                         @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -927,7 +948,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run") })
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist, or compaction hasn't run") })
     public void compactionStatus(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -953,7 +974,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 409, message = "Offload already running")})
     public void triggerOffload(@Suspended final AsyncResponse asyncResponse,
                                @PathParam("tenant") String tenant,
@@ -979,7 +1000,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void offloadStatus(@Suspended final AsyncResponse asyncResponse,
                               @PathParam("tenant") String tenant,
                               @PathParam("cluster") String cluster,
@@ -1004,7 +1025,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1037,7 +1058,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or "
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Operation not allowed on this topic"),
             @ApiResponse(code = 412, message = "Can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -1074,7 +1095,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
             @ApiResponse(code = 412, message = "Can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void getReplicatedSubscriptionStatus(

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -130,8 +130,6 @@ public interface PulsarClientImplementationBinding {
     Schema<byte[]> newAutoProduceValidatedAvroSchema(Object schema);
 
     Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema();
-
-    <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema);
 
     <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                            KeyValueEncodingType keyValueEncodingType);

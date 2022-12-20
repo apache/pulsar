@@ -1,7 +1,7 @@
 ---
 id: deploy-aws
-title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
-sidebar_label: "Amazon Web Services"
+title: Deploy a Pulsar cluster on AWS using Terraform and Ansible
+sidebar_label: "Terraform (AWS)"
 ---
 
 > For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](deploy-bare-metal.md). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](deploy-bare-metal-multi-cluster.md).
@@ -126,7 +126,7 @@ When you run the Ansible playbook, the following AWS resources are used:
   * 3 small VMs for ZooKeeper ([t3.small](https://www.ec2instances.info/?selected=t3.small) instances)
   * 3 larger VMs for BookKeeper [bookies](reference-terminology.md#bookie) ([i3.xlarge](https://www.ec2instances.info/?selected=i3.xlarge) instances)
   * 2 larger VMs for Pulsar [brokers](reference-terminology.md#broker) ([c5.2xlarge](https://www.ec2instances.info/?selected=c5.2xlarge) instances)
-  * 1 larger VMs for Pulsar [proxy](reference-terminology.md#proxy) ([c5.2xlarge](https://www.ec2instances.info/?selected=c5.2xlarge) instances)
+  * 1 larger VMs for Pulsar [proxy](reference-terminology.md) ([c5.2xlarge](https://www.ec2instances.info/?selected=c5.2xlarge) instances)
 * An EC2 [security group](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html)
 * A [virtual private cloud](https://aws.amazon.com/vpc/) (VPC) for security
 * An [API Gateway](https://aws.amazon.com/api-gateway/) for connections from the outside world
@@ -200,7 +200,7 @@ ansible-playbook \
 
 ## Access the cluster
 
-You can now access your running Pulsar using the unique Pulsar connection URL for your cluster, which you can obtain following the instructions [above](#fetching-your-pulsar-connection-url).
+You can now access your running Pulsar using the unique Pulsar connection URL for your cluster, which you can obtain following the instructions [above](#fetch-your-pulsar-connection-url).
 
 For a quick demonstration of accessing the cluster, we can use the Python client for Pulsar and the Python shell. First, install the Pulsar Python module using pip:
 

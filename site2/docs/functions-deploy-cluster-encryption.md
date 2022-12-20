@@ -8,7 +8,7 @@ To perform end-to-end [encryption](security-encryption.md), you can specify `--p
 
 The encryption/decryption relevant configuration [`CryptoConfig`](functions-cli.md) is included in both `ProducerConfig` and `inputSpecs`. The specific configurable fields about `CryptoConfig` are as follows:
 
-```text
+```java
 public class CryptoConfig {
     private String cryptoKeyReaderClassName;
     private Map<String, Object> cryptoKeyReaderConfig;
@@ -23,4 +23,4 @@ public class CryptoConfig {
 - `producerCryptoFailureAction` defines the action that a producer takes if it fails to encrypt the data. Available options are `FAIL` or `SEND`.
 - `consumerCryptoFailureAction` defines the action that a consumer takes if it fails to decrypt the recieved data. Available options are `FAIL`, `DISCARD`, or `CONSUME`.
 
-For more information about these options, refer to [producer configurations](client-libraries-java.md#configure-producer.md) and [consumer configurations](client-libraries-java.md#configure-consumer).
+For more information about these options, refer to [producer configurations](client-libraries-java.md#configure-producer) and [consumer configurations](client-libraries-java.md#configure-consumer).

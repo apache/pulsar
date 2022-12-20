@@ -13,13 +13,21 @@ If you have not installed Docker, download the [Community edition](https://www.d
 For macOS, Linux, and Windows, run the following command to start Pulsar within a Docker container.
 
 ```shell
-docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
+docker run -it -p 6650:6650 -p 8080:8080 \
+    --mount source=pulsardata,target=/pulsar/data \
+    --mount source=pulsarconf,target=/pulsar/conf \
+    apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
 ```
 
 If you want to change Pulsar configurations and start Pulsar, run the following command by passing environment variables with the `PULSAR_PREFIX_` prefix. See [default configuration file](https://github.com/apache/pulsar/blob/e6b12c64b043903eb5ff2dc5186fe8030f157cfc/conf/standalone.conf) for more details.
 
 ```shell
-docker run -it -e PULSAR_PREFIX_xxx=yyy -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.10.0 sh -c "bin/apply-config-from-env.py conf/standalone.conf && bin/pulsar standalone"
+docker run -it -e PULSAR_PREFIX_xxx=yyy \
+    -p 6650:6650  -p 8080:8080 \
+    --mount source=pulsardata,target=/pulsar/data \
+    --mount source=pulsarconf,target=/pulsar/conf \
+    apachepulsar/pulsar:2.10.0 \
+    sh -c "bin/apply-config-from-env.py conf/standalone.conf && bin/pulsar standalone"
 ```
 
 :::tip
@@ -70,8 +78,7 @@ Create a consumer and subscribe to the topic:
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-consumer = client.subscribe('my-topic',
-                            subscription_name='my-sub')
+consumer = client.subscribe('my-topic', subscription_name='my-sub')
 
 while True:
     msg = consumer.receive()

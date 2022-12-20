@@ -47,13 +47,13 @@ body:
       description: |
         A few lines of the stack trace that shows at least the exception message and the line of test code where the stacktrace occurred.
       value: |
-        <!-- optionally provide the full stacktrace ->
+        <!-- optionally provide the full stacktrace -->
 
         <details>
         <summary>Full exception stacktrace</summary>
-        <code><pre>
+        <pre><code>
           full exception stacktrace here
-        </pre></code>
+        </code></pre>
         </details>
     validations:
       required: true

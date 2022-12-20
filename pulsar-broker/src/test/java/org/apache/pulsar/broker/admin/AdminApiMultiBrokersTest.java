@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -172,52 +171,42 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
                     .send();
         }
         producer.flush();
-        producer.close();
 
         log.info("consuming some messages");
         for (int i = 0; i < numPartitions * 5; i++) {
             Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
         }
 
-        log.info("trying to delete the topic");
-        try {
-            admin.topics().deletePartitionedTopic(topic, true);
-            fail("expected PulsarAdminException.NotFoundException");
-        } catch (PulsarAdminException e) {
-            assertTrue(e.getMessage().contains("Partitioned topic has active consumers or producers"));
-        }
-
-        // check that metadata is still consistent
-        assertEquals(numPartitions, admin.topics().getList("tenant-xyz/ns-abc")
-                .stream().filter(t -> t.contains(topic)).count());
-        assertEquals(numPartitions,
-                pulsar.getPulsarResources().getTopicResources()
-                        .getExistingPartitions(TopicName.getPartitionedTopicName(topic))
-                        .get()
-                        .stream().filter(t -> t.contains(topic)).count());
-        assertTrue(admin.topics()
-                .getPartitionedTopicList("tenant-xyz/ns-abc")
-                .contains(topic));
+        log.info("trying to delete the topic {}", topic);
+        admin.topics().deletePartitionedTopic(topic, true);
 
         log.info("closing producer and consumer");
         producer.close();
         consumer.close();
 
-        log.info("trying to delete the topic again");
-        admin.topics().deletePartitionedTopic(topic, true);
+        // topic autocreate might sneak in after the delete / before close
+        // but the topic metadata should be consistent to go through deletion again
+        if (admin.topics().getList("tenant-xyz/ns-abc")
+                .stream().anyMatch(t -> t.contains(topic))) {
+            try {
+                admin.topics().deletePartitionedTopic(topic, true);
+            } catch (PulsarAdminException.NotFoundException nfe) {
+                // pass
+            }
 
-        assertEquals(0, admin.topics().getList("tenant-xyz/ns-abc")
-                .stream().filter(t -> t.contains(topic)).count());
-        assertEquals(0,
-                pulsar.getPulsarResources().getTopicResources()
-                        .getExistingPartitions(TopicName.getPartitionedTopicName(topic))
-                        .get()
-                        .stream().filter(t -> t.contains(topic)).count());
-        assertFalse(admin.topics()
-                .getPartitionedTopicList("tenant-xyz/ns-abc")
-                .contains(topic));
-
-        log.info("trying to create the topic again");
-        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+            assertEquals(0, admin.topics().getList("tenant-xyz/ns-abc")
+                    .stream().filter(t -> t.contains(topic)).count());
+            assertEquals(0,
+                    pulsar.getPulsarResources().getTopicResources()
+                            .getExistingPartitions(TopicName.getPartitionedTopicName(topic))
+                            .get()
+                            .stream().filter(t -> t.contains(topic)).count());
+            assertFalse(admin.topics()
+                    .getPartitionedTopicList("tenant-xyz/ns-abc")
+                    .contains(topic));
+        } else {
+            log.info("trying to create the topic again");
+            ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+        }
     }
 }

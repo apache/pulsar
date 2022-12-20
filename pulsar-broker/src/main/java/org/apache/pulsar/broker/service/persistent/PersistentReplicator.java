@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyExceptio
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -67,7 +68,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PersistentReplicator extends AbstractReplicator
         implements Replicator, ReadEntriesCallback, DeleteCallback {
 
-    private final PersistentTopic topic;
+    protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
@@ -132,7 +133,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    protected void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
+    protected void readEntries(Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
         cursor.rewind();
 
@@ -248,7 +249,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
                 }
                 cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
-                        null, PositionImpl.LATEST);
+                        null, topic.getMaxReadPosition());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Not scheduling read due to pending read. Messages To Read {}",

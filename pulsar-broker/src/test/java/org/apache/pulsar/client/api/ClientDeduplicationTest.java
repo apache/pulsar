@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,11 +23,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +43,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker-api")
 public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @DataProvider
@@ -372,5 +374,52 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testUpdateSequenceIdInSyncCodeSegment() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testUpdateSequenceIdInSyncCodeSegment";
+        int totalMessage = 200;
+        int threadSize = 5;
+        String topicName = "subscription";
+        ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
+        conf.setBrokerDeduplicationEnabled(true);
+
+        //build producer/consumer
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+
+        CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        //Send messages in multiple-thread
+        for (int i = 0; i < threadSize; i++) {
+            executorService.submit(() -> {
+                try {
+                    for (int j = 0; j < totalMessage; j++) {
+                        //The message will be sent with out-of-order sequence ID.
+                        producer.newMessage().sendAsync();
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to send/ack messages with transaction.", e);
+                } finally {
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        //wait the all send op is executed and store its futures in the arraylist.
+        countDownLatch.await();
+
+        for (int i = 0; i < threadSize * totalMessage; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg);
+        }
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
@@ -92,4 +91,13 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+
+    /**
+     * Set the subscription name of the {@link TableView}.
+     *
+     * @param subscriptionName the name of the subscription to the topic
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> subscriptionName(String subscriptionName);
 }

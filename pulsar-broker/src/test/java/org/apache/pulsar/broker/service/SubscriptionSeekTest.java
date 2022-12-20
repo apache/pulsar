@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -227,6 +227,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(batchMsgId0.getEntryId(), batchMsgId1.getEntryId());
         assertEquals(batchMsgId1.getEntryId(), msgIdToSeekFirst.getEntryId());
 
+        @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()
                 // set start backoff interval short enough to make sure client will re-connect quickly
                 .startingBackoffInterval(1, TimeUnit.MICROSECONDS)
@@ -262,8 +263,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             MessageId receiveId = consumer.receive().getMessageId();
             assertEquals(receiveId, messageId);
         }
-
-        newPulsarClient.close();
     }
 
     @Test
@@ -367,7 +366,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             messageIds.add(msgId);
         }
 
-        List<PulsarAdminException> exceptions = Lists.newLinkedList();
+        List<PulsarAdminException> exceptions = new ArrayList<>();
         class ResetCursorThread extends Thread {
             public void run() {
                 try {
@@ -378,7 +377,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             }
         }
 
-        List<ResetCursorThread> resetCursorThreads = Lists.newLinkedList();
+        List<ResetCursorThread> resetCursorThreads = new ArrayList<>();
         for (int i = 0; i < 4; i ++) {
             ResetCursorThread thread = new ResetCursorThread();
             resetCursorThreads.add(thread);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,10 +42,12 @@ import org.apache.pulsar.common.protocol.Commands;
  */
 public class PulsarConnectorConfig implements AutoCloseable {
 
+    private boolean hasMetadataUrl = false;
+
     private String brokerServiceUrl = "http://localhost:8080";
     private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
-    private String zookeeperUri = "localhost:2181";
+    private String metadataUrl = "zk:localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
@@ -134,14 +136,37 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.maxMessageSize;
     }
 
+    /**
+     * @deprecated use {@link #getMetadataUrl()}
+     */
+    @Deprecated
     @NotNull
     public String getZookeeperUri() {
-        return this.zookeeperUri;
+        return getMetadataUrl();
     }
 
+    /**
+     * @deprecated use {@link #setMetadataUrl(String)}
+     */
+    @Deprecated
     @Config("pulsar.zookeeper-uri")
     public PulsarConnectorConfig setZookeeperUri(String zookeeperUri) {
-        this.zookeeperUri = zookeeperUri;
+        if (hasMetadataUrl) {
+            return this;
+        }
+        this.metadataUrl = zookeeperUri;
+        return this;
+    }
+
+    @NotNull
+    public String getMetadataUrl() {
+        return this.metadataUrl;
+    }
+
+    @Config("pulsar.metadata-url")
+    public PulsarConnectorConfig setMetadataUrl(String metadataUrl) {
+        this.hasMetadataUrl = true;
+        this.metadataUrl = metadataUrl;
         return this;
     }
 

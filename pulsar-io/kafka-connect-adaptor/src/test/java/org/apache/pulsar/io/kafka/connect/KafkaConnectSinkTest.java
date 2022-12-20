@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
@@ -111,6 +112,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -690,10 +692,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void kafkaLogicalTypesTimestampTest() {
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Timestamp.LOGICAL_NAME)
-                .setType(SchemaType.INT64)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Timestamp.LOGICAL_NAME)
+                .type(SchemaType.INT64)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
@@ -707,10 +710,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void kafkaLogicalTypesTimeTest() {
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Time.LOGICAL_NAME)
-                .setType(SchemaType.INT32)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Time.LOGICAL_NAME)
+                .type(SchemaType.INT32)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
@@ -724,10 +728,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void kafkaLogicalTypesDateTest() {
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Date.LOGICAL_NAME)
-                .setType(SchemaType.INT32)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Date.LOGICAL_NAME)
+                .type(SchemaType.INT32)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
@@ -743,11 +748,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     public void kafkaLogicalTypesDecimalTest() {
         Map<String, String> props = new HashMap<>();
         props.put("scale", "10");
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Decimal.LOGICAL_NAME)
-                .setType(SchemaType.BYTES)
-                .setProperties(props)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Decimal.LOGICAL_NAME)
+                .type(SchemaType.BYTES)
+                .properties(props)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
@@ -1090,9 +1096,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
-        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+        @Cleanup
+        PulsarClient pulsarClient1 = PulsarClient.builder()
                 .serviceUrl(brokerUrl.toString())
-                .build());
+                .build();
+        when(context.getPulsarClient()).thenReturn(pulsarClient1);
         sink.open(props, context);
 
         // offset is 1 after reopening the producer
@@ -1220,9 +1228,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
-        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+        @Cleanup
+        PulsarClient pulsarClient1 = PulsarClient.builder()
                 .serviceUrl(brokerUrl.toString())
-                .build());
+                .build();
+        when(context.getPulsarClient()).thenReturn(pulsarClient1);
         sink.open(props, context);
 
         // offset is 1 after reopening the producer
@@ -1430,6 +1440,37 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         rec.put("structMap", map);
 
         return rec;
+    }
+
+    @Test
+    public void testGetMessageSequenceRefForBatchMessage() throws Exception {
+        long ledgerId = 123L;
+        long entryId = Long.MAX_VALUE;
+        int batchIdx = 16;
+
+        KafkaConnectSink.BatchMessageSequenceRef ref = KafkaConnectSink
+                .getMessageSequenceRefForBatchMessage(new MessageIdImpl(ledgerId, entryId, 0));
+        assertNull(ref);
+
+        ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
+                        new TopicMessageIdImpl("topic-0", "topic", new MessageIdImpl(ledgerId, entryId, 0))
+        );
+        assertNull(ref);
+
+        ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
+                new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx));
+
+        assertEquals(ref.getLedgerId(), ledgerId);
+        assertEquals(ref.getEntryId(), entryId);
+        assertEquals(ref.getBatchIdx(), batchIdx);
+
+        ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
+                new TopicMessageIdImpl("topic-0", "topic", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
+        );
+
+        assertEquals(ref.getLedgerId(), ledgerId);
+        assertEquals(ref.getEntryId(), entryId);
+        assertEquals(ref.getBatchIdx(), batchIdx);
     }
 
     @SneakyThrows

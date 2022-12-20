@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -100,6 +100,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             elasticsearchClient.close();
             elasticsearchClient = null;
         }
+    }
+
+    @VisibleForTesting
+    void setElasticsearchClient(ElasticSearchClient elasticsearchClient) {
+        this.elasticsearchClient = elasticsearchClient;
     }
 
     @Override
@@ -235,20 +240,28 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             if (id != null
                     && idHashingAlgorithm != null
                     && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
-                Hasher hasher;
-                switch (idHashingAlgorithm) {
-                    case SHA256:
-                        hasher = Hashing.sha256().newHasher();
-                        break;
-                    case SHA512:
-                        hasher = Hashing.sha512().newHasher();
-                        break;
-                    default:
-                        throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
-                                + idHashingAlgorithm);
+                final byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
+
+                boolean performHashing = true;
+                if (elasticSearchConfig.isConditionalIdHashing() && idBytes.length <= 512) {
+                    performHashing = false;
                 }
-                hasher.putString(id, StandardCharsets.UTF_8);
-                id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                if (performHashing) {
+                    Hasher hasher;
+                    switch (idHashingAlgorithm) {
+                        case SHA256:
+                            hasher = Hashing.sha256().newHasher();
+                            break;
+                        case SHA512:
+                            hasher = Hashing.sha512().newHasher();
+                            break;
+                        default:
+                            throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
+                                    + idHashingAlgorithm);
+                    }
+                    hasher.putBytes(idBytes);
+                    id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                }
             }
 
             if (log.isDebugEnabled()) {

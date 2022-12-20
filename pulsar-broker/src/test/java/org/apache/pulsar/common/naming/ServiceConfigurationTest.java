@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
@@ -42,6 +43,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
@@ -321,5 +323,50 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
         }
+    }
+
+    @Test
+    public void testTransactionMultipleSnapshot() throws Exception {
+        ServiceConfiguration configuration = null;
+        // broker.conf.
+        try (FileInputStream inputStream = new FileInputStream("../conf/broker.conf")) {
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertEquals(configuration.getTransactionBufferSnapshotSegmentSize(), 262144);
+            assertFalse(configuration.isTransactionBufferSegmentedSnapshotEnabled());
+        }
+        // string input stream.
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("transactionBufferSnapshotSegmentSize=262144").append(System.lineSeparator());
+        stringBuilder.append("transactionBufferSegmentedSnapshotEnabled = false").append(System.lineSeparator());
+        try(ByteArrayInputStream inputStream =
+                    new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertEquals(configuration.getTransactionBufferSnapshotSegmentSize(), 262144);
+            assertFalse(configuration.isTransactionBufferSegmentedSnapshotEnabled());
+        }
+    }
+
+    @Test
+    public void testAllowAutoTopicCreationType() throws Exception {
+        ServiceConfiguration conf;
+        final Properties properties = new Properties();
+        properties.setProperty("clusterName", "test");
+
+        // set invalid value: partition
+        properties.setProperty("allowAutoTopicCreationType", "partition");
+        try {
+            conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+            fail("Invalid value of allowAutoTopicCreationType");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().equals(
+                    "failed to initialize allowAutoTopicCreationType field while setting value partition"));
+        }
+        // set valid value: partitioned
+        properties.setProperty("allowAutoTopicCreationType", "partitioned");
+        conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.PARTITIONED);
+        properties.setProperty("allowAutoTopicCreationType", "non-partitioned");
+        conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.NON_PARTITIONED);
     }
 }

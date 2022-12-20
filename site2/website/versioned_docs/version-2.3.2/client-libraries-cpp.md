@@ -12,7 +12,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms.
 
-[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
+[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](@pulsar:apidoc:cpp@).
 
 
 ## Linux
@@ -656,12 +656,12 @@ Client client("pulsar+ssl://my-broker.com:6651", config);
 
 ```
 
-For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
+For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
 ## Schema
 
 This section describes some examples about schema. For more information about
-schema, see [Pulsar schema](schema-get-started).
+schema, see [Pulsar schema](schema-get-started.md).
 
 ### Avro schema
 

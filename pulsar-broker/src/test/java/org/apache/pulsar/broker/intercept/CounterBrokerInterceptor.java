@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
@@ -40,9 +41,10 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.intercept.InterceptException;
 import org.eclipse.jetty.server.Response;
 
 
@@ -50,10 +52,12 @@ import org.eclipse.jetty.server.Response;
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     private AtomicInteger beforeSendCount = new AtomicInteger();
+    private AtomicInteger beforeSendCountAtConsumerLevel = new AtomicInteger();
     private AtomicInteger count = new AtomicInteger();
     private AtomicInteger connectionCreationCount = new AtomicInteger();
     private AtomicInteger producerCount = new AtomicInteger();
     private AtomicInteger consumerCount = new AtomicInteger();
+    private AtomicInteger messagePublishCount = new AtomicInteger();
     private AtomicInteger messageCount = new AtomicInteger();
     private AtomicInteger messageDispatchCount = new AtomicInteger();
     private AtomicInteger messageAckCount = new AtomicInteger();
@@ -105,6 +109,16 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
+    public void producerClosed(ServerCnx cnx, Producer producer,
+                                Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Producer with name={}, id={} closed",
+                    producer.getProducerName(), producer.getProducerId());
+        }
+        producerCount.decrementAndGet();
+    }
+
+    @Override
     public void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
@@ -113,6 +127,26 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                     consumer.consumerName(), consumer.consumerId());
         }
         consumerCount.incrementAndGet();
+    }
+
+    @Override
+    public void consumerClosed(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Consumer with name={}, id={} closed",
+                    consumer.consumerName(), consumer.consumerId());
+        }
+        consumerCount.decrementAndGet();
+    }
+
+    @Override
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
+        if (log.isDebugEnabled()) {
+            log.debug("Message broker received topic={}, producer={}",
+                    producer.getTopic().getName(), producer.getProducerName());
+        }
+        messagePublishCount.incrementAndGet();
     }
 
     @Override
@@ -155,6 +189,19 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata,
+                                  Consumer consumer) {
+        if (log.isDebugEnabled()) {
+            log.debug("Send message to topic {}, subscription {}, consumer {}",
+                    subscription.getTopic(), subscription.getName(), consumer.consumerName());
+        }
+        beforeSendCountAtConsumerLevel.incrementAndGet();
+    }
+
+    @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
@@ -171,10 +218,20 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceRequest(ServletRequest request) {
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
         count.incrementAndGet();
+        String url = ((HttpServletRequest) request).getRequestURL().toString();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest) request).getRequestURL().toString());
+            log.debug("[{}] On [{}] Webservice request", count, url);
+        }
+        if (url.contains("/admin/v2/tenants/test-interceptor-failed-tenant")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create tenant failed");
+        }
+        if (url.contains("/admin/v2/namespaces/public/test-interceptor-failed-namespace")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create namespace failed");
+        }
+        if (url.contains("/admin/v2/persistent/public/default/test-interceptor-failed-topic")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create topic failed");
         }
     }
 
@@ -182,13 +239,15 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count.incrementAndGet();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest) request).getRequestURL().toString(), response);
+            log.debug("[{}] On [{}] Webservice response {}",
+                    count, ((HttpServletRequest) request).getRequestURL().toString(), response);
         }
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
         }
     }
+
 
     @Override
     public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -238,6 +297,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     public int getMessagePublishCount() {
+        return messagePublishCount.get();
+    }
+    public int getMessageProducedCount() {
         return messageCount.get();
     }
 
@@ -251,6 +313,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getBeforeSendCount() {
         return beforeSendCount.get();
+    }
+
+    public int getBeforeSendCountAtConsumerLevel() {
+        return beforeSendCountAtConsumerLevel.get();
     }
 
     public int getConnectionCreationCount() {

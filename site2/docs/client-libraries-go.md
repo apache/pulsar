@@ -4,42 +4,42 @@ title: Pulsar Go client
 sidebar_label: "Go"
 ---
 
-You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Golang.
-
-API docs are available on the [Godoc](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar) page
+You can use a Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Golang. For Pulsar features that Go clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914).
 
 ## Installation
 
-### Install go package
+You can install the `pulsar` library by using either `go get` or `go module`.
 
-You can get the `pulsar` library by using `go get` or use it with `go module`.
+### Use `go get`
 
-Download the library of Go client to your local environment:
+1. Download the library of Go client to your local environment:
 
-```bash
-go get -u "github.com/apache/pulsar-client-go/pulsar"
-```
+   ```bash
+   go get -u "github.com/apache/pulsar-client-go/pulsar"
+   ```
 
-Once installed locally, you can import it into your project:
+2. Import it into your project:
 
-```go
-import "github.com/apache/pulsar-client-go/pulsar"
-```
+   ```go
+   import "github.com/apache/pulsar-client-go/pulsar"
+   ```
 
-Use with go module:
+### Use `go module`
 
-```bash
-mkdir test_dir && cd test_dir
-```
+1. Create a directory named `test_dir` and change your working directory to it.
 
-Write a sample script in the `test_dir` directory (such as `test_example.go`) and write `package main` at the beginning of the file.
+   ```bash
+   mkdir test_dir && cd test_dir
+   ```
 
-```bash
-go mod init test_dir 
-go mod tidy && go mod download
-go build test_example.go
-./test_example
-```
+2. Write a sample script (such as `test_example.go`) in the `test_dir` directory and write `package main` at the beginning of the file.
+
+   ```bash
+   go mod init test_dir 
+   go mod tidy && go mod download
+   go build test_example.go
+   ./test_example
+   ```
 
 ## Connection URLs
 
@@ -63,9 +63,17 @@ If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in t
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
+## API reference
+
+API docs are available on the [Godoc](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar) page.
+
+## Release notes
+
+For the changelog of Pulsar Go clients, see [release notes](/release-notes/#go).
+
 ## Create a client
 
-To interact with Pulsar, you need a [`Client`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Client) object first. You can create a client object using the [`NewClient`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#NewClient) function, passing in a [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions) object (more on configuration [below](#client-configuration)). Here's an example:
+To interact with Pulsar, you need a [`Client`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Client) object first. You can create a client object using the [`NewClient`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#NewClient) function, passing in a [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions) object. Here's an example:
 
 ```go
 import (
@@ -202,6 +210,34 @@ for i := 0; i < 10; i++ {
     fmt.Printf("Received message msgId: %#v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
     consumer.Ack(msg)
 }
+```
+
+#### How to use chunking in producer
+
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+	URL: serviceURL,
+})
+
+if err != nil {
+	log.Fatal(err)
+}
+defer client.Close()
+
+// The message chunking feature is OFF by default.
+// By default, a producer chunks the large message based on the max message size (`maxMessageSize`) configured at the broker side (for example, 5MB).
+// Client can also configure the max chunked size using the producer configuration `ChunkMaxMessageSize`.
+// Note: to enable chunking, you need to disable batching (`DisableBatching=true`) concurrently.
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+  Topic:               "my-topic",
+  DisableBatching:     true,
+  EnableChunking:      true,
+})
+
+if err != nil {
+	log.Fatal(err)
+}
+defer producer.Close()
 ```
 
 #### How to use schema interface in producer

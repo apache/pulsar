@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service.persistent;
 
 import io.netty.buffer.ByteBuf;
@@ -25,10 +24,13 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 @Slf4j
@@ -79,6 +81,23 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
                     continue;
+                }
+
+                if (Markers.isTxnMarker(msg.getMessageBuilder())) {
+                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    entry.release();
+                    msg.recycle();
+                    continue;
+                }
+                if (msg.getMessageBuilder().hasTxnidLeastBits() && msg.getMessageBuilder().hasTxnidMostBits()) {
+                    TxnID tx = new TxnID(msg.getMessageBuilder().getTxnidMostBits(),
+                            msg.getMessageBuilder().getTxnidLeastBits());
+                    if (topic.isTxnAborted(tx, (PositionImpl) entry.getPosition())) {
+                        cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                        entry.release();
+                        msg.recycle();
+                        continue;
+                    }
                 }
 
                 if (isEnableReplicatedSubscriptions) {
@@ -163,6 +182,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
+                    msg.getMessageBuilder().clearTxnidMostBits();
+                    msg.getMessageBuilder().clearTxnidLeastBits();
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }

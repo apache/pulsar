@@ -62,7 +62,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>lib/presto</outputDirectory>
+      <outputDirectory>trino</outputDirectory>
       <excludes>
         <exclude>bin</exclude>
         <exclude>bin/**</exclude>
@@ -70,7 +70,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>lib/presto</outputDirectory>
+      <outputDirectory>trino</outputDirectory>
       <includes>
         <include>bin/**</include>
       </includes>
@@ -114,6 +114,11 @@
     <file>
       <source>${basedir}/../../pulsar-functions/java-examples/src/main/resources/example-window-function-config.yaml</source>
       <destName>example-window-function-config.yaml</destName>
+      <outputDirectory>examples</outputDirectory>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-functions/java-examples/src/main/resources/example-stateful-function-config.yaml</source>
+      <destName>example-stateful-function-config.yaml</destName>
       <outputDirectory>examples</outputDirectory>
     </file>
   </files>
