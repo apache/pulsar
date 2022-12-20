@@ -41,6 +41,7 @@ It is not a goal for PIP to add undue process or slow-down the development.
 * Any change to the semantic of existing functionality, even when current
   behavior is incorrect.
 * Any large code change that will touch multiple components
+* Any changes to the metrics (metrics endpoint, topic stats, topics internal stats, broker stats, etc.)
 
 ## When is a PIP *not* required?
 
