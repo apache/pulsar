@@ -26,9 +26,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -130,11 +127,7 @@ public abstract class AdminResource extends PulsarWebResource {
      */
 
     public void validatePoliciesReadOnlyAccess() {
-        try {
-            validatePoliciesReadOnlyAccessAsync().join();
-        } catch (CompletionException ce) {
-            throw new RestException(ce.getCause());
-        }
+        sync(this::validatePoliciesReadOnlyAccessAsync);
     }
 
     public CompletableFuture<Void> validatePoliciesReadOnlyAccessAsync() {
@@ -251,17 +244,11 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
-        try {
-            PartitionedTopicMetadata partitionedTopicMetadata =
-                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-            if (partitionedTopicMetadata.partitions < 1) {
-                throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}",
-                    domain(), tenant, namespace, topicName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
+    protected void validatePartitionedTopicMetadata() {
+        PartitionedTopicMetadata partitionedTopicMetadata = sync(()->
+                pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName));
+        if (partitionedTopicMetadata.partitions < 1) {
+            throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
         }
     }
 
@@ -465,28 +452,14 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
-        try {
-            return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
+    protected PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
+        return sync(() -> pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName));
     }
 
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadataCheckAllowAutoCreation(
+    protected PartitionedTopicMetadata fetchPartitionedTopicMetadataCheckAllowAutoCreation(
             PulsarService pulsar, TopicName topicName) {
-        try {
-            return pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName)
-                    .get();
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
+        return sync(() -> pulsar.getBrokerService()
+                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName));
     }
 
    protected void validateClusterExists(String cluster) {
@@ -523,26 +496,12 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
-        try {
-            return namespaceResources().getPartitionedTopicResources()
-                    .listPartitionedTopicsAsync(namespaceName, topicDomain)
-                    .join();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
-                    namespaceName.toString(), e);
-            throw new RestException(e);
-        }
+        return sync(() -> namespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, topicDomain));
     }
 
-    protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
-        try {
-            return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
-                    namespaceName.toString(), e);
-            throw new RestException(e);
-        }
+    protected List<String> getTopicPartitionList() {
+        return sync(()-> getPulsarResources().getTopicResources().getExistingPartitions(topicName));
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
@@ -572,7 +531,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
             // new create check
             if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
-                List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
+                List<String> partitionedTopics = getTopicPartitionList();
                 // exclude created system topic
                 long topicsCount =
                         partitionedTopics.stream().filter(t ->

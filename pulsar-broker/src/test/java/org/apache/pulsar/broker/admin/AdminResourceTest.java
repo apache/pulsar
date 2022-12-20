@@ -135,11 +135,11 @@ public class AdminResourceTest extends BrokerTestBase {
         resource.setPulsar(pulsar);
         // validate should pass when topic is partitioned topic
         resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(partitionedTopic));
-        resource.validatePartitionedTopicMetadata(tenant, namespace, Codec.encode(partitionedTopic));
+        resource.validatePartitionedTopicMetadata();
         // validate should failed when topic is non-partitioned topic
         resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(nonPartitionedTopic));
         try {
-            resource.validatePartitionedTopicMetadata(tenant, namespace, Codec.encode(nonPartitionedTopic));
+            resource.validatePartitionedTopicMetadata();
             fail("Should fail validation on non-partitioned topic");
         } catch (RestException re) {
             assertEquals(Status.CONFLICT.getStatusCode(), re.getResponse().getStatus());
