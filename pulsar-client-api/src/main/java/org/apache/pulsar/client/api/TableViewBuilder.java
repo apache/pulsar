@@ -129,4 +129,12 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
+
+    /**
+     * Set the {@link ConsumerCryptoFailureAction} to specify.
+     *
+     * @param action the action to take when the decoding fails
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 }

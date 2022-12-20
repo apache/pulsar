@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -101,5 +102,11 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     public TableViewBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> privateKeys) {
         checkArgument(!privateKeys.isEmpty(), "privateKeys cannot be empty");
         return cryptoKeyReader(DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
+    }
+
+    @Override
+    public TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
+        conf.setCryptoFailureAction(action);
+        return this;
     }
 }

@@ -80,6 +80,8 @@ public class TableViewImpl<T> implements TableView<T> {
             readerBuilder.cryptoKeyReader(cryptoKeyReader);
         }
 
+        readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
+
         this.reader = readerBuilder.createAsync();
     }
 
