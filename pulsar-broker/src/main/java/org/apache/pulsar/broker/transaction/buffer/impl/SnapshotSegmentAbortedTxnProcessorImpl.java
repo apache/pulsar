@@ -85,6 +85,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final int transactionBufferMaxAbortedTxnsOfSnapshotSegment;
     private final PersistentWorker persistentWorker;
 
+    private static final String SNAPSHOT_PREFIX = "multiple-";
+
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
         this.persistentWorker = new PersistentWorker(topic);
@@ -113,8 +115,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
         if (readPosition == null) {
-            return segmentMap.values().stream()
-                    .anyMatch(list -> list.contains(txnID)) || unsealedAbortedTxnIdSegment.contains(txnID);
+            return unsealedAbortedTxnIdSegment.contains(txnID) || segmentMap.values().stream()
+                    .anyMatch(list -> list.contains(txnID));
         } else {
             Map.Entry<PositionImpl, ConcurrentOpenHashSet<TxnID>> cellingEntry =
                     segmentMap.ceilingEntry((PositionImpl) readPosition);
@@ -143,7 +145,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     private String buildKey(long sequenceId) {
-        return "multiple-" + sequenceId + "-" + this.topic.getName();
+        return SNAPSHOT_PREFIX + sequenceId + "-" + this.topic.getName();
     }
 
     @Override
