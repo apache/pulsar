@@ -33,15 +33,11 @@
     <artifactId>pulsar-io-common</artifactId>
     <name>Pulsar IO :: IO Common</name>
 
+    <!-- This module is supposed to be used by Pulsar IO connectors and to only include strictly needed dependencies-->
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-io-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
