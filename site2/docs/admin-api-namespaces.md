@@ -385,13 +385,13 @@ admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 
 Persistence policies allow users to configure persistency-level for all topic messages under a given namespace.
 
-  -   Bookkeeper-ack-quorum: Number of acks (guaranteed copies) to wait for each entry, default: 0
+  -   Bookkeeper-ack-quorum: Number of acks (guaranteed copies) to wait for each entry, default: 2
 
-  -   Bookkeeper-ensemble: Number of bookies to use for a topic, default: 0
+  -   Bookkeeper-ensemble: Number of bookies to use for a topic, default: 2
 
-  -   Bookkeeper-write-quorum: How many writes to make of each entry, default: 0
+  -   Bookkeeper-write-quorum: How many writes to make of each entry, default: 2
 
-  -   Ml-mark-delete-max-rate: Throttling rate of mark-delete operation (0 means no throttle), default: 0.0
+  -   Ml-mark-delete-max-rate: Throttling rate of mark-delete operation (0 means no throttle), default: 0
 
 ````mdx-code-block
 <Tabs groupId="api-choice"

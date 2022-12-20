@@ -1297,10 +1297,10 @@ Options
 
 |Flag|Description|Default|
 |----|---|---|
-|`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|0|
-|`-e`, `--bookkeeper-ensemble`|The number of bookies to use for a topic|0|
-|`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
-|`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
+|`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|2|
+|`-e`, `--bookkeeper-ensemble`|The number of bookies to use for a topic|2|
+|`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|2|
+|`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)|0|
 
 
 ### `get-message-ttl`
@@ -2707,10 +2707,10 @@ Options
 
 |Flag|Description|Default|
 |----|---|---|
-|`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
-|`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
-|`-a`, `--bookkeeper-ack-quorum`|Number of acks (guaranteed copies) to wait for each entry|0|
-|`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
+|`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|2|
+|`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|2|
+|`-a`, `--bookkeeper-ack-quorum`|Number of acks (guaranteed copies) to wait for each entry|2|
+|`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)|0|
 
 ### `remove-persistence`
 Remove the persistence policy for a topic.
