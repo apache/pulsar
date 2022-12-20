@@ -103,7 +103,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
-    private long recoverBucketSnapshot() throws RuntimeException {
+    private synchronized long recoverBucketSnapshot() throws RuntimeException {
         ManagedCursor cursor = this.lastMutableBucket.cursor;
         cursor.getCursorProperties().keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
