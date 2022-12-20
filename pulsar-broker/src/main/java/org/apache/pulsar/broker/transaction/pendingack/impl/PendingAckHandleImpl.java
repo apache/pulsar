@@ -162,13 +162,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         completeHandleFuture();
                     }
                 }, internalPinnedExecutor)
-                .exceptionally(e -> {
+                .exceptionallyAsync(e -> {
                     Throwable t = FutureUtil.unwrapCompletionException(e);
                     changeToErrorState();
                     exceptionHandleFuture(t);
                     this.pendingAckStoreFuture.completeExceptionally(t);
                     return null;
-                });
+                }, internalPinnedExecutor);
     }
 
     private void initPendingAckStore() {
