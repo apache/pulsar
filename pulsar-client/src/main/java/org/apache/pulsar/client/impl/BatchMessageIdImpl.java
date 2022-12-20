@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import javax.annotation.Nonnull;
 import com.google.common.collect.ComparisonChain;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
