@@ -779,8 +779,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
             this.brokerInterceptor = BrokerInterceptors.load(config);
-            brokerService.setInterceptor(getBrokerInterceptor());
-            this.brokerInterceptor.initialize(this);
+            // use getter to support mocking getBrokerInterceptor method in tests
+            BrokerInterceptor interceptor = getBrokerInterceptor();
+            if (interceptor != null) {
+                brokerService.setInterceptor(interceptor);
+                interceptor.initialize(this);
+            }
             brokerService.start();
 
             // Load additional servlets
