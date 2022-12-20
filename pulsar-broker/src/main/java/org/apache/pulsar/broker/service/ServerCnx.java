@@ -1475,6 +1475,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean hasRequestId = ack.hasRequestId();
         final long requestId = hasRequestId ? ack.getRequestId() : 0;
         final long consumerId = ack.getConsumerId();
+        final CommandAck finalAck = getBrokerService().getInterceptor() != null ? new CommandAck().copyFrom(ack) : null;
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
@@ -1484,7 +1485,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     requestId, null, null, consumerId));
                         }
                         if (getBrokerService().getInterceptor() != null) {
-                            getBrokerService().getInterceptor().messageAcked(this, consumer, ack);
+                            getBrokerService().getInterceptor().messageAcked(this, consumer, finalAck);
                         }
                     }).exceptionally(e -> {
                         if (hasRequestId) {
