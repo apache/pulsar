@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawReader;
@@ -43,6 +44,7 @@ public abstract class Compactor {
     private final PulsarClient pulsar;
     private final BookKeeper bk;
     protected final CompactorMXBeanImpl mxBean;
+    private LedgerOffloader offloader;
 
     public Compactor(ServiceConfiguration conf,
                      PulsarClient pulsar,
@@ -55,7 +57,8 @@ public abstract class Compactor {
         this.mxBean = new CompactorMXBeanImpl();
     }
 
-    public CompletableFuture<Long> compact(String topic) {
+    public CompletableFuture<Long> compact(String topic, LedgerOffloader offloader) {
+        this.offloader = offloader;
         return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION).thenComposeAsync(
                 this::compactAndCloseReader, scheduler);
     }
@@ -63,7 +66,7 @@ public abstract class Compactor {
     private CompletableFuture<Long> compactAndCloseReader(RawReader reader) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         mxBean.addCompactionStartOp(reader.getTopic());
-        doCompaction(reader, bk).whenComplete(
+        doCompaction(reader, bk, offloader).whenComplete(
                 (ledgerId, exception) -> {
                     reader.closeAsync().whenComplete((v, exception2) -> {
                         if (exception2 != null) {
@@ -82,7 +85,7 @@ public abstract class Compactor {
         return promise;
     }
 
-    protected abstract CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk);
+    protected abstract CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk, LedgerOffloader offloader);
 
     public CompactorMXBean getStats() {
         return this.mxBean;

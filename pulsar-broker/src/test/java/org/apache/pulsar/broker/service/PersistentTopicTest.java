@@ -1909,7 +1909,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testCompactionTriggeredAfterThresholdFirstInvocation() throws Exception {
         CompletableFuture<Long> compactPromise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(compactPromise).when(compactor).compact(anyString());
+        doReturn(compactPromise).when(compactor).compact(anyString(), null);
 
         Policies policies = new Policies();
         policies.compaction_threshold = 1L;
@@ -1923,24 +1923,24 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(compactor, times(0)).compact(anyString(), null);
 
         doReturn(10L).when(ledgerMock).getTotalSize();
         doReturn(10L).when(ledgerMock).getEstimatedBacklogSize();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(compactor, times(1)).compact(anyString(), null);
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(compactor, times(1)).compact(anyString(), null);
     }
 
     @Test
     public void testCompactionTriggeredAfterThresholdSecondInvocation() throws Exception {
         CompletableFuture<Long> compactPromise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(compactPromise).when(compactor).compact(anyString());
+        doReturn(compactPromise).when(compactor).compact(anyString(), null);
 
         ManagedCursor subCursor = mock(ManagedCursor.class);
         doReturn(List.of(subCursor)).when(ledgerMock).getCursors();
@@ -1958,23 +1958,23 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         topic.checkCompaction();
 
-        verify(compactor, times(0)).compact(anyString());
+        verify(compactor, times(0)).compact(anyString(), null);
 
         doReturn(10L).when(subCursor).getEstimatedSizeSinceMarkDeletePosition();
 
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(compactor, times(1)).compact(anyString(), null);
 
         // run a second time, shouldn't run again because already running
         topic.checkCompaction();
-        verify(compactor, times(1)).compact(anyString());
+        verify(compactor, times(1)).compact(anyString(), null);
     }
 
     @Test
     public void testCompactionDisabledWithZeroThreshold() throws Exception {
         CompletableFuture<Long> compactPromise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(compactPromise).when(compactor).compact(anyString());
+        doReturn(compactPromise).when(compactor).compact(anyString(), null);
 
         Policies policies = new Policies();
         policies.compaction_threshold = 0L;
@@ -1988,7 +1988,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.initialize().get();
         topic.checkCompaction();
-        verify(compactor, times(0)).compact(anyString());
+        verify(compactor, times(0)).compact(anyString(), null);
     }
 
     @Test

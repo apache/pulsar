@@ -106,7 +106,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).join();
+        compactor.compact(topic, null).join();
 
         log.info(" ---- X 1: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
@@ -125,7 +125,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
-        compactor.compact(topic).join();
+        compactor.compact(topic, null).join();
 
         log.info(" ---- X 3: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
@@ -141,7 +141,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        compactor.compact(topic).join();
+        compactor.compact(topic, null).join();
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
@@ -152,7 +152,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        compactor.compact(topic).join();
+        compactor.compact(topic, null).join();
 
         log.info(" ---- X 4: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
@@ -240,7 +240,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
-        compactor.compact(topic).join();
+        compactor.compact(topic, null).join();
 
         log.info(" ---- X 3: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));

@@ -3048,11 +3048,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(promise).when(compactor).compact(topicName);
+        doReturn(promise).when(compactor).compact(topicName, null);
         admin.topics().triggerCompaction(topicName);
 
         // verify compact called once
-        verify(compactor).compact(topicName);
+        verify(compactor).compact(topicName, null);
         try {
             admin.topics().triggerCompaction(topicName);
 
@@ -3061,14 +3061,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // expected
         }
         // compact shouldn't have been called again
-        verify(compactor).compact(topicName);
+        verify(compactor).compact(topicName, null);
 
         // complete first compaction, and trigger again
         promise.complete(1L);
         admin.topics().triggerCompaction(topicName);
 
         // verify compact was called again
-        verify(compactor, times(2)).compact(topicName);
+        verify(compactor, times(2)).compact(topicName, null);
     }
 
     @Test
@@ -3084,15 +3084,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(promise).when(compactor).compact(topicName + "-partition-0");
+        doReturn(promise).when(compactor).compact(topicName + "-partition-0", null);
 
         CompletableFuture<Long> promise1 = new CompletableFuture<>();
-        doReturn(promise1).when(compactor).compact(topicName + "-partition-1");
+        doReturn(promise1).when(compactor).compact(topicName + "-partition-1", null);
         admin.topics().triggerCompaction(topicName);
 
         // verify compact called once by each partition topic
-        verify(compactor).compact(topicName + "-partition-0");
-        verify(compactor).compact(topicName + "-partition-1");
+        verify(compactor).compact(topicName + "-partition-0", null);
+        verify(compactor).compact(topicName + "-partition-1", null);
         try {
             admin.topics().triggerCompaction(topicName);
 
@@ -3101,8 +3101,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // expected
         }
         // compact shouldn't have been called again
-        verify(compactor).compact(topicName + "-partition-0");
-        verify(compactor).compact(topicName + "-partition-1");
+        verify(compactor).compact(topicName + "-partition-0", null);
+        verify(compactor).compact(topicName + "-partition-1", null);
 
         // complete first compaction, and trigger again
         promise.complete(1L);
@@ -3110,8 +3110,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().triggerCompaction(topicName);
 
         // verify compact was called again
-        verify(compactor, times(2)).compact(topicName + "-partition-0");
-        verify(compactor, times(2)).compact(topicName + "-partition-1");
+        verify(compactor, times(2)).compact(topicName + "-partition-0", null);
+        verify(compactor, times(2)).compact(topicName + "-partition-1", null);
     }
 
     @Test
@@ -3128,7 +3128,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(promise).when(compactor).compact(topicName);
+        doReturn(promise).when(compactor).compact(topicName, null);
         admin.topics().triggerCompaction(topicName);
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
@@ -3140,7 +3140,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 LongRunningProcessStatus.Status.SUCCESS);
 
         CompletableFuture<Long> errorPromise = new CompletableFuture<Long>();
-        doReturn(errorPromise).when(compactor).compact(topicName);
+        doReturn(errorPromise).when(compactor).compact(topicName, null);
         admin.topics().triggerCompaction(topicName);
         errorPromise.completeExceptionally(new Exception("Failed at something"));
 

@@ -109,7 +109,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
                 pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
-        twoPhaseCompactor.compact(sourceTopic).get();
+        twoPhaseCompactor.compact(sourceTopic, null).get();
 
         // 4 Setup sink
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);

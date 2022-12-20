@@ -2070,11 +2070,11 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(promise).when(compactor).compact(topicName);
+        doReturn(promise).when(compactor).compact(topicName, null);
         admin.topics().triggerCompaction(topicName);
 
         // verify compact called once
-        verify(compactor).compact(topicName);
+        verify(compactor).compact(topicName, null);
         try {
             admin.topics().triggerCompaction(topicName);
 
@@ -2083,14 +2083,14 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             // expected
         }
         // compact shouldn't have been called again
-        verify(compactor).compact(topicName);
+        verify(compactor).compact(topicName, null);
 
         // complete first compaction, and trigger again
         promise.complete(1L);
         admin.topics().triggerCompaction(topicName);
 
         // verify compact was called again
-        verify(compactor, times(2)).compact(topicName);
+        verify(compactor, times(2)).compact(topicName, null);
     }
 
     @Test
@@ -2107,7 +2107,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
-        doReturn(promise).when(compactor).compact(topicName);
+        doReturn(promise).when(compactor).compact(topicName, null);
         admin.topics().triggerCompaction(topicName);
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
@@ -2119,7 +2119,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             LongRunningProcessStatus.Status.SUCCESS);
 
         CompletableFuture<Long> errorPromise = new CompletableFuture<>();
-        doReturn(errorPromise).when(compactor).compact(topicName);
+        doReturn(errorPromise).when(compactor).compact(topicName, null);
         admin.topics().triggerCompaction(topicName);
         errorPromise.completeExceptionally(new Exception("Failed at something"));
 
