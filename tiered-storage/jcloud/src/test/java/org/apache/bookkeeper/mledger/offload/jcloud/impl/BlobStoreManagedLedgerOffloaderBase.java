@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.domain.Credentials;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
@@ -50,6 +51,11 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
         bk = new PulsarMockBookKeeper(scheduler);
         provider = getBlobStoreProvider();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanupMockBookKeeper() {
+        bk.getLedgerMap().clear();
     }
 
     protected static MockManagedLedger createMockManagedLedger() {

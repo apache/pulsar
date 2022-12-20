@@ -142,12 +142,14 @@ function test_group_other() {
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
-                  BlobStoreManagedLedgerOffloaderTest.java'
+                  **/BlobStoreManagedLedgerOffloaderTest.java,
+                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java'
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
 
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
+  mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderStreamingTest.java'
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
