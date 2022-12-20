@@ -315,8 +315,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     name -> new NonPersistentSubscription(this, subscriptionName, isDurable, subscriptionProperties));
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta,
-                    MessageId.latest, DEFAULT_CONSUMER_EPOCH, schemaData);
+                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
+                    DEFAULT_CONSUMER_EPOCH, schemaData == null ? SchemaType.AUTO_CONSUME : schemaData.getType());
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                 if (!cnx.isActive()) {
@@ -1126,7 +1126,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaData().getType() != SchemaType.AUTO_CONSUME)
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
                             .toList().size())
                     .sum();
             if (hasSchema

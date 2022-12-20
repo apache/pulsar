@@ -780,7 +780,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaData);
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch,
+                        schemaData == null ? SchemaType.AUTO_CONSUME : schemaData.getType());
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
@@ -2854,7 +2855,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaData().getType() != SchemaType.AUTO_CONSUME)
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
                             .toList().size())
                     .sum();
             if (hasSchema
