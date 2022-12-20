@@ -1134,6 +1134,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
+                                    .schemaType(schema == null ? null : schema.getType())
                                     .build();
                             if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)

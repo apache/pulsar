@@ -1329,36 +1329,55 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
 
     @Test(dataProvider = "topicDomain")
-    public void testSchemaAfterBytesSchema(String domain) throws PulsarClientException {
+    public void testCreateConsumerWithSchemaAfterConsumersWithoutSchema(String domain) {
         final String topicName = domain + NAMESPACE + "/testConsumerWithAutoSchemaOrBytesSchema";
 
-        @Cleanup
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topicName)
-                .subscriptionName("byte-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
+        // BYTES and AUTO_CONSUME won't actually create a schema,
+        // after these kinds of consumers, consumers with a specific schema should be created successfully
 
-        @Cleanup
-        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("byte-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
+        try {
+            @Cleanup
+            Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES)
+                    .topic(topicName)
+                    .subscriptionName("byte-subscriber-name")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
+        } catch (PulsarClientException e) {
+            fail("Unexpected consumer error", e);
+        }
+
+        try {
+            @Cleanup
+            Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName("byte-subscriber-name")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
+        } catch (PulsarClientException e) {
+            fail("Unexpected consumer error", e);
+        }
 
 
-        @Cleanup
-        Consumer<GenericRecord> consumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
-                .topic(topicName)
-                .subscriptionName("auto-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
+        try {
+            @Cleanup
+            Consumer<GenericRecord> consumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                    .topic(topicName)
+                    .subscriptionName("auto-subscriber-name")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
+        } catch (PulsarClientException e) {
+            fail("Unexpected consumer error", e);
+        }
 
-        @Cleanup
-        Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("auto-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
+        try {
+            @Cleanup
+            Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName("auto-subscriber-name")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
+        } catch (PulsarClientException e) {
+            fail("Unexpected consumer error", e);
+        }
     }
 }
