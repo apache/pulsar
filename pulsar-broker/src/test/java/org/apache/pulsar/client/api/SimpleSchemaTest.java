@@ -1326,4 +1326,39 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
     }
+
+
+    @Test(dataProvider = "topicDomain")
+    public void testSchemaAfterBytesSchema(String domain) throws PulsarClientException {
+        final String topicName = domain + NAMESPACE + "/testConsumerWithAutoSchemaOrBytesSchema";
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topicName)
+                .subscriptionName("byte-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("byte-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+
+        @Cleanup
+        Consumer<GenericRecord> consumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topicName)
+                .subscriptionName("auto-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("auto-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+    }
 }

@@ -151,6 +151,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -707,7 +708,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
-                option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch());
+                option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch(),
+                option.getSchemaType());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -720,7 +722,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           boolean replicatedSubscriptionStateArg,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
-                                                          long consumerEpoch) {
+                                                          long consumerEpoch, SchemaType schemaType) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -808,7 +810,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch);
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
@@ -882,10 +884,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
-                                                 KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta,
+                                                 SchemaType schemaType) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH,
+                schemaType);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -3055,12 +3059,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
             .thenCompose((hasSchema) -> {
-                int numActiveConsumers = subscriptions.values().stream()
-                        .mapToInt(subscription -> subscription.getConsumers().size())
+                int numActiveConsumersWithSchema = subscriptions.values().stream()
+                        .mapToInt(subscription -> (int) subscription.getConsumers().stream()
+                                // filter out the consumers have specific schema
+                                .filter((c) -> c.getSchemaType() != null && c.getSchemaType().getValue() > 0).count())
                         .sum();
                 if (hasSchema
                         || (!producers.isEmpty())
-                        || (numActiveConsumers != 0)
+                        || (numActiveConsumersWithSchema != 0)
                         || (ledger.getTotalSize() != 0)) {
                     return checkSchemaCompatibleForConsumer(schema);
                 } else {

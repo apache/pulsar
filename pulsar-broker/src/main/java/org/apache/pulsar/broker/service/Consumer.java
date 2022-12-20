@@ -58,6 +58,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -78,6 +79,8 @@ public class Consumer {
     private final String appId;
     private final String topicName;
     private final int partitionIdx;
+    @Getter
+    private final SchemaType schemaType;
 
     private final long consumerId;
     private final int priorityLevel;
@@ -146,7 +149,7 @@ public class Consumer {
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch, SchemaType schemaType) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -166,6 +169,7 @@ public class Consumer {
         this.msgOutCounter = new LongAdder();
         this.messageAckRate = new Rate();
         this.appId = appId;
+        this.schemaType = schemaType;
 
         // Ensure we start from compacted view
         this.startMessageId = (readCompacted && startMessageId == null) ? MessageId.earliest : startMessageId;
@@ -231,6 +235,7 @@ public class Consumer {
         this.clientAddress = null;
         this.startMessageId = null;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
+        this.schemaType = null;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
     }
 
