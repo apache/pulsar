@@ -99,6 +99,12 @@ public class MessageCumulativeAckTest {
             doReturn(pulsarResources).when(pulsar).getPulsarResources();
         });
 
+        eventLoopGroup = new NioEventLoopGroup();
+        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(brokerService).when(pulsar).getBrokerService();
+        });
+
         serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
@@ -106,13 +112,7 @@ public class MessageCumulativeAckTest {
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(mock(ChannelHandlerContext.class));
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
-            .when(serverCnx).getCommandSender();
-
-        eventLoopGroup = new NioEventLoopGroup();
-        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
-        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
-            doReturn(brokerService).when(pulsar).getBrokerService();
-        });
+                .when(serverCnx).getCommandSender();
 
         String topicName = TopicName.get("MessageCumulativeAckTest").toString();
         PersistentTopic persistentTopic = new PersistentTopic(topicName, mock(ManagedLedger.class), brokerService);
