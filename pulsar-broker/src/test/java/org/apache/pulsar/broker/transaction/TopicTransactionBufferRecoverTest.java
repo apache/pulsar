@@ -686,8 +686,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         //build and send snapshot
         snapshot.setTopicName(snapshotTopic);
         snapshot.setSequenceId(1L);
-        snapshot.setMaxReadPositionLedgerId(2L);
-        snapshot.setMaxReadPositionEntryId(3L);
+        snapshot.setPersistentPositionLedgerId(2L);
+        snapshot.setPersistentPositionEntryId(3L);
         LinkedList<TxnIDData> txnIDSet = new LinkedList<>();
         txnIDSet.add(new TxnIDData(1, 1));
         snapshot.setAborts(txnIDSet );
@@ -739,8 +739,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         //verify snapshot
         assertEquals(snapshot.getTopicName(), snapshotTopic);
         assertEquals(snapshot.getSequenceId(), 2L);
-        assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
-        assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
+        assertEquals(snapshot.getPersistentPositionLedgerId(), 2L);
+        assertEquals(snapshot.getPersistentPositionEntryId(), 3L);
         assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
     }
 
