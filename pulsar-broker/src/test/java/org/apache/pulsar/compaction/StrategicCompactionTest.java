@@ -143,7 +143,7 @@ public class StrategicCompactionTest extends CompactionTest {
         TableView<Integer> tableView = pulsar.getClient().newTableViewBuilder(strategy.getSchema())
                 .topic(topic)
                 .loadConf(Map.of(
-                        "topicCompactionStrategy", strategy.getClass().getCanonicalName()))
+                        "topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
                 .create();
         Assert.assertEquals(tableView.entrySet(), expectedCopy.entrySet());
     }

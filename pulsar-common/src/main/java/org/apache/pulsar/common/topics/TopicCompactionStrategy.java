@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.Schema;
  * TableView tableView = pulsar.getClient().newTableViewBuilder(strategy.getSchema())
  *                 .topic(topic)
  *                 .loadConf(Map.of(
- *                         "topicCompactionStrategy", strategy.getClass().getCanonicalName()))
+ *                         "topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
  *                 .create();
  */
 public interface TopicCompactionStrategy<T> {
