@@ -143,13 +143,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
 
         pendingAckStoreProvider.checkInitializedBefore(persistentSubscription)
-                .thenAccept(init -> {
+                .thenAcceptAsync(init -> {
                     if (init) {
                         initPendingAckStore();
                     } else {
                         completeHandleFuture();
                     }
-                })
+                }, internalPinnedExecutor)
                 .exceptionally(e -> {
                     Throwable t = FutureUtil.unwrapCompletionException(e);
                     changeToErrorState();
@@ -908,16 +908,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return transactionPendingAckStats;
     }
 
-    public synchronized void completeHandleFuture() {
-        if (!this.pendingAckHandleCompletableFuture.isDone()) {
-            this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
-        }
+    public void completeHandleFuture() {
+        this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
     }
 
-    public synchronized void exceptionHandleFuture(Throwable t) {
-        if (!this.pendingAckHandleCompletableFuture.isDone()) {
-            this.pendingAckHandleCompletableFuture.completeExceptionally(t);
-        }
+    public void exceptionHandleFuture(Throwable t) {
+        this.pendingAckHandleCompletableFuture.completeExceptionally(t);
     }
 
     @Override
