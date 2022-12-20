@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Serializable;
+
+import org.apache.pulsar.client.api.CryptoKeyReader;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -31,6 +34,7 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
     private String subscriptionName = null;
     private long autoUpdatePartitionsSeconds = 60;
 
+    private CryptoKeyReader cryptoKeyReader = null;
     @Override
     public TableViewConfigurationData clone() {
         try {

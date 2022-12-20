@@ -100,4 +100,12 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> subscriptionName(String subscriptionName);
+
+    /**
+     * Set the {@link CryptoKeyReader} to decrypt the message payloads.
+     *
+     * @param cryptoKeyReader CryptoKeyReader object
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 }

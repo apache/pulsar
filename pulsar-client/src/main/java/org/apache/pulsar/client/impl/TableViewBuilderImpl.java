@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
@@ -80,6 +81,12 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     public TableViewBuilder<T> subscriptionName(String subscriptionName) {
         checkArgument(StringUtils.isNotBlank(subscriptionName), "subscription name cannot be blank");
         conf.setSubscriptionName(StringUtils.trim(subscriptionName));
+        return this;
+    }
+
+    @Override
+    public TableViewBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 }
