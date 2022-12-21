@@ -3224,7 +3224,7 @@ public class PersistentTopicsBase extends AdminResource {
         future.thenAccept(__ -> {
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                     .thenAccept(partitionMetadata -> {
-                        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                        if (partitionMetadata.partitions > 0) {
                             log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
                                     clientAppId(), topicName);
                             asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
@@ -3896,7 +3896,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> internalExpireMessagesByTimestampForSinglePartitionAsync(
             PartitionedTopicMetadata partitionMetadata, String subName, int expireTimeInSeconds) {
-        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+        if (partitionMetadata.partitions > 0) {
             String msg = "This method should not be called for partitioned topic";
             return FutureUtil.failedFuture(new IllegalStateException(msg));
         } else {
@@ -3979,7 +3979,7 @@ public class PersistentTopicsBase extends AdminResource {
                             topicName, subName, messageId);
                     return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                             .thenAccept(partitionMetadata -> {
-                                if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                                if (partitionMetadata.partitions > 0) {
                                     String msg = "Expire message at position is not supported for partitioned-topic";
                                     log.warn("[{}] {} {}({}) {}", clientAppId(), msg, topicName, messageId, subName);
                                     asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
