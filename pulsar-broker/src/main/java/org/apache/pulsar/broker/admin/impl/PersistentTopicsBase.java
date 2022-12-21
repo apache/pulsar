@@ -1537,7 +1537,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        return future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenCompose(__ -> {
+        return future.thenCompose(__ -> {
             if (topicName.isPartitioned()) {
                 return internalDeleteSubscriptionForNonPartitionedTopicAsync(subName, authoritative, force);
             } else {
