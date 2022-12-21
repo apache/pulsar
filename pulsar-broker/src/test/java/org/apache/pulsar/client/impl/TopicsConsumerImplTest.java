@@ -20,15 +20,20 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -42,14 +47,18 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.netty.channel.ChannelManager;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1303,5 +1312,47 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
         });
     }
+
+    @Test
+    public void testClientConfAttrIoThreadNum() throws Exception {
+        PulsarClientImpl client1 = (PulsarClientImpl) PulsarClient.builder()
+                .ioThreads(1)
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(10, TimeUnit.MINUTES)
+                .listenerThreads(1).build();
+        PulsarClientImpl client2 = (PulsarClientImpl) PulsarClient.builder()
+                .ioThreads(16)
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(10, TimeUnit.MINUTES)
+                .listenerThreads(1).build();
+        PulsarAdminImpl pulsarAdmin1 = new PulsarAdminImpl(pulsar.getBrokerServiceUrl(), client1.conf, null);
+        PulsarAdminImpl pulsarAdmin2 = new PulsarAdminImpl(pulsar.getBrokerServiceUrl(), client2.conf, null);
+        ;
+        List<Pair<ExecutorService, ExecutorProvider.ExtendedThreadFactory>> scheduledThreadPool1 =
+                WhiteboxImpl.getInternalState(client1.getScheduledExecutorProvider(), "executors");
+        List<Pair<ExecutorService, ExecutorProvider.ExtendedThreadFactory>> internalThreadPool1 = WhiteboxImpl
+                .getInternalState(WhiteboxImpl.getInternalState(client1, "internalExecutorProvider"), "executors");
+
+        List<Pair<ExecutorService, ExecutorProvider.ExtendedThreadFactory>> scheduledThreadPool2 =
+                WhiteboxImpl.getInternalState(client2.getScheduledExecutorProvider(), "executors");
+        List<Pair<ExecutorService, ExecutorProvider.ExtendedThreadFactory>> internalThreadPool2 = WhiteboxImpl
+                .getInternalState(WhiteboxImpl.getInternalState(client2, "internalExecutorProvider"), "executors");
+        Assert.assertEquals(internalThreadPool1.size(), 1);
+        Assert.assertEquals(scheduledThreadPool1.size(), 1);
+        Assert.assertEquals(calculateHttpClientIOPoolSize(pulsarAdmin1), 1);
+        Assert.assertEquals(internalThreadPool2.size(), 16);
+        Assert.assertEquals(scheduledThreadPool2.size(), 16);
+        Assert.assertEquals(calculateHttpClientIOPoolSize(pulsarAdmin2), 16);
+    }
+
+    private int calculateHttpClientIOPoolSize(PulsarAdminImpl pulsarAdmin1) throws PulsarAdminException {
+        AsyncHttpConnector asyncHttpConnector = WhiteboxImpl.getInternalState(pulsarAdmin1, "asyncHttpConnector");
+        DefaultAsyncHttpClient httpClient = WhiteboxImpl.getInternalState(asyncHttpConnector, "httpClient");
+        ChannelManager channelManager = WhiteboxImpl.getInternalState(httpClient, "channelManager");
+        NioEventLoopGroup eventLoopGroup  = (NioEventLoopGroup) channelManager.getEventLoopGroup();
+        EventExecutor[] children = WhiteboxImpl.getInternalState(eventLoopGroup, "children");
+        return children.length;
+    }
+
 
 }
