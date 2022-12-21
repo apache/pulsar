@@ -3275,8 +3275,8 @@ public class PersistentTopicsBase extends AdminResource {
                 })).exceptionally(ex -> {
                         // If the exception is not redirect exception we need to log it.
                         if (!isRedirectException(ex)) {
-                            log.error("[{}] Failed to validate global namespace ownership to get backlog size for topic "
-                                    + "{}", clientAppId(), topicName, ex);
+                            log.error("[{}] Failed to validate global namespace ownership" +
+                                    "to get backlog size for topic {}", clientAppId(), topicName, ex);
                         }
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
