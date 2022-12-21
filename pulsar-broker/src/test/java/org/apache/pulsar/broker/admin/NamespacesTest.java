@@ -129,7 +129,11 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
@@ -1152,19 +1156,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(persistence2, persistence1);
     }
 
-    @DataProvider(name = "incorrectPersistentPolicies")
-    public Object[][] incorrectPersistentPolicies() {
-        return new Object[][] {
-                {0, 0, 0},
-                {1, 0, 0},
-                {0, 0, 1},
-                {0, 1, 0},
-                {1, 1, 0},
-                {1, 0, 1}
-        };
-    }
-
-    @Test(dataProvider = "incorrectPersistentPolicies")
+    @Test(dataProvider = "invalidPersistentPolicies")
     public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
         NamespaceName testNs = this.testLocalNamespaces.get(0);
         PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
