@@ -1269,14 +1269,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     long estimateBacklogFromPosition(PositionImpl pos) {
         synchronized (this) {
-            LedgerInfo ledgerInfo = ledgers.get(pos.getLedgerId());
-            if (ledgerInfo == null) {
-                return getTotalSize(); // position no longer in managed ledger, so return total size
+            Map<Long, LedgerInfo> tailLedgerInfos = ledgers.tailMap(pos.getLedgerId());
+            if (tailLedgerInfos.isEmpty()) { // pos is greater than the greatest ledgerId in ledgers
+                return 0;
             }
-            long sizeBeforePosLedger = ledgers.values().stream().filter(li -> li.getLedgerId() < pos.getLedgerId())
-                    .mapToLong(LedgerInfo::getSize).sum();
-            long size = getTotalSize() - sizeBeforePosLedger;
-
+            LedgerInfo ledgerInfo = tailLedgerInfos.get(pos.getLedgerId());
+            if (ledgerInfo == null) { // pos is smaller than the smallest ledgerId in ledgers
+                return getTotalSize();
+            }
+            long size = tailLedgerInfos.values().stream().mapToLong(LedgerInfo::getSize).sum();
             if (pos.getLedgerId() == currentLedger.getId()) {
                 return size - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
             } else {

@@ -3837,4 +3837,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         managedLedger.getEnsemblesAsync(lastLedger).join();
         Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
     }
+
+    @Test
+    public void testGetEstimatedBacklogSize() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testGetEstimatedBacklogSize");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(new byte[1024]);
+        }
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1)), 10240);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(11, 2)), 0);
+        ledger.close();
+    }
 }
