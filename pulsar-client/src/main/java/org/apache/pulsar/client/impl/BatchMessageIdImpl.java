@@ -72,15 +72,21 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     @Override
     public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
-            if (!(o instanceof BatchMessageIdImpl)) {
-                throw new UnsupportedOperationException(this.getClass().getName()
-                        + " can't compare with " + o.getClass().getName());
-            }
             MessageIdImpl other = (MessageIdImpl) o;
-            return messageIdCompare(
-                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
-                other.ledgerId, other.entryId, other.partitionIndex, ((BatchMessageIdImpl) o).batchIndex
-            );
+            int compareWithoutBatchIndex = messageIdCompare(
+                    this.ledgerId, this.entryId, this.partitionIndex,
+                    other.ledgerId, other.entryId, other.partitionIndex);
+            if (compareWithoutBatchIndex != 0) {
+                return compareWithoutBatchIndex;
+            } else {
+                if (!(o instanceof BatchMessageIdImpl)) {
+                    throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
+                            + o.getClass().getName() + " when they have the same `LedgerId` and `EntryId`.");
+                } else {
+                    return ComparisonChain.start().compare(this.batchIndex,
+                            ((BatchMessageIdImpl) o).batchIndex).result();
+                }
+            }
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {

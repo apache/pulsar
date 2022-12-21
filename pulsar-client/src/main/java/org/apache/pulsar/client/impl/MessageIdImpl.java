@@ -204,14 +204,17 @@ public class MessageIdImpl implements MessageId {
     @Override
     public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
-            if (o instanceof BatchMessageIdImpl) {
-                throw new UnsupportedOperationException(this.getClass().getName()
-                        + " can't compare with " + o.getClass().getName());
-            }
             MessageIdImpl other = (MessageIdImpl) o;
-            return messageIdCompare(
-                this.ledgerId, this.entryId, this.partitionIndex, other.ledgerId, other.entryId, other.partitionIndex
+            int compareWithoutBatchIndex = messageIdCompare(
+                    this.ledgerId, this.entryId, this.partitionIndex,
+                    other.ledgerId, other.entryId, other.partitionIndex
             );
+            if (compareWithoutBatchIndex != 0 || !(o instanceof BatchMessageIdImpl)) {
+                return compareWithoutBatchIndex;
+            } else {
+                throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
+                        + o.getClass().getName() + " when they have the same `LedgerId` and `EntryId`.");
+            }
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
