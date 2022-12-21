@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -308,6 +309,53 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    public void testListen() throws Exception {
+        String topic = "persistent://public/default/tableview-listen-test";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        @Cleanup
+        TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        class MockAction implements BiConsumer<String, String> {
+            int acceptedCount = 0;
+            @Override
+            public void accept(String s, String s2) {
+                acceptedCount++;
+            }
+        }
+        MockAction mockAction = new MockAction();
+        tv.listen((k, v) -> mockAction.accept(k, v));
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .until(() -> tv.size() == 5);
+
+        assertEquals(mockAction.acceptedCount, 0);
+
+        for (int i = 5; i < 10; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .until(() -> tv.size() == 10);
+
+        assertEquals(mockAction.acceptedCount, 5);
+    }
+
+    @Test(timeOut = 30 * 1000)
     public void testTableViewWithEncryptedMessages() throws Exception {
         String topic = "persistent://public/default/tableview-encryption-test";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -330,5 +378,4 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
-    }
 }

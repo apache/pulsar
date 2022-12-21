@@ -84,13 +84,13 @@
     <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-schema-registry-client</artifactId>
-      <version>${kafka.confluent.schemaregistryclient.version}</version>
+      <version>${confluent.version}</version>
     </dependency>
 
     <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-avro-serializer</artifactId>
-      <version>${kafka.confluent.avroserializer.version}</version>
+      <version>${confluent.version}</version>
     </dependency>
 
     <dependency>

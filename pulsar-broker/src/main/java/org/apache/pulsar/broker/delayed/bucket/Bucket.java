@@ -123,13 +123,13 @@ abstract class Bucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            ImmutableBucket bucketState, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
+            ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
             List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
-
-        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments)
+        final String bucketKey = bucket.bucketKey();
+        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
                 .thenCompose(newBucketId -> {
-                    bucketState.setBucketId(newBucketId);
-                    String bucketKey = bucketState.bucketKey();
+                    bucket.setBucketId(newBucketId);
+
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
                         log.warn("Failed to record bucketId to cursor property, bucketKey: {}", bucketKey);
                         return null;

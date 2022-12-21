@@ -88,6 +88,10 @@ public class BrokerServiceException extends Exception {
         public PersistenceException(Throwable t) {
             super(t);
         }
+
+        public PersistenceException(String msg) {
+            super(msg);
+        }
     }
 
     public static class TopicTerminatedException extends BrokerServiceException {

@@ -381,10 +381,12 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     private void safeIntercept(BaseCommand command, ServerCnx cnx) {
-        try {
-            this.interceptor.onPulsarCommand(command, cnx);
-        } catch (Exception e) {
-            log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+        if (this.interceptor != null) {
+            try {
+                this.interceptor.onPulsarCommand(command, cnx);
+            } catch (Exception e) {
+                log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+            }
         }
     }
 }

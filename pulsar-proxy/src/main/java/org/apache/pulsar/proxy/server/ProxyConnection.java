@@ -77,7 +77,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Handles incoming discovery request from client and sends appropriate response back to client.
- *
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
  */
 public class ProxyConnection extends PulsarHandler {
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnection.class);

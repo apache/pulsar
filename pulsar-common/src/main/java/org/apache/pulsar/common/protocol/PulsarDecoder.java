@@ -89,6 +89,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Basic implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please be aware that the decoded protocol command instance passed to a handle* method is cleared and reused for the
+ * next protocol command after the method completes. This is done in order to minimize object allocations for
+ * performance reasons. <b>It is not allowed to retain a reference to the handle* method parameter command instance
+ * after the method returns.</b> If you need to pass an instance of the command instance to another thread or retain a
+ * reference to it after the handle* method completes, you must make a deep copy of the command instance.
  */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
