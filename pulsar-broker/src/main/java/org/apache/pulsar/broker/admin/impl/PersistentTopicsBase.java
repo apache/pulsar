@@ -2763,7 +2763,7 @@ public class PersistentTopicsBase extends AdminResource {
         // will redirect if the topic not owned by current broker
         getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                 .thenAccept(partitionMetadata -> {
-                    if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                    if (partitionMetadata.partitions > 0) {
                         log.warn("[{}] Not supported getMessageById operation on partitioned-topic {}",
                                 clientAppId(), topicName);
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
