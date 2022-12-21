@@ -273,13 +273,25 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
    ```java
    
+
+   # If you use Lombok
    @Builder
    @AllArgsConstructor
    @NoArgsConstructor
+
    public static class User {
        String name;
        int age;
    }
+
+   # If you DON'T use Lombok you will need to add the constructor like this
+   # 
+   #   public static class User {
+   #    String name;
+   #    int age;
+   #    public User() { } 
+   #    public User(String name, int age) { this.name = name; this.age = age; } }
+   #}
    
    ```
 
