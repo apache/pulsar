@@ -40,6 +40,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -888,7 +889,7 @@ public abstract class NamespacesBase extends AdminResource {
             CompletableFuture<LookupResult> result = pulsar().getNamespaceService()
                     .createLookupResult(leaderBrokerUrl, false, null);
             try {
-                LookupResult lookupResult = result.get();
+                LookupResult lookupResult = result.get(2L, TimeUnit.SECONDS);
                 String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
                         : lookupResult.getLookupData().getHttpUrl();
                 if (redirectUrl == null) {
@@ -912,6 +913,9 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(exception);
             } catch (ExecutionException | InterruptedException exception) {
                 log.error("Leader broker not found - {}", leaderBrokerUrl);
+                throw new RestException(exception.getCause());
+            } catch (TimeoutException exception) {
+                log.error("Leader broker not found within timeout - {}", leaderBrokerUrl);
                 throw new RestException(exception);
             }
         }
