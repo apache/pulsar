@@ -2761,51 +2761,62 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGetMessageById(AsyncResponse asyncResponse, long ledgerId, long entryId,
                                               boolean authoritative) {
         // will redirect if the topic not owned by current broker
-        validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
-                .thenCompose(__ -> {
-                    CompletableFuture<Void> ret;
-                    if (topicName.isGlobal()) {
-                        ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                .thenAccept(partitionMetadata -> {
+                    if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                        log.warn("[{}] Not supported getMessageById operation on partitioned-topic {}",
+                                clientAppId(), topicName);
+                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                                "GetMessageById is not allowed on partitioned-topic"));
                     } else {
-                        ret = CompletableFuture.completedFuture(null);
-                    }
-                    return ret;
-                })
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenAccept(topic -> {
-                    ManagedLedgerImpl ledger =
-                            (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
-                    ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId),
-                            new AsyncCallbacks.ReadEntryCallback() {
-                                @Override
-                                public void readEntryFailed(ManagedLedgerException exception,
-                                                            Object ctx) {
-                                    asyncResponse.resume(new RestException(exception));
-                                }
-
-                                @Override
-                                public void readEntryComplete(Entry entry, Object ctx) {
-                                    try {
-                                        asyncResponse.resume(generateResponseWithEntry(entry));
-                                    } catch (IOException exception) {
-                                        asyncResponse.resume(new RestException(exception));
-                                    } finally {
-                                        if (entry != null) {
-                                            entry.release();
-                                        }
+                        validateTopicOwnershipAsync(topicName, authoritative)
+                                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
+                                .thenCompose(__ -> {
+                                    CompletableFuture<Void> ret;
+                                    if (topicName.isGlobal()) {
+                                        ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+                                    } else {
+                                        ret = CompletableFuture.completedFuture(null);
                                     }
-                                }
-                            }, null);
-                }).exceptionally(ex -> {
-                    // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
-                                clientAppId(), ledgerId, entryId, topicName, ex);
+                                    return ret;
+                                })
+                                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                                .thenAccept(topic -> {
+                                    ManagedLedgerImpl ledger =
+                                            (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
+                                    ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId),
+                                            new AsyncCallbacks.ReadEntryCallback() {
+                                                @Override
+                                                public void readEntryFailed(ManagedLedgerException exception,
+                                                                            Object ctx) {
+                                                    asyncResponse.resume(new RestException(exception));
+                                                }
+
+                                                @Override
+                                                public void readEntryComplete(Entry entry, Object ctx) {
+                                                    try {
+                                                        asyncResponse.resume(generateResponseWithEntry(entry));
+                                                    } catch (IOException exception) {
+                                                        asyncResponse.resume(new RestException(exception));
+                                                    } finally {
+                                                        if (entry != null) {
+                                                            entry.release();
+                                                        }
+                                                    }
+                                                }
+                                            }, null);
+                                }).exceptionally(ex -> {
+                                    // If the exception is not redirect exception we need to log it.
+                                    if (!isRedirectException(ex)) {
+                                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                                clientAppId(), ledgerId, entryId, topicName, ex);
+                                    }
+                                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                                    return null;
+                                });
                     }
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
                 });
+
     }
 
     protected CompletableFuture<MessageId> internalGetMessageIdByTimestampAsync(long timestamp, boolean authoritative) {
