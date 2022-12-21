@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.Sets;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
@@ -45,11 +45,11 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
-        admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
         admin.namespaces().createNamespace("prop-xyz/test/ns1");
-        admin.namespaces().createNamespace("prop-xyz/ns2", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("prop-xyz/ns2", Set.of("test"));
         admin.namespaces().createNamespace("prop-xyz/test/ns2");
     }
 

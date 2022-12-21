@@ -33,7 +33,11 @@ function mvn_test() {
         clean_arg="clean"
         shift
     fi
-    TARGET=verify
+    if echo "${FUNCNAME[@]}" | grep "flaky"; then
+      TARGET="verify"
+    else
+      TARGET="verify -Pcoverage"
+    fi
     if [[ "$1" == "--install" ]]; then
       TARGET="install"
       shift
@@ -75,6 +79,10 @@ function test_group_broker_client_api() {
 
 function test_group_broker_client_impl() {
   mvn_test -pl pulsar-broker -Dgroups='broker-impl'
+}
+
+function test_group_client() {
+  mvn_test -pl pulsar-client
 }
 
 # prints summaries of failed tests to console
@@ -129,23 +137,23 @@ function test_group_proxy() {
 
 function test_group_other() {
   mvn_test --clean --install \
-           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution' \
+           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution,!org.apache.pulsar:pulsar-all-docker-image' \
            -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DdisableSqlMainProfile=true -DskipIntegrationTests \
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
-                  BlobStoreManagedLedgerOffloaderTest.java'
+                  **/BlobStoreManagedLedgerOffloaderTest.java,
+                  **/BlobStoreManagedLedgerOffloaderStreamingTest.java'
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
 
-  mvn_test -pl pulsar-client -Dinclude='**/PrimitiveSchemaTest.java'
-
   mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
+  mvn_test -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderStreamingTest.java'
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
-    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy|pulsar-io|pulsar-sql' | sort | uniq | \
+    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy|pulsar-io|pulsar-sql|pulsar-client' | sort | uniq | \
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
@@ -163,7 +171,7 @@ function test_group_pulsar_io() {
     echo "::endgroup::"
 
     echo "::group::Running pulsar-sql tests"
-    mvn_test --install -Ppulsar-sql-tests,-main
+    mvn_test --install -Ppulsar-sql-tests,-main -DtestForkCount=1
     echo "::endgroup::"
 }
 

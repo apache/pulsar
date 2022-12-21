@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.google.common.collect.ImmutableMap;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -40,11 +39,16 @@ public final class LedgerMetadataUtils {
             "compacted-ledger".getBytes(StandardCharsets.UTF_8);
     private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
 
+    private static final byte[] METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET =
+            "delayed-index-bucket".getBytes(StandardCharsets.UTF_8);
+
     private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
     private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
     private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
     private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
     private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
+
+    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKETID = "pulsar/delayedIndexBucketId";
 
     /**
      * Build base metadata for every ManagedLedger.
@@ -53,7 +57,7 @@ public final class LedgerMetadataUtils {
      * @return an immutable map which describes a ManagedLedger
      */
     static Map<String, byte[]> buildBaseManagedLedgerMetadata(String name) {
-        return ImmutableMap.of(
+        return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER,
                 METADATA_PROPERTY_MANAGED_LEDGER_NAME, name.getBytes(StandardCharsets.UTF_8));
@@ -67,7 +71,7 @@ public final class LedgerMetadataUtils {
      * @see #buildBaseManagedLedgerMetadata(java.lang.String)
      */
     static Map<String, byte[]> buildAdditionalMetadataForCursor(String name) {
-        return ImmutableMap.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8));
+        return Map.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -79,7 +83,7 @@ public final class LedgerMetadataUtils {
      */
     public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic,
                                                                       byte[] compactedToMessageId) {
-        return ImmutableMap.of(
+        return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER,
                 METADATA_PROPERTY_COMPACTEDTOPIC, compactedTopic.getBytes(StandardCharsets.UTF_8),
@@ -94,10 +98,24 @@ public final class LedgerMetadataUtils {
      * @return an immutable map which describes the schema
      */
     public static Map<String, byte[]> buildMetadataForSchema(String schemaId) {
-        return ImmutableMap.of(
+        return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_SCHEMA,
                 METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    /**
+     * Build additional metadata for a delayed message index bucket.
+     *
+     * @param bucketKey key of the delayed message bucket
+     * @return an immutable map which describes the schema
+     */
+    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey) {
+        return Map.of(
+                METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
+                METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
+                METADATA_PROPERTY_DELAYED_INDEX_BUCKETID, bucketKey.getBytes(StandardCharsets.UTF_8)
         );
     }
 
@@ -117,7 +135,7 @@ public final class LedgerMetadataUtils {
         Class<? extends EnsemblePlacementPolicy> className, Map<String, Object> properties)
         throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
         EnsemblePlacementPolicyConfig config = new EnsemblePlacementPolicyConfig(className, properties);
-        return ImmutableMap.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
+        return Map.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
     }
 
     private LedgerMetadataUtils() {}

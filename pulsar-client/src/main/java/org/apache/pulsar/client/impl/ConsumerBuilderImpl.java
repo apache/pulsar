@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,8 +52,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicConsumerBuilder;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -182,11 +184,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> topic(String... topicNames) {
         checkArgument(topicNames != null && topicNames.length > 0,
                 "Passed in topicNames should not be null or empty.");
-        Arrays.stream(topicNames).forEach(topicName ->
-                checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Arrays.stream(topicNames).map(StringUtils::trim)
-                .collect(Collectors.toList()));
-        return this;
+        return topics(Arrays.stream(topicNames).collect(Collectors.toList()));
     }
 
     @Override
@@ -208,9 +206,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> topicsPattern(String topicsPattern) {
-        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
-        conf.setTopicsPattern(Pattern.compile(topicsPattern));
-        return this;
+        return topicsPattern(Pattern.compile(topicsPattern));
     }
 
     @Override
@@ -322,6 +318,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit) {
         checkArgument(delay >= 0, "acknowledgmentGroupTime needs to be >= 0");
         conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> maxAcknowledgmentGroupSize(int messageNum) {
+        checkArgument(messageNum > 0, "acknowledgementsGroupSize needs to be > 0");
+        conf.setMaxAcknowledgmentGroupSize(messageNum);
         return this;
     }
 
@@ -535,6 +538,34 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled) {
         conf.setAutoScaledReceiverQueueSizeEnabled(enabled);
+        return this;
+    }
+
+    @Override
+    public TopicConsumerBuilder<T> topicConfiguration(String topicName) {
+        TopicConsumerConfigurationData topicConf = TopicConsumerConfigurationData.ofTopicName(topicName, conf);
+        conf.getTopicConfigurations().add(topicConf);
+        return new TopicConsumerBuilderImpl<>(this, topicConf);
+    }
+
+    @Override
+    public ConsumerBuilder<T> topicConfiguration(String topicName,
+                                                 java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer) {
+        builderConsumer.accept(topicConfiguration(topicName));
+        return this;
+    }
+
+    @Override
+    public TopicConsumerBuilder<T> topicConfiguration(Pattern topicsPattern) {
+        TopicConsumerConfigurationData topicConf = TopicConsumerConfigurationData.ofTopicsPattern(topicsPattern, conf);
+        conf.getTopicConfigurations().add(topicConf);
+        return new TopicConsumerBuilderImpl<>(this, topicConf);
+    }
+
+    @Override
+    public ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
+                                                 java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer) {
+        builderConsumer.accept(topicConfiguration(topicsPattern));
         return this;
     }
 }

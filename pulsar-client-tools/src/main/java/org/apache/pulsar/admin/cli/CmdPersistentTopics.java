@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.cli.NoSplitter;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -346,7 +347,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getStats(persistentTopic, getPreciseBacklog));
+            print(getPersistentTopics().getStats(persistentTopic, getPreciseBacklog));
         }
     }
 
@@ -510,7 +511,7 @@ public class CmdPersistentTopics extends CmdBase {
         private String messageIdStr = "latest";
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Override

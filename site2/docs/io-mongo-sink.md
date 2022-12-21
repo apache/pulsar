@@ -4,8 +4,7 @@ title: MongoDB sink connector
 sidebar_label: "MongoDB sink connector"
 ---
 
-The MongoDB sink connector pulls messages from Pulsar topics 
-and persists the messages to collections.
+The MongoDB sink connector pulls messages from Pulsar topics and persists the messages to collections.
 
 ## Configuration
 
@@ -29,7 +28,6 @@ Before using the Mongo sink connector, you need to create a configuration file t
 * JSON
 
   ```json
-  
   {
      "configs": {
         "mongoUri": "mongodb://localhost:27017",
@@ -39,19 +37,16 @@ Before using the Mongo sink connector, you need to create a configuration file t
         "batchTimeMs": "500"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       mongoUri: "mongodb://localhost:27017"
       database: "pulsar"
       collection: "messages"
       batchSize: 2
       batchTimeMs: 500
-  
   ```
 

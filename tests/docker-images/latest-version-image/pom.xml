@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>latest-version-image</artifactId>
@@ -45,10 +45,22 @@
           <version>${project.parent.version}</version>
         </dependency>
         <dependency>
+          <groupId>org.apache.pulsar.tests</groupId>
+          <artifactId>java-test-plugins</artifactId>
+          <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
           <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
-          <classifier>docker-info</classifier>
+          <type>pom</type>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
       <build>
@@ -72,6 +84,15 @@
                       <overWrite>true</overWrite>
                       <outputDirectory>${project.build.directory}</outputDirectory>
                       <destFileName>java-test-functions.jar</destFileName>
+                    </artifactItem>
+                    <artifactItem>
+                      <groupId>org.apache.pulsar.tests</groupId>
+                      <artifactId>java-test-plugins</artifactId>
+                      <version>${project.parent.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${project.build.directory}/plugins</outputDirectory>
+                      <destFileName>java-test-plugins.nar</destFileName>
                     </artifactItem>
                   </artifactItems>
                 </configuration>
@@ -98,12 +119,28 @@
                   </resources>
                 </configuration>
               </execution>
+              <execution>
+                <id>copy-pulsar-certificate-authority</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.build.directory}/certificate-authority</outputDirectory>
+                  <overwrite>true</overwrite>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/../../certificate-authority</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>default</id>
@@ -111,25 +148,23 @@
                 <goals>
                   <goal>build</goal>
                 </goals>
-              </execution>
-              <execution>
-                <id>add-latest-tag</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
                 <configuration>
-                  <repository>${docker.organization}/pulsar-test-latest-version</repository>
-                  <tag>latest</tag>
+                  <images>
+                    <image>
+                      <name>${docker.organization}/pulsar-test-latest-version</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                          <tag>${project.version}</tag>
+                        </tags>
+                        <noCache>true</noCache>
+                      </build>
+                    </image>
+                  </images>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar-test-latest-version</repository>
-              <tag>${project.version}</tag>
-              <pullNewerImage>false</pullNewerImage>
-              <noCache>true</noCache>
-            </configuration>
           </plugin>
         </plugins>
       </build>

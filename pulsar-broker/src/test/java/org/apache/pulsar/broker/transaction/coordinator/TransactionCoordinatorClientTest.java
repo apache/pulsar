@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.transaction.coordinator;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.PulsarService;
@@ -83,7 +83,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     @Test
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
-        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, Lists.newArrayList("persistent://public/default/testCommitAndAbort"));
+        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, List.of("persistent://public/default/testCommitAndAbort"));
         transactionCoordinatorClient.commit(txnID);
         try {
             transactionCoordinatorClient.abort(txnID);

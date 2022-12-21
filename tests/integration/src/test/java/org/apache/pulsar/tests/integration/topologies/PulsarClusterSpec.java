@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -112,6 +113,12 @@ public class PulsarClusterSpec {
     Map<String, GenericContainer<?>> externalServices;
 
     /**
+     * Specify envs for external services.
+     */
+    @Singular
+    Map<String, Map<String, String>> externalServiceEnvs;
+
+    /**
      * Returns the flag whether to enable/disable container log.
      *
      * @return the flag whether to enable/disable container log.
@@ -155,4 +162,9 @@ public class PulsarClusterSpec {
 
     @Default
     int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
+    /**
+     * Additional ports to expose on broker containers.
+     */
+    List<Integer> brokerAdditionalPorts;
 }

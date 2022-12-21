@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.util.DateFormatter;
 
 /**
  * Consumer statistics.
@@ -95,8 +96,14 @@ public class ConsumerStatsImpl implements ConsumerStats {
     @JsonIgnore
     private int clientVersionLength;
 
+    // ignore this json field to skip from stats in future release. replaced with readable #getLastAckedTime().
+    @Deprecated
     public long lastAckedTimestamp;
+    // ignore this json field to skip from stats in future release. replaced with readable #getLastConsumedTime().
+    @Deprecated
     public long lastConsumedTimestamp;
+
+    public long lastConsumedFlowTimestamp;
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     public List<String> keyHashRanges;
@@ -172,5 +179,13 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public String getReadPositionWhenJoining() {
         return readPositionWhenJoining;
+    }
+
+    public String getLastAckedTime() {
+        return DateFormatter.format(lastAckedTimestamp);
+    }
+
+    public String getLastConsumedTime() {
+        return DateFormatter.format(lastConsumedTimestamp);
     }
 }

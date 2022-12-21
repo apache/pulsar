@@ -5,7 +5,7 @@ sidebar_label: "Tenants"
 original_id: admin-api-tenants
 ---
 
-Tenants, like namespaces, can be managed using the [admin API](admin-api-overview). There are currently two configurable aspects of tenants:
+Tenants, like namespaces, can be managed using the [admin API](admin-api-overview.md). There are currently two configurable aspects of tenants:
 
 * Admin roles
 * Allowed clusters

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -72,23 +73,32 @@ public class PulsarClientTool {
 
         @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
         boolean help;
+
+        @Parameter(names = { "--tlsTrustCertsFilePath" }, description = "File path to client trust certificates")
+        String tlsTrustCertsFilePath;
     }
 
     protected RootParams rootParams;
     boolean tlsAllowInsecureConnection;
     boolean tlsEnableHostnameVerification;
-    String tlsTrustCertsFilePath;
+
+    String tlsKeyFilePath;
+    String tlsCertificateFilePath;
+
 
     // for tls with keystore type config
     boolean useKeyStoreTls;
     String tlsTrustStoreType;
     String tlsTrustStorePath;
     String tlsTrustStorePassword;
+    String tlsKeyStoreType;
+    String tlsKeyStorePath;
+    String tlsKeyStorePassword;
 
     protected JCommander jcommander;
     IUsageFormatter usageFormatter;
-    CmdProduce produceCommand;
-    CmdConsume consumeCommand;
+    protected CmdProduce produceCommand;
+    protected CmdConsume consumeCommand;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
@@ -98,13 +108,17 @@ public class PulsarClientTool {
                 .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
         this.tlsEnableHostnameVerification = Boolean
                 .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        this.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
-
         this.useKeyStoreTls = Boolean
                 .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
         this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
         this.tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
         this.tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
+
+        this.tlsKeyStoreType = properties.getProperty("tlsKeyStoreType", "JKS");
+        this.tlsKeyStorePath = properties.getProperty("tlsKeyStorePath");
+        this.tlsKeyStorePassword = properties.getProperty("tlsKeyStorePassword");
+        this.tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
+        this.tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
 
         initJCommander();
     }
@@ -132,6 +146,18 @@ public class PulsarClientTool {
         }
         this.rootParams.authPluginClassName = properties.getProperty("authPlugin");
         this.rootParams.authParams = properties.getProperty("authParams");
+        this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
+        String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
+        if (proxyProtocolString != null) {
+            try {
+                this.rootParams.proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
+                e.printStackTrace();
+                System.exit(1);
+            }
+        }
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
@@ -146,19 +172,25 @@ public class PulsarClientTool {
             clientBuilder.listenerName(this.rootParams.listenerName);
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
-        clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
         clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(rootParams.serviceURL);
+
+        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath)
+                .tlsKeyFilePath(tlsKeyFilePath)
+                .tlsCertificateFilePath(tlsCertificateFilePath);
 
         clientBuilder.useKeyStoreTls(useKeyStoreTls)
                 .tlsTrustStoreType(tlsTrustStoreType)
                 .tlsTrustStorePath(tlsTrustStorePath)
-                .tlsTrustStorePassword(tlsTrustStorePassword);
+                .tlsTrustStorePassword(tlsTrustStorePassword)
+                .tlsKeyStoreType(tlsKeyStoreType)
+                .tlsKeyStorePath(tlsKeyStorePath)
+                .tlsKeyStorePassword(tlsKeyStorePassword);
 
         if (isNotBlank(rootParams.proxyServiceURL)) {
             if (rootParams.proxyProtocol == null) {
                 System.out.println("proxy-protocol must be provided with proxy-url");
-                System.exit(-1);
+                System.exit(1);
             }
             clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
         }
@@ -224,7 +256,7 @@ public class PulsarClientTool {
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: pulsar-client CONF_FILE_PATH [options] [command] [command options]");
-            System.exit(-1);
+            System.exit(1);
         }
         String configFile = args[0];
         Properties properties = new Properties();

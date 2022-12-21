@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.shell.config.ConfigStore;
 
 /**
@@ -49,6 +50,20 @@ import org.apache.pulsar.shell.config.ConfigStore;
  */
 @Parameters(commandDescription = "Manage Pulsar shell configurations.")
 public class ConfigShell implements ShellCommandsProvider {
+
+    private static final String LOCAL_FILES_BASE_DIR = System.getProperty("pulsar.shell.working.dir");
+
+    static File resolveLocalFile(String input) {
+        return resolveLocalFile(input, LOCAL_FILES_BASE_DIR);
+    }
+
+    static File resolveLocalFile(String input, String baseDir) {
+        final File file = new File(input);
+        if (!file.isAbsolute() && baseDir != null) {
+            return new File(baseDir, input);
+        }
+        return file;
+    }
 
 
     @Getter
@@ -70,11 +85,12 @@ public class ConfigShell implements ShellCommandsProvider {
     private final ConfigStore configStore;
     private final ObjectMapper writer = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     @Getter
-    private String currentConfig = DEFAULT_CONFIG;
+    private String currentConfig;
 
-    public ConfigShell(PulsarShell pulsarShell) {
+    public ConfigShell(PulsarShell pulsarShell, String currentConfig) {
         this.configStore = pulsarShell.getConfigStore();
         this.pulsarShell = pulsarShell;
+        this.currentConfig = currentConfig;
     }
 
     @Override
@@ -101,10 +117,13 @@ public class ConfigShell implements ShellCommandsProvider {
 
         commands.put("list", new CmdConfigList());
         commands.put("create", new CmdConfigCreate());
+        commands.put("clone", new CmdConfigClone());
         commands.put("update", new CmdConfigUpdate());
         commands.put("delete", new CmdConfigDelete());
         commands.put("use", new CmdConfigUse());
         commands.put("view", new CmdConfigView());
+        commands.put("set-property", new CmdConfigSetProperty());
+        commands.put("get-property", new CmdConfigGetProperty());
         commands.forEach((k, v) -> jcommander.addCommand(k, v));
     }
 
@@ -243,6 +262,9 @@ public class ConfigShell implements ShellCommandsProvider {
     @Parameters(commandDescription = "Create a new configuration.")
     private class CmdConfigCreate extends CmdConfigPut {
 
+        @Parameter(description = "Configuration name", required = true)
+        protected String name;
+
         @Override
         @SneakyThrows
         boolean verifyCondition() {
@@ -253,10 +275,19 @@ public class ConfigShell implements ShellCommandsProvider {
             }
             return true;
         }
+
+        @Override
+        String name() {
+            return name;
+        }
     }
 
     @Parameters(commandDescription = "Update an existing configuration.")
     private class CmdConfigUpdate extends CmdConfigPut {
+
+        @Parameter(description = "Configuration name", required = true)
+        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        protected String name;
 
         @Override
         @SneakyThrows
@@ -272,13 +303,14 @@ public class ConfigShell implements ShellCommandsProvider {
             }
             return true;
         }
+
+        @Override
+        String name() {
+            return name;
+        }
     }
 
     private abstract class CmdConfigPut implements RunnableWithResult {
-
-        @Parameter(description = "Configuration name", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
-        protected String name;
 
         @Parameter(names = {"--url"}, description = "URL of the config")
         protected String url;
@@ -296,6 +328,7 @@ public class ConfigShell implements ShellCommandsProvider {
             if (!verifyCondition()) {
                 return false;
             }
+            final String name = name();
             final String value;
             if (inlineValue != null) {
                 if (inlineValue.startsWith("base64:")) {
@@ -305,7 +338,7 @@ public class ConfigShell implements ShellCommandsProvider {
                     value = inlineValue;
                 }
             } else if (file != null) {
-                final File f = new File(file);
+                final File f = resolveLocalFile(file);
                 if (!f.exists()) {
                     print("File " + f.getAbsolutePath() + " not found.");
                     return false;
@@ -327,17 +360,127 @@ public class ConfigShell implements ShellCommandsProvider {
                 return false;
             }
 
-            configStore.putConfig(new ConfigStore.ConfigEntry(name, value));
-            if (currentConfig.equals(name)) {
-                final Properties properties = new Properties();
-                properties.load(new StringReader(value));
-                pulsarShell.reload(properties);
-            }
+            final ConfigStore.ConfigEntry entry = new ConfigStore.ConfigEntry(name, value);
+            configStore.putConfig(entry);
+            reloadIfCurrent(entry);
             return true;
         }
 
+        abstract String name();
+
         abstract boolean verifyCondition();
     }
+
+
+    private class CmdConfigClone implements RunnableWithResult {
+
+        @Parameter(description = "Configuration to clone", required = true)
+        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        protected String cloneFrom;
+
+        @Parameter(names = {"--name"}, description = "Name of the new config", required = true)
+        protected String newName;
+
+        @Override
+        @SneakyThrows
+        public boolean run() {
+            if (DEFAULT_CONFIG.equals(newName) || configStore.getConfig(newName) != null) {
+                print("'" + newName + "' already exists.");
+                return false;
+            }
+            final ConfigStore.ConfigEntry config = configStore.getConfig(cloneFrom);
+            if (config == null) {
+                print("Config '" + config + "' does not exist.");
+                return false;
+            }
+
+            final ConfigStore.ConfigEntry entry = new ConfigStore.ConfigEntry(newName, config.getValue());
+            configStore.putConfig(entry);
+            reloadIfCurrent(entry);
+            return true;
+        }
+    }
+
+    private void reloadIfCurrent(ConfigStore.ConfigEntry entry) throws Exception {
+        if (currentConfig.equals(entry.getName())) {
+            final Properties properties = new Properties();
+            properties.load(new StringReader(entry.getValue()));
+            pulsarShell.reload(properties);
+        }
+    }
+
+
+    @Parameters(commandDescription = "Set a configuration property by name")
+    private class CmdConfigSetProperty implements RunnableWithResult {
+
+        @Parameter(description = "Name of the config", required = true)
+        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        private String name;
+
+        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property to update")
+        protected String propertyName;
+
+        @Parameter(names = {"-v", "--value"}, description = "New value for the property")
+        protected String propertyValue;
+
+        @Override
+        @SneakyThrows
+        public boolean run() {
+            if (StringUtils.isBlank(propertyName)) {
+                print("-p parameter is required");
+                return false;
+            }
+
+            if (propertyValue == null) {
+                print("-v parameter is required. You can pass an empty value to empty the property. (-v= )");
+                return false;
+            }
+
+
+            final ConfigStore.ConfigEntry config = configStore.getConfig(this.name);
+            if (config == null) {
+                print("Config " + name + " not found");
+                return false;
+            }
+            ConfigStore.setProperty(config, propertyName, propertyValue);
+            print("Property " + propertyName + " set for config " + name);
+            configStore.putConfig(config);
+            reloadIfCurrent(config);
+            return true;
+        }
+    }
+
+    @Parameters(commandDescription = "Get a configuration property by name")
+    private class CmdConfigGetProperty implements RunnableWithResult {
+
+        @Parameter(description = "Name of the config", required = true)
+        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        private String name;
+
+        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property")
+        protected String propertyName;
+
+        @Override
+        @SneakyThrows
+        public boolean run() {
+            if (StringUtils.isBlank(propertyName)) {
+                print("-p parameter is required");
+                return false;
+            }
+
+            final ConfigStore.ConfigEntry config = configStore.getConfig(this.name);
+            if (config == null) {
+                print("Config " + name + " not found");
+                return false;
+            }
+            final String value = ConfigStore.getProperty(config, propertyName);
+            if (!StringUtils.isBlank(value)) {
+                print(value);
+            }
+            return true;
+        }
+    }
+
 
 
     <T> void print(List<T> items) {

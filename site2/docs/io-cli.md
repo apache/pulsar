@@ -17,35 +17,21 @@ The `pulsar-admin` tool helps you manage Pulsar connectors.
 An interface for managing Pulsar IO sources (ingress data into Pulsar).
 
 ```bash
-
-$ pulsar-admin sources subcommands
-
+pulsar-admin sources subcommands
 ```
 
 Subcommands are:
-
 * `create`
-  
 * `update`
-  
 * `delete`
-  
 * `get`
-  
 * `status`
-  
 * `list`
-  
 * `stop`
-  
 * `start`
-  
 * `restart`
-  
 * `localrun`
-  
 * `available-sources`
-
 * `reload`
 
 
@@ -56,9 +42,7 @@ Submit a Pulsar IO source connector to run in a Pulsar cluster.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources create options
-
+pulsar-admin sources create options
 ```
 
 #### Options
@@ -76,7 +60,7 @@ $ pulsar-admin sources create options
 | ` --parallelism` | The source's parallelism factor, that is, the number of source instances to run.
 | `--processing-guarantees` | The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The `--processing-guarantees` is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br />The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).
-| `-st`, `--schema-type` | The schema type.<br /> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
+| `-st`, `--schema-type` | The schema type.<br /> Either a built-in schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 | `--source-config` | Source config key/values.
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
 | `-t`, `--source-type` | The source's connector provider.
@@ -90,9 +74,7 @@ Update a already submitted Pulsar IO source connector.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources update options
-
+pulsar-admin sources update options
 ```
 
 #### Options
@@ -110,7 +92,7 @@ $ pulsar-admin sources update options
 | ` --parallelism` | The source's parallelism factor, that is, the number of source instances to run.
 | `--processing-guarantees` | The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The `--processing-guarantees` is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br />The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).
-| `-st`, `--schema-type` | The schema type.<br /> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
+| `-st`, `--schema-type` | The schema type.<br /> Either a built-in schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 | `--source-config` | Source config key/values.
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
 | `-t`, `--source-type` | The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
@@ -125,9 +107,7 @@ Delete a Pulsar IO source connector.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources delete options
-
+pulsar-admin sources delete options
 ```
 
 #### Option
@@ -145,9 +125,7 @@ Get the information about a Pulsar IO source connector.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources get options
-
+pulsar-admin sources get options
 ```
 
 #### Options
@@ -165,9 +143,7 @@ Check the current status of a Pulsar Source.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources status options
-
+pulsar-admin sources status options
 ```
 
 #### Options
@@ -186,9 +162,7 @@ List all running Pulsar IO source connectors.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources list options
-
+pulsar-admin sources list options
 ```
 
 #### Options
@@ -206,9 +180,7 @@ Stop a source instance.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources stop options
-
+pulsar-admin sources stop options
 ```
 
 #### Options
@@ -227,9 +199,7 @@ Start a source instance.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources start options
-
+pulsar-admin sources start options
 ```
 
 #### Options
@@ -249,9 +219,7 @@ Restart a source instance.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources restart options
-
+pulsar-admin sources restart options
 ```
 
 #### Options
@@ -270,9 +238,7 @@ Run a Pulsar IO source connector locally rather than deploying it to the Pulsar 
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources localrun options
-
+pulsar-admin sources localrun options
 ```
 
 #### Options
@@ -294,7 +260,7 @@ $ pulsar-admin sources localrun options
 |`--parallelism`|The source’s parallelism factor, that is, the number of source instances to run).|
 |`--processing-guarantees` | The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The `--processing-guarantees` is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br />The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime).|
-| `-st`, `--schema-type` | The schema type.<br /> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
+| `-st`, `--schema-type` | The schema type.<br /> Either a built-in schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 |`--source-config`|Source config key/values.
 |`--source-config-file`|The path to a YAML config file specifying the source’s configuration.
 |`--source-type`|The source's connector provider.
@@ -311,9 +277,7 @@ Get the list of Pulsar IO connector sources supported by Pulsar cluster.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources available-sources
-
+pulsar-admin sources available-sources
 ```
 
 ### `reload`
@@ -323,9 +287,7 @@ Reload the available built-in connectors.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sources reload
-
+pulsar-admin sources reload
 ```
 
 ## `sinks`
@@ -333,37 +295,22 @@ $ pulsar-admin sources reload
 An interface for managing Pulsar IO sinks (egress data from Pulsar).
 
 ```bash
-
-$ pulsar-admin sinks subcommands
-
+pulsar-admin sinks subcommands
 ```
 
 Subcommands are:
-
 * `create`
-  
 * `update`
-  
 * `delete`
-  
 * `get`
-  
 * `status`
-  
 * `list`
-  
 * `stop`
-  
 * `start`
-  
 * `restart`
-  
 * `localrun`
-  
 * `available-sinks`
-
 * `reload`
-
 
 ### `create`
 
@@ -372,9 +319,7 @@ Submit a Pulsar IO sink connector to run in a Pulsar cluster.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks create options
-
+pulsar-admin sinks create options
 ```
 
 #### Options
@@ -401,7 +346,7 @@ $ pulsar-admin sinks create options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 
 ### `update`
 
@@ -410,9 +355,7 @@ Update a Pulsar IO sink connector.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks update options
-
+pulsar-admin sinks update options
 ```
 
 #### Options
@@ -439,7 +382,7 @@ $ pulsar-admin sinks update options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 | `--update-auth-data` | Whether or not to update the auth data.<br />**Default value: false.**
 
 ### `delete`
@@ -449,9 +392,7 @@ Delete a Pulsar IO sink connector.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks delete options
-
+pulsar-admin sinks delete options
 ```
 
 #### Option
@@ -469,9 +410,7 @@ Get the information about a Pulsar IO sink connector.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks get options
-
+pulsar-admin sinks get options
 ```
 
 #### Options
@@ -489,9 +428,7 @@ Check the current status of a Pulsar sink.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks status options
-
+pulsar-admin sinks status options
 ```
 
 #### Options
@@ -511,9 +448,7 @@ List all running Pulsar IO sink connectors.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks list options
-
+pulsar-admin sinks list options
 ```
 
 #### Options
@@ -531,9 +466,7 @@ Stop a sink instance.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks stop options
-
+pulsar-admin sinks stop options
 ```
 
 #### Options
@@ -552,9 +485,7 @@ Start a sink instance.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks start options
-
+pulsar-admin sinks start options
 ```
 
 #### Options
@@ -574,9 +505,7 @@ Restart a sink instance.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks restart options
-
+pulsar-admin sinks restart options
 ```
 
 #### Options
@@ -596,9 +525,7 @@ Run a Pulsar IO sink connector locally rather than deploying it to the Pulsar cl
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks localrun options
-
+pulsar-admin sinks localrun options
 ```
 
 #### Options
@@ -634,7 +561,7 @@ $ pulsar-admin sinks localrun options
 | `--negative-ack-redelivery-delay-ms` | The negatively-acknowledged message redelivery delay in milliseconds. |
 |`--tls-allow-insecure`|Allow insecure tls connection.<br />**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 |`--use-tls`|Use tls connection.<br />**Default value: false**.
 
 ### `available-sinks`
@@ -644,9 +571,7 @@ Get the list of Pulsar IO connector sinks supported by Pulsar cluster.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks available-sinks
-
+pulsar-admin sinks available-sinks
 ```
 
 ### `reload`
@@ -656,8 +581,6 @@ Reload the available built-in connectors.
 #### Usage
 
 ```bash
-
-$ pulsar-admin sinks reload
-
+pulsar-admin sinks reload
 ```
 

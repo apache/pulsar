@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.PulsarServiceMockSupport;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -124,24 +125,32 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        doReturn(svcConfig).when(pulsar).getConfiguration();
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
+        doReturn(store).when(pulsar).getLocalMetadataStore();
+        doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(svcConfig).when(pulsar).getConfiguration();
+        });
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        });
 
         doReturn(TransactionTestBase.createMockBookKeeper(executor))
                 .when(pulsar).getBookKeeperClient();
         eventLoopGroup = new NioEventLoopGroup();
 
-        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
-        doReturn(store).when(pulsar).getLocalMetadataStore();
-        doReturn(store).when(pulsar).getConfigurationMetadataStore();
-
         PulsarResources pulsarResources = new PulsarResources(store, store);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        });
 
         brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
-        doReturn(brokerService).when(pulsar).getBrokerService();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(brokerService).when(pulsar).getBrokerService();
+        });
 
         consumerChanges = new LinkedBlockingQueue<>();
         this.channelCtx = mock(ChannelHandlerContext.class);
@@ -187,7 +196,9 @@ public class PersistentDispatcherFailoverConsumerTest {
                 .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsar).getNamespaceService();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(nsSvc).when(pulsar).getNamespaceService();
+        });
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
@@ -409,30 +420,33 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer0));
 
-        // 7. Remove last consumer
+        // 7. Remove last consumer to make active consumer change.
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
-        // not consumer group changes
-        assertNull(consumerChanges.poll());
+
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 0, false);
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 1, true);
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 1, true);
 
         // 8. Verify if we cannot unsubscribe when more than one consumer is connected
         assertFalse(pdfc.canUnsubscribe(consumer0));
 
-        // 9. Remove active consumer
+        // 9. Remove inactive consumer
         pdfc.removeConsumer(consumer0);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
-        // the remaining consumers will receive notifications
-        change = consumerChanges.poll(10, TimeUnit.SECONDS);
-        assertNotNull(change);
-        verifyActiveConsumerChange(change, 1, true);
-        change = consumerChanges.poll(10, TimeUnit.SECONDS);
-        assertNotNull(change);
-        verifyActiveConsumerChange(change, 1, true);
+        // not consumer group changes
+        assertNull(consumerChanges.poll(10, TimeUnit.SECONDS));
 
         // 10. Attempt to remove already removed consumer
         String cause = "";
@@ -443,13 +457,13 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
         assertEquals(cause, "Consumer was not connected");
 
-        // 11. Remove active consumer
+        // 11. Remove same consumer
         pdfc.removeConsumer(consumer1);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(1, consumers.size());
         // not consumer group changes
-        assertNull(consumerChanges.poll());
+        assertNull(consumerChanges.poll(10, TimeUnit.SECONDS));
 
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));

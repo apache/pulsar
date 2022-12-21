@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -360,7 +360,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID) {
+    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
         return false;
     }
 
@@ -387,5 +387,29 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public long getOngoingTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.OPEN)
+                        || txnBuffer.status.equals(TxnStatus.COMMITTING)
+                        || txnBuffer.status.equals(TxnStatus.ABORTING)
+                )
+                .count();
+    }
+
+    @Override
+    public long getAbortedTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.ABORTED))
+                .count();
+    }
+
+    @Override
+    public long getCommittedTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.COMMITTED))
+                .count();
     }
 }

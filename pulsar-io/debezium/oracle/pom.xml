@@ -24,13 +24,20 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io-debezium</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium-oracle</artifactId>
   <name>Pulsar IO :: Debezium :: oracle</name>
 
   <dependencies>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-core</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>

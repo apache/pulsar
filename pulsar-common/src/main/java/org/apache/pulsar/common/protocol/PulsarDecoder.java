@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -76,6 +76,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
@@ -88,6 +89,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Basic implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please be aware that the decoded protocol command instance passed to a handle* method is cleared and reused for the
+ * next protocol command after the method completes. This is done in order to minimize object allocations for
+ * performance reasons. <b>It is not allowed to retain a reference to the handle* method parameter command instance
+ * after the method returns.</b> If you need to pass an instance of the command instance to another thread or retain a
+ * reference to it after the handle* method completes, you must make a deep copy of the command instance.
  */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
@@ -292,6 +299,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             case REACHED_END_OF_TOPIC:
                 checkArgument(cmd.hasReachedEndOfTopic());
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
+                break;
+
+            case TOPIC_MIGRATED:
+                checkArgument(cmd.hasTopicMigrated());
+                handleTopicMigrated(cmd.getTopicMigrated());
                 break;
 
             case GET_LAST_MESSAGE_ID:
@@ -597,6 +609,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTopicMigrated(CommandTopicMigrated commandMigratedTopic) {
         throw new UnsupportedOperationException();
     }
 

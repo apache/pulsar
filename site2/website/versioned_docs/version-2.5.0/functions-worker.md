@@ -4,7 +4,7 @@ title: Deploy and manage functions worker
 sidebar_label: "Setup: Pulsar Functions Worker"
 original_id: functions-worker
 ---
-Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime).  
+Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
 
 Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either of the two options based on your requirements. 
 - [run with brokers](#run-functions-worker-with-brokers)
@@ -123,7 +123,7 @@ tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 
 ```
 
-For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport).
+For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
 
 ##### Enable Authentication Provider
 
@@ -150,7 +150,7 @@ properties:
 ```
 
 For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
-See [Token Authentication](security-jwt) for more details.
+See [Token Authentication](security-jwt.md) for more details.
 
 ```
 

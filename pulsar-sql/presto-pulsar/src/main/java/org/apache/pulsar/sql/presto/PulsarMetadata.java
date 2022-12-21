@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static io.prestosql.spi.StandardErrorCode.NOT_FOUND;
-import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static io.trino.spi.StandardErrorCode.NOT_FOUND;
+import static io.trino.spi.StandardErrorCode.QUERY_REJECTED;
 import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded;
@@ -32,20 +32,20 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.ColumnHandle;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.connector.ConnectorMetadata;
-import io.prestosql.spi.connector.ConnectorSession;
-import io.prestosql.spi.connector.ConnectorTableHandle;
-import io.prestosql.spi.connector.ConnectorTableLayout;
-import io.prestosql.spi.connector.ConnectorTableLayoutHandle;
-import io.prestosql.spi.connector.ConnectorTableLayoutResult;
-import io.prestosql.spi.connector.ConnectorTableMetadata;
-import io.prestosql.spi.connector.Constraint;
-import io.prestosql.spi.connector.SchemaTableName;
-import io.prestosql.spi.connector.SchemaTablePrefix;
-import io.prestosql.spi.connector.TableNotFoundException;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ConnectorMetadata;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.ConnectorTableLayout;
+import io.trino.spi.connector.ConnectorTableLayoutHandle;
+import io.trino.spi.connector.ConnectorTableLayoutResult;
+import io.trino.spi.connector.ConnectorTableMetadata;
+import io.trino.spi.connector.Constraint;
+import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.SchemaTablePrefix;
+import io.trino.spi.connector.TableNotFoundException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -119,7 +119,7 @@ public class PulsarMetadata implements ConnectorMetadata {
             }
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
-                throw new PrestoException(QUERY_REJECTED, "Failed to get schemas from pulsar: Unauthorized");
+                throw new TrinoException(QUERY_REJECTED, "Failed to get schemas from pulsar: Unauthorized");
             }
             throw new RuntimeException("Failed to get schemas from pulsar: "
                     + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
@@ -186,7 +186,7 @@ public class PulsarMetadata implements ConnectorMetadata {
                         log.warn("Schema " + schemaNameOrNull + " does not exsit");
                         return builder.build();
                     } else if (e.getStatusCode() == 401) {
-                        throw new PrestoException(QUERY_REJECTED,
+                        throw new TrinoException(QUERY_REJECTED,
                                 String.format("Failed to get tables/topics in %s: Unauthorized", schemaNameOrNull));
                     }
                     throw new RuntimeException("Failed to get tables/topics in " + schemaNameOrNull + ": "
@@ -302,7 +302,7 @@ public class PulsarMetadata implements ConnectorMetadata {
                 schemaInfo = PulsarSqlSchemaInfoProvider.defaultSchema();
 
             } else if (e.getStatusCode() == 401) {
-                throw new PrestoException(QUERY_REJECTED,
+                throw new TrinoException(QUERY_REJECTED,
                         String.format("Failed to get pulsar topic schema information for topic %s: Unauthorized",
                                 topicName));
             } else {
@@ -397,9 +397,9 @@ public class PulsarMetadata implements ConnectorMetadata {
                     .collect(Collectors.toSet());
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
-                throw new PrestoException(NOT_FOUND, "Schema " + namespace + " does not exist");
+                throw new TrinoException(NOT_FOUND, "Schema " + namespace + " does not exist");
             } else if (e.getStatusCode() == 401) {
-                throw new PrestoException(QUERY_REJECTED,
+                throw new TrinoException(QUERY_REJECTED,
                         String.format("Failed to get topics in schema %s: Unauthorized", namespace));
             }
             throw new RuntimeException("Failed to get topics in schema " + namespace

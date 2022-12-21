@@ -4,13 +4,13 @@ title: Pulsar SQL configuration and deployment
 sidebar_label: "Configuration and deployment"
 ---
 
-You can configure Presto Pulsar connector and deploy a cluster with the following instruction.
+You can configure the Pulsar Trino plugin and deploy a cluster with the following instruction.
 
-## Configure Presto Pulsar Connector
-You can configure Presto Pulsar Connector in the `${project.root}/conf/presto/catalog/pulsar.properties` properties file. The configuration for the connector and the default values are as follows.
+## Configure Pulsar Trino plugin
+
+You can configure the Pulsar Trino plugin in the `${project.root}/trino/conf/catalog/pulsar.properties` properties file. The configuration for the connector and the default values are as follows.
 
 ```properties
-
 # name of the connector to be displayed in the catalog
 connector.name=pulsar
 
@@ -51,7 +51,7 @@ pulsar.stats-provider-configs={}
 pulsar.namespace-delimiter-rewrite-enable=false
 
 # delimiter used to rewrite Pulsar's default delimiter '/', use if default is causing incompatibility with other system like Superset
-pulsar.rewrite-namespace-delimiter=“/”
+pulsar.rewrite-namespace-delimiter="/"
 
 # maximum number of thread pool size for ledger offloader.
 pulsar.managed-ledger-offload-max-threads=2
@@ -109,35 +109,31 @@ pulsar.managed-ledger-num-scheduler-threads=Runtime.getRuntime().availableProces
 
 # directory used to store extraction NAR file
 pulsar.nar-extraction-directory=System.getProperty("java.io.tmpdir")
-
 ```
 
 ### Enable authentication and authorization between Pulsar and Pulsar SQL 
 
-By default, the authentication and authorization between Pulsar and Pulsar SQL is disabled.
+By default, the authentication and authorization between Pulsar and Pulsar SQL are disabled.
 
-To enable it, set the following configurations in the `${project.root}/conf/presto/catalog/pulsar.properties` properties file:
+To enable it, set the following configurations in the `${project.root}/trino/conf/catalog/pulsar.properties` properties file:
 
 ```properties
-
 pulsar.authorization-enabled=true
 pulsar.broker-binary-service-url=pulsar://localhost:6650
-
 ```
 
-### Connect Presto to Pulsar with multiple hosts
+### Connect Trino to Pulsar with multiple hosts
 
-You can connect Presto to a Pulsar cluster with multiple hosts. 
+You can connect Trino to a Pulsar cluster with multiple hosts.
+
 * To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. 
 * To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. 
 
 The following is an example.
 
 ```properties
-
 pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
-
 ```
 
 ### Get the last message in a topic
@@ -152,23 +148,21 @@ If you want to get the last message in a topic, set the following configurations
 
 1. For the broker configuration, set `bookkeeperExplicitLacIntervalInMills` > 0 in `broker.conf` or `standalone.conf`.
    
-2. For the Presto configuration, set `pulsar.bookkeeper-explicit-interval` > 0 and `pulsar.bookkeeper-use-v2-protocol=false`.
+2. For the Trino configuration, set `pulsar.bookkeeper-explicit-interval` > 0 and `pulsar.bookkeeper-use-v2-protocol=false`.
 
 However, using BookKeeper V3 protocol introduces additional GC overhead to BK as it uses Protobuf.
 
-## Query data from existing Presto clusters
+## Query data from existing Trino clusters
 
-If you already have a Presto cluster, you can copy the Presto Pulsar connector plugin to your existing cluster. Download the archived plugin package with the following command.
+If you already have a Trino cluster compatible to version 363, you can copy the Pulsar Trino plugin to your existing cluster. Download the archived plugin package with the following command.
 
 ```bash
-
-$ wget pulsar:binary_release_url
-
+wget pulsar:binary_release_url
 ```
 
 ## Deploy a new cluster
 
-Since Pulsar SQL is powered by [Trino (formerly Presto SQL)](https://trino.io), the configuration for deployment is the same for the Pulsar SQL worker. 
+Since Pulsar SQL is powered by Trino, the configuration for deployment is the same for the Pulsar SQL worker. 
 
 :::note
 
@@ -176,66 +170,31 @@ For how to set up a standalone single node environment, refer to [Query data](sq
 
 :::
 
-You can use the same CLI args as the Presto launcher.
+You can use the same CLI args as the Trino launcher.
 
-```bash
-
-$ ./bin/pulsar sql-worker --help
-Usage: launcher [options] command
-
-Commands: run, start, stop, restart, kill, status
-
-Options:
-  -h, --help            show this help message and exit
-  -v, --verbose         Run verbosely
-  --etc-dir=DIR         Defaults to INSTALL_PATH/etc
-  --launcher-config=FILE
-                        Defaults to INSTALL_PATH/bin/launcher.properties
-  --node-config=FILE    Defaults to ETC_DIR/node.properties
-  --jvm-config=FILE     Defaults to ETC_DIR/jvm.config
-  --config=FILE         Defaults to ETC_DIR/config.properties
-  --log-levels-file=FILE
-                        Defaults to ETC_DIR/log.properties
-  --data-dir=DIR        Defaults to INSTALL_PATH
-  --pid-file=FILE       Defaults to DATA_DIR/var/run/launcher.pid
-  --launcher-log-file=FILE
-                        Defaults to DATA_DIR/var/log/launcher.log (only in
-                        daemon mode)
-  --server-log-file=FILE
-                        Defaults to DATA_DIR/var/log/server.log (only in
-                        daemon mode)
-  -D NAME=VALUE         Set a Java system property
-
-```
-
-The default configuration for the cluster is located in `${project.root}/conf/presto`. You can customize your deployment by modifying the default configuration.
+The default configuration for the cluster is located in `${project.root}/trino/conf`. You can customize your deployment by modifying the default configuration.
 
 You can set the worker to read from a different configuration directory, or set a different directory to write data. 
 
 ```bash
-
-$ ./bin/pulsar sql-worker run --etc-dir /tmp/incubator-pulsar/conf/presto --data-dir /tmp/presto-1
-
+./bin/pulsar sql-worker run --etc-dir /tmp/pulsar/trino/conf --data-dir /tmp/trino-1
 ```
 
 You can start the worker as daemon process.
 
 ```bash
-
-$ ./bin/pulsar sql-worker start
-
+./bin/pulsar sql-worker start
 ```
 
 ### Deploy a cluster on multiple nodes 
 
-You can deploy a Pulsar SQL cluster or Presto cluster on multiple nodes. The following example shows how to deploy a cluster on three-node cluster. 
+You can deploy a Pulsar SQL cluster or Trino cluster on multiple nodes. The following example shows how to deploy a cluster on three-node cluster. 
 
 1. Copy the Pulsar binary distribution to three nodes.
 
-The first node runs as Presto coordinator. The minimal configuration requirement in the `${project.root}/conf/presto/config.properties` file is as follows. 
+The first node runs as Trino coordinator. The minimal configuration required in the `${project.root}/trino/conf/config.properties` file is as follows. 
 
 ```properties
-
 coordinator=true
 node-scheduler.include-coordinator=true
 http-server.http.port=8080
@@ -243,65 +202,54 @@ query.max-memory=50GB
 query.max-memory-per-node=1GB
 discovery-server.enabled=true
 discovery.uri=<coordinator-url>
-
 ```
 
 The other two nodes serve as worker nodes, you can use the following configuration for worker nodes. 
 
 ```properties
-
 coordinator=false
 http-server.http.port=8080
 query.max-memory=50GB
 query.max-memory-per-node=1GB
 discovery.uri=<coordinator-url>
-
 ```
 
-2. Modify `pulsar.web-service-url` and  `pulsar.zookeeper-uri` configuration in the `${project.root}/conf/presto/catalog/pulsar.properties` file accordingly for the three nodes.
+2. Modify `pulsar.web-service-url` and  `pulsar.zookeeper-uri` configuration in the `${project.root}/trino/conf/catalog/pulsar.properties` file accordingly for the three nodes.
 
-3. Start the coordinator node.
-
-```
-
-$ ./bin/pulsar sql-worker run
-
-```
-
-4. Start worker nodes.
-
-```
-
-$ ./bin/pulsar sql-worker run
-
-```
-
-5. Start the SQL CLI and check the status of your cluster.
+3. Start the coordinator node:
 
 ```bash
-
-$ ./bin/pulsar sql --server <coordinate_url>
-
+./bin/pulsar sql-worker run
 ```
 
-6. Check the status of your nodes.
+4. Start worker nodes:
 
 ```bash
+./bin/pulsar sql-worker run
+```
 
-presto> SELECT * FROM system.runtime.nodes;
+5. Start the SQL CLI and check the status of your cluster:
+
+```bash
+./bin/pulsar sql --server <coordinate_url>
+```
+
+6. Check the status of your nodes:
+
+```bash
+trino> SELECT * FROM system.runtime.nodes;
  node_id |        http_uri         | node_version | coordinator | state  
 ---------+-------------------------+--------------+-------------+--------
  1       | http://192.168.2.1:8081 | testversion  | true        | active 
  3       | http://192.168.2.2:8081 | testversion  | false       | active 
  2       | http://192.168.2.3:8081 | testversion  | false       | active
-
 ```
 
-For more information about the deployment in Presto, refer to [Presto deployment](https://trino.io/docs/current/installation/deployment.html).
+For more information about the deployment in Trino, refer to [Trino deployment](https://trino.io/docs/363/installation/deployment.html).
 
 :::note
 
-The broker does not advance LAC, so when Pulsar SQL bypasses broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting "bookkeeperExplicitLacIntervalInMills" in the `broker.conf` file.
+The broker does not advance LAC, so when Pulsar SQL bypasses brokers to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting "bookkeeperExplicitLacIntervalInMills" in the `broker.conf` file.
 
 :::
 

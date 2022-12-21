@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -82,7 +81,7 @@ public class EntryCacheDisabled implements EntryCache {
                                final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
                 ledgerEntries -> {
-                    List<Entry> entries = Lists.newArrayList();
+                    List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
                     try {
                         for (LedgerEntry e : ledgerEntries) {
@@ -98,7 +97,7 @@ public class EntryCacheDisabled implements EntryCache {
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
                     callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                }, ml.getExecutor()).exceptionally(exception -> {
             callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
             return null;
         });
@@ -131,7 +130,7 @@ public class EntryCacheDisabled implements EntryCache {
                     } finally {
                         ledgerEntries.close();
                     }
-                }, ml.getExecutor().chooseThread(ml.getName()));
+                }, ml.getExecutor());
     }
 
     @Override
@@ -141,7 +140,7 @@ public class EntryCacheDisabled implements EntryCache {
 
     @Override
     public int compareTo(EntryCache other) {
-        return Longs.compare(getSize(), other.getSize());
+        return Long.compare(getSize(), other.getSize());
     }
 
 }

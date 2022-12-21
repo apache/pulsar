@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -104,7 +104,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Last acked message timestamp. */
     public long lastAckedTimestamp;
 
-    /** Last MarkDelete position advanced timesetamp. */
+    /** Last MarkDelete position advanced timestamp. */
     public long lastMarkDeleteAdvancedTimestamp;
 
     /** List of connected consumers on this subscription w/ their stats. */
@@ -131,8 +131,19 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    public long delayedTrackerMemoryUsage;
+
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;
+
+    public long filterProcessedMsgCount;
+
+    public long filterAcceptedMsgCount;
+
+    public long filterRejectedMsgCount;
+
+    public long filterRescheduledMsgCount;
 
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
@@ -158,7 +169,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        delayedTrackerMemoryUsage = 0;
         subscriptionProperties.clear();
+        filterProcessedMsgCount = 0;
+        filterAcceptedMsgCount = 0;
+        filterRejectedMsgCount = 0;
+        filterRescheduledMsgCount = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -193,7 +209,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
+        this.filterProcessedMsgCount += stats.filterProcessedMsgCount;
+        this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
+        this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
+        this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
         return this;
     }
 }

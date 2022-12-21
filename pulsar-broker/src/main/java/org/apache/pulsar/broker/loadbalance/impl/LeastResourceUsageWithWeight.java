@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  */
 @Slf4j
 public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy {
+    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Map<String, Double> brokerAvgResourceUsageWithWeight;
@@ -90,6 +91,11 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                                                           ServiceConfiguration conf) {
         final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
+        LocalBrokerData localData = brokerData.getLocalData();
+        // If the broker restarted or MsgRate is 0, should use current resourceUsage to cover the historyUsage
+        if (localData.getBundles().size() == 0 || (localData.getMsgRateIn() == 0 && localData.getMsgRateOut() == 0)){
+            historyUsage = null;
+        }
         double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(),
@@ -125,6 +131,11 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
+        if (candidates.isEmpty()) {
+            log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            return Optional.empty();
+        }
+
         bestBrokers.clear();
         // Maintain of list of all the best scoring brokers and then randomly
         // select one of them at the end.
@@ -138,8 +149,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         final double avgUsage = totalUsage / candidates.size();
         final double diffThreshold =
                 conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
-        brokerAvgResourceUsageWithWeight.forEach((broker, avgResUsage) -> {
-            if (avgResUsage + diffThreshold <= avgUsage) {
+        candidates.forEach(broker -> {
+            Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, MAX_RESOURCE_USAGE);
+            if ((avgResUsage + diffThreshold <= avgUsage)) {
                 bestBrokers.add(broker);
             }
         });
@@ -148,12 +160,6 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
             // Assign randomly as all brokers are overloaded.
             log.warn("Assign randomly as all {} brokers are overloaded.", candidates.size());
             bestBrokers.addAll(candidates);
-        }
-
-        if (bestBrokers.isEmpty()) {
-            // If still, it means there are no available brokers at this point.
-            log.error("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
-            return Optional.empty();
         }
 
         if (log.isDebugEnabled()) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -52,7 +52,7 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
 
         // This algorithm apply the eviction only the group of caches whose combined size reaches the
         // PercentOfSizeToConsiderForEviction
-        List<EntryCache> cachesToEvict = Lists.newArrayList();
+        List<EntryCache> cachesToEvict = new ArrayList();
         long cachesToEvictTotalSize = 0;
         long sizeToConsiderForEviction = (long) (totalSize * PercentOfSizeToConsiderForEviction);
         log.debug("Need to gather at least {} from caches", sizeToConsiderForEviction);

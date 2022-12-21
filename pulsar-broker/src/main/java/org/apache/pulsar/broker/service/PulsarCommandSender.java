@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -71,15 +72,14 @@ public interface PulsarCommandSender {
 
     void sendActiveConsumerChange(long consumerId, boolean isActive);
 
-    void sendSuccess(long requestId);
-
-    void sendError(long requestId, ServerError error, String message);
-
     void sendReachedEndOfTopic(long consumerId);
 
+    boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls);
+
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-            int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-            RedeliveryTracker redeliveryTracker, long epoch);
+                                        int partitionIdx, List<? extends Entry> entries, EntryBatchSizes batchSizes,
+                                        EntryBatchIndexesAcks batchIndexesAcks,
+                                        RedeliveryTracker redeliveryTracker, long epoch);
 
     void sendTcClientConnectResponse(long requestId, ServerError error, String message);
 

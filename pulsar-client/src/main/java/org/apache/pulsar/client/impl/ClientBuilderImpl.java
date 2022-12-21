@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,6 +99,16 @@ public class ClientBuilderImpl implements ClientBuilder {
     public ClientBuilder listenerName(String listenerName) {
         checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        checkArgument(connectionMaxIdleSeconds < 0
+                        || connectionMaxIdleSeconds >= ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN,
+                "Connection idle detect interval seconds at least "
+                        + ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN + ".");
+        conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }
 

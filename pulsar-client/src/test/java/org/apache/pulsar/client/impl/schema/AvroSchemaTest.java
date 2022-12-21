@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import io.netty.buffer.ByteBufAllocator;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -45,8 +46,6 @@ import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.avro.data.TimeConversions;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.BufferedBinaryEncoder;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
@@ -67,7 +66,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.json.JSONException;
-import org.powermock.reflect.Whitebox;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -399,11 +397,8 @@ public class AvroSchemaTest {
         // Because data does not conform to schema expect a crash
         Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
 
-        // Get the buffered data using powermock
-        BinaryEncoder encoder = Whitebox.getInternalState(avroWriter, "encoder");
-
         // Assert that the buffer position is reset to zero
-        Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
+        Assert.assertEquals(avroWriter.getEncoder().bytesBuffered(), 0);
     }
 
     @Test
@@ -549,4 +544,24 @@ public class AvroSchemaTest {
         Assert.assertNotEquals(Instant.class, decodeWithJsonNoClassLoader.getValue().getClass());
     }
 
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    private static class LocalDateTimePojo {
+        LocalDateTime value;
+    }
+
+    @Test
+    public void testLocalDateTime() {
+        SchemaDefinition<LocalDateTimePojo> schemaDefinition =
+                SchemaDefinition.<LocalDateTimePojo>builder().withPojo(LocalDateTimePojo.class)
+                        .withJSR310ConversionEnabled(true).build();
+
+        AvroSchema<LocalDateTimePojo> avroSchema = AvroSchema.of(schemaDefinition);
+        LocalDateTime now = LocalDateTime.now();
+        byte[] bytes = avroSchema.encode(new LocalDateTimePojo(now));
+
+        LocalDateTimePojo pojo = avroSchema.decode(bytes);
+        assertEquals(pojo.getValue().truncatedTo(ChronoUnit.MILLIS), now.truncatedTo(ChronoUnit.MILLIS));
+    }
 }

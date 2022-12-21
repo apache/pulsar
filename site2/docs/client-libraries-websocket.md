@@ -4,12 +4,11 @@ title: Pulsar WebSocket API
 sidebar_label: "WebSocket"
 ---
 
-Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSocket, you can publish and consume messages and use features available on the [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
+Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](client-libraries.md). You can use Pulsar WebSocket API with any WebSocket client library. See [Python and Node.js examples](#client-examples) for more details. 
 
+Through WebSocket, you can publish and consume messages and use features available on the [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914) page.
 
-> You can use Pulsar WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples).
-
-## Running the WebSocket service
+## Run the WebSocket service
 
 The standalone variant of Pulsar that we recommend using for [local development](getting-started-standalone.md) already has the WebSocket service enabled.
 
@@ -23,9 +22,7 @@ In non-standalone mode, there are two ways to deploy the WebSocket service:
 In this mode, the WebSocket service will run within the same HTTP service that's already running in the broker. To enable this mode, set the [`webSocketServiceEnabled`](reference-configuration.md#broker-webSocketServiceEnabled) parameter in the [`conf/broker.conf`](reference-configuration.md#broker) configuration file in your installation.
 
 ```properties
-
 webSocketServiceEnabled=true
-
 ```
 
 ### As a separate component
@@ -39,25 +36,21 @@ In this mode, the WebSocket service will be run from a Pulsar [broker](reference
 Here's an example:
 
 ```properties
-
 configurationMetadataStoreUrl=zk1:2181,zk2:2181,zk3:2181
 webServicePort=8080
 clusterName=my-cluster
-
 ```
 
 ### Security settings
 
-To enable TLS encryption on WebSocket service:
+To enable TLS encryption on WebSocket service, configure the following parameters in the `conf/broker.conf` file.
 
 ```properties
-
 tlsEnabled=true
 tlsAllowInsecureConnection=false
 tlsCertificateFilePath=/path/to/client-websocket.cert.pem
 tlsKeyFilePath=/path/to/client-websocket.key-pk8.pem
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
-
 ```
 
 To enable encryption at rest on WebSocket service, add CryptoKeyReaderFactory factory class in classpath which will create CryptoKeyReader for WebSocket and that helps to load encryption keys for producer/consumer.
@@ -66,19 +59,21 @@ To enable encryption at rest on WebSocket service, add CryptoKeyReaderFactory fa
 cryptoKeyReaderFactoryClassName=org.apache.pulsar.MyCryptoKeyReaderFactoryClassImpl
 ```
 
-### Starting the broker
+### Start the broker
 
-When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) tool:
+When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md) tool:
 
 ```shell
-
-$ bin/pulsar-daemon start websocket
-
+bin/pulsar-daemon start websocket
 ```
+
+## Release notes
+
+For the changelog of Pulsar WebSocket APIs, see [release notes](/release-notes/#websocket).
 
 ## API Reference
 
-Pulsar's WebSocket API offers three endpoints for [producing](#producer-endpoint) messages, [consuming](#consumer-endpoint) messages and [reading](#reader-endpoint) messages.
+Pulsar's WebSocket API offers three endpoints for [producing](#producer-endpoint), [consuming](#consumer-endpoint), and [reading](#reader-endpoint) messages.
 
 All exchanges via the WebSocket API use JSON.
 
@@ -86,12 +81,10 @@ All exchanges via the WebSocket API use JSON.
 
 #### Browser javascript WebSocket client
 
-Use the query param `token` transport the authentication token.
+Use the query param `token` to transport the authentication token.
 
 ```http
-
 ws://broker-service-url:8080/path?token=token
-
 ```
 
 ### Producer endpoint
@@ -99,9 +92,7 @@ ws://broker-service-url:8080/path?token=token
 The producer endpoint requires you to specify a tenant, namespace, and topic in the URL:
 
 ```http
-
 ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic
-
 ```
 
 ##### Query param
@@ -122,16 +113,14 @@ Key | Type | Required? | Explanation
 `encryptionKeys` | string | no | Encryption key to encrypt published message only if encryption reader is configured using cryptoKeyReaderFactoryClassName config in websocket-configuration.
 
 
-#### Publishing a message
+#### Publish a message
 
 ```json
-
 {
   "payload": "SGVsbG8gV29ybGQ=",
   "properties": {"key1": "value1", "key2": "value2"},
   "context": "1"
 }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -146,25 +135,21 @@ Key | Type | Required? | Explanation
 ##### Example success response
 
 ```json
-
 {
    "result": "ok",
    "messageId": "CAAQAw==",
    "context": "1"
  }
-
 ```
 
 ##### Example failure response
 
 ```json
-
  {
    "result": "send-error:3",
    "errorMsg": "Failed to de-serialize from JSON",
    "context": "1"
  }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -179,9 +164,7 @@ Key | Type | Required? | Explanation
 The consumer endpoint requires you to specify a tenant, namespace, and topic, as well as a subscription, in the URL:
 
 ```http
-
 ws://broker-service-url:8080/ws/v2/consumer/persistent/:tenant/:namespace/:topic/:subscription
-
 ```
 
 ##### Query param
@@ -199,16 +182,19 @@ Key | Type | Required? | Explanation
 `negativeAckRedeliveryDelay` | int | no | When a message is negatively acknowledged, the delay time before the message is redelivered (in milliseconds). The default value is 60000.
 `token` | string | no | Authentication token, this is used for the browser javascript client
 
-NB: these parameter (except `pullMode`) apply to the internal consumer of the WebSocket service.
-So messages will be subject to the redelivery settings as soon as the get into the receive queue,
+:::note
+
+These parameters (except `pullMode`) apply to the internal consumers of the WebSocket service.
+So messages will be subject to the redelivery settings as soon as they get into the receive queue,
 even if the client doesn't consume on the WebSocket.
 
-##### Receiving messages
+:::
+
+##### Receive messages
 
 Server will push messages on the WebSocket session:
 
 ```json
-
 {
   "messageId": "CAMQADAA",
   "payload": "hvXcJvHW7kOSrUn17P2q71RA5SdiXwZBqw==",
@@ -231,7 +217,6 @@ Server will push messages on the WebSocket session:
     }
   }
 }
-
 ```
 
 Below are the parameters in the WebSocket consumer response.
@@ -265,32 +250,28 @@ Below are the parameters in the WebSocket consumer response.
   `keyValue` | string | yes | Encryption key (Base64 encoding)
   `metadata` | key-value pairs | no | Application-defined metadata
 
-#### Acknowledging the message
+#### Acknowledge the message
 
 Consumer needs to acknowledge the successful processing of the message to
 have the Pulsar broker delete it.
 
 ```json
-
 {
   "messageId": "CAAQAw=="
 }
-
 ```
 
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
 
-#### Negatively acknowledging messages
+#### Negatively acknowledge messages
 
 ```json
-
 {
   "type": "negativeAcknowledge",
   "messageId": "CAAQAw=="
 }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -301,9 +282,8 @@ Key | Type | Required? | Explanation
 
 ##### Push Mode
 
-By default (`pullMode=false`), the consumer endpoint will use the `receiverQueueSize` parameter both to size its
-internal receive queue and to limit the number of unacknowledged messages that are passed to the WebSocket client.
-In this mode, if you don't send acknowledgements, the Pulsar WebSocket service will stop sending messages after reaching
+By default (`pullMode=false`), the consumer endpoint will use the `receiverQueueSize` parameter both to size its internal receive queue and to limit the number of unacknowledged messages that are passed to the WebSocket client.
+In this mode, if you don't send acknowledgments, the Pulsar WebSocket service will stop sending messages after reaching
 `receiverQueueSize` unacked messages sent to the WebSocket client.
 
 ##### Pull Mode
@@ -312,12 +292,10 @@ If you set `pullMode` to `true`, the WebSocket client will need to send `permit`
 Pulsar WebSocket service to send more messages.
 
 ```json
-
 {
   "type": "permit",
   "permitMessages": 100
 }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -325,20 +303,18 @@ Key | Type | Required? | Explanation
 `type`| string | yes | Type of command. Must be `permit`
 `permitMessages`| int | yes | Number of messages to permit
 
-NB: in this mode it's possible to acknowledge messages in a different connection.
+> In this mode it's possible to acknowledge messages in a different connection.
 
-#### Check if reach end of topic
+#### Check if reach the end of topic
 
-Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+Consumers can check if it has reached the end of a topic by sending the `isEndOfTopic` request.
 
 **Request**
 
 ```json
-
 {
   "type": "isEndOfTopic"
 }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -348,11 +324,9 @@ Key | Type | Required? | Explanation
 **Response**
 
 ```json
-
 {
    "endOfTopic": "true/false"
  }
-
 ```
 
 ### Reader endpoint
@@ -360,9 +334,7 @@ Key | Type | Required? | Explanation
 The reader endpoint requires you to specify a tenant, namespace, and topic in the URL:
 
 ```http
-
 ws://broker-service-url:8080/ws/v2/reader/persistent/:tenant/:namespace/:topic
-
 ```
 
 ##### Query param
@@ -379,7 +351,6 @@ Key | Type | Required? | Explanation
 Server will push messages on the WebSocket session:
 
 ```json
-
 {
   "messageId": "CAAQAw==",
   "payload": "SGVsbG8gV29ybGQ=",
@@ -387,7 +358,6 @@ Server will push messages on the WebSocket session:
   "publishTime": "2016-08-30 16:45:57.785",
   "redeliveryCount": 4
 }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -401,34 +371,29 @@ Key | Type | Required? | Explanation
 
 #### Acknowledging the message
 
-**In WebSocket**, Reader needs to acknowledge the successful processing of the message to
-have the Pulsar WebSocket service update the number of pending messages.
-If you don't send acknowledgements, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.
+**In WebSocket**, Reader needs to acknowledge the successful processing of the message to have the Pulsar WebSocket service update the number of pending messages.
+If you don't send acknowledgments, Pulsar WebSocket service will stop sending messages after reaching the `pendingMessages` limit.
 
 ```json
-
 {
   "messageId": "CAAQAw=="
 }
-
 ```
 
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
 
-#### Check if reach end of topic
+#### Check if reach the end of topic
 
-Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+Consumers can check if it has reached the end of a topic by sending the `isEndOfTopic` request.
 
 **Request**
 
 ```json
-
 {
   "type": "isEndOfTopic"
 }
-
 ```
 
 Key | Type | Required? | Explanation
@@ -438,11 +403,9 @@ Key | Type | Required? | Explanation
 **Response**
 
 ```json
-
 {
    "endOfTopic": "true/false"
  }
-
 ```
 
 ### Error codes
@@ -472,9 +435,7 @@ Below you'll find code examples for the Pulsar WebSocket API in [Python](#python
 This example uses the [`websocket-client`](https://pypi.python.org/pypi/websocket-client) package. You can install it using [pip](https://pypi.python.org/pypi/pip):
 
 ```shell
-
-$ pip install websocket-client
-
+pip install websocket-client
 ```
 
 You can also download it from [PyPI](https://pypi.python.org/pypi/websocket-client).
@@ -484,7 +445,6 @@ You can also download it from [PyPI](https://pypi.python.org/pypi/websocket-clie
 Here's an example Python producer that sends a simple message to a Pulsar [topic](reference-terminology.md#topic):
 
 ```python
-
 import websocket, base64, json
 
 # If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
@@ -519,7 +479,6 @@ if response['result'] == 'ok':
 else:
     print('Failed to publish message:', response)
 ws.close()
-
 ```
 
 #### Python consumer
@@ -527,7 +486,6 @@ ws.close()
 Here's an example Python consumer that listens on a Pulsar topic and prints the message ID whenever a message arrives:
 
 ```python
-
 import websocket, base64, json
 
 # If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
@@ -550,7 +508,6 @@ while True:
     ws.send(json.dumps({'messageId' : msg['messageId']}))
 
 ws.close()
-
 ```
 
 #### Python reader
@@ -558,7 +515,6 @@ ws.close()
 Here's an example Python reader that listens on a Pulsar topic and prints the message ID whenever a message arrives:
 
 ```python
-
 import websocket, base64, json
 
 # If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
@@ -580,7 +536,6 @@ while True:
     ws.send(json.dumps({'messageId' : msg['messageId']}))
 
 ws.close()
-
 ```
 
 ### Node.js
@@ -588,9 +543,7 @@ ws.close()
 This example uses the [`ws`](https://websockets.github.io/ws/) package. You can install it using [npm](https://www.npmjs.com/):
 
 ```shell
-
-$ npm install ws
-
+npm install ws
 ```
 
 #### Node.js producer
@@ -598,7 +551,6 @@ $ npm install ws
 Here's an example Node.js producer that sends a simple message to a Pulsar topic:
 
 ```javascript
-
 const WebSocket = require('ws');
 
 // If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
@@ -623,7 +575,6 @@ ws.on('open', function() {
 ws.on('message', function(message) {
   console.log('received ack: %s', message);
 });
-
 ```
 
 #### Node.js consumer
@@ -631,7 +582,6 @@ ws.on('message', function(message) {
 Here's an example Node.js consumer that listens on the same topic used by the producer above:
 
 ```javascript
-
 const WebSocket = require('ws');
 
 // If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
@@ -645,13 +595,11 @@ ws.on('message', function(message) {
     var ackMsg = {"messageId" : receiveMsg.messageId};
     ws.send(JSON.stringify(ackMsg));
 });
-
 ```
 
 #### NodeJS reader
 
 ```javascript
-
 const WebSocket = require('ws');
 
 // If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
@@ -665,6 +613,5 @@ ws.on('message', function(message) {
     var ackMsg = {"messageId" : receiveMsg.messageId};
     ws.send(JSON.stringify(ackMsg));
 });
-
 ```
 

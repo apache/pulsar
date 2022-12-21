@@ -7,44 +7,38 @@ sidebar_label: "Non-persistent messaging"
 **Non-persistent topics** are Pulsar topics in which message data is *never* [persistently stored](concepts-architecture-overview.md#persistent-storage) and kept only in memory. This cookbook provides:
 
 * A basic [conceptual overview](#overview) of non-persistent topics
-* Information about [configurable parameters](#configuration) related to non-persistent topics
-* A guide to the [CLI interface](#cli) for managing non-persistent topics
+* Information about [configurable parameters](#configuration-for-standalone-mode) related to non-persistent topics
+* A guide to the [CLI interface](#manage-with-cli) for managing non-persistent topics
 
 ## Overview
 
-By default, Pulsar persistently stores *all* unacknowledged messages on multiple [BookKeeper](#persistent-storage) bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
+By default, Pulsar persistently stores *all* unacknowledged messages on multiple bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
 
 Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar [broker](reference-terminology.md#broker) or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.
 
 Non-persistent topics have names of this form (note the `non-persistent` in the name):
 
 ```http
-
 non-persistent://tenant/namespace/topic
-
 ```
 
 > For more high-level information about non-persistent topics, see the [Concepts and Architecture](concepts-messaging.md#non-persistent-topics) documentation.
 
-## Using
+## Use
 
-> In order to use non-persistent topics, they must be [enabled](#enabling) in your Pulsar broker configuration.
-
-In order to use non-persistent topics, you only need to differentiate them by name when interacting with them. This [`pulsar-client produce`](reference-cli-tools.md#pulsar-client-produce) command, for example, would produce one message on a non-persistent topic in a standalone cluster:
+To use non-persistent topics, you need to [enable](#enable) them in your Pulsar broker configuration and differentiate them by name when interacting with them. This [`pulsar-client produce`](reference-cli-tools.md) command, for example, would produce one message on a non-persistent topic in a standalone cluster:
 
 ```bash
-
-$ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
+bin/pulsar-client produce non-persistent://public/default/example-np-topic \
   --num-produce 1 \
   --messages "This message will be stored only in memory"
-
 ```
 
 > For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](admin-api-topics.md) guide.
 
-## Enabling
+## Enable
 
-In order to enable non-persistent topics in a Pulsar broker, the [`enableNonPersistentTopics`](reference-configuration.md#broker-enableNonPersistentTopics) must be set to `true`. This is the default, and so you won't need to take any action to enable non-persistent messaging.
+To enable non-persistent topics in a Pulsar broker, the [`enableNonPersistentTopics`](reference-configuration.md#broker-enableNonPersistentTopics) must be set to `true`. This is the default, so you won't need to take any action to enable non-persistent messaging.
 
 
 > #### Configuration for standalone mode
@@ -52,11 +46,11 @@ In order to enable non-persistent topics in a Pulsar broker, the [`enableNonPers
 
 If you'd like to enable *only* non-persistent topics in a broker, you can set the [`enablePersistentTopics`](reference-configuration.md#broker-enablePersistentTopics) parameter to `false` and the `enableNonPersistentTopics` parameter to `true`.
 
-## Managing with cli
+## Manage with cli
 
-Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](/tools/pulsar-admin/) command-line interface. With that interface you can perform actions like [create a partitioned non-persistent topic](/tools/pulsar-admin/), get [stats](/tools/pulsar-admin/) for a non-persistent topic, [list](/tools/pulsar-admin/) non-persistent topics under a namespace, and more.
+Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](/tools/pulsar-admin/) command-line interface. With that interface, you can perform actions like [create a partitioned non-persistent topic](/tools/pulsar-admin/), [get stats](/tools/pulsar-admin/) for a non-persistent topic, [list](/tools/pulsar-admin/) non-persistent topics under a namespace, and more.
 
-## Using with Pulsar clients
+## Use with Pulsar clients
 
-You shouldn't need to make any changes to your Pulsar clients to use non-persistent messaging beyond making sure that you use proper [topic names](#using) with `non-persistent` as the topic type.
+You shouldn't need to make any changes to your Pulsar clients to use non-persistent messaging beyond making sure that you use proper [topic names](#use) with `non-persistent` as the topic type.
 

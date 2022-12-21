@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -139,8 +139,9 @@ public class RangeCacheTest {
         assertEquals(cache.getSize(), 10);
         assertEquals(cache.getNumberOfEntries(), 4);
 
-        long evictedSize = cache.evictLEntriesBeforeTimestamp(3);
-        assertEquals(evictedSize, 6);
+        Pair<Integer, Long> evictedSize = cache.evictLEntriesBeforeTimestamp(3);
+        assertEquals(evictedSize.getRight().longValue(), 6);
+        assertEquals(evictedSize.getLeft().longValue(), 3);
 
         assertEquals(cache.getSize(), 4);
         assertEquals(cache.getNumberOfEntries(), 1);

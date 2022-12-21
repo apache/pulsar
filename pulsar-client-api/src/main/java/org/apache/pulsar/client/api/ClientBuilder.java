@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -125,6 +125,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder listenerName(String name);
+
+    /**
+     * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * @return the client builder instance
+     */
+    ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
@@ -483,7 +489,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder maxLookupRedirects(int maxLookupRedirects);
 
     /**
-     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+     * Set max number of broker-rejected requests in a certain time-frame (60 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>.
      *
