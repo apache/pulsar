@@ -41,6 +41,8 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -55,7 +57,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn("name");
         when(ml.getExecutor()).thenReturn(executor);
-        when(ml.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
+        when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
     }
 
     @Test(timeOut = 5000)

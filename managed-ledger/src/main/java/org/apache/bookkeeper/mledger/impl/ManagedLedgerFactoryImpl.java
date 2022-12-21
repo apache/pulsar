@@ -33,8 +33,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -67,6 +67,8 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -77,6 +79,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -89,10 +92,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final BookkeeperFactoryForCustomEnsemblePlacementPolicy bookkeeperFactory;
     private final boolean isBookkeeperManaged;
     private final ManagedLedgerFactoryConfig config;
+    @Getter
     protected final OrderedScheduler scheduledExecutor;
+    private final ScheduledExecutorService cacheEvictionExecutor;
 
-    private final ExecutorService cacheEvictionExecutor;
-
+    @Getter
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
     protected final ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = new ConcurrentHashMap<>();
@@ -104,7 +108,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final ScheduledFuture<?> statsTask;
     private final ScheduledFuture<?> flushCursorsTask;
 
-    private final long cacheEvictionTimeThresholdNanos;
+    private volatile long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
     //indicate whether shutdown() is called.
@@ -179,7 +183,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .name("bookkeeper-ml-scheduler")
                 .build();
         cacheEvictionExecutor = Executors
-                .newSingleThreadExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
         this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
@@ -188,7 +192,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config.getManagedCursorInfoCompressionType());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = new EntryCacheManager(this);
+        this.entryCacheManager = new RangeEntryCacheManagerImpl(this);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -198,8 +202,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
                 .toNanos(config.getCacheEvictionTimeThresholdMillis());
 
-
-        cacheEvictionExecutor.execute(this::cacheEvictionTask);
+        long evictionTaskInterval = config.getCacheEvictionIntervalMs();
+        cacheEvictionExecutor.scheduleWithFixedDelay(Runnables.catchingAndLoggingThrowables(this::doCacheEviction),
+                evictionTaskInterval, evictionTaskInterval, TimeUnit.MILLISECONDS);
         closed = false;
 
         metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
@@ -251,24 +256,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         });
 
         lastStatTimestamp = now;
-    }
-
-    private void cacheEvictionTask() {
-        double evictionFrequency = Math.max(Math.min(config.getCacheEvictionFrequency(), 1000.0), 0.001);
-        long waitTimeMillis = (long) (1000 / evictionFrequency);
-
-        while (!closed) {
-            try {
-                doCacheEviction();
-
-                Thread.sleep(waitTimeMillis);
-            } catch (InterruptedException e) {
-                // Factory is shutting down
-                return;
-            } catch (Throwable t) {
-                log.warn("Exception while performing cache eviction: {}", t.getMessage(), t);
-            }
-        }
     }
 
     private synchronized void doCacheEviction() {
@@ -968,8 +955,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return config;
     }
 
+    @Override
     public EntryCacheManager getEntryCacheManager() {
         return entryCacheManager;
+    }
+
+    @Override
+    public void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos){
+        this.cacheEvictionTimeThresholdNanos = cacheEvictionTimeThresholdNanos;
+    }
+
+    @Override
+    public long getCacheEvictionTimeThreshold(){
+        return cacheEvictionTimeThresholdNanos;
     }
 
     public ManagedLedgerFactoryMXBean getCacheStats() {

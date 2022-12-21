@@ -107,26 +107,30 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -289,6 +293,123 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
         entries.forEach(e -> e.release());
+
+        ledger.close();
+    }
+
+    @Test
+    public void shouldKeepEntriesInCacheByEarliestReadPosition() throws ManagedLedgerException, InterruptedException {
+        // This test case reproduces issue #16054
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                .toNanos(30000));
+
+        // GIVEN an opened ledger with 10 opened cursors
+
+        ManagedLedger ledger = factory.open("test_ledger_for_shouldKeepEntriesInCacheByEarliestReadPosition",
+                config);
+        List<ManagedCursor> cursors = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            ManagedCursor cursor = ledger.openCursor("c" + i);
+            cursors.add(cursor);
+        }
+
+        ManagedLedgerFactoryMXBean cacheStats = factory.getCacheStats();
+        int insertedEntriesCountBefore = (int) cacheStats.getCacheInsertedEntriesCount();
+
+        // AND 100 added entries
+
+        for (int i = 0; i < 100; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        int insertedEntriesCount =
+                (int) cacheStats.getCacheInsertedEntriesCount() - insertedEntriesCountBefore;
+        // EXPECT that 100 entries should have been inserted to the cache
+        assertEquals(insertedEntriesCount, 100);
+
+        int evictedEntriesCountBefore = (int) cacheStats.getCacheEvictedEntriesCount();
+
+        // WHEN entries are read for the cursors so that the farthest cursor has most entries read
+        for (int i = 0; i < 10; i++) {
+            ManagedCursor cursor = cursors.get(i);
+            // read entries farther of the  earliest cursor
+            List<Entry> entries = cursor.readEntries(20 - i);
+            // mark delete the least for the earliest cursor
+            cursor.markDelete(entries.get(i).getPosition());
+            entries.forEach(Entry::release);
+        }
+
+        // THEN it is expected that the cache evicts entries to the earliest read position
+        Thread.sleep(2 * factory.getConfig().getCacheEvictionIntervalMs());
+        int evictedEntriesCount =
+                (int) cacheStats.getCacheEvictedEntriesCount() - evictedEntriesCountBefore;
+        assertEquals(evictedEntriesCount, 11,
+                "It is expected that the cache evicts entries to the earliest read position");
+
+        ledger.close();
+    }
+
+    @Test
+    public void shouldKeepEntriesInCacheByEarliestMarkDeletePosition() throws ManagedLedgerException, InterruptedException {
+        // This test case reproduces issue #16054
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setCacheEvictionByMarkDeletedPosition(true);
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                .toNanos(30000));
+
+        // GIVEN an opened ledger with 10 opened cursors
+
+        ManagedLedger ledger = factory.open("test_ledger_for_shouldKeepEntriesInCacheByEarliestMarkDeletePosition",
+                config);
+        List<ManagedCursor> cursors = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            ManagedCursor cursor = ledger.openCursor("c" + i);
+            cursors.add(cursor);
+        }
+
+        ManagedLedgerFactoryMXBean cacheStats = factory.getCacheStats();
+        int insertedEntriesCountBefore = (int) cacheStats.getCacheInsertedEntriesCount();
+
+        // AND 100 added entries
+
+        for (int i = 0; i < 100; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        int insertedEntriesCount =
+                (int) cacheStats.getCacheInsertedEntriesCount() - insertedEntriesCountBefore;
+        // EXPECT that 100 entries should have been inserted to the cache
+        assertEquals(insertedEntriesCount, 100);
+
+        int evictedEntriesCountBefore = (int) cacheStats.getCacheEvictedEntriesCount();
+
+        // WHEN entries are read for the cursors so that the farthest cursor has most entries read
+        Position lastMarkDeletePos = null;
+        for (int i = 0; i < 10; i++) {
+            ManagedCursor cursor = cursors.get(i);
+            // read 50 (+ index) entries for each cursor
+            List<Entry> entries = cursor.readEntries(50 + (5 * i));
+            // mark delete the most for the earliest cursor
+            lastMarkDeletePos = entries.get(20 - i).getPosition();
+            cursor.markDelete(lastMarkDeletePos);
+            entries.forEach(Entry::release);
+        }
+
+        Thread.sleep(1000 + 2 * factory.getConfig().getCacheEvictionIntervalMs());
+
+        ManagedCursorContainer activeCursors = (ManagedCursorContainer) ledger.getActiveCursors();
+        assertEquals(activeCursors.getSlowestReaderPosition(), lastMarkDeletePos);
+
+        // THEN it is expected that the cache evicts entries to the earliest read position
+        int evictedEntriesCount =
+                (int) cacheStats.getCacheEvictedEntriesCount() - evictedEntriesCountBefore;
+        assertEquals(evictedEntriesCount, 11,
+                "It is expected that the cache evicts entries to the earliest read position");
 
         ledger.close();
     }
@@ -1519,10 +1640,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void invalidateConsumedEntriesFromCache() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger_for_invalidateConsumedEntriesFromCache",
+                        config);
 
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         EntryCache entryCache = ledger.entryCache;
+        entryCache.clear();
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ManagedCursorImpl c2 = (ManagedCursorImpl) ledger.openCursor("c2");
@@ -1535,28 +1660,78 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(entryCache.getSize(), 7 * 4);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
+
         c2.setReadPosition(p3);
-        ledger.discardEntriesFromCache(c2, p2);
 
         assertEquals(entryCache.getSize(), 7 * 4);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c1.setReadPosition(p2);
-        ledger.discardEntriesFromCache(c1, p2);
         assertEquals(entryCache.getSize(), 7 * 3);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c1.setReadPosition(p3);
-        ledger.discardEntriesFromCache(c1, p3);
-        assertEquals(entryCache.getSize(), 7 * 3);
+        assertEquals(entryCache.getSize(), 7 * 2);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         ledger.deactivateCursor(c1);
-        assertEquals(entryCache.getSize(), 7 * 3); // as c2.readPosition=p3 => Cache contains p3,p4
+        assertEquals(entryCache.getSize(), 7 * 2); // as c2.readPosition=p3 => Cache contains p3,p4
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c2.setReadPosition(p4);
-        ledger.discardEntriesFromCache(c2, p4);
+        assertEquals(entryCache.getSize(), 7);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+
+        ledger.deactivateCursor(c2);
+        assertEquals(entryCache.getSize(), 0);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+    }
+
+    @Test
+    public void invalidateEntriesFromCacheByMarkDeletePosition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setCacheEvictionByMarkDeletedPosition(true);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger_for_invalidateEntriesFromCacheByMarkDeletePosition",
+                        config);
+
+        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCache entryCache = ledger.entryCache;
+        entryCache.clear();
+
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ManagedCursorImpl c2 = (ManagedCursorImpl) ledger.openCursor("c2");
+
+        PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
+        PositionImpl p2 = (PositionImpl) ledger.addEntry("entry-2".getBytes());
+        PositionImpl p3 = (PositionImpl) ledger.addEntry("entry-3".getBytes());
+        PositionImpl p4 = (PositionImpl) ledger.addEntry("entry-4".getBytes());
+
+        assertEquals(entryCache.getSize(), 7 * 4);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+
+
+        c2.setReadPosition(p4);
+        c2.markDelete(p3);
+
+        assertEquals(entryCache.getSize(), 7 * 4);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+
+        c1.setReadPosition(p3);
+        c1.markDelete(p2);
+        assertEquals(entryCache.getSize(), 7 * 3);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+
+        c1.setReadPosition(p4);
+        c1.markDelete(p3);
+        assertEquals(entryCache.getSize(), 7 * 2);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+
+        ledger.deactivateCursor(c1);
+        assertEquals(entryCache.getSize(), 7 * 2);
+        assertEquals(cacheManager.getSize(), entryCache.getSize());
+
+        c2.markDelete(p4);
         assertEquals(entryCache.getSize(), 7);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
@@ -1840,10 +2015,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.addEntry("data".getBytes());
         ledger.addEntry("data".getBytes());
-        
+
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.getLedgersInfoAsList().size(), 2);
-        });   
+        });
     }
 
     @Test
@@ -2412,7 +2587,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursorWithDiscardEntriesFromCache() throws Exception {
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        conf.setCacheEvictionFrequency(0.1);
+        conf.setCacheEvictionIntervalMs(10000);
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
@@ -2424,9 +2599,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Set<ManagedCursor> activeCursors = Sets.newHashSet();
         activeCursors.add(cursor1);
         activeCursors.add(cursor2);
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         Iterator<ManagedCursor> activeCursor = ledger.getActiveCursors().iterator();
 
@@ -2467,8 +2640,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (3) Validate: cache should remove all entries read by both active cursors
-        log.info("expected, found : {}, {}", (5 * (totalInsertedEntries)), entryCache.getSize());
-        assertEquals((5 * totalInsertedEntries), entryCache.getSize());
+        log.info("expected, found : {}, {}", 5 * (totalInsertedEntries - readEntries), entryCache.getSize());
+        assertEquals(entryCache.getSize(), 5 * (totalInsertedEntries - readEntries));
 
         final int remainingEntries = totalInsertedEntries - readEntries;
         entries1 = cursor1.readEntries(remainingEntries);
@@ -2482,7 +2655,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // (4) Validate: cursor2 is active cursor and has not read these entries yet: so, cache should not remove these
         // entries
-        assertEquals((5 * totalInsertedEntries), entryCache.getSize());
+        assertEquals(entryCache.getSize(), 5 * (totalInsertedEntries - readEntries));
 
         ledger.deactivateCursor(cursor1);
         ledger.deactivateCursor(cursor2);
@@ -2498,10 +2671,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_eviction_ledger");
-
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {
@@ -2510,7 +2680,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (1) Validate: cache not stores entries as no active cursor
-        assertEquals(0, entryCache.getSize());
+        assertEquals(entryCache.getSize(), 0);
 
         // Open Cursor also adds cursor into activeCursor-container
         ManagedCursor cursor1 = ledger.openCursor("c1");
@@ -2523,7 +2693,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (2) Validate: cache stores entries as active cursor has not read message
-        assertEquals((5 * totalInsertedEntries), entryCache.getSize());
+        assertEquals(entryCache.getSize(), 5 * totalInsertedEntries);
 
         // read 20 entries
         List<Entry> entries1 = cursor1.readEntries(totalInsertedEntries);
@@ -2534,7 +2704,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // (3) Validate: cache discards all entries after all cursors are deactivated
         ledger.deactivateCursor(cursor1);
-        assertEquals(0, entryCache.getSize());
+        assertEquals(entryCache.getSize(), 0);
 
         ledger.close();
     }
