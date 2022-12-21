@@ -170,7 +170,7 @@ flexible messaging model and an intuitive client API.</description>
     <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.4.1</postgresql-jdbc.version>
-    <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
+    <clickhouse-jdbc.version>0.3.2-patch11</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
