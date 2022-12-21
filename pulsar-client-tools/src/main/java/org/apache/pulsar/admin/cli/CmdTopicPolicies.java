@@ -1190,19 +1190,19 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Parameter(names = { "-e",
                 "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic", required = true)
-        private int bookkeeperEnsemble;
+        private int bookkeeperEnsemble = 2;
 
         @Parameter(names = { "-w",
                 "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
-        private int bookkeeperWriteQuorum;
+        private int bookkeeperWriteQuorum = 2;
 
         @Parameter(names = { "-a", "--bookkeeper-ack-quorum" },
                 description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
-        private int bookkeeperAckQuorum;
+        private int bookkeeperAckQuorum = 2;
 
         @Parameter(names = { "-r", "--ml-mark-delete-max-rate" },
                 description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
-        private double managedLedgerMaxMarkDeleteRate;
+        private double managedLedgerMaxMarkDeleteRate = 0;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously", arity = 0)

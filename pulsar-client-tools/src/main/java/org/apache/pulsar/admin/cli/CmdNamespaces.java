@@ -1379,21 +1379,21 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "-e",
                 "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic", required = true)
-        private int bookkeeperEnsemble;
+        private int bookkeeperEnsemble = 2;
 
         @Parameter(names = { "-w",
                 "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
-        private int bookkeeperWriteQuorum;
+        private int bookkeeperWriteQuorum = 2;
 
         @Parameter(names = { "-a",
                 "--bookkeeper-ack-quorum" },
                 description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
-        private int bookkeeperAckQuorum;
+        private int bookkeeperAckQuorum = 2;
 
         @Parameter(names = { "-r",
                 "--ml-mark-delete-max-rate" },
                 description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
-        private double managedLedgerMaxMarkDeleteRate;
+        private double managedLedgerMaxMarkDeleteRate = 0;
 
         @Override
         void run() throws PulsarAdminException {
