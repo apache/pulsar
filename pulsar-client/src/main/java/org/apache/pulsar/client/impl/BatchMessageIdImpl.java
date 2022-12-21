@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 
 /**
  */
@@ -77,8 +78,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
                 this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
                 other.ledgerId, other.entryId, other.partitionIndex, batchIndex
             );
-        } else if (o instanceof TopicMessageIdImpl) {
-            return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
+        } else if (o instanceof TopicMessageId) {
+            return compareTo(MessageIdImpl.convertToMessageIdImpl(o));
         } else {
             throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
         }

@@ -45,7 +45,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -337,7 +336,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             }
             totalMessages++;
             consumer1.acknowledge(msg);
-            MessageIdImpl msgId = (MessageIdImpl) (((TopicMessageImpl)msg).getInnerMessageId());
+            MessageIdImpl msgId = MessageIdImpl.convertToMessageIdImpl(msg.getMessageId());
             receivedPtns.add(msgId.getPartitionIndex());
         }
 
@@ -354,7 +353,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             }
             totalMessages++;
             consumer2.acknowledge(msg);
-            MessageIdImpl msgId = (MessageIdImpl) (((TopicMessageImpl)msg).getInnerMessageId());
+            MessageIdImpl msgId = MessageIdImpl.convertToMessageIdImpl(msg.getMessageId());
             receivedPtns.add(msgId.getPartitionIndex());
         }
         assertTrue(Sets.difference(listener1.inactivePtns, receivedPtns).isEmpty());

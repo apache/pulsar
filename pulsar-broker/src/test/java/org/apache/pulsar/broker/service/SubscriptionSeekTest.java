@@ -50,7 +50,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
@@ -679,8 +678,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             if (message == null) {
                 break;
             }
-            TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) message.getMessageId();
-            received.add(topicMessageId.getInnerMessageId());
+            received.add(MessageIdImpl.convertToMessageIdImpl(message.getMessageId()));
         }
         int msgNumFromPartition1 = list.size() / 2;
         int msgNumFromPartition2 = 1;

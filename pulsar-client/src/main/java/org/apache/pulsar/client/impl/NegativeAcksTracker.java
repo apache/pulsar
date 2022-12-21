@@ -95,10 +95,7 @@ class NegativeAcksTracker implements Closeable {
     }
 
     private synchronized void add(MessageId messageId, int redeliveryCount) {
-        if (messageId instanceof TopicMessageIdImpl) {
-            TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
-            messageId = topicMessageId.getInnerMessageId();
-        }
+        messageId = MessageIdImpl.convertToMessageIdImpl(messageId);
 
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;

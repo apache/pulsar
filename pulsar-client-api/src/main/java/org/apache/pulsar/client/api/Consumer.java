@@ -471,7 +471,9 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
      *
-     * <p>Note: For multi-topics consumer, you can only seek to the earliest or latest message.
+     * <p>Note: For multi-topics consumer, if `messageId` is a {@link TopicMessageId}, the seek operation will happen
+     * on the owner topic of the message, which is returned by {@link TopicMessageId#getOwnerTopic()}. Otherwise, you
+     * can only seek to the earliest or latest message for all topics subscribed.
      *
      * @param messageId
      *            the message id where to reposition the subscription
@@ -519,19 +521,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     CompletableFuture<Void> seekAsync(Function<String, Object> function);
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id.
-     *
-     * <p>The message id can either be a specific message or represent the first or last messages in the topic.
-     * <ul>
-     * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
-     * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
-     * </ul>
-     *
-     * <p>Note: For multi-topics consumer, you can only seek to the earliest or latest message.
-     *
-     * @param messageId
-     *            the message id where to reposition the subscription
-     * @return a future to track the completion of the seek operation
+     * The asynchronous version of {@link Consumer#seek(MessageId)}.
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
 

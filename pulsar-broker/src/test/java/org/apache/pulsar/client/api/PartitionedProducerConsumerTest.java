@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
@@ -768,7 +767,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
             for (int i = 0; i < totalMessages; i ++) {
                 msg = consumer1.receive(5, TimeUnit.SECONDS);
-                Assert.assertEquals(((MessageIdImpl)((TopicMessageIdImpl)msg.getMessageId()).getInnerMessageId()).getPartitionIndex(), 2);
+                Assert.assertEquals(MessageIdImpl.convertToMessageIdImpl(msg.getMessageId()).getPartitionIndex(), 2);
                 consumer1.acknowledge(msg);
             }
 
