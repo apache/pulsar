@@ -317,6 +317,20 @@
     },
     {
       "type": "category",
+      "label": "Pulsar API",
+      "items": [
+        "pulsar-api-overview"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client API",
+      "items": [
+        "client-api-overview"
+      ]
+    },
+    {
+      "type": "category",
       "label": "Admin API",
       "items": [
         "admin-api-overview",
