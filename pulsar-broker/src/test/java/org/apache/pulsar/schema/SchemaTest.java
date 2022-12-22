@@ -469,11 +469,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testUseAutoConsumeWithBytesSchemaTopic() throws Exception {
-        testUseAutoConsumeWithSchemalessTopic(SchemaType.BYTES);
-    }
-
-    @Test
     public void testUseAutoConsumeWithNoneSchemaTopic() throws Exception {
         testUseAutoConsumeWithSchemalessTopic(SchemaType.NONE);
     }
