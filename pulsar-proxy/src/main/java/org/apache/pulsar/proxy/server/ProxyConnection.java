@@ -97,9 +97,9 @@ public class ProxyConnection extends PulsarHandler {
     private DirectProxyHandler directProxyHandler = null;
     private final BrokerProxyValidator brokerProxyValidator;
     private final ConnectionController connectionController;
-    String clientAuthRole;
-    AuthData clientAuthData;
-    String clientAuthMethod;
+    volatile String clientAuthRole;
+    volatile AuthData clientAuthData;
+    volatile String clientAuthMethod;
 
     private String authMethod = "none";
     AuthenticationProvider authenticationProvider;
@@ -315,13 +315,8 @@ public class ProxyConnection extends PulsarHandler {
     private synchronized void completeConnect(AuthData clientData) throws PulsarClientException {
         Supplier<ClientCnx> clientCnxSupplier;
         if (service.getConfiguration().isAuthenticationEnabled()) {
-            if (service.getConfiguration().isForwardAuthorizationCredentials()) {
-                this.clientAuthData = clientData;
-                this.clientAuthMethod = authMethod;
-            }
-            clientCnxSupplier = () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), clientAuthRole,
-                    clientAuthData, clientAuthMethod, protocolVersionToAdvertise,
-                    service.getConfiguration().isForwardAuthorizationCredentials(), this);
+            clientCnxSupplier = () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(),
+                    protocolVersionToAdvertise, service.getConfiguration().isForwardAuthorizationCredentials(), this);
         } else {
             clientCnxSupplier = () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise);
         }
@@ -425,12 +420,12 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     // According to auth result, send newConnected or newAuthChallenge command.
-    private void doAuthentication(AuthData clientData)
+    private boolean doAuthentication(AuthData clientData)
             throws Exception {
         AuthData brokerData = authState.authenticate(clientData);
         // authentication has completed, will send newConnected command.
         if (authState.isComplete()) {
-            clientAuthRole = authState.getAuthRole();
+            String newClientAuthRole = authState.getAuthRole();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("[{}] Client successfully authenticated with {} role {}",
                         remoteAddress, authMethod, clientAuthRole);
@@ -438,10 +433,29 @@ public class ProxyConnection extends PulsarHandler {
 
             // First connection
             if (this.connectionPool == null || state == State.Connecting) {
+                clientAuthRole = newClientAuthRole;
+                if (service.getConfiguration().isForwardAuthorizationCredentials()) {
+                    this.clientAuthData = clientData;
+                    this.clientAuthMethod = authMethod;
+                }
                 // authentication has completed, will send newConnected command.
                 completeConnect(clientData);
+            } else {
+                // If the connection was already ready, it means we're doing a refresh
+                // This code path is currently only relevant when State == ProxyLookupRequests
+                if (!clientAuthRole.equals(newClientAuthRole)) {
+                    LOG.warn("[{}] Principal cannot change during an authentication refresh expected={} got={}",
+                            remoteAddress, clientAuthRole, newClientAuthRole);
+                    ctx.close();
+                    return false;
+                } else {
+                    LOG.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, clientAuthRole);
+                    if (service.getConfiguration().isForwardAuthorizationCredentials()) {
+                        clientAuthData = clientData;
+                    }
+                }
             }
-            return;
+            return true;
         }
 
         // auth not complete, continue auth with client side.
@@ -452,6 +466,8 @@ public class ProxyConnection extends PulsarHandler {
                     remoteAddress, authMethod);
         }
         state = State.Connecting;
+        // TODO how does multi-stage auth map to proxy auth refresh?
+        return false;
     }
 
     @Override
@@ -541,8 +557,8 @@ public class ProxyConnection extends PulsarHandler {
 
         try {
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
-            doAuthentication(clientData);
-            if (service.getConfiguration().isForwardAuthorizationCredentials()
+            boolean success = doAuthentication(clientData);
+            if (success && service.getConfiguration().isForwardAuthorizationCredentials()
                     && connectionPool != null && state == State.ProxyLookupRequests) {
                 connectionPool.getConnections().forEach(toBrokerCnxFuture -> {
                     String clientVersion;

@@ -39,18 +39,11 @@ import org.apache.pulsar.common.protocol.Commands;
  */
 public class ProxyClientCnx extends ClientCnx {
     private final boolean forwardClientAuthData;
-    private final String clientAuthMethod;
-    private final String clientAuthRole;
-    private final AuthData clientAuthData;
     private final ProxyConnection proxyConnection;
 
-    public ProxyClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, String clientAuthRole,
-                          AuthData clientAuthData, String clientAuthMethod, int protocolVersion,
+    public ProxyClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, int protocolVersion,
                           boolean forwardClientAuthData, ProxyConnection proxyConnection) {
         super(conf, eventLoopGroup, protocolVersion);
-        this.clientAuthRole = clientAuthRole;
-        this.clientAuthData = clientAuthData;
-        this.clientAuthMethod = clientAuthMethod;
         this.forwardClientAuthData = forwardClientAuthData;
         this.proxyConnection = proxyConnection;
     }
@@ -60,14 +53,16 @@ public class ProxyClientCnx extends ClientCnx {
         if (log.isDebugEnabled()) {
             log.debug("New Connection opened via ProxyClientCnx with params clientAuthRole = {},"
                             + " clientAuthData = {}, clientAuthMethod = {}",
-                    clientAuthRole, clientAuthData, clientAuthMethod);
+                    proxyConnection.clientAuthRole, proxyConnection.clientAuthData, proxyConnection.clientAuthMethod);
         }
 
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+        // Get the auth related information dynamically because it can change over time and new connections
+        // require recent auth information.
         return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
-                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
-                clientAuthMethod);
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, proxyConnection.clientAuthRole,
+                proxyConnection.clientAuthData, proxyConnection.clientAuthMethod);
     }
 
     @Override
@@ -87,14 +82,15 @@ public class ProxyClientCnx extends ClientCnx {
                         + "the proxy client {}", proxyConnection.ctx().channel(), ctx.channel());
             }
 
-            proxyConnection.ctx().writeAndFlush(Commands.newAuthChallenge(clientAuthMethod, AuthData.REFRESH_AUTH_DATA,
-                            protocolVersion))
+            proxyConnection.ctx().writeAndFlush(Commands.newAuthChallenge(proxyConnection.clientAuthMethod,
+                            AuthData.REFRESH_AUTH_DATA, protocolVersion))
                     .addListener(writeFuture -> {
                         if (writeFuture.isSuccess()) {
                             if (log.isDebugEnabled()) {
                                 log.debug("Proxy {} sent the auth challenge to original client to refresh credentials "
                                                 + "with method {} for the proxy client {}",
-                                        proxyConnection.ctx().channel(), clientAuthMethod, ctx.channel());
+                                        proxyConnection.ctx().channel(), proxyConnection.clientAuthMethod,
+                                        ctx.channel());
                             }
                         } else {
                             log.error("Failed to send the auth challenge to original client by the proxy {} "
