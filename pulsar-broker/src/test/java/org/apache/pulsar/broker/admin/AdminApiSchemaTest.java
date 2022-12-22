@@ -190,6 +190,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         // forbid admin api creating BYTES schema to be consistent with client side
         try {
             testSchemaInfoApi(Schema.BYTES, "schematest/test/test-BYTES");
+            fail("should fail");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Do not upload a BYTES schema"));
         }
