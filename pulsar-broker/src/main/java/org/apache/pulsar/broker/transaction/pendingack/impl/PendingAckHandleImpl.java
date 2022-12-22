@@ -186,7 +186,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public void internalIndividualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
-            completableFuture.completeExceptionally(new NotAllowedException("Positions can not be null."));
+            completableFuture.completeExceptionally(new NotAllowedException("txnID can not be null."));
             return;
 
         }
