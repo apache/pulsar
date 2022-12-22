@@ -81,7 +81,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
             } else {
                 if (!(o instanceof BatchMessageIdImpl)) {
                     throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
-                            + o.getClass().getName() + " when they have the same `LedgerId` and `EntryId`.");
+                            + o.getClass().getName()
+                            + " when they have the same `LedgerId`, `EntryId` and `PartitionIndex`.");
                 } else {
                     return ComparisonChain.start().compare(this.batchIndex,
                             ((BatchMessageIdImpl) o).batchIndex).result();

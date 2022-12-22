@@ -213,7 +213,8 @@ public class MessageIdImpl implements MessageId {
                 return compareWithoutBatchIndex;
             } else {
                 throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
-                        + o.getClass().getName() + " when they have the same `LedgerId` and `EntryId`.");
+                        + o.getClass().getName()
+                        + " when they have the same `LedgerId`, `EntryId` and `PartitionIndex`.");
             }
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
