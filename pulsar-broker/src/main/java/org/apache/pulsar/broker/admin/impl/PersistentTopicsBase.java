@@ -1321,16 +1321,17 @@ public class PersistentTopicsBase extends AdminResource {
                                     log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, t);
                                     asyncResponse.resume(new RestException(t));
                                 }
+                            } else {
+                                PartitionedManagedLedgerInfo partitionedManagedLedgerInfo =
+                                        new PartitionedManagedLedgerInfo();
+                                for (CompletableFuture<Pair<String, ManagedLedgerInfo>> infoFuture : futures) {
+                                    Pair<String, ManagedLedgerInfo> info = infoFuture.getNow(null);
+                                    partitionedManagedLedgerInfo.partitions.put(info.getKey(), info.getValue());
+                                }
+                                asyncResponse.resume((StreamingOutput) output -> {
+                                    jsonMapper().writer().writeValue(output, partitionedManagedLedgerInfo);
+                                });
                             }
-                            PartitionedManagedLedgerInfo partitionedManagedLedgerInfo =
-                                    new PartitionedManagedLedgerInfo();
-                            for (CompletableFuture<Pair<String, ManagedLedgerInfo>> infoFuture : futures) {
-                                Pair<String, ManagedLedgerInfo> info = infoFuture.getNow(null);
-                                partitionedManagedLedgerInfo.partitions.put(info.getKey(), info.getValue());
-                            }
-                            asyncResponse.resume((StreamingOutput) output -> {
-                                jsonMapper().writer().writeValue(output, partitionedManagedLedgerInfo);
-                            });
                         });
                     } else {
                         internalGetManagedLedgerInfoForNonPartitionedTopic(asyncResponse);
