@@ -699,6 +699,9 @@
                   <locations>org.apache.pulsar.broker.admin.v2</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v2</basePath>
+                  <typesToSkip>
+                    <typeToSkip>org.apache.pulsar.broker.admin.v2.PersistentTopicsExt</typeToSkip>
+                  </typesToSkip>
                   <info>
                     <title>Pulsar Admin REST API</title>
                     <version>v2</version>

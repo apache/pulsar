@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.admin;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
+import org.apache.pulsar.broker.admin.v2.PersistentTopicsExt;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -104,6 +106,7 @@ import org.testng.annotations.Test;
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
+    private PersistentTopicsExt persistentTopicsExt;
     private final String testTenant = "my-tenant";
     private final String testLocalCluster = "use";
     private final String testNamespace = "my-namespace";
@@ -133,6 +136,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(TopicDomain.persistent.value()).when(persistentTopics).domain();
         doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
+
+        persistentTopicsExt = spy(PersistentTopicsExt.class);
+        persistentTopicsExt.setServletContext(new MockServletContext());
+        persistentTopicsExt.setPulsar(pulsar);
+        doReturn(false).when(persistentTopicsExt).isRequestHttps();
+        doReturn(null).when(persistentTopicsExt).originalPrincipal();
+        doReturn("test").when(persistentTopicsExt).clientAppId();
+        doReturn(TopicDomain.persistent.value()).when(persistentTopicsExt).domain();
+        doNothing().when(persistentTopicsExt).validateAdminAccessForTenant(this.testTenant);
+        doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopicsExt).clientAuthData();
 
         nonPersistentTopic = spy(NonPersistentTopics.class);
         nonPersistentTopic.setServletContext(new MockServletContext());
@@ -542,7 +555,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Map<String, String> topicMetadata = new HashMap<>();
         topicMetadata.put("key1", "value1");
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
-        persistentTopics.createPartitionedTopic(response2, testTenant, testNamespace, topicName2, metadata, true);
+        persistentTopicsExt.createPartitionedTopic(response2, testTenant, testNamespace, topicName2, metadata, true);
         Awaitility.await().untilAsserted(() -> {
             persistentTopics.getPartitionedMetadata(response2,
                     testTenant, testNamespace, topicName2, true, false);
@@ -647,7 +660,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<PartitionedTopicMetadata> responseCaptor =
             ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
-        persistentTopics.createPartitionedTopic(response, tenant, namespace, topic, metadata, true);
+        persistentTopicsExt.createPartitionedTopic(response, tenant, namespace, topic, metadata, true);
         Awaitility.await().untilAsserted(() -> {
             persistentTopics.getPartitionedMetadata(response,
                 tenant, namespace, topic, true, false);
