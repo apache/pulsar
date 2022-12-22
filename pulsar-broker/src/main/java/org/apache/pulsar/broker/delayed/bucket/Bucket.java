@@ -131,7 +131,8 @@ abstract class Bucket {
                     bucket.setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn("Failed to record bucketId to cursor property, bucketKey: {}", bucketKey);
+                        log.warn("Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
+                                bucketKey, bucketId);
                         return null;
                     }).thenApply(__ -> newBucketId);
                 });
