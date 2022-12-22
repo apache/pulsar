@@ -50,8 +50,7 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     }
 
     @Override
-    public CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds,
-                                                         AckType ackType,
+    public CompletableFuture<Void> addListAcknowledgment(List<MessageIdImpl> messageIds,
                                                          Map<String, Long> properties) {
         // no-op
         return CompletableFuture.completedFuture(null);

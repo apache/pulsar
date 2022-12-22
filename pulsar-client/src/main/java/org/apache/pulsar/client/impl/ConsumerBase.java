@@ -542,12 +542,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList) {
-        return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), null);
+        return doAcknowledgeWithTxn(messageIdList, Collections.emptyMap(), null);
     }
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn) {
-        return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), (TransactionImpl) txn);
+        return doAcknowledgeWithTxn(messageIdList, Collections.emptyMap(), (TransactionImpl) txn);
     }
 
     @Override
@@ -655,17 +655,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         negativeAcknowledge(message.getMessageId());
     }
 
-    protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
+    protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList,
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture;
         if (txn != null && this instanceof ConsumerImpl) {
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
+                    .thenCompose(ignored -> doAcknowledge(messageIdList, AckType.Individual, properties, txn));
             // register the ackFuture as part of the transaction
             txn.registerAckOp(ackFuture);
         } else {
-            ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+            ackFuture = doAcknowledge(messageIdList, AckType.Individual, properties, txn);
         }
         return ackFuture;
     }

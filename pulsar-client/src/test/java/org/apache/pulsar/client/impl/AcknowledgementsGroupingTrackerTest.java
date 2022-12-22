@@ -154,51 +154,30 @@ public class AcknowledgementsGroupingTrackerTest {
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
         MessageIdImpl msg3 = new MessageIdImpl(5, 3, 0);
-        MessageIdImpl msg4 = new MessageIdImpl(5, 4, 0);
-        MessageIdImpl msg5 = new MessageIdImpl(5, 5, 0);
-        MessageIdImpl msg6 = new MessageIdImpl(5, 6, 0);
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
+        tracker.addListAcknowledgment(Collections.singletonList(msg1), Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
 
         assertFalse(tracker.isDuplicate(msg2));
 
-        tracker.addListAcknowledgment(Collections.singletonList(msg5), AckType.Cumulative, Collections.emptyMap());
-        assertTrue(tracker.isDuplicate(msg1));
-        assertTrue(tracker.isDuplicate(msg2));
-        assertTrue(tracker.isDuplicate(msg3));
-
-        assertTrue(tracker.isDuplicate(msg4));
-        assertTrue(tracker.isDuplicate(msg5));
-        assertFalse(tracker.isDuplicate(msg6));
-
         // Flush while disconnected. the internal tracking will not change
         tracker.flush();
 
-        assertTrue(tracker.isDuplicate(msg1));
-        assertTrue(tracker.isDuplicate(msg2));
+        assertFalse(tracker.isDuplicate(msg1));
+        assertFalse(tracker.isDuplicate(msg2));
+
+        tracker.addListAcknowledgment(Collections.singletonList(msg3), Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg3));
-
-        assertTrue(tracker.isDuplicate(msg4));
-        assertTrue(tracker.isDuplicate(msg5));
-        assertFalse(tracker.isDuplicate(msg6));
-
-        tracker.addListAcknowledgment(Collections.singletonList(msg6), AckType.Individual, Collections.emptyMap());
-        assertTrue(tracker.isDuplicate(msg6));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
 
         tracker.flush();
 
-        assertTrue(tracker.isDuplicate(msg1));
-        assertTrue(tracker.isDuplicate(msg2));
-        assertTrue(tracker.isDuplicate(msg3));
-
-        assertTrue(tracker.isDuplicate(msg4));
-        assertTrue(tracker.isDuplicate(msg5));
-        assertFalse(tracker.isDuplicate(msg6));
+        assertFalse(tracker.isDuplicate(msg1));
+        assertFalse(tracker.isDuplicate(msg2));
+        assertFalse(tracker.isDuplicate(msg3));
 
         tracker.close();
     }
@@ -247,7 +226,7 @@ public class AcknowledgementsGroupingTrackerTest {
 
         when(consumer.getClientCnx()).thenReturn(null);
 
-        tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
+        tracker.addListAcknowledgment(Collections.singletonList(msg1), Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -255,7 +234,7 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addListAcknowledgment(Collections.singletonList(msg2), AckType.Individual, Collections.emptyMap());
+        tracker.addListAcknowledgment(Collections.singletonList(msg2), Collections.emptyMap());
 
         tracker.flush();
         // Since we were connected, the ack went out immediately
@@ -337,52 +316,31 @@ public class AcknowledgementsGroupingTrackerTest {
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
-        MessageIdImpl msg3 = new MessageIdImpl(5, 3, 0);
-        MessageIdImpl msg4 = new MessageIdImpl(5, 4, 0);
-        MessageIdImpl msg5 = new MessageIdImpl(5, 5, 0);
-        MessageIdImpl msg6 = new MessageIdImpl(5, 6, 0);
+        MessageIdImpl msg3 = new MessageIdImpl(5, 6, 0);
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
+        tracker.addListAcknowledgment(Collections.singletonList(msg1), Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg1));
 
         assertFalse(tracker.isDuplicate(msg2));
 
-        tracker.addListAcknowledgment(Collections.singletonList(msg5), AckType.Cumulative, Collections.emptyMap());
-        assertTrue(tracker.isDuplicate(msg1));
-        assertTrue(tracker.isDuplicate(msg2));
-        assertTrue(tracker.isDuplicate(msg3));
-
-        assertTrue(tracker.isDuplicate(msg4));
-        assertTrue(tracker.isDuplicate(msg5));
-        assertFalse(tracker.isDuplicate(msg6));
-
         // Flush while disconnected. the internal tracking will not change
         tracker.flush();
 
-        assertTrue(tracker.isDuplicate(msg1));
-        assertTrue(tracker.isDuplicate(msg2));
+        assertFalse(tracker.isDuplicate(msg1));
+        assertFalse(tracker.isDuplicate(msg2));
+
+        tracker.addListAcknowledgment(Collections.singletonList(msg3), Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg3));
-
-        assertTrue(tracker.isDuplicate(msg4));
-        assertTrue(tracker.isDuplicate(msg5));
-        assertFalse(tracker.isDuplicate(msg6));
-
-        tracker.addListAcknowledgment(Collections.singletonList(msg6), AckType.Individual, Collections.emptyMap());
-        assertTrue(tracker.isDuplicate(msg6));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
 
         tracker.flush();
 
-        assertTrue(tracker.isDuplicate(msg1));
-        assertTrue(tracker.isDuplicate(msg2));
-        assertTrue(tracker.isDuplicate(msg3));
-
-        assertTrue(tracker.isDuplicate(msg4));
-        assertTrue(tracker.isDuplicate(msg5));
-        assertFalse(tracker.isDuplicate(msg6));
+        assertFalse(tracker.isDuplicate(msg1));
+        assertFalse(tracker.isDuplicate(msg2));
+        assertFalse(tracker.isDuplicate(msg3));
 
         tracker.close();
     }

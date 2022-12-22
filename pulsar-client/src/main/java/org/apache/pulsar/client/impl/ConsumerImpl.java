@@ -62,9 +62,11 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -204,6 +206,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
+    // Key is the ledger id and the entry id, entry is the acker that represents which single messages are acknowledged
+    private final Map<Pair<Long, Long>, BatchMessageAcker> batchMessageToAcker = new ConcurrentHashMap<>();
+
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -529,6 +534,51 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return result;
     }
 
+    private void processMessageIdBeforeAcknowledge(MessageIdImpl messageId, AckType ackType, int numMessages) {
+        if (ackType == AckType.Individual) {
+            stats.incrementNumAcksSent(numMessages);
+            unAckedMessageTracker.remove(messageId);
+            if (possibleSendToDeadLetterTopicMessages != null) {
+                possibleSendToDeadLetterTopicMessages.remove(messageId);
+            }
+        } else {
+            stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(messageId));
+        }
+    }
+
+    private @Nullable MessageIdImpl getMessageIdToAcknowledge(BatchMessageIdImpl messageId, AckType ackType) {
+        final BatchMessageAcker acker;
+        if (messageId.getAcker() instanceof BatchMessageAckerDisabled) {
+            acker = batchMessageToAcker.computeIfAbsent(
+                    Pair.of(messageId.getLedgerId(), messageId.getEntryId()),
+                    __ -> BatchMessageAcker.newAcker(messageId.getOriginalBatchSize()));
+        } else {
+            acker = messageId.getAcker();
+        }
+        if (ackType == AckType.Individual) {
+            if (acker.ackIndividual(messageId.getBatchIndex())) {
+                batchMessageToAcker.remove(Pair.of(messageId.getLedgerId(), messageId.getEntryId()));
+                return messageId.toMessageIdImpl();
+            } else {
+                return conf.isBatchIndexAckEnabled() ? messageId : null;
+            }
+        } else {
+            if (acker.ackCumulative(messageId.getBatchIndex())) {
+                batchMessageToAcker.remove(Pair.of(messageId.getLedgerId(), messageId.getEntryId()));
+                return messageId.toMessageIdImpl();
+            } else if (conf.isBatchIndexAckEnabled()) {
+                return messageId;
+            } else {
+                if (acker.isPrevBatchCumulativelyAcked()) {
+                    return null;
+                } else {
+                    acker.setPrevBatchCumulativelyAcked(true);
+                    return messageId.prevBatchMessageId();
+                }
+            }
+        }
+    }
+
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String, Long> properties,
@@ -549,13 +599,34 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return doTransactionAcknowledgeForResponse(messageId, ackType, null, properties,
                     new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
-        return acknowledgmentsGroupingTracker.addAcknowledgment((MessageIdImpl) messageId, ackType, properties);
+        if (ackType == AckType.Individual) {
+            onAcknowledge(messageId, null);
+        } else {
+            onAcknowledgeCumulative(messageId, null);
+        }
+        if (messageId instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+            MessageIdImpl messageIdImpl = getMessageIdToAcknowledge(batchMessageId, ackType);
+            if (messageIdImpl == null) {
+                return CompletableFuture.completedFuture(null);
+            } else if (messageIdImpl instanceof BatchMessageIdImpl) {
+                return acknowledgmentsGroupingTracker.addBatchIndexAck(
+                        (BatchMessageIdImpl) messageIdImpl, ackType, properties);
+            } else {
+                processMessageIdBeforeAcknowledge(messageIdImpl, ackType, batchMessageId.getOriginalBatchSize());
+                return acknowledgmentsGroupingTracker.addAcknowledgment(messageIdImpl, ackType, properties);
+            }
+        } else {
+            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
+            processMessageIdBeforeAcknowledge(messageIdImpl, ackType, 1);
+            return acknowledgmentsGroupingTracker.addAcknowledgment(messageIdImpl, ackType, properties);
+        }
     }
 
     @Override
     protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
                                                     Map<String, Long> properties, TransactionImpl txn) {
-
+        List<MessageIdImpl> messageIdListToAck = new ArrayList<>();
         for (MessageId messageId : messageIdList) {
             checkArgument(messageId instanceof MessageIdImpl);
         }
@@ -573,7 +644,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return doTransactionAcknowledgeForResponse(messageIdList, ackType, null,
                     properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         } else {
-            return this.acknowledgmentsGroupingTracker.addListAcknowledgment(messageIdList, ackType, properties);
+            for (MessageId messageId : messageIdList) {
+                checkArgument(messageId instanceof MessageIdImpl);
+                onAcknowledge(messageId, null);
+                if (messageId instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                    MessageIdImpl messageIdImpl = getMessageIdToAcknowledge(batchMessageId, ackType);
+                    if (messageIdImpl != null) {
+                        if (!(messageIdImpl instanceof BatchMessageIdImpl)) {
+                            processMessageIdBeforeAcknowledge(messageIdImpl, ackType,
+                                    batchMessageId.getOriginalBatchSize());
+                        } // else: batch index ACK
+                        messageIdListToAck.add(messageIdImpl);
+                    }
+                } else {
+                    MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
+                    processMessageIdBeforeAcknowledge(messageIdImpl, ackType, 1);
+                    messageIdListToAck.add(messageIdImpl);
+                }
+            }
+            return this.acknowledgmentsGroupingTracker.addListAcknowledgment(messageIdListToAck, properties);
         }
     }
 
