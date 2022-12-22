@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,8 +49,8 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGenerateLedgerId(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                        MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
@@ -62,7 +62,8 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
         CountDownLatch countDownLatch1 = new CountDownLatch(nThread * nLedgers);
 
         final AtomicInteger errCount = new AtomicInteger(0);
-        final ConcurrentLinkedQueue<Long> ledgerIds = new ConcurrentLinkedQueue<Long>();
+        final ConcurrentLinkedQueue<Long> shortLedgerIds = new ConcurrentLinkedQueue<Long>();
+        final ConcurrentLinkedQueue<Long> longLedgerIds = new ConcurrentLinkedQueue<Long>();
 
         long start = System.currentTimeMillis();
 
@@ -74,7 +75,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
                 for (int j = 0; j < nLedgers; j++) {
                     ledgerIdGenerator.generateLedgerId((rc, result) -> {
                         if (KeeperException.Code.OK.intValue() == rc) {
-                            ledgerIds.add(result);
+                            shortLedgerIds.add(result);
                         } else {
                             errCount.incrementAndGet();
                         }
@@ -96,7 +97,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
                 for (int j = 0; j < nLedgers; j++) {
                     ledgerIdGenerator.generateLedgerId((rc, result) -> {
                         if (KeeperException.Code.OK.intValue() == rc) {
-                            ledgerIds.add(result);
+                            longLedgerIds.add(result);
                         } else {
                             errCount.incrementAndGet();
                         }
@@ -108,18 +109,117 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
 
         assertTrue(countDownLatch2.await(120, TimeUnit.SECONDS),
                 "Wait ledger id generation threads to stop timeout : ");
-        log.info("Number of generated ledger id: {}, time used: {}", ledgerIds.size(),
+        log.info("Number of generated ledger id: {}, time used: {}", shortLedgerIds.size() + longLedgerIds.size(),
                 System.currentTimeMillis() - start);
         assertEquals(errCount.get(), 0, "Error occur during ledger id generation : ");
 
         Set<Long> ledgers = new HashSet<>();
-        while (!ledgerIds.isEmpty()) {
-            Long ledger = ledgerIds.poll();
+        while (!shortLedgerIds.isEmpty()) {
+            Long ledger = shortLedgerIds.poll();
+            assertNotNull(ledger, "Generated ledger id is null");
+            assertFalse(ledgers.contains(ledger), "Ledger id [" + ledger + "] conflict : ");
+            ledgers.add(ledger);
+        }
+        while (!longLedgerIds.isEmpty()) {
+            Long ledger = longLedgerIds.poll();
             assertNotNull(ledger, "Generated ledger id is null");
             assertFalse(ledgers.contains(ledger), "Ledger id [" + ledger + "] conflict : ");
             ledgers.add(ledger);
         }
     }
+
+    @Test
+    public void testGenerateLedgerIdWithZkPrefix() throws Exception {
+        @Cleanup
+        MetadataStoreExtended store =
+                MetadataStoreExtended.create(zks.getConnectionString() + "/test", MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
+        // Create *nThread* threads each generate *nLedgers* ledger id,
+        // and then check there is no identical ledger id.
+        final int nThread = 2;
+        final int nLedgers = 2000;
+        // Multiply by two. We're going to do half in the old legacy space and half in the new.
+        CountDownLatch countDownLatch1 = new CountDownLatch(nThread * nLedgers);
+
+        final AtomicInteger errCount = new AtomicInteger(0);
+        final ConcurrentLinkedQueue<Long> shortLedgerIds = new ConcurrentLinkedQueue<Long>();
+        final ConcurrentLinkedQueue<Long> longLedgerIds = new ConcurrentLinkedQueue<Long>();
+
+        long start = System.currentTimeMillis();
+
+        @Cleanup(value = "shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        for (int i = 0; i < nThread; i++) {
+            executor.submit(() -> {
+                for (int j = 0; j < nLedgers; j++) {
+                    ledgerIdGenerator.generateLedgerId((rc, result) -> {
+                        if (KeeperException.Code.OK.intValue() == rc) {
+                            shortLedgerIds.add(result);
+                        } else {
+                            errCount.incrementAndGet();
+                        }
+                        countDownLatch1.countDown();
+                    });
+                }
+            });
+        }
+
+        countDownLatch1.await();
+        for (Long ledgerId : shortLedgerIds) {
+            assertFalse(store.exists("/ledgers/idgen/ID-" + String.format("%010d", ledgerId)).get(),
+                    "Exception during deleting node for id generation : ");
+        }
+        CountDownLatch countDownLatch2 = new CountDownLatch(nThread * nLedgers);
+
+        // Go and create the long-id directory in zookeeper. This should cause the id generator to generate ids with the
+        // new algo once we clear it's stored status.
+        store.put("/ledgers/idgen-long", new byte[0], Optional.empty()).join();
+
+        for (int i = 0; i < nThread; i++) {
+            executor.submit(() -> {
+                for (int j = 0; j < nLedgers; j++) {
+                    ledgerIdGenerator.generateLedgerId((rc, result) -> {
+                        if (KeeperException.Code.OK.intValue() == rc) {
+                            longLedgerIds.add(result);
+                        } else {
+                            errCount.incrementAndGet();
+                        }
+                        countDownLatch2.countDown();
+                    });
+                }
+            });
+        }
+
+        assertTrue(countDownLatch2.await(120, TimeUnit.SECONDS),
+                "Wait ledger id generation threads to stop timeout : ");
+        ///test/ledgers/idgen-long/HOB-0000000001/ID-0000000000
+        for (Long ledgerId : longLedgerIds) {
+            assertFalse(store.exists("/ledgers/idgen-long/HOB-0000000001/ID-" + String.format("%010d", ledgerId >> 32)).get(),
+                    "Exception during deleting node for id generation : ");
+        }
+
+        log.info("Number of generated ledger id: {}, time used: {}", shortLedgerIds.size() + longLedgerIds.size(),
+                System.currentTimeMillis() - start);
+        assertEquals(errCount.get(), 0, "Error occur during ledger id generation : ");
+
+        Set<Long> ledgers = new HashSet<>();
+        while (!shortLedgerIds.isEmpty()) {
+            Long ledger = shortLedgerIds.poll();
+            assertNotNull(ledger, "Generated ledger id is null");
+            assertFalse(ledgers.contains(ledger), "Ledger id [" + ledger + "] conflict : ");
+            ledgers.add(ledger);
+        }
+        while (!longLedgerIds.isEmpty()) {
+            Long ledger = longLedgerIds.poll();
+            assertNotNull(ledger, "Generated ledger id is null");
+            assertFalse(ledgers.contains(ledger), "Ledger id [" + ledger + "] conflict : ");
+            ledgers.add(ledger);
+        }
+    }
+
 
     @Test(dataProvider = "impl")
     public void testEnsureCounterIsNotResetWithContainerNodes(String provider, Supplier<String> urlSupplier)

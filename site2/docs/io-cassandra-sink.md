@@ -27,7 +27,6 @@ Before using the Cassandra sink connector, you need to create a configuration fi
 * JSON
 
   ```json
-  
   {
      "configs": {
         "roots": "localhost:9042",
@@ -37,22 +36,19 @@ Before using the Cassandra sink connector, you need to create a configuration fi
         "columnName": "col"
      }
   }
-  
   ```
 
 * YAML
 
   ```
-  
   configs:
       roots: "localhost:9042"
       keyspace: "pulsar_test_keyspace"
       columnFamily: "pulsar_test_table"
       keyname: "key"
       columnName: "col"
-  
   ```
 
 ## Usage
 
-For more information about **how to connect Pulsar with Cassandra**, see [here](io-quickstart.md#connect-pulsar-to-apache-cassandra).
+For more information about **how to connect Pulsar with Cassandra**, see [here](io-quickstart.md#connect-pulsar-to-cassandra).

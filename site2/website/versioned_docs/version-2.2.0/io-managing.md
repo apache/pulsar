@@ -50,7 +50,7 @@ For details, consult the documentation for [individual connectors](io-overview.m
 
 ## Running Connectors
 
-Pulsar connectors can be managed using the [`source`](reference-pulsar-admin.md#source) and [`sink`](reference-pulsar-admin.md#sink) commands of the [`pulsar-admin`](reference-pulsar-admin) CLI tool.
+Pulsar connectors can be managed using the [`source`](reference-pulsar-admin.md#source) and [`sink`](reference-pulsar-admin.md#sink) commands of the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool.
 
 ### Running sources
 
@@ -166,8 +166,8 @@ Here's an example to submit a Cassandra sink:
 
 ## Monitoring Connectors
 
-Since Pulsar IO connectors are running as [Pulsar Functions](functions-overview), so you can use [`functions`](reference-pulsar-admin.md#source) commands
-available in the [`pulsar-admin`](reference-pulsar-admin) CLI tool.
+Since Pulsar IO connectors are running as [Pulsar Functions](functions-overview.md), so you can use [`functions`](reference-pulsar-admin.md#source) commands
+available in the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool.
 
 ### Retrieve Connector Metadata
 

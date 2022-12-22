@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
  */
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;

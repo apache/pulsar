@@ -10,29 +10,25 @@ If you have not installed Docker, download the [Community edition](https://www.d
 
 ## Start Pulsar in Docker
 
-* For MacOS, Linux, and Windows:
+* For macOS, Linux, and Windows:
 
   ```shell
-  
-  $ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
-  
+  docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
   ```
 
 A few things to note about this command:
- * The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every 
-time the container is restarted. For details on the volumes you can use `docker volume inspect <sourcename>`
- * For Docker on Windows make sure to configure it to use Linux containers
+ * The data, metadata, and configuration are persisted on Docker volumes to not start "fresh" every 
+time the container is restarted. For details on the volumes, you can use `docker volume inspect <sourcename>`.
+ * For Docker on Windows, make sure to configure it to use Linux containers.
  * The docker container will run as UID 10000 and GID 0, by default. You'll need to ensure the mounted volumes give write permission to either UID 10000 or GID 0. Note that UID 10000 is arbitrary, so it is recommended to make these mounts writable for the root group (GID 0).
 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:
 
 ```
-
 08:18:30.970 [main] INFO  org.apache.pulsar.broker.web.WebService - HTTP Service started at http://0.0.0.0:8080
 ...
 07:53:37.322 [main] INFO  org.apache.pulsar.broker.PulsarService - messaging service is ready, bootstrap service port = 8080, broker url= pulsar://localhost:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@98b63c1
 ...
-
 ```
 
 :::tip
@@ -41,7 +37,7 @@ When you start a local standalone cluster, a `public/default`
 
 :::
 
-namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces.
+A namespace is created automatically, which is used for development purposes. All Pulsar topics are managed within namespaces.
 For more information, see [Topics](concepts-messaging.md#topics).
 
 ## Use Pulsar in Docker
@@ -53,15 +49,12 @@ use one of these root URLs to interact with your cluster:
 * `pulsar://localhost:6650`
 * `http://localhost:8080`
 
-The following example will guide you get started with Pulsar quickly by using the [Python client API](client-libraries-python.md)
-client API.
+The following example will guide you to get started with Pulsar quickly by using the [Python client API](client-libraries-python.md).
 
 Install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
 
 ```shell
-
-$ pip install pulsar-client
-
+pip install pulsar-client
 ```
 
 ### Consume a message
@@ -69,7 +62,6 @@ $ pip install pulsar-client
 Create a consumer and subscribe to the topic:
 
 ```python
-
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -82,7 +74,6 @@ while True:
     consumer.acknowledge(msg)
 
 client.close()
-
 ```
 
 ### Produce a message
@@ -90,7 +81,6 @@ client.close()
 Now start a producer to send some test messages:
 
 ```python
-
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -100,7 +90,6 @@ for i in range(10):
     producer.send(('hello-pulsar-%d' % i).encode('utf-8'))
 
 client.close()
-
 ```
 
 ## Get the topic statistics
@@ -111,15 +100,12 @@ For details on APIs, refer to [Admin API Overview](admin-api-overview.md).
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-
-$ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
-
+curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
 The output is something like this:
 
 ```json
-
 {
     "msgRateIn": 0.0,
     "msgThroughputIn": 0.0,
@@ -209,6 +195,5 @@ The output is something like this:
     "nonContiguousDeletedMessagesRanges": 0,
     "nonContiguousDeletedMessagesRangesSerializedSize": 0
 }
-
 ```
 

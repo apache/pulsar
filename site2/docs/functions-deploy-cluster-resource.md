@@ -17,14 +17,12 @@ The following table outlines the resources that can be allocated to function ins
 For example, the following command allocates 8 cores, 8GB of RAM, and 10GB of disk space to a function.
 
 ```bash
-
 bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
   --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
-
 ```
 
 :::note

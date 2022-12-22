@@ -6,10 +6,13 @@ sidebar_label: "Kinesis source connector"
 
 The Kinesis source connector pulls data from Amazon Kinesis and persists data into Pulsar.
 
-This connector uses the [Kinesis Consumer Library](https://github.com/awslabs/amazon-kinesis-client) (KCL) to do the actual consuming of messages. The KCL uses DynamoDB to track state for consumers.
+This connector uses the [Kinesis Consumer Library](https://github.com/awslabs/amazon-kinesis-client) (KCL) to do the actual consumption of messages. The KCL uses DynamoDB to track the state of consumers.
 
-> Note: currently, the Kinesis source connector only supports raw messages. If you use KMS encrypted messages, the encrypted messages are sent to downstream. This connector will support decrypting messages in the future release.
+:::note
 
+Currently, the Kinesis source connector only supports raw messages. If you use KMS encrypted messages, the encrypted messages are sent to downstream. This connector will support decrypting messages in future releases.
+
+:::
 
 ## Configuration
 
@@ -42,7 +45,6 @@ Before using the Kinesis source connector, you need to create a configuration fi
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "awsEndpoint": "https://some.endpoint.aws",
@@ -58,13 +60,11 @@ Before using the Kinesis source connector, you need to create a configuration fi
         "startAtTime": "2019-03-05T19:28:58.000Z"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       awsEndpoint: "https://some.endpoint.aws"
       awsRegion: "us-east-1"
@@ -77,6 +77,5 @@ Before using the Kinesis source connector, you need to create a configuration fi
       receiveQueueSize: 2000
       initialPositionInStream: "TRIM_HORIZON"
       startAtTime: "2019-03-05T19:28:58.000Z"
-  
   ```
 

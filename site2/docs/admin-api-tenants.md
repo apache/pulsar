@@ -42,11 +42,14 @@ You can list all of the tenants associated with an [instance](reference-terminol
 Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
+pulsar-admin tenants list
+```
 
-$ pulsar-admin tenants list
+Output:
+
+```
 my-tenant-1
 my-tenant-2
-
 ```
 
 </TabItem>
@@ -58,9 +61,7 @@ my-tenant-2
 <TabItem value="Java">
 
 ```java
-
 admin.tenants().getTenants();
-
 ```
 
 </TabItem>
@@ -81,9 +82,7 @@ You can create a new tenant.
 Use the [`create`](/tools/pulsar-admin/) subcommand:
 
 ```shell
-
-$ pulsar-admin tenants create my-tenant
-
+pulsar-admin tenants create my-tenant
 ```
 
 When creating a tenant, you can optionally assign admin roles using the `-r`/`--admin-roles`
@@ -91,15 +90,15 @@ flag, and clusters using the `-c`/`--allowed-clusters` flag. You can specify mul
 as a comma-separated list. Here are some examples:
 
 ```shell
+pulsar-admin tenants create my-tenant \
+    --admin-roles role1,role2,role3 \
+    --allowed-clusters cluster1
+```
 
-$ pulsar-admin tenants create my-tenant \
-  --admin-roles role1,role2,role3 \
-  --allowed-clusters cluster1
-
-$ pulsar-admin tenants create my-tenant \
-  -r role1
-  -c cluster1
-
+```shell
+pulsar-admin tenants create my-tenant \
+    -r role1 \
+    -c cluster1
 ```
 
 </TabItem>
@@ -111,9 +110,7 @@ $ pulsar-admin tenants create my-tenant \
 <TabItem value="Java">
 
 ```java
-
 admin.tenants().createTenant(tenantName, tenantInfo);
-
 ```
 
 </TabItem>
@@ -134,8 +131,10 @@ You can fetch the [configuration](reference-configuration.md) for an existing te
 Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the tenant. Here's an example:
 
 ```shell
+pulsar-admin tenants get my-tenant
+```
 
-$ pulsar-admin tenants get my-tenant
+```json
 {
   "adminRoles": [
     "admin1",
@@ -146,7 +145,6 @@ $ pulsar-admin tenants get my-tenant
     "cl2"
   ]
 }
-
 ```
 
 </TabItem>
@@ -158,9 +156,7 @@ $ pulsar-admin tenants get my-tenant
 <TabItem value="Java">
 
 ```java
-
 admin.tenants().getTenantInfo(tenantName);
-
 ```
 
 </TabItem>
@@ -181,9 +177,7 @@ Tenants can be deleted from a Pulsar [instance](reference-terminology.md#instanc
 Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the name of the tenant.
 
 ```shell
-
-$ pulsar-admin tenants delete my-tenant
-
+pulsar-admin tenants delete my-tenant
 ```
 
 </TabItem>
@@ -195,9 +189,7 @@ $ pulsar-admin tenants delete my-tenant
 <TabItem value="Java">
 
 ```java
-
 admin.Tenants().deleteTenant(tenantName);
-
 ```
 
 </TabItem>
@@ -218,9 +210,9 @@ You can update a tenant's configuration.
 Use the [`update`](/tools/pulsar-admin/) subcommand.
 
 ```shell
-
-$ pulsar-admin tenants update my-tenant
-
+pulsar-admin tenants update my-tenant \
+    --admin-roles role1,role2 \
+    --allowed-clusters cluster1,cluster2
 ```
 
 </TabItem>
@@ -232,9 +224,7 @@ $ pulsar-admin tenants update my-tenant
 <TabItem value="Java">
 
 ```java
-
 admin.tenants().updateTenant(tenantName, tenantInfo);
-
 ```
 
 </TabItem>

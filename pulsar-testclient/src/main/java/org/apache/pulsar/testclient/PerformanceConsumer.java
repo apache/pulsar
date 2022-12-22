@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -81,8 +81,9 @@ public class PerformanceConsumer {
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
-    private static final Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final long MAX_LATENCY = TimeUnit.DAYS.toMillis(10);
+    private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
+    private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments extends PerformanceBaseArguments {
@@ -130,7 +131,8 @@ public class PerformanceConsumer {
                 description = "Enable autoScaledReceiverQueueSize")
         public boolean autoScaledReceiverQueueSize = false;
 
-        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
@@ -209,16 +211,25 @@ public class PerformanceConsumer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
             arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
+        }
+
+        for (String arg : arguments.topic) {
+            if (arg.startsWith("-")) {
+                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
+                        + "please use a fully qualified topic name\n", arg, arg);
+                jc.usage();
+                PerfClientUtils.exit(1);
+            }
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
@@ -233,14 +244,14 @@ public class PerformanceConsumer {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topics");
                 jc.usage();
-                PerfClientUtils.exit(-1);
+                PerfClientUtils.exit(1);
             }
         }
 
         if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
             System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
@@ -257,7 +268,7 @@ public class PerformanceConsumer {
             } else {
                 System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
                 jc.usage();
-                PerfClientUtils.exit(-1);
+                PerfClientUtils.exit(1);
             }
         }
         arguments.fillArgumentsFromProperties();
@@ -314,12 +325,21 @@ public class PerformanceConsumer {
                 totalMessagesReceived.increment();
                 totalBytesReceived.add(msg.size());
 
+                if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+
                 if (limiter != null) {
                     limiter.acquire();
                 }
 
                 long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
                 if (latencyMillis >= 0) {
+                    if (latencyMillis >= MAX_LATENCY) {
+                        latencyMillis = MAX_LATENCY;
+                    }
                     recorder.recordValue(latencyMillis);
                     cumulativeRecorder.recordValue(latencyMillis);
                 }

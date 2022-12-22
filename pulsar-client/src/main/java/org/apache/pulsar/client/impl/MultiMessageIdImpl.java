@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,17 +94,15 @@ public class MultiMessageIdImpl implements MessageId {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof MultiMessageIdImpl)) {
-            throw new IllegalArgumentException(
-                "expected MultiMessageIdImpl object. Got instance of " + obj.getClass().getName());
-        }
+        if (obj instanceof MultiMessageIdImpl) {
+            MultiMessageIdImpl other = (MultiMessageIdImpl) obj;
 
-        MultiMessageIdImpl other = (MultiMessageIdImpl) obj;
-
-        try {
-            return compareTo(other) == 0;
-        } catch (IllegalArgumentException e) {
-            return false;
+            try {
+                return compareTo(other) == 0;
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
         }
+        return false;
     }
 }

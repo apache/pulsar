@@ -6,12 +6,6 @@ sidebar_label: "Pulsar Manager"
 
 Pulsar Manager is a web-based GUI management and monitoring tool that helps administrators and users manage and monitor tenants, namespaces, topics, subscriptions, brokers, clusters, and so on, and supports dynamic configuration of multiple environments.
 
-:::note
-
-If you are monitoring your current stats with Pulsar dashboard, we recommend you use Pulsar Manager instead. Pulsar dashboard is deprecated.
-
-:::
-
 ## Install
 
 ### Quick Install
@@ -56,8 +50,7 @@ spring.datasource.password=postgres
 docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
     -p 9527:9527 -p 7750:7750 \
-    -v /your-path/application.properties:/pulsar-manager/pulsar-
-manager/application.properties
+    -v /your-path/application.properties:/pulsar-manager/pulsar-manager/application.properties
     -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
     apachepulsar/pulsar-manager:v0.2.0
 
@@ -95,8 +88,7 @@ Docker command to add profile and key files mount.
 docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
     -p 9527:9527 -p 7750:7750 \
-    -v /your-path/application.properties:/pulsar-manager/pulsar-
-manager/application.properties
+    -v /your-path/application.properties:/pulsar-manager/pulsar-manager/application.properties
     -v /your-path/private.key:/pulsar-manager/private.key
     -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
     apachepulsar/pulsar-manager:v0.2.0

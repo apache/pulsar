@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,6 +50,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -741,11 +742,16 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
-                        + "0 means no retention and -1 means infinite time retention", required = true)
+                "-t" }, description = "Retention time with optional time unit suffix. "
+                        + "For example, 100m, 3h, 2d, 5w. "
+                        + "If the time unit is not specified, the default unit is seconds. For example, "
+                        + "-t 120 sets retention to 2 minutes. "
+                        + "0 means no retention and -1 means infinite time retention.", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
+                + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
+                + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
@@ -905,7 +911,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split "
                 + "namespace bundle. Valid options are: [range_equally_divide, topic_count_equally_divide, "
-                + "specified_positions_divide]. Use broker side config if absent", required = false)
+                + "specified_positions_divide, flow_or_qps_equally_divide]. Use broker side config if absent"
+                , required = false)
         private String splitAlgorithmName;
 
         @Parameter(names = { "--split-boundaries",
@@ -2267,6 +2274,13 @@ public class CmdNamespaces extends CmdBase {
         private String offloadAfterThresholdStr;
 
         @Parameter(
+                names = {"--offloadAfterThresholdInSeconds", "-oats"},
+                description = "Offload after threshold seconds (eg: 1,5,10)",
+                required = false
+        )
+        private String offloadAfterThresholdInSecondsStr;
+
+        @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
                 description = "Read priority for offloaded messages. By default, once messages are offloaded to "
                         + "long-term storage, brokers read messages from long-term storage, but messages can "
@@ -2355,11 +2369,19 @@ public class CmdNamespaces extends CmdBase {
             Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
             if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
                 long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
-                if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
-                        && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                if (maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
+
+            Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdInSecondsStr)) {
+                long offloadThresholdInSeconds0 = Long.parseLong(offloadAfterThresholdInSecondsStr.trim());
+                if (maxValueCheck("OffloadAfterThresholdInSeconds", offloadThresholdInSeconds0, Long.MAX_VALUE)) {
+                    offloadThresholdInSeconds = offloadThresholdInSeconds0;
+                }
+            }
+
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 
             if (this.offloadReadPriorityStr != null) {
@@ -2378,7 +2400,7 @@ public class CmdNamespaces extends CmdBase {
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
-                    offloadAfterElapsedInMillis, offloadedReadPriority);
+                    offloadThresholdInSeconds, offloadAfterElapsedInMillis, offloadedReadPriority);
 
             getAdmin().namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
@@ -2588,6 +2610,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get entry filters for a namespace")
+    private class GetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getNamespaceEntryFilters(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set entry filters for a namespace")
+    private class SetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--entry-filters-name", "-efn" },
+                description = "The class name for the entry filter.", required = true)
+        private String  entryFiltersName = "";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setNamespaceEntryFilters(namespace, new EntryFilters(entryFiltersName));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove entry filters for a namespace")
+    private class RemoveEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeNamespaceEntryFilters(namespace);
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -2768,5 +2830,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-resource-group", new GetResourceGroup());
         jcommander.addCommand("set-resource-group", new SetResourceGroup());
         jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
+
+        jcommander.addCommand("get-entry-filters", new GetEntryFiltersPerTopic());
+        jcommander.addCommand("set-entry-filters", new SetEntryFiltersPerTopic());
+        jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
     }
 }

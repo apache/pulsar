@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -73,7 +74,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
         admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
+                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
 
@@ -238,8 +239,10 @@ public class TransactionConsumeTest extends TransactionTestBase {
             throws ExecutionException, InterruptedException, PulsarClientException {
         //Change the state of TB to Ready.
         @Cleanup
-        Producer<String> producer = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
-                .enableTransaction(true).build()
+        PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true).build();
+        @Cleanup
+        Producer<String> producer = pulsarClient1
                 .newProducer(Schema.STRING).topic(CONSUME_TOPIC).sendTimeout(0, TimeUnit.SECONDS).create();
         List<MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {

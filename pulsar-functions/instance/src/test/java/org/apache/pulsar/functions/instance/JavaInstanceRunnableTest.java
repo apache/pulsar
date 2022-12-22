@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -79,7 +79,7 @@ public class JavaInstanceRunnableTest {
         when(clientBuilder.build()).thenReturn(null);
         InstanceConfig config = createInstanceConfig(functionDetails);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, clientBuilder, null, null, null, null, null, null, null);
+                config, clientBuilder, null, null, null, null, null, null, null, null);
         return javaInstanceRunnable;
     }
 

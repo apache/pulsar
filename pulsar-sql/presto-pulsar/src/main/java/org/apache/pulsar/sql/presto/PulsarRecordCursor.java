@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -655,7 +655,7 @@ public class PulsarRecordCursor implements RecordCursor {
             return schemaInfo;
         }
         try {
-            if (this.currentMessage.getSchemaVersion() == null) {
+            if (this.currentMessage.getSchemaVersion() == null || this.currentMessage.getSchemaVersion().length == 0) {
                 schemaInfo = pulsarSplit.getSchemaInfo();
             } else {
                 schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();

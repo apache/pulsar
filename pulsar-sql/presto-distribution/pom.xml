@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-sql</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-presto-distribution</artifactId>
@@ -132,6 +132,12 @@
       <groupId>com.twitter.common</groupId>
       <artifactId>objectsize</artifactId>
       <version>${objectsize.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jsr305</artifactId>
+          <groupId>com.google.code.findbugs</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- jackson dependencies -->
@@ -323,7 +329,7 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>4.0.rc2</version>
+        <version>${license-maven-plugin.version}</version>
         <configuration>
           <licenseSets>
             <licenseSet>
@@ -331,7 +337,7 @@
             </licenseSet>
           </licenseSets>
           <mapping>
-            <java>JAVADOC_STYLE</java>
+            <java>SLASHSTAR_STYLE</java>
           </mapping>
         </configuration>
       </plugin>

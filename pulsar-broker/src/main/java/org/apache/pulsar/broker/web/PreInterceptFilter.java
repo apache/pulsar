@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -66,7 +66,9 @@ public class PreInterceptFilter implements Filter {
         }
         try {
             RequestWrapper requestWrapper = new RequestWrapper((HttpServletRequest) servletRequest);
-            interceptor.onWebserviceRequest(requestWrapper);
+            if (interceptor != null) {
+                interceptor.onWebserviceRequest(requestWrapper);
+            }
             filterChain.doFilter(requestWrapper, servletResponse);
         } catch (InterceptException e) {
             exceptionHandler.handle(servletResponse, e);

@@ -1769,8 +1769,8 @@ Options
 |`--archive`|Path to the archive file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|"The sink’s parallelism factor (i.e. the number of sink instances to run)."||
+|`--processing-guarantees`|"The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--sink-config`|Sink config key/values||
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
@@ -1805,8 +1805,8 @@ Options
 |`--archive`|Path to the archive file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|"The sink’s parallelism factor (i.e. the number of sink instances to run)."||
+|`--processing-guarantees`|"The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--sink-config`|Sink config key/values||
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
@@ -1860,8 +1860,8 @@ Options
 |`--archive`|Path to the archive file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
-|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--parallelism`|"The sink’s parallelism factor (i.e. the number of sink instances to run)."||
+|`--processing-guarantees`|"The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--sink-config`|Sink config key/values||
 |`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
@@ -1926,7 +1926,7 @@ Options
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|"The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
 |`--source-type`|One of the built-in source's connector provider。 The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
@@ -1959,7 +1959,7 @@ Options
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|"The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
 |`--source-type`|One of the built-in source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
@@ -2012,7 +2012,7 @@ Options
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|"The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE."||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
 |`--source-type`|One of the built-in source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||

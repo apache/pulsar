@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,11 @@ public class PrometheusTextFormat {
          */
         while (mfs.hasMoreElements()) {
             Collector.MetricFamilySamples metricFamilySamples = mfs.nextElement();
+            writer.write("# TYPE ");
+            writer.write(metricFamilySamples.name);
+            writer.write(' ');
+            writer.write(metricFamilySamples.type.name().toLowerCase());
+            writer.write('\n');
             for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
                 writer.write(sample.name);
                 if (sample.labelNames.size() > 0) {

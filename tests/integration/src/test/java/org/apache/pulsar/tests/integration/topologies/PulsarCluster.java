@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,9 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTPS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_PORT_TLS;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
@@ -95,6 +97,7 @@ public class PulsarCluster {
     @Getter
     private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
+    private Map<String, Map<String, String>> externalServiceEnvs;
     private final boolean enablePrestoWorker;
 
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
@@ -131,12 +134,21 @@ public class PulsarCluster {
         this.workerContainers = Maps.newTreeMap();
 
         this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME)
-            .withNetwork(network)
-            .withNetworkAliases(appendClusterName("pulsar-proxy"))
-            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
-            .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
-            .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
-            .withEnv("clusterName", clusterName);
+                .withNetwork(network)
+                .withNetworkAliases(appendClusterName("pulsar-proxy"))
+                .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
+                .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
+                .withEnv("clusterName", clusterName)
+                // enable mTLS
+                .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
+                .withEnv("servicePortTls", String.valueOf(BROKER_PORT_TLS))
+                .withEnv("forwardAuthorizationCredentials", "true")
+                .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
+                .withEnv("tlsAllowInsecureConnection", "false")
+                .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
+                .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem")
+                .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem");
         if (spec.proxyEnvs != null) {
             spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
         }
@@ -163,7 +175,7 @@ public class PulsarCluster {
         // create brokers
         brokerContainers.putAll(
             runNumContainers("broker", spec.numBrokers(), (name) -> {
-                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
+                BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
                         .withNetwork(network)
                         .withNetworkAliases(appendClusterName(name))
                         .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
@@ -173,9 +185,17 @@ public class PulsarCluster {
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         .withEnv("loadBalancerOverrideBrokerNicSpeedGbps", "1")
                         // used in s3 tests
-                        .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
-                        .withEnv("AWS_SECRET_KEY", "secretkey")
-                        .withEnv("maxMessageSize", "" + spec.maxMessageSize);
+                        .withEnv("AWS_ACCESS_KEY_ID", "accesskey").withEnv("AWS_SECRET_KEY", "secretkey")
+                        .withEnv("maxMessageSize", "" + spec.maxMessageSize)
+                        // enable mTLS
+                        .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
+                        .withEnv("brokerServicePortTls", String.valueOf(BROKER_PORT_TLS))
+                        .withEnv("authenticateOriginalAuthData", "true")
+                        .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
+                        .withEnv("tlsAllowInsecureConnection", "false")
+                        .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/broker.cert.pem")
+                        .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem")
+                        .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem");
                     if (spec.queryLastMessage) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
                         brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
@@ -185,6 +205,9 @@ public class PulsarCluster {
                     }
                     if (spec.brokerMountFiles != null) {
                         spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
+                    }
+                    if (spec.brokerAdditionalPorts() != null) {
+                        spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
                     }
                     return brokerContainer;
                 }
@@ -207,6 +230,14 @@ public class PulsarCluster {
 
     public String getHttpServiceUrl() {
         return proxyContainer.getHttpServiceUrl();
+    }
+
+    public String getAnyBrokersHttpsServiceUrl() {
+        return getAnyBroker().getHttpsServiceUrl();
+    }
+
+    public String getAnyBrokersServiceUrlTls() {
+        return getAnyBroker().getServiceUrlTls();
     }
 
     public String getAllBrokersHttpServiceUrl() {
@@ -277,14 +308,19 @@ public class PulsarCluster {
 
         // start external services
         this.externalServices = spec.externalServices;
+        this.externalServiceEnvs = spec.externalServiceEnvs;
         if (null != externalServices) {
             externalServices.entrySet().parallelStream().forEach(service -> {
                 GenericContainer<?> serviceContainer = service.getValue();
                 serviceContainer.withNetwork(network);
                 serviceContainer.withNetworkAliases(service.getKey());
+                if (null != externalServiceEnvs && null != externalServiceEnvs.get(service.getKey())) {
+                    Map<String, String> env = externalServiceEnvs.getOrDefault(service.getKey(), Collections.emptyMap());
+                    serviceContainer.withEnv(env);
+                }
                 PulsarContainer.configureLeaveContainerRunning(serviceContainer);
                 serviceContainer.start();
-                log.info("Successfully start external service {}.", service.getKey());
+                log.info("Successfully started external service {}.", service.getKey());
             });
         }
     }
@@ -431,11 +467,11 @@ public class PulsarCluster {
                 .withEnv("clusterName", clusterName)
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.metadata-url", "zk:" + ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
                 .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
                 .withClasspathResourceMapping(
-                        resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
+                        resourcePath, "/pulsar/trino/conf/config.properties", BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
             container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
                     .withEnv("pulsar.bookkeeper-explicit-interval", "10");

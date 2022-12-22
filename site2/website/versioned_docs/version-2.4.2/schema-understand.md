@@ -29,10 +29,10 @@ This is the `SchemaInfo` of a string.
 ```text
 
 {
-    “name”: “test-string-schema”,
-    “type”: “STRING”,
-    “schema”: “”,
-    “properties”: {}
+    "name": "test-string-schema",
+    "type": "STRING",
+    "schema": "",
+    "properties": {}
 }
 
 ```
@@ -179,7 +179,7 @@ This example shows how to construct a key/value schema and then use it to produc
        .create();
 
    final int key = 100;
-   final String value = "value-100”;
+   final String value = "value-100";
 
    // send the key/value message
    producer.newMessage()
@@ -373,7 +373,7 @@ Once a version is assigned/fetched to/for a schema, all subsequent messages prod
 
 The following example illustrates how the schema version works.
 
-Suppose that a Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begins to send messages:
+Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
 
 ```text
 

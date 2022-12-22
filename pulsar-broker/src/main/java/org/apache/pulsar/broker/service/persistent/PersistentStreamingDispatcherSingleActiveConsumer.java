@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.collect.Lists;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -51,10 +52,13 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
     private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
 
+    private final Executor dispatcherExecutor;
+
     public PersistentStreamingDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType,
                                                              int partitionIndex, PersistentTopic topic,
                                                              Subscription subscription) {
         super(cursor, subscriptionType, partitionIndex, topic, subscription);
+        this.dispatcherExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(name);
     }
 
     /**
@@ -64,7 +68,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
     public void canReadMoreEntries(boolean withBackoff) {
         havePendingRead = false;
         topic.getBrokerService().executor().schedule(() -> {
-            topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
+             topicExecutor.execute(SafeRun.safeRun(() -> {
                 synchronized (PersistentStreamingDispatcherSingleActiveConsumer.this) {
                     Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                     if (currentConsumer != null && !havePendingRead) {
@@ -97,7 +101,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Topic has been terminated and there are no more entries to read
             // Notify the consumer only if all the messages were already acknowledged
-            consumers.forEach(Consumer::reachedEndOfTopic);
+            checkAndApplyReachedEndOfTopicOrTopicMigration(consumers);
         }
     }
 
@@ -111,7 +115,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
      */
     @Override
     public void readEntryComplete(Entry entry, PendingReadEntryRequest ctx) {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(name, safeRun(() -> {
+        dispatcherExecutor.execute(safeRun(() -> {
             internalReadEntryComplete(entry, ctx);
         }));
     }
@@ -179,31 +183,49 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         // consumer can be null when all consumers are disconnected from broker.
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping read for the topic, Due to the current consumer is null", topic.getName());
+            }
+            return;
+        }
+        if (havePendingRead) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
+            }
             return;
         }
 
-        if (!havePendingRead && consumer.getAvailablePermits() > 0) {
-            Pair<Integer, Long> calculateResult = calculateToRead(consumer);
-            int messagesToRead = calculateResult.getLeft();
-            long bytesToRead = calculateResult.getRight();
+        if (consumer.getAvailablePermits() > 0) {
+            synchronized (this) {
+                if (havePendingRead) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
+                    }
+                    return;
+                }
+
+                Pair<Integer, Long> calculateResult = calculateToRead(consumer);
+                int messagesToRead = calculateResult.getLeft();
+                long bytesToRead = calculateResult.getRight();
 
 
-            if (-1 == messagesToRead || bytesToRead == -1) {
-                // Skip read as topic/dispatcher has exceed the dispatch rate.
-                return;
-            }
+                if (-1 == messagesToRead || bytesToRead == -1) {
+                    // Skip read as topic/dispatcher has exceed the dispatch rate.
+                    return;
+                }
 
-            // Schedule read
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
-            }
-            havePendingRead = true;
+                // Schedule read
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
+                }
+                havePendingRead = true;
 
-            if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
-                        this, consumer);
-            } else {
-                streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead, consumer);
+                if (consumer.readCompacted()) {
+                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                            this, consumer);
+                } else {
+                    streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead, consumer);
+                }
             }
         } else {
             if (log.isDebugEnabled()) {

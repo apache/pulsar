@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -174,6 +175,14 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // create subscription in r1
         createReplicatedSubscription(client1, topicName, subscriptionName, true);
 
+        // Validate that no snapshots are created before messages are published
+        Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+        PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
+        // no snapshot should have been created before any messages are published
+        assertTrue(rsc1.getLastCompletedSnapshotId().isEmpty());
+
         @Cleanup
         PulsarClient client2 = PulsarClient.builder()
                 .serviceUrl(url2.toString())
@@ -197,9 +206,6 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
         // In R1
-        PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(topicName, false).get().get();
-        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
         Position p1 = t1.getLastPosition();
         String snapshot1 = rsc1.getLastCompletedSnapshotId().get();
 
@@ -541,22 +547,35 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        // create consumer in r1
-        @Cleanup
-        Consumer<byte[]> consumer1 = client1.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .replicateSubscriptionState(true)
-                .subscribe();
+        {
+            // create consumer in r1
+            @Cleanup
+            Consumer<byte[]> consumer = client1.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .replicateSubscriptionState(true)
+                    .subscribe();
 
-        // waiting to replicate topic/subscription to r1->r2
-        Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
-        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-        Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
-        Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+            // send one message to trigger replication
+            @Cleanup
+            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create();
+            producer.send("message".getBytes(StandardCharsets.UTF_8));
+
+            assertEquals(readMessages(consumer, new HashSet<>(), 1, false), 1);
+
+            // waiting to replicate topic/subscription to r1->r2
+            Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
+            final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+            Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+        }
 
         // unsubscribe replicated subscription in r2
         admin2.topics().deleteSubscription(topicName, subscriptionName);
+        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
         assertNull(topic2.getSubscription(subscriptionName));
 
         // close replicator producer in r2
@@ -581,6 +600,12 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // consume 6 messages in r1
         Set<String> receivedMessages = new LinkedHashSet<>();
+        @Cleanup
+        Consumer<byte[]> consumer1 = client1.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .replicateSubscriptionState(true)
+                .subscribe();
         assertEquals(readMessages(consumer1, receivedMessages, numMessages, false), numMessages);
 
         // wait for subscription to be replicated

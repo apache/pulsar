@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -288,6 +288,14 @@ public class TopicName implements ServiceUnitId {
         }
 
         return partitionIndex;
+    }
+
+    /**
+     * A helper method to get a partition name of a topic in String.
+     * @return topic + "-partition-" + partition.
+     */
+    public static String getTopicPartitionNameString(String topic, int partitionIndex) {
+        return topic + PARTITIONED_TOPIC_SUFFIX + partitionIndex;
     }
 
     /**

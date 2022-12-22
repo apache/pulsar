@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,13 +28,21 @@ import org.apache.pulsar.functions.api.Record;
 
 @EqualsAndHashCode(callSuper = true)
 @ToString
-class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
+public class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     private final Record<T> sinkRecord;
+    private final T value;
+    private final Schema<T> schema;
 
     OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord) {
+        this(sourceRecord, sinkRecord, sinkRecord.getValue(), getRecordSchema(sinkRecord));
+    }
+
+    OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord, T value, Schema<T> schema) {
         super(sourceRecord);
         this.sinkRecord = sinkRecord;
+        this.value = value;
+        this.schema = schema;
     }
 
     @Override
@@ -44,7 +52,7 @@ class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     @Override
     public T getValue() {
-        return sinkRecord.getValue();
+        return value;
     }
 
     @Override
@@ -74,7 +82,7 @@ class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     @Override
     public Schema<T> getSchema() {
-        return getRecordSchema(sinkRecord);
+        return schema;
     }
 
     @Override
@@ -89,6 +97,11 @@ class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     @Override
     public boolean shouldAlwaysSetMessageProperties() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldSetSchema() {
         return true;
     }
 }

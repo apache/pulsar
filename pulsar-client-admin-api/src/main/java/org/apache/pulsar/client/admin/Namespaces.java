@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -3531,6 +3532,45 @@ public interface Namespaces {
      */
     CompletableFuture<Long> getOffloadThresholdAsync(String namespace);
 
+
+    /**
+     * Get the offloadThresholdInSeconds for a namespace.
+     *
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getOffloadThresholdInSeconds(String namespace) throws PulsarAdminException;
+
+
+    /**
+     * Get the offloadThresholdInSeconds for a namespace.
+     *
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Long> getOffloadThresholdInSecondsAsync(String namespace);
+
     /**
      * Set the offloadThreshold for a namespace.
      * <p/>
@@ -3579,6 +3619,50 @@ public interface Namespaces {
      *            maximum number of bytes stored before offloading is triggered
      */
     CompletableFuture<Void> setOffloadThresholdAsync(String namespace, long offloadThreshold);
+
+
+    /**
+     * Set the offloadThresholdInSeconds for a namespace.
+     * <p/>
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThresholdInSeconds
+     *            maximum number of bytes stored before offloading is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadThresholdInSeconds(String namespace, long offloadThresholdInSeconds) throws PulsarAdminException;
+
+    /**
+     * Set the offloadThresholdInSeconds for a namespace.
+     * <p/>
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThresholdInSeconds
+     *            maximum number of seconds stored before offloading is triggered
+     */
+    CompletableFuture<Void> setOffloadThresholdInSecondsAsync(String namespace, long offloadThresholdInSeconds);
 
     /**
      * Get the offload deletion lag for a namespace, in milliseconds.
@@ -4167,7 +4251,6 @@ public interface Namespaces {
     CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace);
 
     /**
-<<<<<<< HEAD
      * Set key value pair property for a namespace.
      * If the property absents, a new property will added. Otherwise, the new value will overwrite.
      *
@@ -4467,4 +4550,50 @@ public interface Namespaces {
      * @return
      */
     CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
+
+    /**
+     * Get entry filters for a namespace.
+     * @param namespace
+     * @return entry filters classes info.
+     * @throws PulsarAdminException
+     */
+    EntryFilters getNamespaceEntryFilters(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get entry filters for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return entry filters classes info.
+     */
+    CompletableFuture<EntryFilters> getNamespaceEntryFiltersAsync(String namespace);
+
+    /**
+     * Set entry filters on a namespace.
+     *
+     * @param namespace    Namespace name
+     * @param entryFilters The entry filters
+     */
+    void setNamespaceEntryFilters(String namespace, EntryFilters entryFilters) throws PulsarAdminException;
+
+    /**
+     * Set entry filters on a namespace asynchronously.
+     *
+     * @param namespace    Namespace name
+     * @param entryFilters The entry filters
+     */
+    CompletableFuture<Void> setNamespaceEntryFiltersAsync(String namespace, EntryFilters entryFilters);
+
+    /**
+     * remove entry filters of a namespace.
+     * @param namespace    Namespace name
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceEntryFilters(String namespace) throws PulsarAdminException;
+
+    /**
+     * remove entry filters of a namespace asynchronously.
+     * @param namespace     Namespace name
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceEntryFiltersAsync(String namespace);
 }

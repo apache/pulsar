@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -88,8 +87,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     private final ReentrantReadWriteLock dbStateLock;
     private volatile State state;
 
-    private final WriteOptions optionSync;
-    private final WriteOptions optionDontSync;
+    private final WriteOptions writeOptions;
     private final ReadOptions optionCache;
     private final ReadOptions optionDontCache;
     private MetadataEventSynchronizer synchronizer;
@@ -216,6 +214,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
      */
     private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
+        super(metadataStoreConfig.getMetadataStoreName());
         this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();
@@ -235,8 +234,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
         db = openDB(dataPath.toString(), metadataStoreConfig.getConfigFilePath());
 
-        this.optionSync = new WriteOptions().setSync(true);
-        this.optionDontSync = new WriteOptions().setSync(false);
+        this.writeOptions = new WriteOptions().setSync(metadataStoreConfig.isFsyncEnable());
         this.optionCache = new ReadOptions().setFillCache(true);
         this.optionDontCache = new ReadOptions().setFillCache(false);
 
@@ -261,7 +259,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         } else {
             instanceId = 0;
         }
-        db.put(optionSync, INSTANCE_ID_KEY, toBytes(instanceId));
+        db.put(writeOptions, INSTANCE_ID_KEY, toBytes(instanceId));
         return instanceId;
     }
 
@@ -271,7 +269,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         if (value != null) {
             generator.set(toLong(value));
         } else {
-            db.put(optionSync, INSTANCE_ID_KEY, toBytes(generator.get()));
+            db.put(writeOptions, INSTANCE_ID_KEY, toBytes(generator.get()));
         }
         return generator;
     }
@@ -369,8 +367,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             state = State.CLOSED;
             log.info("close.instanceId={}", instanceId);
             db.close();
-            optionSync.close();
-            optionDontSync.close();
+            writeOptions.close();
             optionCache.close();
             optionDontCache.close();
             super.close();
@@ -496,7 +493,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             if (state == State.CLOSED) {
                 throw new MetadataStoreException.AlreadyClosedException("");
             }
-            try (Transaction transaction = db.beginTransaction(optionSync)) {
+            try (Transaction transaction = db.beginTransaction(writeOptions)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
                 MetaValue metaValue = MetaValue.parse(oldValueData);
@@ -535,7 +532,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             if (state == State.CLOSED) {
                 throw new MetadataStoreException.AlreadyClosedException("");
             }
-            try (Transaction transaction = db.beginTransaction(optionSync)) {
+            try (Transaction transaction = db.beginTransaction(writeOptions)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
                 MetaValue metaValue = MetaValue.parse(oldValueData);

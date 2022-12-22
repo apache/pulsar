@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,11 +21,13 @@ package org.apache.pulsar.broker.stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
@@ -40,7 +42,6 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarTestClient;
 import org.apache.pulsar.common.stats.Metrics;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -170,7 +171,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
             consumer.acknowledge(consumer.receive().getMessageId());
             // Make BK error.
-            LedgerHandle ledgerHandle = Whitebox.getInternalState(managedCursor, "cursorLedger");
+            LedgerHandle ledgerHandle = (LedgerHandle) FieldUtils.readField(
+                    managedCursor, "cursorLedger", true);
             ledgerHandle.close();
             return managedCursorMXBean.getPersistLedgerErrors() > 0
                     && managedCursorMXBean.getPersistZookeeperSucceed() > 0;
@@ -197,9 +199,19 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topicName, true);
     }
 
+    private ManagedCursorMXBean getManagedCursorMXBean(String topicName, String subscriptionName)
+            throws ExecutionException, InterruptedException {
+        final PersistentSubscription persistentSubscription =
+                (PersistentSubscription) pulsar.getBrokerService()
+                        .getTopic(topicName, false).get().get().getSubscription(subscriptionName);
+        final ManagedCursorImpl managedCursor = (ManagedCursorImpl) persistentSubscription.getCursor();
+        return managedCursor.getStats();
+    }
+
     @Test
     public void testCursorReadWriteMetrics() throws Exception {
-        final String subName = "read-write";
+        final String subName1 = "read-write-sub-1";
+        final String subName2 = "read-write-sub-2";
         final String topicName = "persistent://my-namespace/use/my-ns/read-write";
         final int messageSize = 10;
 
@@ -216,7 +228,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName)
+                .subscriptionName(subName1)
                 .subscribe();
 
         @Cleanup
@@ -224,7 +236,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "-2")
+                .subscriptionName(subName2)
                 .subscribe();
 
         @Cleanup
@@ -241,6 +253,13 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 consumer2.acknowledge(consumer.receive().getMessageId());
             }
         }
+
+        // Wait for persistent cursor meta.
+        ManagedCursorMXBean cursorMXBean1 = getManagedCursorMXBean(topicName, subName1);
+        ManagedCursorMXBean cursorMXBean2 = getManagedCursorMXBean(topicName, subName2);
+        Awaitility.await().until(() -> cursorMXBean1.getWriteCursorLedgerLogicalSize() > 0);
+        Awaitility.await().until(() -> cursorMXBean2.getWriteCursorLedgerLogicalSize() > 0);
+
         metricsList = metrics.generate();
         Assert.assertEquals(metricsList.size(), 2);
         Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 0L);

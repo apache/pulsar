@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -1518,6 +1519,16 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public long getOffloadThresholdInSeconds(String namespace) throws PulsarAdminException {
+        return sync(() -> getOffloadThresholdInSecondsAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Long> getOffloadThresholdInSecondsAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<Long>(){}, namespace, "offloadThresholdInSeconds");
+    }
+
+    @Override
     public void setOffloadThreshold(String namespace, long offloadThreshold) throws PulsarAdminException {
         sync(() -> setOffloadThresholdAsync(namespace, offloadThreshold));
     }
@@ -1527,6 +1538,19 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadThreshold");
         return asyncPutRequest(path, Entity.entity(offloadThreshold, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setOffloadThresholdInSeconds(String namespace, long offloadThresholdInSeconds)
+            throws PulsarAdminException {
+        sync(() -> setOffloadThresholdInSecondsAsync(namespace, offloadThresholdInSeconds));
+    }
+
+    @Override
+    public CompletableFuture<Void> setOffloadThresholdInSecondsAsync(String namespace, long offloadThresholdInSeconds) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "offloadThresholdInSeconds");
+        return asyncPutRequest(path, Entity.entity(offloadThresholdInSeconds, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -1874,5 +1898,42 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, parts);
         return asyncGetRequest(path, callback);
+    }
+
+    @Override
+    public EntryFilters getNamespaceEntryFilters(String namespace) throws PulsarAdminException {
+        return sync(() -> getNamespaceEntryFiltersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<EntryFilters> getNamespaceEntryFiltersAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "entryFilters");
+        return asyncGetRequest(path, new FutureCallback<EntryFilters>(){});
+    }
+
+    @Override
+    public void setNamespaceEntryFilters(String namespace, EntryFilters entryFilters)
+            throws PulsarAdminException {
+        sync(() -> setNamespaceEntryFiltersAsync(namespace, entryFilters));
+    }
+
+    @Override
+    public CompletableFuture<Void> setNamespaceEntryFiltersAsync(String namespace, EntryFilters entryFilters) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "entryFilters");
+        return asyncPostRequest(path, Entity.entity(entryFilters, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeNamespaceEntryFilters(String namespace) throws PulsarAdminException {
+        sync(() -> removeNamespaceEntryFiltersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeNamespaceEntryFiltersAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "entryFilters");
+        return asyncDeleteRequest(path);
     }
 }
