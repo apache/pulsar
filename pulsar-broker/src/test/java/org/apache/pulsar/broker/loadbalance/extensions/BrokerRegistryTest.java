@@ -243,12 +243,25 @@ public class BrokerRegistryTest {
                 .untilAsserted(() -> assertEquals(brokerIds.size(), 3));
 
         assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
+        assertEquals(brokerIds, new HashSet<>(brokerRegistry2.getAvailableBrokersAsync().get()));
+        assertEquals(brokerIds, new HashSet<>(brokerRegistry3.getAvailableBrokersAsync().get()));
+        assertEquals(brokerIds, brokerRegistry1.getAvailableBrokerLookupDataAsync().get().keySet());
+        assertEquals(brokerIds, brokerRegistry2.getAvailableBrokerLookupDataAsync().get().keySet());
+        assertEquals(brokerIds, brokerRegistry3.getAvailableBrokerLookupDataAsync().get().keySet());
 
         Optional<BrokerLookupData> lookupDataOpt =
                 brokerRegistry1.lookupAsync(brokerRegistry2.getBrokerId()).get();
         assertTrue(lookupDataOpt.isPresent());
+        assertEquals(lookupDataOpt.get().getWebServiceUrl(), pulsar2.getSafeWebServiceAddress());
+        assertEquals(lookupDataOpt.get().getWebServiceUrlTls(), pulsar2.getWebServiceAddressTls());
+        assertEquals(lookupDataOpt.get().getPulsarServiceUrl(), pulsar2.getBrokerServiceUrl());
+        assertEquals(lookupDataOpt.get().getPulsarServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
+        assertEquals(lookupDataOpt.get().advertisedListeners(), pulsar2.getAdvertisedListeners());
+        assertEquals(lookupDataOpt.get().protocols(), pulsar2.getProtocolDataToAdvertise());
+        assertEquals(lookupDataOpt.get().persistentTopicsEnabled(), pulsar2.getConfiguration()
+                .isEnablePersistentTopics());
+        assertEquals(lookupDataOpt.get().nonPersistentTopicsEnabled(), pulsar2.getConfiguration()
+                .isEnableNonPersistentTopics());
         assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
 
         // Unregister and see the available brokers.

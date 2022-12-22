@@ -22,9 +22,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,6 +39,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -147,6 +150,18 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     @Override
     public CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker) {
         return brokerLookupDataLockManager.readLock(keyPath(broker));
+    }
+
+    public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
+        return this.getAvailableBrokersAsync().thenCompose(availableBrokers -> {
+            Map<String, BrokerLookupData> map = new ConcurrentHashMap<>();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (String brokerId : availableBrokers) {
+                futures.add(this.lookupAsync(brokerId).thenAccept(lookupDataOpt ->
+                        lookupDataOpt.ifPresent(lookupData -> map.put(brokerId, lookupData))));
+            }
+            return FutureUtil.waitForAll(futures).thenCompose(__ -> CompletableFuture.completedFuture(map));
+        });
     }
 
     public void listen(BiConsumer<String, NotificationType> listener) {

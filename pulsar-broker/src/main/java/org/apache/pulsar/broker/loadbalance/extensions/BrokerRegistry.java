@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -75,6 +76,13 @@ public interface BrokerRegistry extends AutoCloseable {
      * @param broker The service url without the protocol prefix, 'http://'. e.g. broker-xyz:port
      */
     CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker);
+
+    /**
+     * Get the map of brokerId->brokerLookupData.
+     *
+     * @return Map of broker lookup data.
+     */
+    CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync();
 
     /**
      * Listen the broker register change.
