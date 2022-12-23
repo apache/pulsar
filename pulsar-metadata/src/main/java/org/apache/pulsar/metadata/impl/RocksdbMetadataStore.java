@@ -349,7 +349,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
 
         instancesCache.remove(this.metadataUrl, this);
-        if (isClosed.compareAndExchange(false, true)) {
+        if (isClosed.compareAndSet(false, true)) {
             try {
                 dbStateLock.writeLock().lock();
                 log.info("close.instanceId={}", instanceId);
