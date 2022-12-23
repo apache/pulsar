@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.mockito.ArgumentMatchers.anySetOf;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -32,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -541,6 +546,50 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         Set<String> expectedSet3 = Set.of("c");
         for (String subPath : subPaths3) {
             assertTrue(expectedSet3.contains(subPath));
+        }
+    }
+
+    @Test(dataProvider = "impl")
+    public void testClosedMetadataStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        store.close();
+        try {
+            store.get("/a").get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
+        }
+        try {
+            store.put("/a", new byte[0], Optional.empty()).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
+        }
+        try {
+            store.delete("/a", Optional.empty()).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
+        }
+        try {
+            store.deleteRecursive("/a").get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
+        }
+        try {
+            store.getChildren("/a").get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
+        }
+        try {
+            store.exists("/a").get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
         }
     }
 }

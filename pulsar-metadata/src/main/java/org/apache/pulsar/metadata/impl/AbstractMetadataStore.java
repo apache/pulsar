@@ -80,7 +80,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Getter
     private boolean isConnected = true;
 
-    private final AtomicBoolean isClosed = new AtomicBoolean(false);
+    protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
@@ -243,7 +243,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
-        if (isClosed.get()) {
+        if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
         }
@@ -272,7 +272,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
-        if (isClosed.get()) {
+        if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
         }
@@ -284,7 +284,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Boolean> exists(String path) {
-        if (isClosed.get()) {
+        if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
         }
@@ -296,7 +296,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void registerListener(Consumer<Notification> listener) {
-        listeners.add(listener);
+        // If the metadata store is closed, do nothing here.
+        if (!isClosed()) {
+            listeners.add(listener);
+        }
     }
 
     protected CompletableFuture<Void> receivedNotification(Notification notification) {
@@ -343,7 +346,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
-        if (isClosed.get()) {
+        if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
         }
@@ -392,6 +395,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Void> deleteRecursive(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         return getChildren(path)
                 .thenCompose(children -> FutureUtil.waitForAll(
                         children.stream()
@@ -413,7 +420,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
-        if (isClosed.get()) {
+        if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
         }
@@ -495,13 +502,15 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
+    private boolean isClosed() {
+        return isClosed.get();
+    }
+
     @Override
     public void close() throws Exception {
-        if (isClosed.compareAndSet(false, true)) {
-            executor.shutdownNow();
-            executor.awaitTermination(10, TimeUnit.SECONDS);
-            this.metadataStoreStats.close();
-        }
+        executor.shutdownNow();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+        this.metadataStoreStats.close();
     }
 
     @VisibleForTesting
