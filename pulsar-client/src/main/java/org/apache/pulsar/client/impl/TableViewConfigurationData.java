@@ -19,12 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Serializable;
-
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 
 @Data
 @NoArgsConstructor

@@ -378,4 +378,5 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
+    }
 }
