@@ -183,8 +183,8 @@ All the broker metrics are labeled with the following labels:
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
 | pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
 | pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections due to per-connection limit. |
-| pulsar_broker_topics_count | Gauge | The number of Pulsar topics in this broker. |
-| pulsar_broker_subscriptions_count | Gauge | The number of Pulsar subscriptions in this broker. |
+| pulsar_broker_topics_count | Gauge | The number of pulsar topics in this broker. |
+| pulsar_broker_subscriptions_count | Gauge | The number of pulsar subscriptions in this broker. |
 | pulsar_broker_producers_count | Gauge | The number of active producers connected to this broker. |
 | pulsar_broker_consumers_count | Gauge | The number of active consumers connected to this broker. |
 | pulsar_broker_rate_in | Gauge | The total message rate coming into this broker (message per second). |
