@@ -1829,6 +1829,47 @@ admin.topics().getStats(topic, false /* is precise backlog */);
 </Tabs>
 ````
 
+### Internal stats
+
+You can check the detailed statistics of a topic. The following is an example. For the description of each internal topic stats, see [Pulsar statistics](administration-stats.md#topic-internal-stats).
+
+```json
+{
+  "entriesAddedCounter": 20449518,
+  "numberOfEntries": 3233,
+  "totalSize": 331482,
+  "currentLedgerEntries": 3233,
+  "currentLedgerSize": 331482,
+  "lastLedgerCreatedTimestamp": "2016-06-29 03:00:23.825",
+  "lastLedgerCreationFailureTimestamp": null,
+  "waitingCursorsCount": 1,
+  "pendingAddEntriesCount": 0,
+  "lastConfirmedEntry": "324711539:3232",
+  "state": "LedgerOpened",
+  "ledgers": [
+    {
+      "ledgerId": 324711539,
+      "entries": 0,
+      "size": 0
+    }
+  ],
+  "cursors": {
+    "my-subscription": {
+      "markDeletePosition": "324711539:3133",
+      "readPosition": "324711539:3233",
+      "waitingReadOp": true,
+      "pendingReadOps": 0,
+      "messagesConsumedCounter": 20449501,
+      "cursorLedger": 324702104,
+      "cursorLedgerLastEntry": 21,
+      "individuallyDeletedMessages": "[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]",
+      "lastLedgerSwitchTimestamp": "2016-06-29 01:30:19.313",
+      "state": "Open"
+    }
+  }
+}
+```
+
 ## Manage partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
 
@@ -2179,7 +2220,7 @@ admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is 
 
 ### Internal stats
 
-You can check the detailed statistics of a topic. The following is an example. For description of each stats, refer to [get internal stats](#get-internal-stats).
+You can check the detailed statistics of a partitioned topic. The following is an example. For description of each stats, refer to [get internal stats](#get-internal-stats).
 
 ```json
 
@@ -2229,24 +2270,20 @@ You can get the internal stats for the partitioned topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics stats-internal \
-  persistent://test-tenant/namespace/topic
-
+pulsar-admin topics partitioned-stats-internal \
+persistent://test-tenant/namespace/topic
 ```
 
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-internalStats|operation/getPartitionedInternalStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
 
 ```java
-
-admin.topics().getInternalStats(topic);
-
+admin.topics().getPartitionedInternalStats(topic);
 ```
 
 </TabItem>

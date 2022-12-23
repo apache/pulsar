@@ -1782,7 +1782,6 @@ admin.topics().getPartitionedTopicList(namespace);
 
 ### Stats
 
-
 You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways.
 
 ````mdx-code-block
