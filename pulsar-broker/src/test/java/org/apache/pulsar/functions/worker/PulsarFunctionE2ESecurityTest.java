@@ -64,6 +64,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -134,7 +135,7 @@ public class PulsarFunctionE2ESecurityTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());

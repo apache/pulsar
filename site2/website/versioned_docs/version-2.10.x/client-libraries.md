@@ -7,15 +7,15 @@ original_id: client-libraries
 
 Pulsar supports the following client libraries:
 
-|Language|Documentation|Release note|Code repo
-|---|---|---|---
-Java |- [User doc](client-libraries-java.md) <br /><br />- [API doc](/api/client/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client) 
-C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](/api/cpp/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar-client-cpp) 
-Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](/api/python/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar-client-python) 
-WebSocket| [User doc](client-libraries-websocket.md) | [Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
-Go client|[User doc](client-libraries-go.md)|[Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) |[Here](https://github.com/apache/pulsar-client-go) 
-Node.js|[User doc](client-libraries-node.md)|[Here](https://github.com/apache/pulsar-client-node/releases) |[Here](https://github.com/apache/pulsar-client-node) 
-C# |[User doc](client-libraries-dotnet.md)| [Here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG)|[Here](https://github.com/apache/pulsar-dotpulsar) 
+| Language  | Documentation                                                                            | Release note                                                             | Code repo                                                             |
+|-----------|------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| Java      | - [User doc](client-libraries-java.md) <br /><br />- [API doc](/api/client/)             | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar/tree/master/pulsar-client)    |
+| C++       | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](@pulsar:apidoc:cpp@)       | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar-client-cpp)                   |
+| Python    | - [User doc](client-libraries-python.md) <br /><br />- [API doc](@pulsar:apidoc:python@) | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar-client-python)                |
+| WebSocket | [User doc](client-libraries-websocket.md)                                                | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) |
+| Go client | [User doc](client-libraries-go.md)                                                       | [Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) | [Here](https://github.com/apache/pulsar-client-go)                    |
+| Node.js   | [User doc](client-libraries-node.md)                                                     | [Here](https://github.com/apache/pulsar-client-node/releases)            | [Here](https://github.com/apache/pulsar-client-node)                  |
+| C#        | [User doc](client-libraries-dotnet.md)                                                   | [Here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG) | [Here](https://github.com/apache/pulsar-dotpulsar)                    |
 
 :::note
 

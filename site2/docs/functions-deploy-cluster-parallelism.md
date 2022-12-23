@@ -31,7 +31,7 @@ Specify the `parallelism` parameter when deploying a function configuration thro
 # function-config.yaml
 parallelism: 3
 inputs:
-- persistent://public/default/input-1
+  - persistent://public/default/input-1
 output: persistent://public/default/output-1
 # other parameters
 ```

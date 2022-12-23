@@ -25,7 +25,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
 
 public class MessageIdTest {
-
     @Test
     public void messageIdTest() {
         MessageId mId = new MessageIdImpl(1, 2, 3);

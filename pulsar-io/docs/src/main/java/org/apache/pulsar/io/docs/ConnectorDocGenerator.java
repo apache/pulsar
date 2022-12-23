@@ -164,7 +164,7 @@ public class ConnectorDocGenerator {
             }
         } catch (Exception e) {
             commander.usage();
-            Runtime.getRuntime().exit(-1);
+            Runtime.getRuntime().exit(1);
             return;
         }
 

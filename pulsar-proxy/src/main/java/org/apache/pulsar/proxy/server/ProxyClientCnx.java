@@ -31,6 +31,12 @@ import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.protocol.Commands;
 
 @Slf4j
+/**
+ * Channel handler for Pulsar proxy's Pulsar broker client connections.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle*
+ * method parameter instance lifecycle.
+ */
 public class ProxyClientCnx extends ClientCnx {
     private final boolean forwardClientAuthData;
     private final String clientAuthMethod;

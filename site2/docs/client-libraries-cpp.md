@@ -9,9 +9,48 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
-You can use a Pulsar C++ client to create producers, consumers, and readers.
+You can use a Pulsar C++ client to create producers, consumers, and readers. For Pulsar features that C++ clients support, see [Client Feature Matrix](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914). For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
 
-All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the [API docs](/api/cpp) for the C++ client.
+## Changes for version 3.0.0 or later
+
+The new version of the Pulsar C++ client starts from 3.0.0 and has been no longer consistent with Pulsar since 2.10.x. For the latest releases, see the [Download](/download/) page.
+
+Take the [3.0.0 release](https://archive.apache.org/dist/pulsar/pulsar-client-cpp-3.0.0/) for example, there are following subdirectories:
+- apk-arm64: the Alpine Linux packages for ARM64 architectures
+- apk-x86_64: the Alpine Linux packages for x64 architectures
+- deb-arm64: the Debian-based Linux packages for ARM64 architectures
+- deb-x86_64: the Debian-based Linux packages for x64 architectures
+- rpm-arm64: the RedHat-based Linux packages for ARM64 architectures
+- rpm-x86_64: the RedHat-based Linux packages for x64 architectures
+
+These Linux packages above all contain the C++ headers installed under `/usr/include` and the following libraries installed under `/usr/lib`:
+- libpulsar.so: the shared library that links 3rd party dependencies statically
+- libpulsar.a: the static library
+- libpulsarwithdeps.a: the fat static library that includes all 3rd party dependencies
+
+Here is an example to link these libraries for a C++ source file named `main.cc`:
+
+```bash
+# Link to libpulsar.so
+g++ -std=c++11 main.cc -lpulsar
+# Link to libpulsarwithdeps.a
+g++ -std=c++11 main.cc /usr/lib/libpulsarwithdeps.a -lpthread -ldl
+# Link to libpulsar.a
+g++ -std=c++11 main.cc /usr/lib/libpulsar.a \
+  -lprotobuf -lcurl -lssl -lcrypto -lz -lzstd -lsnappy -lpthread -ldl
+```
+
+:::caution
+
+Linking to `libpulsar.a` can be difficult for beginners because the 3rd party dependencies must be compatible. For example, the protobuf version must be 3.20.0 or higher for Pulsar C++ client 3.0.0. It's better to link to `libpulsarwithdeps.a` instead.
+
+:::
+
+:::danger
+
+Before 3.0.0, there was a `libpulsarnossl.so`, which is removed now.
+
+:::
 
 ## Installation
 
@@ -29,32 +68,32 @@ brew install libpulsar
 
 1. Download any one of the Deb packages:
 
-<Tabs>
-<TabItem value="client">
+   <Tabs>
+   <TabItem value="client">
 
-```bash
-wget @pulsar:deb:client@
-```
+   ```bash
+   wget @pulsar:deb:client@
+   ```
 
-This package contains shared libraries `libpulsar.so` and `libpulsarnossl.so`.
+   This package contains shared libraries `libpulsar.so` and `libpulsarnossl.so`.
 
-</TabItem>
-<TabItem value="client-devel">
+   </TabItem>
+   <TabItem value="client-devel">
 
-```bash
-wget @pulsar:deb:client-devel@
-```
+   ```bash
+   wget @pulsar:deb:client-devel@
+   ```
 
-This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
+   This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a`, and C/C++ headers.
 
-</TabItem>
-</Tabs>
+   </TabItem>
+   </Tabs>
 
 2. Install the package using the following command:
 
-```bash
-apt install ./apache-pulsar-client*.deb
-```
+   ```bash
+   apt install ./apache-pulsar-client*.deb
+   ```
 
 Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` directory.
 
@@ -62,41 +101,41 @@ Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` dire
 
 1. Download any one of the RPM packages:
 
-<Tabs>
-<TabItem value="client">
+   <Tabs>
+   <TabItem value="client">
 
-```bash
-wget @pulsar:dist_rpm:client@
-```
+   ```bash
+   wget @pulsar:dist_rpm:client@
+   ```
 
-This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
+   This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
 
-</TabItem>
-<TabItem value="client-debuginfo">
+   </TabItem>
+   <TabItem value="client-debuginfo">
 
-```bash
-wget @pulsar:dist_rpm:client-debuginfo@
-```
+   ```bash
+   wget @pulsar:dist_rpm:client-debuginfo@
+   ```
 
-This package contains debug symbols for `libpulsar.so`.
+   This package contains debug symbols for `libpulsar.so`.
 
-</TabItem>
-<TabItem value="client-devel">
+   </TabItem>
+   <TabItem value="client-devel">
 
-```bash
-wget @pulsar:dist_rpm:client-devel@
-```
+   ```bash
+   wget @pulsar:dist_rpm:client-devel@
+   ```
 
-This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
+   This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
 
-</TabItem>
-</Tabs>
+   </TabItem>
+   </Tabs>
 
 2. Install the package using the following command:
 
-```bash
-rpm -ivh apache-pulsar-client*.rpm
-```
+   ```bash
+   rpm -ivh apache-pulsar-client*.rpm
+   ```
 
 Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` directory.
 
@@ -106,9 +145,11 @@ If you get an error like "libpulsar.so: cannot open shared object file: No such 
 
 :::
 
-### Source
+### APK
 
-For how to build Pulsar C++ client on different platforms from source code, see [compliation](https://github.com/apache/pulsar-client-cpp#compilation).
+```bash
+apk add --allow-untrusted ./apache-pulsar-client-*.apk
+```
 
 ## Connection URLs
 
@@ -131,6 +172,14 @@ If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in t
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
+
+## API reference
+
+All the methods in producer, consumer, and reader of Pulsar C++ clients are thread-safe. See the [API docs](@pulsar:apidoc:cpp@) for more details.
+
+## Release notes
+
+For the changelog of Pulsar C++ clients, see [release notes](/release-notes/#c).
 
 ## Create a producer
 
@@ -394,98 +443,6 @@ Consumer consumer;
 client.subscribe("my-topic", "my-sub", conf, consumer);
 ```
 
-## Enable authentication in connection URLs
-If you use TLS authentication when connecting to Pulsar, you need to add `ssl` in the connection URLs, and the default port is `6651`. The following is an example.
-
-```cpp
-ClientConfiguration config = ClientConfiguration();
-config.setUseTls(true);
-config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
-config.setTlsAllowInsecureConnection(false);
-config.setAuth(pulsar::AuthTls::create(
-            "/path/to/client-cert.pem", "/path/to/client-key.pem"););
-
-Client client("pulsar+ssl://my-broker.com:6651", config);
-```
-
-For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar-client-cpp/tree/main/examples).
-
 ## Schema
 
-This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
-
-### Avro schema
-
-- The following example shows how to create a producer with an Avro schema.
-
-  ```cpp
-  static const std::string exampleSchema =
-      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-  Producer producer;
-  ProducerConfiguration producerConf;
-  producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-  client.createProducer("topic-avro", producerConf, producer);
-  ```
-
-- The following example shows how to create a consumer with an Avro schema.
-
-  ```cpp
-  static const std::string exampleSchema =
-      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-  ConsumerConfiguration consumerConf;
-  Consumer consumer;
-  consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-  client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
-  ```
-
-### ProtobufNative schema
-
-The following example shows how to create a producer and a consumer with a ProtobufNative schema.
-
-1. Generate the `User` class using Protobuf3 or later versions.
-
-   ```protobuf
-   syntax = "proto3";
-
-   message User {
-       string name = 1;
-       int32 age = 2;
-   }
-   ```
-
-2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
-
-   ```cpp
-   #include <pulsar/ProtobufNativeSchema.h>
-   ```
-
-3. Create a producer to send a `User` instance.
-
-   ```cpp
-   ProducerConfiguration producerConf;
-   producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
-   Producer producer;
-   client.createProducer("topic-protobuf", producerConf, producer);
-   User user;
-   user.set_name("my-name");
-   user.set_age(10);
-   std::string content;
-   user.SerializeToString(&content);
-   producer.send(MessageBuilder().setContent(content).build());
-   ```
-
-4. Create a consumer to receive a `User` instance.
-
-   ```cpp
-   ConsumerConfiguration consumerConf;
-   consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
-   consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
-   Consumer consumer;
-   client.subscribe("topic-protobuf", "my-sub", consumerConf, consumer);
-   Message msg;
-   consumer.receive(msg);
-   User user2;
-   user2.ParseFromArray(msg.getData(), msg.getLength());
-   ```
+To work with [Pulsar schema](schema-overview.md) using C++ clients, see [Schema - Get started](schema-get-started.md). For specific schema types that C++ clients support, see [code](https://github.com/apache/pulsar-client-cpp/blob/main/include/pulsar/Schema.h).

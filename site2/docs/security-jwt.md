@@ -91,27 +91,22 @@ The token itself does not have any permission associated. You need to [enable au
 
 :::
 
-## Enable JWT authentication on brokers
+## Enable JWT authentication on brokers/proxies
 
-To configure brokers to authenticate clients using JWT, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
+To configure brokers/proxies to authenticate clients using JWT, add the following parameters to the `conf/broker.conf` and the `conf/proxy.conf` file. If you use a standalone Pulsar, you need to add these parameters to the `conf/standalone.conf` file:
 
 ```properties
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
-# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, or when the proxy connects to brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Either configure the token string or specify to read it from a file. The following three available formats are all valid:
 # brokerClientAuthenticationParameters={"token":"your-token-string"}
 # brokerClientAuthenticationParameters=token:your-token-string
 # brokerClientAuthenticationParameters=file:///path/to/token
-brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
-
-# If this flag is set then the broker authenticates the original Auth data
-# else it just accepts the originalPrincipal and authorizes it (if required).
-authenticateOriginalAuthData=true
 
 # If using secret key (Note: key files must be DER-encoded)
 tokenSecretKey=file:///path/to/secret.key
@@ -121,37 +116,6 @@ tokenSecretKey=file:///path/to/secret.key
 # If using public/private (Note: key files must be DER-encoded)
 # tokenPublicKey=file:///path/to/public.key
 ```
-
-:::note
-
-Equivalent to `brokerClientAuthenticationParameters`, you need to configure `authParams` in the `conf/client.conf` file.
-
-:::
-
-## Enable JWT authentication on proxies
-
-To configure proxies to authenticate clients using JWT, add the following parameters to the `conf/proxy.conf` file.
-
-```properties
-# For clients connecting to the proxy
-authenticationEnabled=true
-authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
-tokenSecretKey=file:///path/to/secret.key
-
-# For the proxy to connect to brokers
-brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
-brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
-# Either configure the token string or specify to read it from a file. The following three available formats are all valid:
-# brokerClientAuthenticationParameters={"token":"your-token-string"}
-# brokerClientAuthenticationParameters=token:your-token-string
-# brokerClientAuthenticationParameters=file:///path/to/token
-```
-
-:::note
-
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see [authorization](security-authorization.md).
-
-:::
 
 ## Configure JWT authentication in CLI Tools
 

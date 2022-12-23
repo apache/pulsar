@@ -22,7 +22,7 @@ To set up function workers to run with brokers, complete the following steps:
 
 ### Enable function workers to run with brokers
 
-In the `conf/broker.conf` file, set `functionsWorkerEnabled` to `true`.
+In the `conf/broker.conf` file (`conf/standalone.conf` for Pulsar standalone), set `functionsWorkerEnabled` to `true`.
 
 ```conf
 functionsWorkerEnabled=true
@@ -35,7 +35,7 @@ In the `run-with-brokers` mode, most settings of function workers are inherited 
 :::tip
 
 - To ensure high availability in a production deployment (a cluster with multiple brokers), set `numFunctionPackageReplicas` to equal the number of bookies. The default value `1` is only for one-node cluster deployment.
-- To initialize distributed log metadata in runtime (`initializedDlogMetadata` = `true`), ensure that it has been initialized by the `bin/pulsar initialize-cluster-metadata` command.
+- To initialize distributed log metadata in runtime (`initializedDlogMetadata = true`), ensure that it has been initialized by the `bin/pulsar initialize-cluster-metadata` command.
 
 :::
 

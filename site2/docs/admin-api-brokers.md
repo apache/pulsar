@@ -51,7 +51,12 @@ Fetch all available active brokers that are serving traffic with cluster name.
 
 ```shell
 pulsar-admin brokers list use
-broker1.use.org.com:8080
+```
+
+Example output:
+
+```
+localhost:8080
 ```
 
 </TabItem>
@@ -83,7 +88,14 @@ Fetch the information of the leader broker, for example, the service url.
 
 ```shell
 pulsar-admin brokers leader-broker
-BrokerInfo(serviceUrl=broker1.use.org.com:8080)
+```
+
+Example output:
+
+```json
+{
+  "serviceUrl" : "http://localhost:8080"
+}
 ```
 
 </TabItem>
@@ -117,15 +129,20 @@ It finds all namespaces which are owned and served by a given broker.
 
 ```shell
 pulsar-admin brokers namespaces use \
---url broker1.use.org.com:8080
+    --url localhost:8080
+```
 
-{
-  "my-property/use/my-ns/0x00000000_0xffffffff": {
-    "broker_assignment": "shared",
-    "is_controlled": false,
-    "is_active": true
-  }
-}
+Example output:
+
+```
+public/default/0x00000000_0x40000000    [broker_assignment=shared is_controlled=false is_active=true]
+public/default/0xc0000000_0xffffffff    [broker_assignment=shared is_controlled=false is_active=true]
+public/functions/0x40000000_0x80000000    [broker_assignment=shared is_controlled=false is_active=true]
+public/functions/0x00000000_0x40000000    [broker_assignment=shared is_controlled=false is_active=true]
+pulsar/standalone/localhost:8080/0x00000000_0xffffffff    [broker_assignment=shared is_controlled=false is_active=true]
+pulsar/localhost:8080/0x00000000_0xffffffff    [broker_assignment=shared is_controlled=false is_active=true]
+public/functions/0x80000000_0xc0000000    [broker_assignment=shared is_controlled=false is_active=true]
+public/default/0x80000000_0xc0000000    [broker_assignment=shared is_controlled=false is_active=true]
 ```
 
 </TabItem>
@@ -197,7 +214,19 @@ Fetch a list of all potentially updatable configuration parameters.
 
 ```shell
 pulsar-admin brokers list-dynamic-config
-brokerShutdownTimeoutMs
+```
+
+Example output:
+
+```
+forceDeleteNamespaceAllowed
+loadBalancerMemoryResourceWeight
+allowAutoTopicCreation
+brokerDeleteInactivePartitionedTopicMetadataEnabled
+managedLedgerInactiveLedgerRolloverTimeSeconds
+loadBalancerNamespaceBundleMaxMsgRate
+resourceUsageTransportPublishIntervalInSecs
+# omit...
 ```
 
 </TabItem>
@@ -229,7 +258,11 @@ Fetch a list of all parameters that have been dynamically updated.
 
 ```shell
 pulsar-admin brokers get-all-dynamic-config
-brokerShutdownTimeoutMs:100
+```
+Example output:
+
+```
+brokerShutdownTimeoutMs    100
 ```
 
 </TabItem>

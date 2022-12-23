@@ -382,6 +382,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean resetIncludeHead = false;
 
+    @JsonIgnore
     private transient KeySharedPolicy keySharedPolicy;
 
     private boolean batchIndexAckEnabled = false;

@@ -146,12 +146,12 @@ public class PerformanceClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
@@ -161,7 +161,7 @@ public class PerformanceClient {
         if (arguments.topics.size() != 1) {
             System.err.println("Only one topic name is allowed");
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.confFile != null) {

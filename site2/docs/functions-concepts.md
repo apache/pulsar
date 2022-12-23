@@ -12,9 +12,7 @@ Each function has a Fully Qualified Function Name (FQFN) with a specified tenant
 An FQFN looks like this:
 
 ```text
-
 tenant/namespace/name
-
 ```
 
 ## Function instance

@@ -91,7 +91,12 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                                                           ServiceConfiguration conf) {
         final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
-        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeightWithinLimit(
+        LocalBrokerData localData = brokerData.getLocalData();
+        // If the broker restarted or MsgRate is 0, should use current resourceUsage to cover the historyUsage
+        if (localData.getBundles().size() == 0 || (localData.getMsgRateIn() == 0 && localData.getMsgRateOut() == 0)){
+            historyUsage = null;
+        }
+        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
