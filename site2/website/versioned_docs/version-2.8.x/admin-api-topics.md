@@ -2018,7 +2018,7 @@ You can get the internal stats for the partitioned topic in the following ways.
 
 ```shell
 pulsar-admin topics partitioned-stats-internal \
-persistent://test-tenant/namespace/topic
+    persistent://test-tenant/namespace/topic
 ```
 
 </TabItem>
