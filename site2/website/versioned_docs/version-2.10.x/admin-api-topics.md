@@ -1870,6 +1870,36 @@ You can check the detailed statistics of a topic. The following is an example. F
 }
 ```
 
+You can get the internal stats for the partitioned topic in the following ways.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+$ pulsar-admin topics stats-internal \
+  persistent://test-tenant/namespace/topic
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.topics().getInternalStats(topic);
+```
+
+</TabItem>
+
+</Tabs>
+````
+
 ## Manage partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
 
@@ -2270,8 +2300,8 @@ You can get the internal stats for the partitioned topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics partitioned-stats-internal \
-    persistent://test-tenant/namespace/topic
+$ pulsar-admin topics partitioned-stats-internal \
+  persistent://test-tenant/namespace/topic
 ```
 
 </TabItem>

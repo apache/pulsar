@@ -1825,8 +1825,8 @@ You can get the internal stats for the partitioned topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics stats-internal \
-persistent://test-tenant/namespace/topic
+$ pulsar-admin topics stats-internal \
+  persistent://test-tenant/namespace/topic
 ```
 
 </TabItem>
@@ -2246,8 +2246,8 @@ You can get the internal stats for the partitioned topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-pulsar-admin topics partitioned-stats-internal \
-    persistent://test-tenant/namespace/topic
+$ pulsar-admin topics partitioned-stats-internal \
+  persistent://test-tenant/namespace/topic
 ```
 
 </TabItem>
