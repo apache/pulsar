@@ -551,7 +551,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (messageId.getAcker() instanceof BatchMessageAckerDisabled) {
             acker = batchMessageToAcker.computeIfAbsent(
                     Pair.of(messageId.getLedgerId(), messageId.getEntryId()),
-                    __ -> BatchMessageAcker.newAcker(messageId.getOriginalBatchSize()));
+                    __ -> BatchMessageAcker.newAcker(messageId.getBatchSize()));
         } else {
             acker = messageId.getAcker();
         }
@@ -613,7 +613,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return acknowledgmentsGroupingTracker.addBatchIndexAck(
                         (BatchMessageIdImpl) messageIdImpl, ackType, properties);
             } else {
-                processMessageIdBeforeAcknowledge(messageIdImpl, ackType, batchMessageId.getOriginalBatchSize());
+                processMessageIdBeforeAcknowledge(messageIdImpl, ackType, batchMessageId.getBatchSize());
                 return acknowledgmentsGroupingTracker.addAcknowledgment(messageIdImpl, ackType, properties);
             }
         } else {
@@ -652,8 +652,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     MessageIdImpl messageIdImpl = getMessageIdToAcknowledge(batchMessageId, ackType);
                     if (messageIdImpl != null) {
                         if (!(messageIdImpl instanceof BatchMessageIdImpl)) {
-                            processMessageIdBeforeAcknowledge(messageIdImpl, ackType,
-                                    batchMessageId.getOriginalBatchSize());
+                            processMessageIdBeforeAcknowledge(messageIdImpl, ackType, batchMessageId.getBatchSize());
                         } // else: batch index ACK
                         messageIdListToAck.add(messageIdImpl);
                     }

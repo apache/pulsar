@@ -105,23 +105,11 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return toByteArray(batchIndex, batchSize);
     }
 
-    public boolean ackIndividual() {
-        return acker.ackIndividual(batchIndex);
-    }
-
     public boolean ackCumulative() {
         return acker.ackCumulative(batchIndex);
     }
 
-    public int getOutstandingAcksInSameBatch() {
-        return acker.getOutstandingAcks();
-    }
-
     public int getBatchSize() {
-        return acker.getBatchSize();
-    }
-
-    public int getOriginalBatchSize() {
         return this.batchSize;
     }
 

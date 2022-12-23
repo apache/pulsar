@@ -248,7 +248,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         value = ConcurrentBitSetRecyclable.create(batchMessageId.getAcker().getBitSet());
                     } else {
                         value = ConcurrentBitSetRecyclable.create();
-                        value.set(0, batchMessageId.getOriginalBatchSize());
+                        value.set(0, batchMessageId.getBatchSize());
                     }
                     return value;
                 });
