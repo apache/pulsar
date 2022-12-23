@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,15 +22,16 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -201,22 +202,24 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendSuccess(long requestId) {
-        cnx.ctx().writeAndFlush(Commands.newSuccess(requestId), cnx.ctx().voidPromise());
-    }
-
-    @Override
-    public void sendError(long requestId, ServerError error, String message) {
-        cnx.ctx().writeAndFlush(Commands.newError(requestId, error, message), cnx.ctx().voidPromise());
-    }
-
-    @Override
     public void sendReachedEndOfTopic(long consumerId) {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9.getValue()) {
             log.info("[{}] Notifying consumer that end of topic has been reached", this);
             cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId), cnx.ctx().voidPromise());
         }
+    }
+
+    @Override
+    public boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls) {
+        // Only send notification if the client understand the command
+        if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v20.getValue()) {
+            log.info("[{}] Notifying {} that topic is migrated", type.name(), resourceId);
+            cnx.ctx().writeAndFlush(Commands.newTopicMigrated(type, resourceId, brokerUrl, brokerUrlTls),
+                    cnx.ctx().voidPromise());
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -227,6 +230,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
         ctx.channel().eventLoop().execute(() -> {
+            // this list is always accessed in the same thread (the eventLoop here)
+            // and in the completion of the writePromise
+            // it is safe to use a simple ArrayList
+            List<Entry> entriesToRelease = new ArrayList<>(entries.size());
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 if (entry == null) {
@@ -268,18 +275,27 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 }
 
                 int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                        .getRedeliveryCount(entry.getLedgerId(), entry.getEntryId());
 
                 ctx.write(
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
                                 redeliveryCount, metadataAndPayload,
                                 batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch),
                         ctx.voidPromise());
-                entry.release();
+                entriesToRelease.add(entry);
             }
 
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
+            writePromise.addListener((future) -> {
+                // release the entries only after flushing the channel
+                //
+                // InflightReadsLimiter tracks the amount of memory retained by in-flight data to the
+                // consumer. It counts the memory as being released when the entry is deallocated
+                // that is that it reaches refcnt=0.
+                // so we need to call release only when we are sure that Netty released the internal ByteBuf
+                entriesToRelease.forEach(Entry::release);
+            });
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
@@ -365,10 +381,12 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     private void safeIntercept(BaseCommand command, ServerCnx cnx) {
-        try {
-            this.interceptor.onPulsarCommand(command, cnx);
-        } catch (Exception e) {
-            log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+        if (this.interceptor != null) {
+            try {
+                this.interceptor.onPulsarCommand(command, cnx);
+            } catch (Exception e) {
+                log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+            }
         }
     }
 }

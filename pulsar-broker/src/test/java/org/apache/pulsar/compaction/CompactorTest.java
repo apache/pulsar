@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -58,7 +59,12 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-compaction")
 public class CompactorTest extends MockedPulsarServiceBaseTest {
 
-    private ScheduledExecutorService compactionScheduler;
+    protected ScheduledExecutorService compactionScheduler;
+
+    protected BookKeeper bk;
+    protected Compactor compactor;
+
+
 
     @BeforeMethod
     @Override
@@ -73,20 +79,31 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
+        bk = pulsar.getBookKeeperClientFactory().create(
+                this.conf, null, null, Optional.empty(), null);
+        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
+
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+        bk.close();
         compactionScheduler.shutdownNow();
     }
 
+    protected long compact(String topic) throws ExecutionException, InterruptedException {
+        return compactor.compact(topic).get();
+    }
+
+    protected Compactor getCompactor() {
+        return compactor;
+    }
+
     private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics) throws Exception {
-        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
-        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        long compactedLedgerId = compactor.compact(topic).get();
+
+        long compactedLedgerId = compact(topic);
 
         LedgerHandle ledger = bk.openLedger(compactedLedgerId,
                                             Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -111,7 +128,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             m.close();
         }
         if (checkMetrics) {
-            CompactionRecord compactionRecord = compactor.getStats().getCompactionRecordForTopic(topic).get();
+            CompactionRecord compactionRecord = getCompactor().getStats().getCompactionRecordForTopic(topic).get();
             long compactedTopicRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
             long lastCompactSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
             long lastCompactFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
@@ -227,10 +244,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         // trigger creation of topic on server side
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
-        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compact(topic);
     }
 
     @Test
@@ -240,7 +254,6 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, Mockito.mock(PulsarClientImpl.class),
                 Mockito.mock(BookKeeper.class), compactionScheduler);
         Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
-
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {

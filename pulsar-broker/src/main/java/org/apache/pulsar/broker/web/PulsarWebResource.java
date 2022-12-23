@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -822,8 +822,9 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException e) {
             throw e;
         } catch (Exception e) {
-            if (e.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) e.getCause();
+            Throwable throwable = FutureUtil.unwrapCompletionException(e);
+            if (throwable instanceof WebApplicationException webApplicationException) {
+                throw webApplicationException;
             }
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
@@ -875,7 +876,7 @@ public abstract class PulsarWebResource {
                 if (!allowDeletedNamespace && policies.deleted) {
                     String msg = String.format("Namespace %s is deleted", namespace.toString());
                     log.warn(msg);
-                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                    validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND,
                             "Namespace is deleted"));
                 } else if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(
@@ -1223,14 +1224,6 @@ public abstract class PulsarWebResource {
                     });
         }
         return CompletableFuture.completedFuture(null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
-        validateTopicOperation(topicName, operation, null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
-        sync(()-> validateTopicOperationAsync(topicName, operation, subscription));
     }
 
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {

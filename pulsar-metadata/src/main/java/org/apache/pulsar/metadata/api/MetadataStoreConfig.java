@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,6 +80,12 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final String metadataStoreName = "";
+
+    /**
+     * Whether we should enable fsync for local metadata store, It's supported by RocksdbMetadataStore for now.
+     */
+    @Builder.Default
+    private final boolean fsyncEnable = true;
 
     /**
      * Pluggable MetadataEventSynchronizer to sync metadata events across the

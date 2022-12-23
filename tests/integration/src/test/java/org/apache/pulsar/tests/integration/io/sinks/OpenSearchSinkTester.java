@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import java.util.Optional;
 import org.apache.http.HttpHost;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
@@ -36,6 +37,9 @@ import static org.testng.Assert.assertTrue;
 
 public class OpenSearchSinkTester extends ElasticSearchSinkTester {
 
+    public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
+            .orElse("opensearchproject/opensearch:1.2.4");
+
     private RestHighLevelClient elasticClient;
 
 
@@ -45,7 +49,7 @@ public class OpenSearchSinkTester extends ElasticSearchSinkTester {
 
     @Override
     protected ElasticsearchContainer createSinkService(PulsarCluster cluster) {
-        DockerImageName dockerImageName = DockerImageName.parse("opensearchproject/opensearch:1.2.4")
+        DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH)
                 .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
         return new ElasticsearchContainer(dockerImageName)
                 .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")

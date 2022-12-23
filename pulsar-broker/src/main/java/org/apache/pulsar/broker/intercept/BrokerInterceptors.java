@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,7 +89,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
         if (interceptors != null && !interceptors.isEmpty()) {
             return new BrokerInterceptors(interceptors);
         } else {
-            return DISABLED;
+            return null;
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -723,7 +723,7 @@ public class LoadSimulationController {
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         (new LoadSimulationController(arguments)).run();
     }

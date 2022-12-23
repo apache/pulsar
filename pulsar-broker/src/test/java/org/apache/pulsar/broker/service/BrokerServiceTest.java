@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -579,8 +578,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
 
-        List<String> nsList = Lists.newArrayList(ns1, ns2);
-        List<Producer<byte[]>> producerList = Lists.newArrayList();
+        List<String> nsList = List.of(ns1, ns2);
+        List<Producer<byte[]>> producerList = new ArrayList<>();
 
         BrokerStats brokerStatsClient = admin.brokerStats();
 
@@ -1496,5 +1495,29 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteNamespaceAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteNamespaceAllowed());
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteTenantAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteTenantAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteTenantAllowed());
+        });
     }
 }

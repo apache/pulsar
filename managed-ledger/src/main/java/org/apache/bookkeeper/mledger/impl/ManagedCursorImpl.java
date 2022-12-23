@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,6 @@ import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsExce
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -60,6 +59,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -96,9 +96,11 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +122,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
+
+    public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
 
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
@@ -181,6 +185,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile ManagedCursorInfo managedCursorInfo;
 
     private static final LongPairConsumer<PositionImpl> positionRangeConverter = PositionImpl::new;
+
+    private static final RangeBoundConsumer<PositionImpl> positionRangeReverseConverter =
+            (position) -> new LongPairRangeSet.LongPair(position.ledgerId, position.entryId);
+
     private static final LongPairConsumer<PositionImplRecyclable> recyclePositionRangeConverter = (key, value) -> {
         PositionImplRecyclable position = PositionImplRecyclable.create();
         position.ledgerId = key;
@@ -260,11 +268,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
-    private long lastLedgerSwitchTimestamp;
+    private volatile long lastLedgerSwitchTimestamp;
     private final Clock clock;
 
     // The last active time (Unix time, milliseconds) of the cursor
-    private long lastActive;
+    private volatile long lastActive;
 
     public enum State {
         Uninitialized, // Cursor is being initialized
@@ -294,7 +302,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
-        this.individualDeletedMessages = new RangeSetWrapper<>(positionRangeConverter, this);
+        this.individualDeletedMessages = new RangeSetWrapper<>(positionRangeConverter,
+                positionRangeReverseConverter, this);
         if (config.isDeletionAtBatchIndexLevelEnabled()) {
             this.batchDeletedIndexes = new ConcurrentSkipListMap<>();
         } else {
@@ -371,7 +380,28 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-        return computeCursorProperties(lastRead -> cursorProperties);
+        Map<String, String> newProperties =
+                cursorProperties == null ? new HashMap<>() : new HashMap<>(cursorProperties);
+
+        // Prohibit setting of internal properties
+        Set<String> keys = newProperties.keySet();
+        for (String key : keys) {
+            if (key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
+                return FutureUtil.failedFuture(new IllegalArgumentException(
+                        "The property key can't start with " + CURSOR_INTERNAL_PROPERTY_PREFIX));
+            }
+        }
+
+        return computeCursorProperties(lastRead -> {
+            if (lastRead != null) {
+                lastRead.forEach((k, v) -> {
+                    if (k.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
+                        newProperties.put(k, v);
+                    }
+                });
+            }
+            return newProperties;
+        });
     }
 
     @Override
@@ -566,7 +596,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
                     recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
                 }
-                if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null
+                if (config.isDeletionAtBatchIndexLevelEnabled()
                     && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
                     recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
                 }
@@ -1183,29 +1213,33 @@ public class ManagedCursorImpl implements ManagedCursor {
         return firstLedgerId == null ? null : new PositionImpl(firstLedgerId, 0);
     }
 
-    protected void internalResetCursor(PositionImpl position, AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
-        if (position.equals(PositionImpl.EARLIEST)) {
-            position = ledger.getFirstPosition();
-        } else if (position.equals(PositionImpl.LATEST)) {
-            position = ledger.getLastPosition().getNext();
+    protected void internalResetCursor(PositionImpl proposedReadPosition,
+                                       AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
+        final PositionImpl newReadPosition;
+        if (proposedReadPosition.equals(PositionImpl.EARLIEST)) {
+            newReadPosition = ledger.getFirstPosition();
+        } else if (proposedReadPosition.equals(PositionImpl.LATEST)) {
+            newReadPosition = ledger.getLastPosition().getNext();
+        } else {
+            newReadPosition = proposedReadPosition;
         }
 
-        log.info("[{}] Initiate reset position to {} on cursor {}", ledger.getName(), position, name);
+        log.info("[{}] Initiate reset readPosition to {} on cursor {}", ledger.getName(), newReadPosition, name);
 
         synchronized (pendingMarkDeleteOps) {
             if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
-                log.error("[{}] reset requested - position [{}], previous reset in progress - cursor {}",
-                        ledger.getName(), position, name);
+                log.error("[{}] reset requested - readPosition [{}], previous reset in progress - cursor {}",
+                        ledger.getName(), newReadPosition, name);
                 resetCursorCallback.resetFailed(
                         new ManagedLedgerException.ConcurrentFindCursorPositionException("reset already in progress"),
-                        position);
+                        newReadPosition);
                 return;
             }
         }
 
         final AsyncCallbacks.ResetCursorCallback callback = resetCursorCallback;
 
-        final PositionImpl newPosition = position;
+        final PositionImpl newMarkDeletePosition = ledger.getPreviousPosition(newReadPosition);
 
         VoidCallback finalCallback = new VoidCallback() {
             @Override
@@ -1214,8 +1248,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // modify mark delete and read position since we are able to persist new position for cursor
                 lock.writeLock().lock();
                 try {
-                    PositionImpl newMarkDeletePosition = ledger.getPreviousPosition(newPosition);
-
                     if (markDeletePosition.compareTo(newMarkDeletePosition) >= 0) {
                         MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), -getNumberOfEntries(
                                 Range.closedOpen(newMarkDeletePosition, markDeletePosition)));
@@ -1227,37 +1259,37 @@ public class ManagedCursorImpl implements ManagedCursor {
                     lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, isCompactionCursor()
                             ? getProperties() : Collections.emptyMap(), null, null);
                     individualDeletedMessages.clear();
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         batchDeletedIndexes.values().forEach(BitSetRecyclable::recycle);
                         batchDeletedIndexes.clear();
-                        long[] resetWords = newPosition.ackSet;
+                        long[] resetWords = newReadPosition.ackSet;
                         if (resetWords != null) {
                             BitSetRecyclable ackSet = BitSetRecyclable.create().resetWords(resetWords);
-                            batchDeletedIndexes.put(newPosition, ackSet);
+                            batchDeletedIndexes.put(newReadPosition, ackSet);
                         }
                     }
 
                     PositionImpl oldReadPosition = readPosition;
-                    if (oldReadPosition.compareTo(newPosition) >= 0) {
-                        log.info("[{}] reset position to {} before current read position {} on cursor {}",
-                                ledger.getName(), newPosition, oldReadPosition, name);
+                    if (oldReadPosition.compareTo(newReadPosition) >= 0) {
+                        log.info("[{}] reset readPosition to {} before current read readPosition {} on cursor {}",
+                                ledger.getName(), newReadPosition, oldReadPosition, name);
                     } else {
-                        log.info("[{}] reset position to {} skipping from current read position {} on cursor {}",
-                                ledger.getName(), newPosition, oldReadPosition, name);
+                        log.info("[{}] reset readPosition to {} skipping from current read readPosition {} on "
+                                        + "cursor {}", ledger.getName(), newReadPosition, oldReadPosition, name);
                     }
-                    readPosition = newPosition;
-                    ledger.onCursorReadPositionUpdated(ManagedCursorImpl.this, newPosition);
+                    readPosition = newReadPosition;
+                    ledger.onCursorReadPositionUpdated(ManagedCursorImpl.this, newReadPosition);
                 } finally {
                     lock.writeLock().unlock();
                 }
                 synchronized (pendingMarkDeleteOps) {
                     pendingMarkDeleteOps.clear();
                     if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
-                        log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
-                                ledger.getName(), newPosition, name);
+                        log.error("[{}] expected reset readPosition [{}], but another reset in progress on cursor {}",
+                                ledger.getName(), newReadPosition, name);
                     }
                 }
-                callback.resetComplete(newPosition);
+                callback.resetComplete(newReadPosition);
                 updateLastActive();
             }
 
@@ -1265,20 +1297,20 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationFailed(ManagedLedgerException exception) {
                 synchronized (pendingMarkDeleteOps) {
                     if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
-                        log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
-                                ledger.getName(), newPosition, name);
+                        log.error("[{}] expected reset readPosition [{}], but another reset in progress on cursor {}",
+                                ledger.getName(), newReadPosition, name);
                     }
                 }
                 callback.resetFailed(new ManagedLedgerException.InvalidCursorPositionException(
-                        "unable to persist position for cursor reset " + newPosition.toString()), newPosition);
+                        "unable to persist readPosition for cursor reset " + newReadPosition), newReadPosition);
             }
 
         };
 
         persistentMarkDeletePosition = null;
         inProgressMarkDeletePersistPosition = null;
-        lastMarkDeleteEntry = new MarkDeleteEntry(newPosition, getProperties(), null, null);
-        internalAsyncMarkDelete(newPosition, isCompactionCursor() ? getProperties() : Collections.emptyMap(),
+        lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, getProperties(), null, null);
+        internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? getProperties() : Collections.emptyMap(),
                 new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -1298,7 +1330,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         final PositionImpl newPosition = (PositionImpl) newPos;
 
         // order trim and reset operations on a ledger
-        ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> {
+        ledger.getExecutor().execute(safeRun(() -> {
             PositionImpl actualPosition = newPosition;
 
             if (!ledger.isValidPosition(actualPosition)
@@ -1866,9 +1898,29 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         PositionImpl newPosition = (PositionImpl) position;
 
-        if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+        if (config.isDeletionAtBatchIndexLevelEnabled()) {
             if (newPosition.ackSet != null) {
-                batchDeletedIndexes.put(newPosition, BitSetRecyclable.create().resetWords(newPosition.ackSet));
+                AtomicReference<BitSetRecyclable> bitSetRecyclable = new AtomicReference<>();
+                BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(newPosition.ackSet);
+                // In order to prevent the batch index recorded in batchDeletedIndexes from rolling back,
+                // only update batchDeletedIndexes when the submitted batch index is greater
+                // than the recorded index.
+                batchDeletedIndexes.compute(newPosition,
+                        (k, v) -> {
+                            if (v == null) {
+                                return givenBitSet;
+                            }
+                            if (givenBitSet.nextSetBit(0) > v.nextSetBit(0)) {
+                                bitSetRecyclable.set(v);
+                                return givenBitSet;
+                            } else {
+                                bitSetRecyclable.set(givenBitSet);
+                                return v;
+                            }
+                        });
+                if (bitSetRecyclable.get() != null) {
+                    bitSetRecyclable.get().recycle();
+                }
                 newPosition = ledger.getPreviousPosition(newPosition);
             }
             Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.EARLIEST, newPosition);
@@ -1975,7 +2027,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "is later.", mdEntry.newPosition, persistentMarkDeletePosition);
             }
             // run with executor to prevent deadlock
-            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
+            ledger.getExecutor().execute(safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -1994,7 +2046,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "in progress {} is later.", mdEntry.newPosition, inProgressLatest);
             }
             // run with executor to prevent deadlock
-            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
+            ledger.getExecutor().execute(safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -2029,7 +2081,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 try {
                     individualDeletedMessages.removeAtMost(mdEntry.newPosition.getLedgerId(),
                             mdEntry.newPosition.getEntryId());
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         Map<PositionImpl, BitSetRecyclable> subMap = batchDeletedIndexes.subMap(PositionImpl.EARLIEST,
                                 false, PositionImpl.get(mdEntry.newPosition.getLedgerId(),
                                 mdEntry.newPosition.getEntryId()), true);
@@ -2158,7 +2210,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 if (individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())
                     || position.compareTo(markDeletePosition) <= 0) {
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
                             bitSetRecyclable.recycle();
@@ -2170,7 +2222,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     continue;
                 }
                 if (position.ackSet == null) {
-                    if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
                             bitSetRecyclable.recycle();
@@ -2187,12 +2239,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.debug("[{}] [{}] Individually deleted messages: {}", ledger.getName(), name,
                             individualDeletedMessages);
                     }
-                } else if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
-                    BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) ->
-                        BitSetRecyclable.create().resetWords(position.ackSet));
+                } else if (config.isDeletionAtBatchIndexLevelEnabled()) {
                     BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(position.ackSet);
-                    bitSet.and(givenBitSet);
-                    givenBitSet.recycle();
+                    BitSetRecyclable bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) -> givenBitSet);
+                    if (givenBitSet != bitSet) {
+                        bitSet.and(givenBitSet);
+                        givenBitSet.recycle();
+                    }
                     if (bitSet.isEmpty()) {
                         PositionImpl previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
@@ -2325,8 +2378,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Filtering entries {} - alreadyDeleted: {}", ledger.getName(), name, entriesRange,
                         individualDeletedMessages);
             }
-            if (individualDeletedMessages.isEmpty() || individualDeletedMessages.span() == null
-                    || !entriesRange.isConnected(individualDeletedMessages.span())) {
+            Range<PositionImpl> span = individualDeletedMessages.isEmpty() ? null : individualDeletedMessages.span();
+            if (span == null || !entriesRange.isConnected(span)) {
                 // There are no individually deleted messages in this entry list, no need to perform filtering
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] No filtering needed for entries {}", ledger.getName(), name, entriesRange);
@@ -2600,8 +2653,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        State oldState = STATE_UPDATER.getAndSet(this, State.Closing);
-        if (oldState == State.Closed || oldState == State.Closing) {
+        boolean alreadyClosing = !trySetStateToClosing();
+        if (alreadyClosing) {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
             callback.closeComplete(ctx);
             return;
@@ -2682,6 +2735,28 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
         });
+    }
+
+    /**
+     * Try set {@link #state} to {@link State#Closing}.
+     * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
+     */
+    private boolean trySetStateToClosing() {
+        final AtomicBoolean notClosing = new AtomicBoolean(false);
+        STATE_UPDATER.updateAndGet(this, state -> {
+            switch (state){
+                case Closing:
+                case Closed: {
+                    notClosing.set(false);
+                    return state;
+                }
+                default: {
+                    notClosing.set(true);
+                    return State.Closing;
+                }
+            }
+        });
+        return notClosing.get();
     }
 
     private void flushPendingMarkDeletes() {
@@ -2813,23 +2888,35 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
                     .newBuilder();
-            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
+
+            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange
+                    .newBuilder();
+
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
-            individualDeletedMessages.forEach((positionRange) -> {
-                PositionImpl p = positionRange.lowerEndpoint();
-                nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                nestedPositionBuilder.setEntryId(p.getEntryId());
-                messageRangeBuilder.setLowerEndpoint(nestedPositionBuilder.build());
-                p = positionRange.upperEndpoint();
-                nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                nestedPositionBuilder.setEntryId(p.getEntryId());
-                messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
-                MessageRange messageRange = messageRangeBuilder.build();
+
+            individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+                MLDataFormats.NestedPositionInfo lowerPosition = nestedPositionBuilder
+                        .setLedgerId(lowerKey)
+                        .setEntryId(lowerValue)
+                        .build();
+
+                MLDataFormats.NestedPositionInfo upperPosition = nestedPositionBuilder
+                        .setLedgerId(upperKey)
+                        .setEntryId(upperValue)
+                        .build();
+
+                MessageRange messageRange = messageRangeBuilder
+                        .setLowerEndpoint(lowerPosition)
+                        .setUpperEndpoint(upperPosition)
+                        .build();
+
                 acksSerializedSize.addAndGet(messageRange.getSerializedSize());
                 rangeList.add(messageRange);
+
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
+
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
             return rangeList;
@@ -2841,8 +2928,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
         lock.readLock().lock();
         try {
-            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null
-                    || batchDeletedIndexes.isEmpty()) {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
                 return Collections.emptyList();
             }
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
@@ -3283,8 +3369,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void trimDeletedEntries(List<Entry> entries) {
-        entries.removeIf(entry -> ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
-                || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId()));
+        entries.removeIf(entry -> {
+            boolean isDeleted = ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
+                    || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId());
+            if (isDeleted) {
+                entry.release();
+            }
+            return isDeleted;
+        });
     }
 
     private ManagedCursorImpl cursorImpl() {
@@ -3293,7 +3385,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
-        if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
+        if (config.isDeletionAtBatchIndexLevelEnabled()) {
             BitSetRecyclable bitSet = batchDeletedIndexes.get(position);
             return bitSet == null ? null : bitSet.toLongArray();
         } else {

@@ -37,7 +37,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 * At least 6 Linux machines or VMs
   * 3 for running [ZooKeeper](https://zookeeper.apache.org)
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
-* A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
+* A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts (optional)
 
 :::note
 
@@ -118,16 +118,13 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
+`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
 `logs` | Logs that the installation creates
 
-## [Install Built-in Connectors (optional)](/standalone.md#install-built-in-connectors-optional)
-
-> Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `built-in` connectors.
-> To enable the `built-in` connectors (optional), you can follow the instructions below.
+## Install Built-in Connectors (optional)
 
 To use `built-in` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
 
@@ -155,11 +152,7 @@ pulsar-io-aerospike-@pulsar:version@.nar
 ...
 ```
 
-## [Install Tiered Storage Offloaders (optional)](/standalone.md#install-tiered-storage-offloaders-optional)
-
-> Since Pulsar release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
-> If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
-> skip this section for now.
+## Install Tiered Storage Offloaders (optional)
 
 To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
 
@@ -180,8 +173,8 @@ Once you download the tarball, in the Pulsar directory, untar the offloaders pac
 ```bash
 tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
 
-// you can find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
-// then copy the offloaders
+# you can find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
+# then copy the offloaders
 
 mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
 
@@ -194,7 +187,11 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 ## Deploy a ZooKeeper cluster
 
-> If you already have an existing zookeeper cluster and want to use it, you can skip this section.
+:::note
+
+If you already have an existing zookeeper cluster and want to use it, you can skip this section.
+
+:::
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -231,7 +228,7 @@ echo 1 > data/zookeeper/myid
 
 On `zk2.us-west.example.com`, the command is `echo 2 > data/zookeeper/myid` and so on.
 
-Once you add each server to the `zookeeper.conf` configuration and have the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+Once you add each server to the `zookeeper.conf` configuration and have the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start zookeeper
@@ -244,17 +241,17 @@ bin/pulsar-daemon start zookeeper
 
 Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper. You only need to write this data **once**.
 
-You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your Pulsar cluster, so the metadata can be initialized from a ZooKeeper, broker, or bookie machine. The following is an example:
+You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md) command of the [`pulsar`](reference-cli-tools.md) CLI tool. This command can be run on any machine in your Pulsar cluster, so the metadata can be initialized from a ZooKeeper, broker, or bookie machine. The following is an example:
 
 ```shell
 bin/pulsar initialize-cluster-metadata \
---cluster pulsar-cluster-1 \
---metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
---configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
---web-service-url http://pulsar.us-west.example.com:8080 \
---web-service-url-tls https://pulsar.us-west.example.com:8443 \
---broker-service-url pulsar://pulsar.us-west.example.com:6650 \
---broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
+    --cluster pulsar-cluster-1 \
+    --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
+    --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
+    --web-service-url http://pulsar.us-west.example.com:8080 \
+    --web-service-url-tls https://pulsar.us-west.example.com:8443 \
+    --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
+    --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
 As you can see from the example above, you will need to specify the following:
@@ -269,27 +266,30 @@ Flag | Description
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).
 `--broker-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).
 
+:::note
 
-> If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
->
-> ```shell
-> --web-service-url http://host1:8080,host2:8080,host3:8080 \
-> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
-> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
-> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
-> ```
->
-> If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
->
-> ```shell
-> --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
-> --web-service-url http://host1:8080,host2:8080,host3:8080 \
-> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
-> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
-> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
-> ```
+If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
 
-> You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
+```shell
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+```
+
+If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
+
+```shell
+--existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+```
+
+You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
+
+:::
 
 ## Deploy a BookKeeper cluster
 
@@ -305,7 +305,7 @@ Once you appropriately modify the `zkServers` parameter, you can make any other 
 
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
-To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start bookie
@@ -317,7 +317,7 @@ To start the bookie in the foreground:
 bin/pulsar bookie
 ```
 
-You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md#shell):
+You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md):
 
 ```bash
 bin/bookkeeper shell bookiesanity
@@ -325,7 +325,7 @@ bin/bookkeeper shell bookiesanity
 
 This command creates an ephemeral BookKeeper ledger on the local bookie, writes a few entries, reads them back, and finally deletes the ledger.
 
-After you start all the bookies, you can use `simpletest` command for [BookKeeper shell](reference-cli-tools.md#shell) on any bookie node, to verify all the bookies in the cluster are up running.
+After you start all the bookies, you can use `simpletest` command for [BookKeeper shell](reference-cli-tools.md) on any bookie node, to verify all the bookies in the cluster are up running.
 
 ```bash
 bin/bookkeeper shell simpletest --ensemble <num-bookies> --writeQuorum <num-bookies> --ackQuorum <num-bookies> --numEntries <num-entries>
@@ -340,11 +340,11 @@ Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Bro
 
 ### Configure Brokers
 
-The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
+You can configure BookKeeper bookies using the `conf/broker.conf` configuration file. The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
 
 ```properties
-metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-configurationMetadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk://zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+configurationMetadataStoreUrl=zk://zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
 You also need to specify the cluster name (matching the name that you provided when you [initialize the metadata of the cluster](#initialize-cluster-metadata)):
@@ -398,13 +398,13 @@ If you want to learn more options about deploying the functions worker, check ou
 
 You can then provide any other configuration changes that you want in the [`conf/broker.conf`](reference-configuration.md#broker) file. Once you decide on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, you can start brokers either in the foreground or in the background, using nohup.
 
-You can start a broker in the foreground using the [`pulsar broker`](reference-cli-tools.md#pulsar-broker) command:
+You can start a broker in the foreground using the [`pulsar broker`](reference-cli-tools.md) command:
 
 ```bash
 bin/pulsar broker
 ```
 
-You can start a broker in the background using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+You can start a broker in the background using the [`pulsar-daemon`](reference-cli-tools.md) CLI tool:
 
 ```bash
 bin/pulsar-daemon start broker
@@ -414,7 +414,7 @@ Once you successfully start up all the brokers that you intend to use, your Puls
 
 ## Connect to the running cluster
 
-Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provide a simple way to make sure that your cluster runs properly.
+Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provide a simple way to make sure that your cluster runs properly.
 
 To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](reference-configuration.md#client) in your binary package. You need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you assign to your broker/bookie hosts. The following is an example:
 
@@ -423,38 +423,40 @@ webServiceUrl=http://us-west.example.com:8080
 brokerServiceurl=pulsar://us-west.example.com:6650
 ```
 
-> If you do not have a DNS server, you can specify multi-host in service URL as follows:
->
-> ```properties
-> webServiceUrl=http://host1:8080,host2:8080,host3:8080
-> brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
-> ```
+:::note
 
+If you do not have a DNS server, you can specify multi-host in service URL as follows:
+```properties
+webServiceUrl=http://host1:8080,host2:8080,host3:8080
+brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
+```
+
+:::
 
 Once that is complete, you can publish a message to the Pulsar topic:
 
 ```bash
 bin/pulsar-client produce \
-persistent://public/default/test \
--n 1 \
--m "Hello Pulsar"
+    persistent://public/default/test \
+    -n 1 \
+    -m "Hello Pulsar"
 ```
 
 This command publishes a single message to the Pulsar topic. In addition, you can subscribe to the Pulsar topic in a different terminal before publishing messages as below:
 
 ```bash
 bin/pulsar-client consume \
-persistent://public/default/test \
--n 100 \
--s "consumer-test" \
--t "Exclusive"
+    persistent://public/default/test \
+    -n 100 \
+    -s "consumer-test" \
+    -t "Exclusive"
 ```
 
 Once you successfully publish the above message to the topic, you should see it in the standard output:
 
-```bash
+```
 ----- got message -----
-Hello Pulsar
+key:[null], properties:[], content:Hello Pulsar
 ```
 
 ## Run Functions
@@ -465,13 +467,13 @@ Create an ExclamationFunction `exclamation`.
 
 ```bash
 bin/pulsar-admin functions create \
---jar examples/api-examples.jar \
---classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
---inputs persistent://public/default/exclamation-input \
---output persistent://public/default/exclamation-output \
---tenant public \
---namespace default \
---name exclamation
+    --jar examples/api-examples.jar \
+    --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+    --inputs persistent://public/default/exclamation-input \
+    --output persistent://public/default/exclamation-output \
+    --tenant public \
+    --namespace default \
+    --name exclamation
 ```
 
 Check whether the function runs as expected by [triggering](functions-deploy-trigger.md) the function.

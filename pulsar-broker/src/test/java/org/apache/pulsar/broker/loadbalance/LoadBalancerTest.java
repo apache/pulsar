@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -164,7 +164,6 @@ public class LoadBalancerTest {
     }
 
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader) {
-        int loopCount = 0;
         Awaitility.await()
             .pollInterval(1, TimeUnit.SECONDS)
             .atMost(MAX_RETRIES, TimeUnit.SECONDS)
@@ -181,8 +180,6 @@ public class LoadBalancerTest {
                 }
                 return settled;
             });
-        // Check if maximum retries are already done. If yes, assert.
-        Assert.assertNotEquals(loopCount, MAX_RETRIES, "Leader is not changed even after maximum retries.");
     }
 
     /*

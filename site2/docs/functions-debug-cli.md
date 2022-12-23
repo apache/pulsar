@@ -77,7 +77,7 @@ To check the current status of a function:
  ./bin/pulsar-admin functions status \
     --tenant public \
     --namespace default \
-    --name ExclamationFunctio6 \
+    --name ExclamationFunctio6
 ```
 
 As shown below, the `status` command shows the number of instances, running instances, the instance running under the `_ExclamationFunctio6_` function, received messages, successfully processed messages, system exceptions, the average latency and so on.
@@ -114,7 +114,7 @@ To get the current stats of a function:
 bin/pulsar-admin functions stats \
     --tenant public \
     --namespace default \
-    --name ExclamationFunctio6 \
+    --name ExclamationFunctio6
 ```
 
 The output is shown as follows:

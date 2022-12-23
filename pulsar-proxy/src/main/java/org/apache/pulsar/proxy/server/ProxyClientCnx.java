@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,30 +18,41 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
+import java.util.Arrays;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.protocol.Commands;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
+/**
+ * Channel handler for Pulsar proxy's Pulsar broker client connections.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle*
+ * method parameter instance lifecycle.
+ */
 public class ProxyClientCnx extends ClientCnx {
-
-    String clientAuthRole;
-    AuthData clientAuthData;
-    String clientAuthMethod;
-    int protocolVersion;
+    private final boolean forwardClientAuthData;
+    private final String clientAuthMethod;
+    private final String clientAuthRole;
+    private final AuthData clientAuthData;
+    private final ProxyConnection proxyConnection;
 
     public ProxyClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, String clientAuthRole,
-                          AuthData clientAuthData, String clientAuthMethod, int protocolVersion) {
-        super(conf, eventLoopGroup);
+                          AuthData clientAuthData, String clientAuthMethod, int protocolVersion,
+                          boolean forwardClientAuthData, ProxyConnection proxyConnection) {
+        super(conf, eventLoopGroup, protocolVersion);
         this.clientAuthRole = clientAuthRole;
         this.clientAuthData = clientAuthData;
         this.clientAuthMethod = clientAuthMethod;
-        this.protocolVersion = protocolVersion;
+        this.forwardClientAuthData = forwardClientAuthData;
+        this.proxyConnection = proxyConnection;
     }
 
     @Override
@@ -54,10 +65,54 @@ public class ProxyClientCnx extends ClientCnx {
 
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-        return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-            PulsarVersion.getVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
-            clientAuthMethod);
+        return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
+                clientAuthMethod);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ProxyClientCnx.class);
+    @Override
+    protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
+        checkArgument(authChallenge.hasChallenge());
+        checkArgument(authChallenge.getChallenge().hasAuthData());
+
+        boolean isRefresh = Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData());
+        if (!forwardClientAuthData || !isRefresh) {
+            super.handleAuthChallenge(authChallenge);
+            return;
+        }
+
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("Proxy {} request to refresh the original client authentication data for "
+                        + "the proxy client {}", proxyConnection.ctx().channel(), ctx.channel());
+            }
+
+            proxyConnection.ctx().writeAndFlush(Commands.newAuthChallenge(clientAuthMethod, AuthData.REFRESH_AUTH_DATA,
+                            protocolVersion))
+                    .addListener(writeFuture -> {
+                        if (writeFuture.isSuccess()) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Proxy {} sent the auth challenge to original client to refresh credentials "
+                                                + "with method {} for the proxy client {}",
+                                        proxyConnection.ctx().channel(), clientAuthMethod, ctx.channel());
+                            }
+                        } else {
+                            log.error("Failed to send the auth challenge to original client by the proxy {} "
+                                            + "for the proxy client {}",
+                                    proxyConnection.ctx().channel(),
+                                    ctx.channel(),
+                                    writeFuture.cause());
+                            closeWithException(writeFuture.cause());
+                        }
+                    });
+
+            if (state == State.SentConnectFrame) {
+                state = State.Connecting;
+            }
+        } catch (Exception e) {
+            log.error("Failed to send the auth challenge to origin client by the proxy {} for the proxy client {}",
+                    proxyConnection.ctx().channel(), ctx.channel(), e);
+            closeWithException(e);
+        }
+    }
 }

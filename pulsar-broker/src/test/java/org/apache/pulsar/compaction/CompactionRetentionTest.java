@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -54,8 +55,9 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
-    private ScheduledExecutorService compactionScheduler;
-    private BookKeeper bk;
+    protected ScheduledExecutorService compactionScheduler;
+    protected BookKeeper bk;
+    private TwoPhaseCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -72,16 +74,21 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
+        bk.close();
         if (compactionScheduler != null) {
             compactionScheduler.shutdownNow();
         }
+    }
+
+    protected long compact(String topic) throws ExecutionException, InterruptedException {
+        return compactor.compact(topic).get();
     }
 
     /**
@@ -105,8 +112,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).join();
+        compact(topic);
 
         log.info(" ---- X 1: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
@@ -141,7 +147,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        compactor.compact(topic).join();
+        compact(topic);
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
@@ -152,7 +158,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        compactor.compact(topic).join();
+        compact(topic);
 
         log.info(" ---- X 4: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
@@ -221,8 +227,6 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-
         log.info(" ---- X 1: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));
 
@@ -240,7 +244,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
-        compactor.compact(topic).join();
+        compact(topic);
 
         log.info(" ---- X 3: {}", mapper.writeValueAsString(
                 admin.topics().getInternalStats(topic, false)));

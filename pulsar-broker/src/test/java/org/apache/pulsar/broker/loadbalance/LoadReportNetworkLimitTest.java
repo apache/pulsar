@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
-    int nicCount;
+    int usableNicCount;
 
     @Override
     protected void doInitConf() throws Exception {
@@ -43,7 +43,7 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
         if (SystemUtils.IS_OS_LINUX) {
-            nicCount = LinuxInfoUtils.getPhysicalNICs().size();
+            usableNicCount = LinuxInfoUtils.getUsablePhysicalNICs().size();
         }
     }
 
@@ -60,8 +60,8 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = admin.brokerStats().getLoadReport();
 
         if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, nicCount * 5.4 * 1000 * 1000);
-            assertEquals(report.getBandwidthOut().limit, nicCount * 5.4 * 1000 * 1000);
+            assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000);
+            assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000);
         } else {
             // On non-Linux system we don't report the network usage
             assertEquals(report.getBandwidthIn().limit, -1.0);

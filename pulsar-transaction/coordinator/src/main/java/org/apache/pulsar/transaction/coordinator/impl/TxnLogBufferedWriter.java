@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,16 +26,14 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -83,7 +81,7 @@ public class TxnLogBufferedWriter<T> {
     private final Timer timer;
 
     /** All write operation will be executed on single thread. **/
-    private final ExecutorService singleThreadExecutorForWrite;
+    private final Executor singleThreadExecutorForWrite;
 
     /** The serializer for the object which called by {@link #asyncAddData}. **/
     private final DataSerializer<T> dataSerializer;
@@ -128,14 +126,6 @@ public class TxnLogBufferedWriter<T> {
         trigFlushByTimingTask();
     };
 
-    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
-                                DataSerializer<T> dataSerializer,
-                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled){
-        this(managedLedger, orderedExecutor, timer, dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
-                batchedWriteMaxDelayInMillis, batchEnabled, null);
-    }
-
     /**
      * Constructor.
      * @param dataSerializer The serializer for the object which called by {@link #asyncAddData}.
@@ -148,7 +138,7 @@ public class TxnLogBufferedWriter<T> {
      *                    when disabled.
      * @param timer Used for periodic flush.
      */
-    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, Executor executor, Timer timer,
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
@@ -165,8 +155,7 @@ public class TxnLogBufferedWriter<T> {
         }
         this.batchEnabled = batchEnabled && batchedWriteMaxRecords > 1;
         this.managedLedger = managedLedger;
-        this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
-                managedLedger.getName() == null ? UUID.randomUUID().toString() : managedLedger.getName());
+        this.singleThreadExecutorForWrite = executor;
         this.dataSerializer = dataSerializer;
         this.batchedWriteMaxRecords = batchedWriteMaxRecords;
         this.batchedWriteMaxSize = batchedWriteMaxSize;
@@ -174,6 +163,9 @@ public class TxnLogBufferedWriter<T> {
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
         STATE_UPDATER.set(this, State.OPEN);
+        if (metrics == null){
+            throw new IllegalArgumentException("Build TxnLogBufferedWriter error: param metrics can not be null");
+        }
         this.metrics = metrics;
         this.timer = timer;
         // scheduler task.
@@ -284,10 +276,8 @@ public class TxnLogBufferedWriter<T> {
                 if (flushContext.asyncAddArgsList.isEmpty()) {
                     return;
                 }
-                if (metrics != null) {
-                    metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
+                metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 doFlush();
             } catch (Exception e){
                 log.error("Trig flush by timing task fail.", e);
@@ -303,18 +293,14 @@ public class TxnLogBufferedWriter<T> {
      */
     private void trigFlushIfReachMaxRecordsOrMaxSize(){
         if (flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
-            if (metrics != null) {
-                metrics.triggerFlushByRecordsCount(flushContext.asyncAddArgsList.size(), bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-            }
+            metrics.triggerFlushByRecordsCount(flushContext.asyncAddArgsList.size(), bytesSize,
+                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             doFlush();
             return;
         }
         if (bytesSize >= batchedWriteMaxSize) {
-            if (metrics != null) {
-                metrics.triggerFlushByBytesSize(flushContext.asyncAddArgsList.size(), bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-            }
+            metrics.triggerFlushByBytesSize(flushContext.asyncAddArgsList.size(), bytesSize,
+                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             doFlush();
         }
     }
@@ -323,10 +309,8 @@ public class TxnLogBufferedWriter<T> {
         if (flushContext.asyncAddArgsList.isEmpty()) {
             return;
         }
-        if (metrics != null) {
-            metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-        }
+        metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
         doFlush();
     }
 

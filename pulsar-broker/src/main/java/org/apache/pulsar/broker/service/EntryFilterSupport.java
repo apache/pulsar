@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -34,7 +35,8 @@ public class EntryFilterSupport {
      * Entry filters in Broker.
      * Not set to final, for the convenience of testing mock.
      */
-    protected ImmutableList<EntryFilterWithClassLoader> entryFilters;
+    protected final List<EntryFilterWithClassLoader> entryFilters;
+    protected final boolean hasFilter;
     protected final FilterContext filterContext;
     protected final Subscription subscription;
 
@@ -45,26 +47,28 @@ public class EntryFilterSupport {
                     .getBrokerService().getEntryFilters())
                     && !subscription.getTopic().getBrokerService().pulsar()
                     .getConfiguration().isAllowOverrideEntryFilters()) {
-                this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().asList();
+                this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().stream()
+                        .toList();
             } else {
-                ImmutableMap<String, EntryFilterWithClassLoader>  entryFiltersMap =
+                Map<String, EntryFilterWithClassLoader> entryFiltersMap =
                         subscription.getTopic().getEntryFilters();
                 if (entryFiltersMap != null) {
-                    this.entryFilters = subscription.getTopic().getEntryFilters().values().asList();
+                    this.entryFilters = subscription.getTopic().getEntryFilters().values().stream().toList();
                 } else {
-                    this.entryFilters = ImmutableList.of();
+                    this.entryFilters = Collections.emptyList();
                 }
             }
             this.filterContext = new FilterContext();
         } else {
-            this.entryFilters = ImmutableList.of();
+            this.entryFilters = Collections.emptyList();
             this.filterContext = FilterContext.FILTER_CONTEXT_DISABLED;
         }
+        hasFilter = CollectionUtils.isNotEmpty(entryFilters);
     }
 
     public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
                                                        Consumer consumer) {
-        if (CollectionUtils.isNotEmpty(entryFilters)) {
+        if (hasFilter) {
             fillContext(filterContext, msgMetadata, subscription, consumer);
             return getFilterResult(filterContext, entry, entryFilters);
         } else {
@@ -82,7 +86,7 @@ public class EntryFilterSupport {
 
 
     private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
-                                                            ImmutableList<EntryFilterWithClassLoader> entryFilters) {
+                                                            List<EntryFilterWithClassLoader> entryFilters) {
         for (EntryFilter entryFilter : entryFilters) {
             EntryFilter.FilterResult filterResult =
                     entryFilter.filterEntry(entry, filterContext);

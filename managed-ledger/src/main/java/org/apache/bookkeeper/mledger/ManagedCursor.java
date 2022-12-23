@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,13 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -97,7 +97,9 @@ public interface ManagedCursor {
     CompletableFuture<Void> putCursorProperty(String key, String value);
 
     /**
-     * Set all properties associated with the cursor.
+     * Set all properties associated with the cursor,
+     * but internal properties(start with '#pulsar_internal.') are still preserved
+     * and prohibit setting of internal properties by this method.
      *
      * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
      * if there are concurrent modification and store data has changed.

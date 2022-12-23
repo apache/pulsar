@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.tests.integration.cli.topicpolicies;
 
 import static org.testng.Assert.assertEquals;
@@ -24,6 +23,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarCliTestSuite;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -35,7 +35,7 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
         super.before();
     }
 
-    @BeforeClass(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void after() throws Exception {
         super.after();

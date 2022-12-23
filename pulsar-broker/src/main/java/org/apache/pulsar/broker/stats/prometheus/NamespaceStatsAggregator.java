@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -128,6 +128,8 @@ public class NamespaceStatsAggregator {
                                             AggregatedSubscriptionStats subsStats) {
         stats.subscriptionsCount++;
         stats.msgBacklog += subscriptionStats.msgBacklog;
+        subsStats.bytesOutCounter = subscriptionStats.bytesOutCounter;
+        subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
@@ -139,6 +141,7 @@ public class NamespaceStatsAggregator {
         subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
         subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
         subsStats.consumersCount = subscriptionStats.consumers.size();
+        subsStats.blockedSubscriptionOnUnackedMsgs = subscriptionStats.blockedSubscriptionOnUnackedMsgs;
         subscriptionStats.consumers.forEach(cStats -> {
             stats.consumersCount++;
             subsStats.unackedMessages += cStats.unackedMessages;
@@ -146,11 +149,6 @@ public class NamespaceStatsAggregator {
             subsStats.msgRateOut += cStats.msgRateOut;
             subsStats.messageAckRate += cStats.messageAckRate;
             subsStats.msgThroughputOut += cStats.msgThroughputOut;
-            subsStats.bytesOutCounter += cStats.bytesOutCounter;
-            subsStats.msgOutCounter += cStats.msgOutCounter;
-            if (!subsStats.blockedSubscriptionOnUnackedMsgs && cStats.blockedConsumerOnUnackedMsgs) {
-                subsStats.blockedSubscriptionOnUnackedMsgs = true;
-            }
         });
         stats.rateOut += subsStats.msgRateOut;
         stats.throughputOut += subsStats.msgThroughputOut;

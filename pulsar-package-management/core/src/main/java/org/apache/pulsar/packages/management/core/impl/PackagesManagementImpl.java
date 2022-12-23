@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -84,20 +84,20 @@ public class PackagesManagementImpl implements PackagesManagement {
                     future.completeExceptionally(throwable);
                     return;
                 }
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                try (ByteArrayInputStream in = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
                     storage.deleteAsync(metadataPath)
-                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, inputStream))
+                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, in))
                         .whenComplete((aVoid, t) -> {
                             if (t != null) {
                                 future.completeExceptionally(new PackagesManagementException(
-                                    String.format("Update package '%s' metadata failed", packageName.toString()), t));
+                                    String.format("Update package '%s' metadata failed", packageName), t));
                             } else {
                                 future.complete(null);
                             }
                         });
                 } catch (IOException e) {
                     future.completeExceptionally(new PackagesManagementException(
-                        String.format("Read package '%s' metadata failed", packageName.toString()), e));
+                        String.format("Read package '%s' metadata failed", packageName), e));
                 }
             });
         return future;

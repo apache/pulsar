@@ -10,26 +10,13 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background.
+This section explains the basic concepts of Pulsar schema and provides additional references.
 
-## SchemaInfo
+## Schema definition
 
-Pulsar schema is defined in a data structure called `SchemaInfo`. 
+Pulsar schema is defined in a data structure called `SchemaInfo`. It is stored and enforced on a per-topic basis and cannot be stored at the namespace or tenant level.
 
-The `SchemaInfo` is stored and enforced on a per-topic basis and cannot be stored at the namespace or tenant level.
-
-A `SchemaInfo` consists of the following fields:
-
-|  Field  |   Description  | 
-| --- | --- |
-|  `name`  |   Schema name (a string).  | 
-|  `type`  |   Schema type, which determines how to interpret the schema data. <li>Predefined schema: see [here](schema-understand.md#schema-type). </li><li>Customized schema: it is left as an empty string. </li> | 
-|  `schema`（`payload`)  |   Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.  | 
-|  `properties`  |   It is a user defined properties as a string/string map. Applications can use this bag for carrying any application specific logics. Possible properties might be the Git hash associated with the schema, an environment string like `dev` or `prod`.  | 
-
-**Example**
-
-This is the `SchemaInfo` of a string.
+This is a string example of `SchemaInfo`.
 
 ```json
 {
@@ -40,207 +27,84 @@ This is the `SchemaInfo` of a string.
 }
 ```
 
+The following table outlines the fields that each `SchemaInfo` consists of.
+
+|  Field  |   Description  | 
+| --- | --- |
+|  `name`  |   Schema name (a string).  | 
+|  `type`  |   [Schema type](#schema-type) that determines how to serialize and deserialize the schema data. | 
+|  `schema`  |   Schema data, which is a sequence of 8-bit unsigned bytes and specific schema type.  | 
+|  `properties`  |   A user-defined property as a string/string map, which can be used by applications to carry any application-specific logic.  |
+
 ## Schema type
 
 Pulsar supports various schema types, which are mainly divided into two categories: 
-
-* Primitive type 
-
-* Complex type
+* [Primitive type](#primitive-type) 
+* [Complex type](#complex-type)
 
 ### Primitive type
 
-Currently, Pulsar supports the following primitive types:
+The following table outlines the primitive types that Pulsar schema supports, and the conversions between **schema types** and **language-specific primitive types**.
 
-| Primitive Type | Description |
-|---|---|
-| `BOOLEAN` | A binary value |
-| `INT8` | A 8-bit signed integer |
-| `INT16` | A 16-bit signed integer |
-| `INT32` | A 32-bit signed integer |
-| `INT64` | A 64-bit signed integer |
-| `FLOAT` | A single precision (32-bit) IEEE 754 floating-point number |
-| `DOUBLE` | A double-precision (64-bit) IEEE 754 floating-point number |
-| `BYTES` | A sequence of 8-bit unsigned bytes |
-| `STRING` | A Unicode character sequence |
-| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br />It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value | 
-| INSTANT | A single instantaneous point on the time-line with nanoseconds precision|
-| LOCAL_DATE | An immutable date-time object that represents a date, often viewed as year-month-day|
-| LOCAL_TIME | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision.|
-| LOCAL_DATE_TIME | An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second |
+| Primitive Type | Description | Java Type| Python Type | Go Type | C++ Type | C# Type|
+|---|---|---|---|---|---|---|
+| `BOOLEAN` | A binary value. | boolean | bool | bool | bool | bool |
+| `INT8` | A 8-bit signed integer. | int | int | int8 | int8_t | byte |
+| `INT16` | A 16-bit signed integer. | int | int | int16 | int16_t | short |
+| `INT32` | A 32-bit signed integer. | int | int | int32 | int32_t | int |
+| `INT64` | A 64-bit signed integer. | int | int | int64 | int64_t | long |
+| `FLOAT` | A single precision (32-bit) IEEE 754 floating-point number. | float | float | float32 | float | float |
+| `DOUBLE` | A double-precision (64-bit) IEEE 754 floating-point number. | double | double | float64| double | double |
+| `BYTES` | A sequence of 8-bit unsigned bytes. | byte[], ByteBuffer, ByteBuf | bytes | []byte | void * | byte[], ReadOnlySequence<byte\> |
+| `STRING` | An Unicode character sequence. | string | str | string| std::string | string |
+| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br />It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value. |  java.sql.Timestamp (java.sql.Time, java.util.Date) | N/A | N/A | N/A | DateTime,TimeSpan |
+| `INSTANT`| A single instantaneous point on the timeline with nanoseconds precision. | java.time.Instant | N/A | N/A | N/A | N/A |
+| `LOCAL_DATE` | An immutable date-time object that represents a date, often viewed as year-month-day. | java.time.LocalDate | N/A | N/A | N/A | N/A |
+| `LOCAL_TIME` | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision. | java.time.LocalDateTime | N/A | N/A  | N/A | N/A |
+| LOCAL_DATE_TIME | An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second. | java.time.LocalTime | N/A | N/A | N/A | N/A |
 
-For primitive types, Pulsar does not store any schema data in `SchemaInfo`. The `type` in `SchemaInfo` is used to determine how to serialize and deserialize the data. 
+:::note
 
-Some of the primitive schema implementations can use `properties` to store implementation-specific tunable settings. For example, a `string` schema can use `properties` to store the encoding charset to serialize and deserialize strings.
+Pulsar does not store any schema data in `SchemaInfo` for primitive types. Some of the primitive schema implementations can use the `properties` parameter to store implementation-specific tunable settings. For example, a string schema can use `properties` to store the encoding charset to serialize and deserialize strings.
 
-The conversions between **Pulsar schema types** and **language-specific primitive types** are as below.
+:::
 
-| Schema Type | Java Type| Python Type | Go Type |
-|---|---|---|---|
-| BOOLEAN | boolean | bool | bool |
-| INT8 | byte | | int8 |
-| INT16 | short | | int16 |
-| INT32 | int | | int32 |
-| INT64 | long | | int64 |
-| FLOAT | float | float | float32 |
-| DOUBLE | double | float | float64|
-| BYTES | byte[], ByteBuffer, ByteBuf | bytes | []byte |
-| STRING | string | str | string| 
-| TIMESTAMP | java.sql.Timestamp | | |
-| TIME | java.sql.Time | | |
-| DATE | java.util.Date | | |
-| INSTANT | java.time.Instant | | |
-| LOCAL_DATE | java.time.LocalDate | | |
-| LOCAL_TIME | java.time.LocalDateTime | |
-| LOCAL_DATE_TIME | java.time.LocalTime | |
+For more instructions and examples, see [Construct a string schema](schema-get-started.md#string).
 
-**Example**
-
-This example demonstrates how to use a string schema.
-
-1. Create a producer with a string schema and send messages.
-
-   ```java
-   Producer<String> producer = client.newProducer(Schema.STRING).create();
-   producer.newMessage().value("Hello Pulsar!").send();
-   ```
-
-2. Create a consumer with a string schema and receive messages.  
-
-   ```java
-   Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
-   consumer.receive();
-   ```
 
 ### Complex type
 
-Currently, Pulsar supports the following complex types:
+The following table outlines the complex types that Pulsar schema supports:
 
 | Complex Type | Description |
 |---|---|
-| `keyvalue` | Represents a complex type of a key/value pair. |
-| `struct` | Handles structured data. It supports `AvroBaseStructSchema` and `ProtobufNativeSchema`. |
+| `KeyValue` | Represents a complex key/value pair. |
+| `Struct` | Represents structured data, including `AvroBaseStructSchema`, `ProtobufNativeSchema` and `NativeAvroBytesSchema`. |
 
-#### keyvalue
+#### `KeyValue` schema
 
-`Keyvalue` schema helps applications define schemas for both key and value. 
+`KeyValue` schema helps applications define schemas for both key and value. Pulsar stores the `SchemaInfo` of the key schema and the value schema together.
 
-For `SchemaInfo` of `keyvalue` schema, Pulsar stores the `SchemaInfo` of key schema and the `SchemaInfo` of value schema together.
+Pulsar provides the following methods to encode a **single** key/value pair in a message：
+* `INLINE` - Key/Value pairs are encoded together in the message payload.
+* `SEPARATED` - The Key is stored as a message key, while the value is stored as the message payload. See [Construct a key/value schema](schema-get-started.md#keyvalue) for more details.
 
-Pulsar provides the following methods to encode a key/value pair in messages：
+#### `Struct` schema
 
-* `INLINE`
+The following table outlines the `struct` types that Pulsar schema supports:
 
-* `SEPARATED`
+| Type                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `AvroBaseStructSchema`  | Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports [`AvroSchema`](schema-get-started.md#avro), [`JsonSchema`](schema-get-started.md#json), and [`ProtobufSchema`](schema-get-started.md#protobuf).<br /><br />This allows Pulsar to:<br />- use the same tools to manage schema definitions.<br />- use different serialization or deserialization methods to handle data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `ProtobufNativeSchema`  | [`ProtobufNativeSchema`](schema-get-started.md#protobufnative) is based on protobuf native descriptor. <br /><br />This allows Pulsar to:<br />- use native protobuf-v3 to serialize or deserialize data.<br />- use `AutoConsume` to deserialize data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `NativeAvroBytesSchema` | [`NativeAvroBytesSchema`](schema-get-started.md#native-avro) wraps a native Avro schema type `org.apache.avro.Schema`. The result is a schema instance that accepts a serialized Avro payload without validating it against the wrapped Avro schema. <br /><br />When you migrate or ingest event or messaging data from external systems (such as Kafka and Cassandra), the data is often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation when sending the ingested events to a topic. All it needs to do is pass each message or event with its schema to Pulsar. |
 
-You can choose the encoding type when constructing the key/value schema.
-
-````mdx-code-block
-<Tabs 
-  defaultValue="INLINE"
-  values={[{"label":"INLINE","value":"INLINE"},{"label":"SEPARATED","value":"SEPARATED"}]}>
-
-<TabItem value="INLINE">
-
-Key/value pairs are encoded together in the message payload.
-
-</TabItem>
-<TabItem value="SEPARATED">
-
-Key is encoded in the message key and the value is encoded in the message payload. 
-  
-**Example**
-    
-This example shows how to construct a key/value schema and then use it to produce and consume messages.
-
-1. Construct a key/value schema with `INLINE` encoding type.
-
-   ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.INLINE
-   );
-   ```
-
-2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
-
-   ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.SEPARATED
-   );
-   ```
-
-3. Produce messages using a key/value schema.
-
-   ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.SEPARATED
-   );
-
-   Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
-       .topic(TOPIC)
-       .create();
-
-   final int key = 100;
-   final String value = "value-100";
-
-   // send the key/value message
-   producer.newMessage()
-   .value(new KeyValue(key, value))
-   .send();
-   ```
-
-4. Consume messages using a key/value schema.
-
-   ```java
-   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-   Schema.INT32,
-   Schema.STRING,
-   KeyValueEncodingType.SEPARATED
-   );
-
-   Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
-       ...
-       .topic(TOPIC)
-       .subscriptionName(SubscriptionName).subscribe();
-
-   // receive key/value pair
-   Message<KeyValue<Integer, String>> msg = consumer.receive();
-   KeyValue<Integer, String> kv = msg.getValue();
-   ```
-
-</TabItem>
-
-</Tabs>
-````
-
-#### struct
-
-This section describes the details of type and usage of the `struct` schema.
-
-##### Type
-
-`struct` schema supports `AvroBaseStructSchema` and `ProtobufNativeSchema`.
-
-|Type|Description|
----|---|
-`AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports  `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br /><br />This allows Pulsar:<br />- to use the same tools to manage schema definitions<br />- to use different serialization or deserialization methods to handle data|
-`ProtobufNativeSchema`|`ProtobufNativeSchema` is based on protobuf native Descriptor. <br /><br />This allows Pulsar:<br />- to use native protobuf-v3 to serialize or deserialize data<br />- to use `AutoConsume` to deserialize data.
-
-##### Usage
-
-Pulsar provides the following methods to use the `struct` schema:
-
+Pulsar provides the following methods to use the `struct` schema. 
 * `static`
-
 * `generic`
-
 * `SchemaDefinition`
+
+This example shows how to construct a `struct` schema with these methods and use it to produce and consume messages.
 
 ````mdx-code-block
 <Tabs 
@@ -258,12 +122,14 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
    ```java
-   @Builder
-   @AllArgsConstructor
-   @NoArgsConstructor
    public static class User {
-       String name;
-       int age;
+       public String name;
+       public int age;
+       public User(String name, int age) {
+ 	this.name = name;
+	this.age = age
+       }
+       public User() {}
    }
    ```
 
@@ -271,7 +137,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
    ```java
    Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
-   producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
+   producer.newMessage().value(new User("pulsar-user", 1)).send();
    ```
 
 3. Create a consumer with a `struct` schema and receive messages
@@ -286,7 +152,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 Sometimes applications do not have pre-defined structs, and you can use this method to define schema and access data.
 
-You can define the `struct` schema using the `GenericSchemaBuilder`, generate a generic struct using `GenericRecordBuilder` and consume messages into `GenericRecord`.
+You can define the `struct` schema using the `GenericSchemaBuilder`, generate a generic struct using `GenericRecordBuilder`, and consume messages into `GenericRecord`.
 
 **Example** 
 
@@ -296,16 +162,27 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
-
-   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+   
+   Consumer<GenericRecord> consumer = client.newConsumer(Schema.generic(schemaInfo))
+        .topic(topicName)
+        .subscriptionName(subscriptionName)
+        .subscribe();
+   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo))
+        .topic(topicName)
+        .create();
    ```
 
 2. Use `RecordBuilder` to build the struct records.
 
    ```java
-   producer.newMessage().value(schema.newRecordBuilder()
-               .set("intField", 32)
-               .build()).send();
+   GenericSchemaImpl schema = GenericAvroSchema.of(schemaInfo);
+   // send message
+   GenericRecord record = schema.newRecordBuilder().set("intField", 32).build();
+   producer.newMessage().value(record).send();
+   // receive message
+   Message<GenericRecord> msg = consumer.receive();
+   
+   Assert.assertEquals(msg.getValue().getField("intField"), 32);
    ```
 
 </TabItem>
@@ -318,12 +195,14 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
    ```java
-   @Builder
-   @AllArgsConstructor
-   @NoArgsConstructor
    public static class User {
-       String name;
-       int age;
+       public String name;
+       public int age;
+       public User(String name, int age) {
+ 	this.name = name;
+	this.age = age
+       }
+       public User() {}
    }
    ```
 
@@ -332,10 +211,10 @@ You can define the `schemaDefinition` to generate a `struct` schema.
    ```java
    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
    Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
-   producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
+   producer.newMessage().value(new User ("pulsar-user", 1)).send();
    ```
 
-3. Create a consumer with a `SchemaDefinition` schema and receive messages
+3. Create a consumer with a `SchemaDefinition` schema and receive messages.
 
    ```java
    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
@@ -344,105 +223,50 @@ You can define the `schemaDefinition` to generate a `struct` schema.
    ```
 
 </TabItem>
-
 </Tabs>
 ````
 
 ### Auto Schema
 
-If you don't know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce or consume generic records to or from brokers.
+If there is no chance to know the schema type of a Pulsar topic in advance, you can use AUTO schemas to produce/consume generic records to/from brokers.
 
-| Auto Schema Type | Description |
-|---|---|
-| `AUTO_PRODUCE` | This is useful for transferring data **from a producer to a Pulsar topic that has a schema**. |
-| `AUTO_CONSUME` | This is useful for transferring data **from a Pulsar topic that has a schema to a consumer**. |
+Auto schema contains two categories:
+* `AUTO_PRODUCE` transfers data from a producer to a Pulsar topic that has a schema and helps the producer validate whether the outbound bytes are compatible with the schema of the topic. For more instructions, see [Construct an AUTO_PRODUCE schema](schema-get-started.md#auto_produce).
+* `AUTO_CONSUME` transfers data from a Pulsar topic that has a schema to a consumer and helps the topic validate whether the out-bound bytes are compatible with the consumer. In other words, the topic deserializes messages into language-specific objects `GenericRecord` using the `SchemaInfo` retrieved from brokers. For more instructions, see [Construct an AUTO_CONSUME schema](schema-get-started.md#auto_consume).
 
-#### AUTO_PRODUCE
+## Schema validation enforcement
 
-`AUTO_PRODUCE` schema helps a producer validate whether the bytes sent by the producer is compatible with the schema of a topic. 
+Schema validation enforcement enables brokers to reject producers/consumers without a schema.
 
-**Example**
+By default, schema validation enforcement is only **disabled** (`isSchemaValidationEnforced`=`false`) for producers, which means:
+* A producer without a schema can produce any messages to a topic with schemas, which may result in producing trash data to the topic. 
+* Clients that don’t support schema are allowed to produce messages to a topic with schemas.
 
-Suppose that:
+For how to enable schema validation enforcement, see [Manage schema validation](admin-api-schemas.md#manage-schema-validation).
 
-* You have a producer processing messages from a Kafka topic _K_. 
+## Schema evolution
 
-* You have a Pulsar topic _P_, and you do not know its schema type.
+Schemas store the details of attributes and types. To satisfy new business needs, schemas undergo evolution over time with [versioning](#schema-versioning). 
 
-* Your application reads the messages from _K_ and writes the messages to _P_.  
-   
-In this case, you can use `AUTO_PRODUCE` to verify whether the bytes produced by _K_ can be sent to _P_ or not.
+:::note
 
-```java
-Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
-    …
-    .create();
+Schema evolution only applies to Avro, JSON, Protobuf, and ProtobufNative schemas. 
 
-byte[] kafkaMessageBytes = … ; 
+:::
 
-pulsarProducer.produce(kafkaMessageBytes);
-```
+Schema evolution may impact existing consumers. The following control measures have been designed to serve schema evolution and ensure the downstream consumers can seamlessly handle schema evolution:
+* [Schema compatibility check](#schema-compatibility-check)
+* [Schema `AutoUpdate`](#schema-autoupdate)
 
-#### AUTO_CONSUME
+For further readings about schema evolution, see [Avro documentation](https://avro.apache.org/docs/1.10.2/spec.html#Schema+Resolution) and [Protobuf documentation](https://developers.google.com/protocol-buffers/docs/proto#optional).
 
-`AUTO_CONSUME` schema helps a Pulsar topic validate whether the bytes sent by a Pulsar topic is compatible with a consumer, that is, the Pulsar topic deserializes messages into language-specific objects using the `SchemaInfo` retrieved from broker-side. 
+### Schema versioning
 
-Currently, `AUTO_CONSUME` supports AVRO, JSON and ProtobufNativeSchema schemas. It deserializes messages into `GenericRecord`.
+Each `SchemaInfo` stored with a topic has a version. The schema version manages schema changes happening within a topic. 
 
-**Example**
+Messages produced with `SchemaInfo` are tagged with a schema version. When a message is consumed by a Pulsar client, the client can use the schema version to retrieve the corresponding `SchemaInfo` and use the correct schema to deserialize data. Once a version is assigned to or fetched from a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
 
-Suppose that:
-
-* You have a Pulsar topic _P_.
-
-* You have a consumer (for example, MySQL) receiving messages from the topic _P_.
-
-* Your application reads the messages from _P_ and writes the messages to MySQL.
-   
-In this case, you can use `AUTO_CONSUME` to verify whether the bytes produced by _P_ can be sent to MySQL or not.
-
-```java
-Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
-    …
-    .subscribe();
-
-Message<GenericRecord> msg = consumer.receive() ; 
-GenericRecord record = msg.getValue();
-```
-
-### Native Avro Schema
-
-When migrating or ingesting event or message data from external systems (such as Kafka and Cassandra), the events are often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as a schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation step when sending the ingested events to a topic. All it needs to do is passing each message or event with its schema to Pulsar.
-
-Hence, we provide `Schema.NATIVE_AVRO` to wrap a native Avro schema of type `org.apache.avro.Schema`. The result is a schema instance of Pulsar that accepts a serialized Avro payload without validating it against the wrapped Avro schema.
-
-**Example**
-
-```java
-org.apache.avro.Schema nativeAvroSchema = … ;
-
-Producer<byte[]> producer = pulsarClient.newProducer().topic("ingress").create();
-
-byte[] content = … ;
-
-producer.newMessage(Schema.NATIVE_AVRO(nativeAvroSchema)).value(content).send();
-```
-
-## Schema version
-
-Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
-
-Messages produced with a given `SchemaInfo` is tagged with a schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding `SchemaInfo` and then use the `SchemaInfo` to deserialize data.
-
-Schemas are versioned in succession. Schema storage happens in a broker that handles the associated topics so that version assignments can be made. 
-
-Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
-
-**Example**
-
-The following example illustrates how the schema version works.
-
-Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
+Suppose you are using a Pulsar [Java client](client-libraries-java.md) to create a producer and send messages.
 
 ```java
 PulsarClient client = PulsarClient.builder()
@@ -455,85 +279,88 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
         .create();
 ```
 
-The table below lists the possible scenarios when this connection attempt occurs and what happens in each scenario:
+The table below outlines the possible scenarios when this connection attempt occurs and the result of each scenario:
 
-| Scenario |  What happens | 
-| --- | --- |
-|  <li>No schema exists for the topic. </li> |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
-|  <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
+| Scenario                                                                                                        | Result                                                                                                                                                                                                                                                                                                                      |
+|-----------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <li>No schema exists for the topic. </li>                                                                       | (1) The producer is created with the given schema. <br /> (2) The schema is transmitted to the broker and stored since there is no existing schema. <br /> (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.                                                       |
+| <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> | (1) The schema is transmitted to the broker.<br />  (2) The broker determines that the schema is compatible. <br /> (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages. |
+| <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li>        | (1) The schema is transmitted to the broker. <br /> (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).                                                                                                                                   |
 
-## How does schema work
+### Schema compatibility check
 
-Pulsar schemas are applied and enforced at the **topic** level (schemas cannot be applied at the namespace or tenant level). 
+The purpose of schema compatibility check is to ensure that existing consumers can process the introduced messages.
 
-Producers and consumers upload schemas to brokers, so Pulsar schemas work on the producer side and the consumer side.
+When receiving a `SchemaInfo` from producers, brokers recognize the schema type and deploy the schema compatibility checker ([`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java)) for that schema type to check if the `SchemaInfo` is compatible with the schema of the topic by applying the configured compatibility check strategy. 
 
-### Producer side
-
-This diagram illustrates how does schema work on the Producer side.
-
-![Schema works at the producer side](/assets/schema-producer.png)
-
-1. The application uses a schema instance to construct a producer instance. 
-
-   The schema instance defines the schema for the data being produced using the producer instance. 
-
-   Take AVRO as an example, Pulsar extracts schema definition from the POJO class and constructs the `SchemaInfo` that the producer needs to pass to a broker when it connects.
-
-2. The producer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
+The default value of `schemaRegistryCompatibilityCheckers` in the `conf/broker.conf` file is as follows.
    
-3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
-   
-4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.
+```properties
+schemaRegistryCompatibilityCheckers=org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck
+```
 
-5. If no, the broker verifies whether a schema can be automatically created in this namespace:
+Each schema type corresponds to one instance of the schema compatibility checker. Avro, JSON, and Protobuf schemas have their own compatibility checkers, while all the other schema types share the default compatibility checker that disables the schema evolution.
 
-  * If `isAllowAutoUpdateSchema` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
-  
-  * If `isAllowAutoUpdateSchema` sets to **false**, then a schema can not be created, and the producer is rejected to connect to the broker.
-  
+#### Schema compatibility check strategy
+
+Suppose that you have a topic containing three schemas (V1, V2, and V3). V1 is the oldest and V3 is the latest. The following table outlines 8 schema compatibility strategies and how it works.
+
+|  Compatibility check strategy  |   Definition  |   Changes allowed  |   Check against which schema  |
+| --- | --- | --- | --- |
+|  `ALWAYS_COMPATIBLE`  |   Disable schema compatibility check.  |   All changes are allowed  |   All previous versions  |
+|  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution, that is, any schema change is rejected.  |   No change is allowed  |   N/A  | 
+|  `BACKWARD`  |   Consumers using schema V3 can process data written by producers using the **last schema version** V2.  |   <li>Add optional fields </li><li>Delete fields </li> |   Latest version  |
+|  `BACKWARD_TRANSITIVE`  |   Consumers using schema V3 can process data written by producers using **all previous schema versions** V2 and V1.  |   <li>Add optional fields </li><li>Delete fields </li> |   All previous versions  |
+|  `FORWARD`  |   Consumers using the **last schema version** V2 can process data written by producers using a new schema V3, even though they may not be able to use the full capabilities of the new schema.  |   <li>Add fields </li><li>Delete optional fields </li> |   Latest version  |
+|  `FORWARD_TRANSITIVE`  |   Consumers using **all previous schema versions** V2 or V1 can process data written by producers using a new schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   All previous versions  |
+|  `FULL`  |   Schemas are both backward and forward compatible. <li>Consumers using the last schema V2 can process data written by producers using the new schema V3. </li><li>Consumers using the new schema V3 can process data written by producers using the last schema V2.</li>  |   Modify optional fields |   Latest version  | 
+|  `FULL_TRANSITIVE`  |   Backward and forward compatible among schema V3, V2, and V1. <li>Consumers using the schema V3 can process data written by producers using schema V2 and V1. </li><li>Consumers using the schema V2 or V1 can process data written by producers using the schema V3.</li>  |   Modify optional fields |   All previous versions  |
+
 :::tip
 
-`isAllowAutoUpdateSchema` can be set via **Pulsar admin API** or **REST API.** 
-
-For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](schema-manage.md/#manage-autoupdate-strategy). 
+* The default schema compatibility check strategy varies depending on schema types.
+  * For Avro and JSON, the default one is `FULL`.
+  * For others, the default one is `ALWAYS_INCOMPATIBLE`.
+* For more instructions about how to set the strategy, see [Manage schemas](admin-api-schemas.md#set-schema-compatibility-check-strategy).
 
 :::
 
-6. If the schema is allowed to be updated, then the compatible strategy check is performed.
+### Schema AutoUpdate
+
+By default, schema `AutoUpdate` is enabled. When a schema passes the schema compatibility check, the producer automatically updates this schema to the topic it produces. 
+
+#### Producer side
+
+For a producer, the `AutoUpdate` happens in the following cases:
+
+* If a **topic doesn’t have a schema** (meaning the data is in raw bytes), Pulsar registers the schema automatically.
+
+* If a **topic has a schema** and the **producer doesn’t carry any schema** (meaning it produces raw bytes):
+
+    * If [schema validation enforcement](#schema-validation-enforcement) is **disabled** (`schemaValidationEnforced`=`false`) in the namespace that the topic belongs to, the producer is allowed to connect to the topic and produce data. 
   
-  * If the schema is compatible, the broker stores it and returns the schema version to the producer. 
+    * Otherwise, the producer is rejected.
 
-   All the messages produced by this producer are tagged with the schema version. 
+  * If a **topic has a schema** and the **producer carries a schema**, see [How schema works on producer side](schema-overview.md#producer-side) for more information.
 
-  * If the schema is incompatible, the broker rejects it.
+#### Consumer side
 
-### Consumer side
+For a consumer, the `AutoUpdate` happens in the following cases:
 
-This diagram illustrates how does Schema work on the consumer side. 
+* If a consumer connects to a topic **without a schema** (meaning it consumes raw bytes), the consumer can connect to the topic successfully without doing any compatibility check.
 
-![Schema works at the consumer side](/assets/schema-consumer.png)
+* If a consumer connects to a topic **with a schema**, see [How schema works on consumer side](schema-overview.md#consumer-side) for more information.
 
-1. The application uses a schema instance to construct a consumer instance.
-   
-   The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
+### Order of upgrading clients
 
-2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
+To adapt to schema evolution and auto-update, you need to upgrade your client applications accordingly. The upgrade order may vary depending on the configured [schema compatibility check strategy](#schema-compatibility-check-strategy).
 
-3. The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).
+The following table outlines the mapping between the schema compatibility check strategy and the upgrade order of clients.
 
-4. If a topic does not have all of them (a schema/data/a local consumer and a local producer):
-   
-     * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
-       
-     * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
-       
-5. If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
-   
-     * If the schema passes the compatibility check, then the consumer is connected to the broker.
-       
-     * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker. 
-
-6. The consumer receives messages from the broker. 
-
-   If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the `SchemaInfo` of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.
+|  Compatibility check strategy  |   Upgrade order  | Description                                                                                                                                                                                                                                                                                                         | 
+| --- | --- |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|  `ALWAYS_COMPATIBLE`  |   Any order  | The compatibility check is disabled. Consequently, you can upgrade the producers and consumers in **any order**.                                                                                                                                                                                                    | 
+|  `ALWAYS_INCOMPATIBLE`  |   N/A  | The schema evolution is disabled.                                                                                                                                                                                                                                                                                   | 
+|  <li>`BACKWARD` </li><li>`BACKWARD_TRANSITIVE` </li> |   Consumer first  | There is no guarantee that consumers using the old schema can read data produced using the new schema. Consequently, **upgrade all consumers first**, and then start producing new data.                                                                                                                            | 
+|  <li>`FORWARD` </li><li>`FORWARD_TRANSITIVE` </li> |   Producer first  | There is no guarantee that consumers using the new schema can read data produced using the old schema. Consequently, **upgrade all producers first** to use the new schema and ensure the data that has already been produced using the old schemas are not available to consumers, and then upgrade the consumers. | 
+|  <li>`FULL` </li><li>`FULL_TRANSITIVE` </li> |   Any order  | It is guaranteed that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. Consequently, you can upgrade the producers and consumers in **any order**.                                                        |

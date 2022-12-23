@@ -51,4 +51,4 @@ Before using the Cassandra sink connector, you need to create a configuration fi
 
 ## Usage
 
-For more information about **how to connect Pulsar with Cassandra**, see [here](io-quickstart.md#connect-pulsar-to-apache-cassandra).
+For more information about **how to connect Pulsar with Cassandra**, see [here](io-quickstart.md#connect-pulsar-to-cassandra).

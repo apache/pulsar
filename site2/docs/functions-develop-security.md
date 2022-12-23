@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 ## Prerequisites
 
-If you want to enable security on functions, you need to [enable security settings](functions-worker.md#enable-security-settings) on function workers first.
+If you want to enable security on functions, you need to [enable security settings](functions-worker.md) on function workers first.
 
 
 ## Configure function workers
