@@ -385,6 +385,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                             promise.completeExceptionally(e);
                             return;
                         }
+                        outstanding.release(MAX_OUTSTANDING);
                         promise.complete(null);
                         return;
                     }

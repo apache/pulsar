@@ -175,10 +175,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             tableview = pulsar.getClient().newTableViewBuilder(schema)
                     .topic(TOPIC)
-                    // TODO: enable CompactionStrategy
+                    .loadConf(Map.of(
+                            "topicCompactionStrategyClassName",
+                            ServiceUnitStateCompactionStrategy.class.getName()))
                     .create();
-            // TODO: schedule listen instead of foreachAndListen
-            tableview.forEachAndListen((key, value) -> handle(key, value));
+            tableview.listen((key, value) -> handle(key, value));
             log.debug("Successfully started the channel tableview.");
 
             pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
@@ -332,8 +333,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         ServiceUnitState state = data == null ? Free : data.state();
-
-        // TODO : Add state validation in tableview by the compaction strategy
         switch (state) {
             case Owned -> handleOwnEvent(serviceUnit, data);
             case Assigned -> handleAssignEvent(serviceUnit, data);
@@ -619,14 +618,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     || StringUtils.equals(broker, stateData.sourceBroker())) {
                 log.info("Cleaning ownership serviceUnit:{}, stateData:{}.", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                    if (e == null) {
-                        serviceUnitTombstoneCnt.incrementAndGet();
-                    } else {
+                    if (e != null) {
                         log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}.",
                                 serviceUnit, stateData);
                         serviceUnitTombstoneErrorCnt.incrementAndGet();
                     }
                 });
+                serviceUnitTombstoneCnt.incrementAndGet();
             }
         }
 
@@ -690,14 +688,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         serviceUnit, stateData);
 
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                    if (e == null) {
-                        serviceUnitTombstoneCnt.incrementAndGet();
-                    } else {
+                    if (e != null) {
                         log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}.",
                                 serviceUnit, stateData);
                         serviceUnitTombstoneErrorCnt.incrementAndGet();
                     }
                 });
+                serviceUnitTombstoneCnt.incrementAndGet();
             }
         }
 
