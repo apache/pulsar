@@ -1365,7 +1365,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 1.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
-        compareBrokerConnectionStateCount(cm, 1.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
 
         cm = (List<Metric>) metrics.get("pulsar_active_connections");
         compareBrokerConnectionStateCount(cm, 0.0);
