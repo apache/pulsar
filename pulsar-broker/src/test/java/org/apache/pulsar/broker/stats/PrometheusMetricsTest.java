@@ -230,7 +230,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Collection<Metric> metric = metrics.get("pulsar_topics_count");
         metric.forEach(item -> {
             if (ns1.equals(item.tags.get("namespace"))) {
-                assertEquals(item.value, 6.0);
+                assertEquals(item.value, 7.0);
             }
             if (ns2.equals(item.tags.get("namespace"))) {
                 assertEquals(item.value, 3.0);
