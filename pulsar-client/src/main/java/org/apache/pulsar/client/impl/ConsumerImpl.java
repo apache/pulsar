@@ -108,6 +108,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
+import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -144,7 +145,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final boolean hasParentConsumer;
     private final boolean parentConsumerHasListener;
 
-    private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
     private final NegativeAcksTracker negativeAcksTracker;
 
@@ -290,16 +290,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         duringSeek = new AtomicBoolean(false);
-
-        if (conf.getAckTimeoutMillis() != 0) {
-            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
-                this.unAckedMessageTracker = new UnAckedMessageRedeliveryTracker(client, this, conf);
-            } else {
-                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf);
-            }
-        } else {
-            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
-        }
 
         // Create msgCrypto if not created already
         if (conf.getCryptoKeyReader() != null) {
@@ -453,18 +443,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             message = incomingMessages.take();
             messageProcessed(message);
-            if (!isValidConsumerEpoch(message)) {
-                return internalReceive();
-            }
             return beforeConsume(message);
         } catch (InterruptedException e) {
+            ExceptionHandler.handleInterruptedException(e);
             stats.incrementNumReceiveFailed();
             throw PulsarClientException.unwrap(e);
         }
-    }
-
-    private boolean isValidConsumerEpoch(Message<T> message) {
-        return isValidConsumerEpoch((MessageImpl<T>) message);
     }
 
     @Override
@@ -479,11 +463,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 messageProcessed(message);
-                if (!isValidConsumerEpoch(message)) {
-                    pendingReceives.add(result);
-                    cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-                    return;
-                }
                 result.complete(beforeConsume(message));
             }
         });
@@ -494,7 +473,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
-        long callTime = System.nanoTime();
         try {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
@@ -504,17 +482,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            if (!isValidConsumerEpoch(message)) {
-                long executionTime = System.nanoTime() - callTime;
-                long timeoutInNanos = unit.toNanos(timeout);
-                if (executionTime >= timeoutInNanos) {
-                    return null;
-                } else {
-                    return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
-                }
-            }
             return beforeConsume(message);
         } catch (InterruptedException e) {
+            ExceptionHandler.handleInterruptedException(e);
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
                 stats.incrementNumReceiveFailed();
@@ -530,6 +500,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             return internalBatchReceiveAsync().get();
         } catch (InterruptedException | ExecutionException e) {
+            ExceptionHandler.handleInterruptedException(e);
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
                 stats.incrementNumBatchReceiveFailed();
@@ -546,22 +517,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
         internalPinnedExecutor.execute(() -> {
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getNewMessagesImpl();
-                Message<T> msgPeeked = incomingMessages.peek();
-                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll();
-                    if (msg != null) {
-                        messageProcessed(msg);
-                        if (!isValidConsumerEpoch(msg)) {
-                            msgPeeked = incomingMessages.peek();
-                            continue;
-                        }
-                        Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(interceptMsg);
-                    }
-                    msgPeeked = incomingMessages.peek();
-                }
-                result.complete(messages);
+                notifyPendingBatchReceivedCallBack(result);
             } else {
                 expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
@@ -1225,6 +1181,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
         internalPinnedExecutor.execute(() -> {
+            if (!isValidConsumerEpoch(message)) {
+                increaseAvailablePermits(cnx());
+                return;
+            }
             if (hasNextPendingReceive()) {
                 notifyPendingReceivedCallback(message, null);
             } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
@@ -1659,17 +1619,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected void trackMessage(MessageId messageId, int redeliveryCount) {
         if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
-            MessageIdImpl id = (MessageIdImpl) messageId;
-            if (id instanceof BatchMessageIdImpl) {
-                // do not add each item in batch message into tracker
-                id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
-            }
+            MessageId id = normalizeMessageId(messageId);
             if (hasParentConsumer) {
                 //TODO: check parent consumer here
                 // we should no longer track this message, TopicsConsumer will take care from now onwards
                 unAckedMessageTracker.remove(id);
             } else {
-                unAckedMessageTracker.add(id, redeliveryCount);
+                trackUnAckedMsgIfNoListener(id, redeliveryCount);
             }
         }
     }
@@ -1918,17 +1874,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             // clear local message
-            int currentSize = 0;
-            currentSize = incomingMessages.size();
-            clearIncomingMessages();
-            unAckedMessageTracker.clear();
+            int currentSize;
+            incomingQueueLock.lock();
+            try {
+                // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
+                // we need to keep both epochs the same
+                if (conf.getSubscriptionType() == SubscriptionType.Failover
+                        || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+                    CONSUMER_EPOCH.incrementAndGet(this);
+                }
 
-            // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
-            // we need to keep both epochs the same
-            if (conf.getSubscriptionType() == SubscriptionType.Failover
-                    || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-                CONSUMER_EPOCH.incrementAndGet(this);
+                // clear local message
+                currentSize = incomingMessages.size();
+                clearIncomingMessages();
+                unAckedMessageTracker.clear();
+            } finally {
+                incomingQueueLock.unlock();
             }
+
             // is channel is connected, we should send redeliver command to broker
             if (cnx != null && isConnected(cnx)) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
@@ -1945,13 +1908,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + "so don't need to send redeliver command to broker", this);
             }
         }
-    }
-
-    public int clearIncomingMessagesAndGetMessageNumber() {
-        int messagesNumber = incomingMessages.size();
-        clearIncomingMessages();
-        unAckedMessageTracker.clear();
-        return messagesNumber;
     }
 
     @Override
@@ -2011,7 +1967,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected void completeOpBatchReceive(OpBatchReceive<T> op) {
-        notifyPendingBatchReceivedCallBack(op);
+        notifyPendingBatchReceivedCallBack(op.future);
     }
 
     private CompletableFuture<List<MessageIdData>> getRedeliveryMessageIdData(List<MessageIdImpl> messageIds) {

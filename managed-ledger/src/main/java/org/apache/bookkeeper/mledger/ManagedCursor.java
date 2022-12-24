@@ -97,7 +97,9 @@ public interface ManagedCursor {
     CompletableFuture<Void> putCursorProperty(String key, String value);
 
     /**
-     * Set all properties associated with the cursor.
+     * Set all properties associated with the cursor,
+     * but internal properties(start with '#pulsar_internal.') are still preserved
+     * and prohibit setting of internal properties by this method.
      *
      * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
      * if there are concurrent modification and store data has changed.

@@ -630,9 +630,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }
             metadataArray[i] = metadata;
-            if (!hasChunk && metadataArray[i] != null && metadataArray[i].hasUuid()) {
-                hasChunk = true;
-            }
         }
         if (hasChunk) {
             return sendChunkedMessagesToConsumers(readType, entries, metadataArray);
@@ -693,7 +690,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-            totalEntries += filterEntriesForConsumer(Optional.of(metadataArray), start,
+            totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
 

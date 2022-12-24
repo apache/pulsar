@@ -296,6 +296,14 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             defaultValue = "false",
+            help = "This option only works if idHashingAlgorithm is set."
+                    + "If enabled, the hashing is performed only if the id is greater than 512 bytes otherwise "
+                    + "the hashing is performed on each document in any case."
+    )
+    private boolean conditionalIdHashing = false;
+
+    @FieldDoc(
+            defaultValue = "false",
             help = "When the message key schema is AVRO or JSON, copy the message key fields into the Elasticsearch _source."
     )
     private boolean copyKeyFields = false;

@@ -73,23 +73,23 @@ You can use a certificate authority (CA) to sign both server and client certific
 
 Use the following command to create a CA.
 
-   ```bash
-   openssl genrsa -out ca.key.pem 2048
-   openssl req -x509 -new -nodes -key ca.key.pem -subj "/CN=CARoot" -days 365 -out ca.cert.pem
-   ```
+```bash
+openssl genrsa -out ca.key.pem 2048
+openssl req -x509 -new -nodes -key ca.key.pem -subj "/CN=CARoot" -days 365 -out ca.cert.pem
+```
 
-   :::note
+:::note
 
-   The default `openssl` on macOS doesn't work for the commands above. You need to upgrade `openssl` via Homebrew:
+The default `openssl` on macOS doesn't work for the commands above. You need to upgrade `openssl` via Homebrew:
 
-   ```bash
-   brew install openssl
-   export PATH="/usr/local/Cellar/openssl@3/3.0.1/bin:$PATH"
-   ```
+```bash
+brew install openssl
+export PATH="/usr/local/Cellar/openssl@3/3.0.1/bin:$PATH"
+```
 
-   Use the actual path from the output of the `brew install` command. Note that version number `3.0.1` might change. 
+Use the actual path from the output of the `brew install` command. Note that version number `3.0.1` might change. 
 
-   :::
+:::
 
 #### Create a server certificate
 

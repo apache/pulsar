@@ -37,7 +37,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 * At least 6 Linux machines or VMs
   * 3 for running [ZooKeeper](https://zookeeper.apache.org)
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
-* A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
+* A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts (optional)
 
 :::note
 
@@ -126,9 +126,6 @@ Directory | Contains
 
 ## Install Built-in Connectors (optional)
 
-> Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `built-in` connectors.
-> To enable the `built-in` connectors (optional), you can follow the instructions below.
-
 To use `built-in` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
 
 * by clicking the link below and downloading the release from an Apache mirror:
@@ -157,10 +154,6 @@ pulsar-io-aerospike-@pulsar:version@.nar
 
 ## Install Tiered Storage Offloaders (optional)
 
-> Since Pulsar release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
-> If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
-> skip this section for now.
-
 To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
 
 * by clicking the link below and downloading the release from an Apache mirror:
@@ -180,8 +173,8 @@ Once you download the tarball, in the Pulsar directory, untar the offloaders pac
 ```bash
 tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
 
-// you can find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
-// then copy the offloaders
+# you can find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
+# then copy the offloaders
 
 mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
 
@@ -194,7 +187,11 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 ## Deploy a ZooKeeper cluster
 
-> If you already have an existing zookeeper cluster and want to use it, you can skip this section.
+:::note
+
+If you already have an existing zookeeper cluster and want to use it, you can skip this section.
+
+:::
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -248,13 +245,13 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](refer
 
 ```shell
 bin/pulsar initialize-cluster-metadata \
---cluster pulsar-cluster-1 \
---metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
---configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
---web-service-url http://pulsar.us-west.example.com:8080 \
---web-service-url-tls https://pulsar.us-west.example.com:8443 \
---broker-service-url pulsar://pulsar.us-west.example.com:6650 \
---broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
+    --cluster pulsar-cluster-1 \
+    --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
+    --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181 \
+    --web-service-url http://pulsar.us-west.example.com:8080 \
+    --web-service-url-tls https://pulsar.us-west.example.com:8443 \
+    --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
+    --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
 As you can see from the example above, you will need to specify the following:
@@ -269,27 +266,30 @@ Flag | Description
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).
 `--broker-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).
 
+:::note
 
-> If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
->
-> ```shell
-> --web-service-url http://host1:8080,host2:8080,host3:8080 \
-> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
-> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
-> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
-> ```
->
-> If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
->
-> ```shell
-> --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
-> --web-service-url http://host1:8080,host2:8080,host3:8080 \
-> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
-> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
-> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
-> ```
+If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
 
-> You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
+```shell
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+```
+
+If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
+
+```shell
+--existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
+--web-service-url http://host1:8080,host2:8080,host3:8080 \
+--web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+--broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+--broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+```
+
+You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
+
+:::
 
 ## Deploy a BookKeeper cluster
 
@@ -340,7 +340,7 @@ Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Bro
 
 ### Configure Brokers
 
-The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
+You can configure BookKeeper bookies using the `conf/broker.conf` configuration file. The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
 
 ```properties
 metadataStoreUrl=zk://zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
@@ -423,38 +423,40 @@ webServiceUrl=http://us-west.example.com:8080
 brokerServiceurl=pulsar://us-west.example.com:6650
 ```
 
-> If you do not have a DNS server, you can specify multi-host in service URL as follows:
->
-> ```properties
-> webServiceUrl=http://host1:8080,host2:8080,host3:8080
-> brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
-> ```
+:::note
 
+If you do not have a DNS server, you can specify multi-host in service URL as follows:
+```properties
+webServiceUrl=http://host1:8080,host2:8080,host3:8080
+brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
+```
+
+:::
 
 Once that is complete, you can publish a message to the Pulsar topic:
 
 ```bash
 bin/pulsar-client produce \
-persistent://public/default/test \
--n 1 \
--m "Hello Pulsar"
+    persistent://public/default/test \
+    -n 1 \
+    -m "Hello Pulsar"
 ```
 
 This command publishes a single message to the Pulsar topic. In addition, you can subscribe to the Pulsar topic in a different terminal before publishing messages as below:
 
 ```bash
 bin/pulsar-client consume \
-persistent://public/default/test \
--n 100 \
--s "consumer-test" \
--t "Exclusive"
+    persistent://public/default/test \
+    -n 100 \
+    -s "consumer-test" \
+    -t "Exclusive"
 ```
 
 Once you successfully publish the above message to the topic, you should see it in the standard output:
 
-```bash
+```
 ----- got message -----
-Hello Pulsar
+key:[null], properties:[], content:Hello Pulsar
 ```
 
 ## Run Functions
@@ -465,13 +467,13 @@ Create an ExclamationFunction `exclamation`.
 
 ```bash
 bin/pulsar-admin functions create \
---jar examples/api-examples.jar \
---classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
---inputs persistent://public/default/exclamation-input \
---output persistent://public/default/exclamation-output \
---tenant public \
---namespace default \
---name exclamation
+    --jar examples/api-examples.jar \
+    --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+    --inputs persistent://public/default/exclamation-input \
+    --output persistent://public/default/exclamation-output \
+    --tenant public \
+    --namespace default \
+    --name exclamation
 ```
 
 Check whether the function runs as expected by [triggering](functions-deploy-trigger.md) the function.

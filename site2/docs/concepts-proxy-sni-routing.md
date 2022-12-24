@@ -146,19 +146,19 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 
 ```shell
 ./pulsar-admin clusters update \
---broker-url-secure pulsar+ssl://east-broker-vip:6651 \
---url http://east-broker-vip:8080 \
---proxy-protocol SNI \
---proxy-url pulsar+ssl://east-ats-proxy:443
+    --broker-url-secure pulsar+ssl://east-broker-vip:6651 \
+    --url http://east-broker-vip:8080 \
+    --proxy-protocol SNI \
+    --proxy-url pulsar+ssl://east-ats-proxy:443
 ```
 
 (b) Configure the cluster metadata for `us-west` with `us-west` broker service URL and `us-west` ATS proxy URL with SNI proxy-protocol.
 
 ```shell
 ./pulsar-admin clusters update \
---broker-url-secure pulsar+ssl://west-broker-vip:6651 \
---url http://west-broker-vip:8080 \
---proxy-protocol SNI \
---proxy-url pulsar+ssl://west-ats-proxy:443
+    --broker-url-secure pulsar+ssl://west-broker-vip:6651 \
+    --url http://west-broker-vip:8080 \
+    --proxy-protocol SNI \
+    --proxy-url pulsar+ssl://west-ats-proxy:443
 ```
 

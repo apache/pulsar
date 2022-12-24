@@ -1226,14 +1226,6 @@ public abstract class PulsarWebResource {
         return CompletableFuture.completedFuture(null);
     }
 
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
-        validateTopicOperation(topicName, operation, null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
-        sync(()-> validateTopicOperationAsync(topicName, operation, subscription));
-    }
-
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {
        return validateTopicOperationAsync(topicName, operation, null);
     }

@@ -61,7 +61,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     @Override
     public URI resolveHostUri() {
         InetSocketAddress host = resolveHost();
-        String hostUrl = serviceUri.getServiceScheme() + "://" + host.getHostName() + ":" + host.getPort();
+        String hostUrl = serviceUri.getServiceScheme() + "://" + host.getHostString() + ":" + host.getPort();
         return URI.create(hostUrl);
     }
 

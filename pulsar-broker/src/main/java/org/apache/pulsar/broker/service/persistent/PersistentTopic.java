@@ -306,7 +306,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
         if (ledger instanceof ShadowManagedLedgerImpl) {
-            shadowSourceTopic = ((ShadowManagedLedgerImpl) ledger).getShadowSource();
+            shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
             shadowSourceTopic = null;
         }
@@ -1219,17 +1219,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
-                    deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
-                            .thenCompose(ignore -> deleteTopicPolicies())
-                            .thenCompose(ignore -> transactionBufferCleanupAndClose())
-                            .whenComplete((v, ex) -> {
-                                if (ex != null) {
-                                    log.error("[{}] Error deleting topic", topic, ex);
-                                    unfenceTopicToResume();
-                                    deleteFuture.completeExceptionally(ex);
-                                } else {
-                                    List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
-                                    subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
+                        deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
+                                .thenCompose(ignore -> {
+                                    if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                        return deleteTopicPolicies();
+                                    } else {
+                                        return CompletableFuture.completedFuture(null);
+                                    }
+                                })
+                                .thenCompose(ignore -> transactionBufferCleanupAndClose())
+                                .whenComplete((v, ex) -> {
+                                    if (ex != null) {
+                                        log.error("[{}] Error deleting topic", topic, ex);
+                                        unfenceTopicToResume();
+                                        deleteFuture.completeExceptionally(ex);
+                                    } else {
+                                        List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
+                                        subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
 
                                     FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
                                         if (e != null) {
@@ -1758,6 +1764,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public int getNumberOfSameAddressConsumers(final String clientAddress) {
         return getNumberOfSameAddressConsumers(clientAddress, subscriptions.values());
+    }
+
+    @Override
+    protected String getSchemaId() {
+        if (shadowSourceTopic == null) {
+            return super.getSchemaId();
+        } else {
+            //reuse schema from shadow source.
+            String base = shadowSourceTopic.getPartitionedTopicName();
+            return TopicName.get(base).getSchemaName();
+        }
     }
 
     @Override
@@ -3314,6 +3331,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed(String subscriptionName) {
+        if (isSystemTopic()) {
+            return false;
+        }
         //Existing subscriptions are not affected
         if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
             return false;

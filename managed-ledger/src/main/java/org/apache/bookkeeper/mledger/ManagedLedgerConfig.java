@@ -86,6 +86,10 @@ public class ManagedLedgerConfig {
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
 
+    @Getter
+    @Setter
+    private String shadowSourceName;
+
     public boolean isCreateIfMissing() {
         return createIfMissing;
     }

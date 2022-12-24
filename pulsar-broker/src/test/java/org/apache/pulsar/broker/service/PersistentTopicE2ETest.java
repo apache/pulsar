@@ -998,7 +998,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         admin.topics().deleteSubscription(topicName, subName);
         admin.topics().delete(topicName);
-        deleteNamespaceGraceFully(namespaceName, false);
+        deleteNamespaceWithRetry(namespaceName, false);
     }
 
     @Test
@@ -1090,7 +1090,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.close();
             admin.topics().deleteSubscription(topicName, subName);
             admin.topics().delete(topicName);
-            deleteNamespaceGraceFully(namespaceName, true);
+            deleteNamespaceWithRetry(namespaceName, true);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 500);
         }

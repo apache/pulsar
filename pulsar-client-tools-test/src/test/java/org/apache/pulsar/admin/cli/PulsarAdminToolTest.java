@@ -28,9 +28,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.beust.jcommander.JCommander;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -813,11 +814,11 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
         namespaces.run(split(
-                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first"));
+                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oats 100 -oae 10s -orp tiered-storage-first"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
                         "http://test.endpoint",null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                        10 * 1024 * 1024L, 100L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
@@ -973,11 +974,11 @@ public class PulsarAdminToolTest {
         verify(mockTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
-                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -ts 10 -orp tiered-storage-first"));
         verify(mockTopicsPolicies)
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
-                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                                8, 9, 10L, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getRetention("persistent://myprop/clust/ns1/ds1", false);
@@ -1423,11 +1424,11 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
-                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first -g"));
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -ts 100 -orp tiered-storage-first -g"));
         verify(mockGlobalTopicsPolicies)
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
-                                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                                8, 9, 10L, 100L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         cmdTopics.run(split("set-auto-subscription-creation persistent://prop/clust/ns1/ds1 -e -g"));
         verify(mockGlobalTopicsPolicies).setAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1",
@@ -1720,10 +1721,10 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
-        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -ts 50 -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("s3", "region", "bucket"
                 , "endpoint", null, null, null, null,
-                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
+                8, 9, 10L, 50L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
         cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
@@ -2224,8 +2225,8 @@ public class PulsarAdminToolTest {
         conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
                 .getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
-        assertNull(atuh.getCertFilePath());
-        assertNull(atuh.getKeyFilePath());
+        assertEquals(atuh.getCertFilePath(), certFilePath);
+        assertEquals(atuh.getKeyFilePath(), keyFilePath);
     }
 
     @Test
@@ -2423,6 +2424,43 @@ public class PulsarAdminToolTest {
         assertTrue(logs.contains("-bf=false")); // boolean flag, not passed = false
         assertTrue(logs.contains("main=null"));
 
+    }
+
+    @Test
+    public void testHelpFlag() {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("-h"));
+            assertTrue(cmdSchemas.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("--help"));
+            assertTrue(cmdSchemas.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("delete --help"));
+            assertFalse(cmdSchemas.isHelp());
+            JCommander commander = cmdSchemas.getJcommander();
+            JCommander subCommander = commander.getCommands().get("delete");
+            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
+            assertTrue(subcommand.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("delete -h"));
+            assertFalse(cmdSchemas.isHelp());
+            JCommander commander = cmdSchemas.getJcommander();
+            JCommander subCommander = commander.getCommands().get("delete");
+            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
+            assertTrue(subcommand.isHelp());
+        }
     }
 
     private static String runCustomCommand(String[] args) throws Exception {

@@ -87,5 +87,5 @@ notifications:
   commits:      commits@pulsar.apache.org
   issues:       commits@pulsar.apache.org
   pullrequests: commits@pulsar.apache.org
-  discussions:  dev@pulsar.apache.org
+  discussions:  commits@pulsar.apache.org
   jira_options: link label
