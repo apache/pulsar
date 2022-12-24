@@ -59,7 +59,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public long msgBacklog;
 
     /** Size of backlog in byte. **/
-    public long backlogSize;
+    public long backlogSize = -1;
 
     /** Get the publish time of the earliest message in the backlog. */
     public long earliestMsgPublishTimeInBacklog;
@@ -158,7 +158,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         msgOutCounter = 0;
         msgRateRedeliver = 0;
         msgBacklog = 0;
-        backlogSize = 0;
+        backlogSize = -1;
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
@@ -187,7 +187,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
-        this.backlogSize += stats.backlogSize;
+        if (stats.backlogSize >= 0) {
+            this.backlogSize = Math.max(this.backlogSize, 0) + stats.backlogSize;
+        }
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;

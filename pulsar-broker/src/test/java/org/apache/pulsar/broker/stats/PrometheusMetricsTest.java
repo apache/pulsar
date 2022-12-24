@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -50,6 +51,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -72,12 +74,17 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -606,6 +613,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         assertTrue(metrics.containsKey("pulsar_subscription_back_log"));
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log_size"));
         assertTrue(metrics.containsKey("pulsar_subscription_back_log_no_delayed"));
         assertTrue(metrics.containsKey("pulsar_subscription_msg_throughput_out"));
         assertTrue(metrics.containsKey("pulsar_throughput_out"));
@@ -1687,6 +1695,43 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
+    }
+
+    @Test
+    public void testSubscriptionBacklogSizeMetric() throws PulsarAdminException, IOException {
+        NamespaceName namespaceName = NamespaceName.get("prop/ns-abc");
+        TopicName topicName = TopicName.get("persistent", namespaceName, UUID.randomUUID().toString());
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+        String subscriptionName = "sub";
+        admin.topics().createSubscription(topicName.toString(), subscriptionName, MessageId.latest);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName.toString())
+                .enableBatching(false)
+                .create();
+        List<CompletableFuture<?>> futures = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            futures.add(producer.newMessage().value(new byte[1024]).sendAsync());
+        }
+        FutureUtil.waitForAll(futures).join();
+        Multimap<String, Metric> metrics;
+        pulsar.getConfiguration().setExposeSubscriptionBacklogSizeInPrometheus(false);
+        ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut1);
+        metrics = parseMetrics(statsOut1.toString());
+        assertFalse(metrics.containsKey("pulsar_subscription_back_log_size"));
+
+        pulsar.getConfiguration().setExposeSubscriptionBacklogSizeInPrometheus(true);
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
+        metrics = parseMetrics(statsOut2.toString());
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log_size"));
+        Optional<Metric> metric = metrics.get("pulsar_subscription_back_log_size").stream()
+                .filter(item -> item.tags.get("topic").equals(topicName.toString())
+                        && item.tags.get("subscription").equals(subscriptionName))
+                .findAny();
+        assertTrue(metric.isPresent());
+        assertTrue(metric.get().value > 0);
     }
 
     /**
