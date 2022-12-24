@@ -1288,7 +1288,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_ml_cursor_persistLedgerSucceed");
-        assertEquals(cm.size(), 1);
+        assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         assertEquals(cm.get(0).tags.get("cursor_name"), subName);
 
