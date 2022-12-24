@@ -212,19 +212,6 @@ public class MessageIdImpl implements MessageId {
             if (compareWithoutBatchIndex != 0 || !(o instanceof BatchMessageIdImpl)) {
                 return compareWithoutBatchIndex;
             } else {
-                // if ledgerId == -1 represent the messageID and batchMessageId
-                // are earliest, so return they are equals
-
-                // if ledgerId == Long.MAX_VALUE represent the messageID
-                // and batchMessageId are latest, so return they are equals
-
-                // if entryId == -1 represent the messageID
-                // and batchMessageId are the entryId initialized by ledger, so return they are equals
-                if (this.ledgerId == ((MessageIdImpl) MessageId.earliest).ledgerId
-                        || this.ledgerId == ((MessageIdImpl) MessageId.latest).ledgerId
-                        || this.entryId == ((MessageIdImpl) MessageId.earliest).entryId) {
-                    return 0;
-                }
                 throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
                         + o.getClass().getName()
                         + " when they have the same `LedgerId`, `EntryId` and `PartitionIndex`.");
