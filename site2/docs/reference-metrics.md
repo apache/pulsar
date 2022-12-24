@@ -183,6 +183,19 @@ All the broker metrics are labeled with the following labels:
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
 | pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
 | pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections due to per-connection limit. |
+| pulsar_broker_topics_count | Gauge | The number of pulsar topics in this broker. |
+| pulsar_broker_subscriptions_count | Gauge | The number of pulsar subscriptions in this broker. |
+| pulsar_broker_producers_count | Gauge | The number of active producers connected to this broker. |
+| pulsar_broker_consumers_count | Gauge | The number of active consumers connected to this broker. |
+| pulsar_broker_rate_in | Gauge | The total message rate coming into this broker (message per second). |
+| pulsar_broker_rate_out | Gauge | The total message rate going out from this broker (message per second). |
+| pulsar_broker_throughput_in | Gauge | The total throughput coming into this broker (byte per second). |
+| pulsar_broker_throughput_out | Gauge | The total throughput going out from this broker (byte per second). |
+| pulsar_broker_storage_size | Gauge | The total storage size of all topics in this broker (bytes). |
+| pulsar_broker_storage_logical_size | Gauge | The storage size of all topics in this broker without replicas (in bytes). |
+| pulsar_broker_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this broker (message batch per second). |
+| pulsar_broker_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this broker (message batch per second). |
+| pulsar_broker_msg_backlog | Gauge | The total number of message backlogs in this broker (entries). |
 
 ### BookKeeper client metrics
 
