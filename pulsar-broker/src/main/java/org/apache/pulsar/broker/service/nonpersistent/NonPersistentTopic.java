@@ -325,7 +325,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
-                    DEFAULT_CONSUMER_EPOCH, schemaData == null ? SchemaType.AUTO_CONSUME : schemaData.getType());
+                    DEFAULT_CONSUMER_EPOCH, schemaData == null ? SchemaType.BYTES : schemaData.getType());
             if (isMigrated()) {
                 consumer.topicMigrated(getClusterMigrationUrl());
             }
@@ -1167,7 +1167,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO)
                             .toList().size())
                     .sum();
             if (hasSchema

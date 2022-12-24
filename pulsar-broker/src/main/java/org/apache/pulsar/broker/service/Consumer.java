@@ -143,7 +143,7 @@ public class Consumer {
 
     private long negtiveUnackedMsgsTimestamp;
 
-    private SchemaType schemaType;
+    private final SchemaType schemaType;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -236,7 +236,7 @@ public class Consumer {
         this.clientAddress = null;
         this.startMessageId = null;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
-        this.schemaType = SchemaType.AUTO_CONSUME;
+        this.schemaType = SchemaType.BYTES;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
     }
 

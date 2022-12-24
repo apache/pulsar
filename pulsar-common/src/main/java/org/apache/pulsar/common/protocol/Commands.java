@@ -772,7 +772,7 @@ public class Commands {
 
     private static Schema.Type getSchemaType(SchemaType type) {
         if (type.getValue() < 0) {
-            return Schema.Type.None;
+            return Schema.Type.Auto;
         } else {
             return Schema.Type.valueOf(type.getValue());
         }
@@ -781,7 +781,7 @@ public class Commands {
     public static SchemaType getSchemaType(Schema.Type type) {
         if (type.getValue() < 0) {
             // this is unexpected
-            return SchemaType.NONE;
+            return SchemaType.AUTO;
         } else {
             return SchemaType.valueOf(type.getValue());
         }
