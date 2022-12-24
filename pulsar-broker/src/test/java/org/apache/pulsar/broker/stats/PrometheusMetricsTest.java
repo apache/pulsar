@@ -1318,7 +1318,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
-        compareBrokerConnectionStateCount(cm, 1.0);
+        compareBrokerConnectionStateCount(cm, 2.0);
 
         cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
         compareBrokerConnectionStateCount(cm, 1.0);
