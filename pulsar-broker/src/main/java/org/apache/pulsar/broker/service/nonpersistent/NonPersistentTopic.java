@@ -1167,7 +1167,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO)
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
                             .toList().size())
                     .sum();
             if (hasSchema

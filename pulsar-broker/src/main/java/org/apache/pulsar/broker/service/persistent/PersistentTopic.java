@@ -3061,7 +3061,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO)
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
                             .toList().size())
                     .sum();
             if (hasSchema
