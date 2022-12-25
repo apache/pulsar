@@ -92,6 +92,11 @@
     </Match>
 
     <Match>
+        <Class name="~org.apache.pulsar.client.impl.ConsumerImpl.*"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+
+    <Match>
         <Class name="org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl"/>
         <Bug pattern="SE_BAD_FIELD"/>
     </Match>
