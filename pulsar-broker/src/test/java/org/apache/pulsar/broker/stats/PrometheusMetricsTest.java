@@ -233,7 +233,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 7.0);
             }
             if (ns2.equals(item.tags.get("namespace"))) {
-                assertEquals(item.value, 3.0);
+                assertEquals(item.value, 4.0);
             }
         });
     }
