@@ -722,7 +722,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // There should be 1 metric aggregated per namespace
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
-        assertEquals(cm.size(), 4);
+        assertEquals(cm.size(), 5);
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
         assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
         assertEquals(cm.get(0).tags.get("subscription"), "test");
