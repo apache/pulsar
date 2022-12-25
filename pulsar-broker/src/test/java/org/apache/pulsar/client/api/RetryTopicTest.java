@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -29,6 +31,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.Data;
+import org.apache.avro.reflect.Nullable;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -103,7 +108,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message<byte[]> message = deadLetterConsumer.receive();
             log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
@@ -126,6 +131,100 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertNull(checkMessage);
 
         checkConsumer.close();
+    }
+
+    @Data
+    public static class Foo {
+        @Nullable
+        private String field1;
+        @Nullable
+        private String field2;
+    }
+
+    @Data
+    public static class FooV2 {
+        @Nullable
+        private String field1;
+        @Nullable
+        private String field2;
+        @Nullable
+        private String field3;
+    }
+
+    @Test(timeOut = 20000)
+    public void testAutoConsumeSchemaRetryLetter() throws Exception {
+        final String topic = "persistent://my-property/my-ns/retry-letter-topic";
+        final String subName = "my-subscription";
+        final int maxRedeliveryCount = 1;
+        final int sendMessages = 10;
+
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        Consumer<FooV2> deadLetterConsumer = newPulsarClient.newConsumer(Schema.AVRO(FooV2.class))
+                .topic(topic + "-" + subName + "-DLQ")
+                .subscriptionName("my-subscription")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic)
+                .create();
+        Set<String> messageIds = new HashSet<>();
+        for (int i = 0; i < sendMessages; i++) {
+            if (i % 2 == 0) {
+                Foo foo = new Foo();
+                foo.field1 = i + "";
+                foo.field2 = i + "";
+                messageIds.add(producer.newMessage(Schema.AVRO(Foo.class)).value(foo).send().toString());
+            } else {
+                FooV2 foo = new FooV2();
+                foo.field1 = i + "";
+                foo.field2 = i + "";
+                foo.field3 = i + "";
+                messageIds.add(producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send().toString());
+            }
+        }
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .enableRetry(true)
+                .receiverQueueSize(100)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        producer.close();
+
+        int totalReceived = 0;
+        do {
+            Message<GenericRecord> message = consumer.receive();
+            log.info(
+                    "consumer received message (schema={}) : {} {}",
+                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
+            totalReceived++;
+        } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+
+        int totalInDeadLetter = 0;
+
+        for (int i = 0; i < sendMessages; i++) {
+            Message<FooV2> message = deadLetterConsumer.receive();
+            FooV2 fooV2 = message.getValue();
+            assertNotNull(fooV2.field1);
+            assertEquals(fooV2.field2, fooV2.field1);
+            assertTrue(fooV2.field3 == null || fooV2.field1.equals(fooV2.field3));
+            assertEquals(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
+            assertTrue(messageIds.contains(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID)));
+            deadLetterConsumer.acknowledge(message);
+            totalInDeadLetter++;
+        }
+        assertEquals(totalInDeadLetter, sendMessages);
+        deadLetterConsumer.close();
+        consumer.close();
+        newPulsarClient.close();
     }
 
     @Test(timeOut = 60000)
