@@ -291,6 +291,14 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
+     * A helper method to get a partition name of a topic in String.
+     * @return topic + "-partition-" + partition.
+     */
+    public static String getTopicPartitionNameString(String topic, int partitionIndex) {
+        return topic + PARTITIONED_TOPIC_SUFFIX + partitionIndex;
+    }
+
+    /**
      * Returns the http rest path for use in the admin web service.
      * Eg:
      *   * "persistent/my-tenant/my-namespace/my-topic"

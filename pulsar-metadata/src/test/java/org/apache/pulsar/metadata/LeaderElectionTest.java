@@ -43,7 +43,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -133,7 +133,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void leaderNodeIsDeletedExternally(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -161,7 +161,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void closeAll(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
         CoordinationService cs = new CoordinationServiceImpl(store);
@@ -191,7 +191,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void revalidateLeaderWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String path = newKey();
 

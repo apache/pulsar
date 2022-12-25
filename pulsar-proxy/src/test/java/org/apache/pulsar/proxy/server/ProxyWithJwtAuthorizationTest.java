@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -146,6 +147,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -226,6 +228,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String clusterName = "proxy-authorization";
@@ -341,6 +344,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";

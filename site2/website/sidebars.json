@@ -40,8 +40,7 @@
       "items": [
         "schema-overview",
         "schema-understand",
-        "schema-get-started",
-        "schema-evolution-compatibility"
+        "schema-get-started"
       ]
     },
     {
@@ -102,7 +101,8 @@
                 "functions-deploy-cluster-resource",
                 "functions-deploy-cluster-parallelism",
                 "functions-deploy-cluster-encryption",
-                "functions-deploy-cluster-package"
+                "functions-deploy-cluster-package",
+                "functions-deploy-cluster-builtin"
               ]
             },
             "functions-deploy-trigger"
@@ -317,9 +317,24 @@
     },
     {
       "type": "category",
-      "label": "Admin Interfaces",
+      "label": "Pulsar API",
+      "items": [
+        "pulsar-api-overview"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client API",
+      "items": [
+        "client-api-overview"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
       "items": [
         "admin-api-overview",
+        "admin-api-get-started",
         "admin-api-clusters",
         "admin-api-tenants",
         "admin-api-brokers",
@@ -370,6 +385,10 @@
     {
       "type": "category",
       "label": "Reference",
+      "link": {
+        "type": "doc",
+        "id": "reference-landing"
+      },
       "items": [
         "reference-terminology",
         "reference-cli-tools",

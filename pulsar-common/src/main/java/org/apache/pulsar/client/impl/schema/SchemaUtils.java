@@ -31,7 +31,6 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -44,6 +43,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
@@ -367,7 +367,7 @@ public final class SchemaUtils {
         int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
         byte[] schema = new byte[dataLength];
         //record the key value schema respective length
-        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.heapBuffer(dataLength);
         byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
         byteBuf.readBytes(schema);
         return schema;

@@ -62,8 +62,8 @@ The following is an example tenant creation command:
 
 ```shell
 bin/pulsar-admin tenants create my-tenant \
---admin-roles my-admin-role \
---allowed-clusters us-west,us-east
+    --admin-roles my-admin-role \
+    --allowed-clusters us-west,us-east
 ```
 
 This command creates a new tenant `my-tenant` that is allowed to use the clusters `us-west` and `us-east`.

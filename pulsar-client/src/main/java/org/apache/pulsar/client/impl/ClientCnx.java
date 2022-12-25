@@ -103,6 +103,12 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Channel handler for the Pulsar client.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
+ */
 @SuppressWarnings("unchecked")
 public class ClientCnx extends PulsarHandler {
 

@@ -47,7 +47,7 @@ def process(input):
    bin/pulsar-admin functions trigger \
      --tenant public \
      --namespace default \
-     --name myfunc I am running a few minutes late; my previous meeting is running over.
+     --name myfunc \
      --trigger-value "hello world"
    ```
 

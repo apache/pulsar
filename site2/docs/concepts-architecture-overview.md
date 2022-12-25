@@ -130,8 +130,8 @@ Architecturally, the Pulsar proxy gets all the information it requires from ZooK
 ```bash
 cd /path/to/pulsar/directory
 bin/pulsar proxy \
---metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
---configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
+    --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+    --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 > #### Pulsar proxy docs

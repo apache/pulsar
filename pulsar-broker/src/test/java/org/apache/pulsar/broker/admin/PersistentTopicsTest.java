@@ -193,6 +193,17 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 "Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has "
                         + "zero partitions");
 
+        // Confirm that the namespace does not exist
+        String notExistNamespace = "not-exist-namespace";
+        response = mock(AsyncResponse.class);
+        persistentTopics.getSubscriptions(response, testTenant, notExistNamespace, testLocalTopicName,
+                true);
+        errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Namespace not found");
+
         // 3) Create the partitioned topic
         response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);

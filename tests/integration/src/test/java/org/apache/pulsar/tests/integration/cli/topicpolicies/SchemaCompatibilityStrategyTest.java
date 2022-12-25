@@ -23,6 +23,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarCliTestSuite;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -34,7 +35,7 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
         super.before();
     }
 
-    @BeforeClass(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void after() throws Exception {
         super.after();

@@ -1,7 +1,6 @@
 ---
 Id: how-to-landing
 title: How-to
-sidebar_label: “”
 ---
 
 
