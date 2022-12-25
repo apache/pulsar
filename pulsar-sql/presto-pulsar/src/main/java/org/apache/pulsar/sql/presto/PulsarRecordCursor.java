@@ -392,8 +392,8 @@ public class PulsarRecordCursor implements RecordCursor {
                         // check if ledger is offloaded
                         if (!readOffloaded && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
                             log.warn(
-                                    "Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
-                                    readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
+                                "Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
+                                readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
 
                             long numEntries = readOnlyCursorImpl.getCurrentLedgerInfo().getEntries();
                             long entriesToSkip =
@@ -475,7 +475,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
         return cacheSizeAllocator.getAvailableCacheSize() > 0 || queue.size() == 0;
     }
-    
+
     @Override
     public boolean advanceNextPosition() {
 
