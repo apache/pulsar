@@ -45,12 +45,12 @@ public class BacklogQuotaImpl implements BacklogQuota {
     /**
      * backlog quota by time in second.
      */
-    private int limitTime;
+    private int limitTimeInSec;
     private RetentionPolicy policy;
 
-    public BacklogQuotaImpl(long limitSize, int limitTime, RetentionPolicy policy) {
+    public BacklogQuotaImpl(long limitSize, int limitTimeInSec, RetentionPolicy policy) {
         this.limitSize = limitSize;
-        this.limitTime = limitTime;
+        this.limitTimeInSec = limitTimeInSec;
         this.policy = policy;
     }
 
@@ -80,12 +80,12 @@ public class BacklogQuotaImpl implements BacklogQuota {
         this.limit = limitSize;
     }
 
-    public int getLimitTime() {
-        return limitTime;
+    public int getLimitTimeInSec() {
+        return limitTimeInSec;
     }
 
-    public void setLimitTime(int limitTime) {
-        this.limitTime = limitTime;
+    public void setLimitTimeInSec(int limitTimeInSec) {
+        this.limitTimeInSec = limitTimeInSec;
     }
 
     public RetentionPolicy getPolicy() {
