@@ -17,7 +17,7 @@ The configuration of the HDFS2 sink connector has the following properties.
 | `hdfsConfigResources` | String|true| None | A file or a comma-separated list containing the Hadoop file system configuration.<br /><br />**Example**<br />'core-site.xml'<br />'hdfs-site.xml' |
 | `directory` | String | true | None|The HDFS directory where files read from or written to. |
 | `encoding` | String |false |None |The character encoding for the files.<br /><br />**Example**<br />UTF-8<br />ASCII |
-| `compression` | Compression |false |None |The compression code used to compress or de-compress the files on HDFS. <br /><br />Below are the available options:<br /><li>BZIP2<br /></li><li>DEFLATE<br /></li><li>GZIP<br /></li><li>LZ4<br /></li><li>SNAPPY</li>|
+| `compression` | Compression |false |None |The compression code used to compress or de-compress the files on HDFS. <br /><br />Below are the available options:<br /><li>BZIP2<br /></li><li>DEFLATE<br /></li><li>GZIP<br /></li><li>LZ4<br /></li><li>SNAPPY<br /></li><li>ZSTANDARD</li>|
 | `kerberosUserPrincipal` |String| false| None|The principal account of Kerberos user used for authentication. |
 | `keytab` | String|false|None| The full pathname of the Kerberos keytab file used for authentication. |
 | `filenamePrefix` |String| true, if `compression` is set to `None`. | None |The prefix of the files created inside the HDFS directory.<br /><br />**Example**<br /> The value of topicA result in files named topicA-. |
