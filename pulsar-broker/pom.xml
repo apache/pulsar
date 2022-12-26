@@ -696,7 +696,24 @@
               <apiSources>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v2</locations>
+                  <locations>
+                    <location>org.apache.pulsar.broker.admin.v2.Bookies</location>
+                    <location>org.apache.pulsar.broker.admin.v2.BrokerStats</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Brokers</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Clusters</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Functions</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Namespaces</location>
+                    <location>org.apache.pulsar.broker.admin.v2.NonPersistentTopics</location>
+                    <location>org.apache.pulsar.broker.admin.v2.PersistentTopics</location>
+                    <!-- See https://github.com/apache/pulsar/issues/18947 -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.PersistentTopicsExt</location> -->
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceGroups</location>
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceQuotas</location>
+                    <location>org.apache.pulsar.broker.admin.v2.SchemasResource</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Tenants</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Worker</location>
+                    <location>org.apache.pulsar.broker.admin.v2.WorkerStats</location>
+                  </locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v2</basePath>
                   <info>
