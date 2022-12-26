@@ -90,5 +90,5 @@ public class ExtNonPersistentTopics extends PersistentTopicsBase {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
+    private static final Logger log = LoggerFactory.getLogger(NonPersistentTopics.class);
 }
