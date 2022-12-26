@@ -49,10 +49,12 @@ from bookkeeper.kv.client import Client
 to_run = True
 Log = log.Log
 
+
 def atexit_function(signo, _frame):
   global to_run
   Log.info("Interrupted by %d, shutting down" % signo)
   to_run = False
+
 
 def merge_arguments(args, config_file):
   """
@@ -65,6 +67,8 @@ def merge_arguments(args, config_file):
   During the merge process, the arguments passed in via the command line have higher priority,
   so only optional arguments need to be merged.
   """
+  if config_file is None:
+    return
   config = util.read_config(config_file)
   if not config:
     return
@@ -97,6 +101,68 @@ def merge_arguments(args, config_file):
     args.extra_dependency_repository = default_config.get("extra_dependency_repository")
   if not args.state_storage_serviceurl and default_config.get("state_storage_serviceurl", None):
     args.state_storage_serviceurl = default_config.get("state_storage_serviceurl")
+  # mandatory_args
+  if not args.function_details and default_config.get("function_details", None):
+    args.function_details = default_config.get("function_details")
+  if not args.py and default_config.get("py", None):
+    args.py = default_config.get("py")
+  if not args.instance_id and default_config.get("instance_id", None):
+    args.instance_id = default_config.get("instance_id")
+  if not args.function_id and default_config.get("function_id", None):
+    args.function_id = default_config.get("function_id")
+  if not args.function_version and default_config.get("function_version", None):
+    args.function_version = default_config.get("function_version")
+  if not args.pulsar_serviceurl and default_config.get("pulsar_serviceurl", None):
+    args.pulsar_serviceurl = default_config.get("pulsar_serviceurl")
+  if not args.port and default_config.get("port", None):
+    args.port = default_config.get("port")
+  if not args.metrics_port and default_config.get("metrics_port", None):
+    args.metrics_port = default_config.get("metrics_port")
+  if not args.max_buffered_tuples and default_config.get("max_buffered_tuples", None):
+    args.max_buffered_tuples = default_config.get("max_buffered_tuples")
+  if not args.logging_directory and default_config.get("logging_directory", None):
+    args.logging_directory = default_config.get("logging_directory")
+  if not args.logging_file and default_config.get("logging_file", None):
+    args.logging_file = default_config.get("logging_file")
+  if not args.logging_config_file and default_config.get("logging_config_file", None):
+    args.logging_config_file = default_config.get("logging_config_file")
+  if not args.expected_healthcheck_interval and default_config.get("expected_healthcheck_interval", None):
+    args.expected_healthcheck_interval = default_config.get("expected_healthcheck_interval")
+  if not args.cluster_name and default_config.get("cluster_name", None):
+    args.cluster_name = default_config.get("cluster_name")
+
+
+def validate_arguments(args):
+  """
+  This function is used to verify the merged arguments,
+  mainly to check whether the mandatory arguments are assigned properly.
+
+  :param args: arguments after merging
+  """
+  mandatory_args_map = {
+    "function_details": args.function_details,
+    "py": args.py,
+    "instance_id": args.instance_id,
+    "function_id": args.function_id,
+    "function_version": args.function_version,
+    "pulsar_serviceurl": args.pulsar_serviceurl,
+    "port": args.port,
+    "metrics_port": args.metrics_port,
+    "max_buffered_tuples": args.max_buffered_tuples,
+    "logging_directory": args.logging_directory,
+    "logging_file": args.logging_file,
+    "logging_config_file": args.logging_config_file,
+    "expected_healthcheck_interval": args.expected_healthcheck_interval,
+    "cluster_name": args.cluster_name
+  }
+  missing_args = []
+  for k, v in mandatory_args_map.items():
+    if v is None:
+      missing_args.append(k)
+  if missing_args:
+    print("The following arguments are required:", missing_args)
+    sys.exit(1)
+
 
 def main():
   # Setup signal handlers
@@ -105,37 +171,38 @@ def main():
   signal.signal(signal.SIGINT, atexit_function)
 
   parser = argparse.ArgumentParser(description='Pulsar Functions Python Instance')
-  parser.add_argument('--function_details', required=True, help='Function Details Json String')
-  parser.add_argument('--py', required=True, help='Full Path of Function Code File')
-  parser.add_argument('--instance_id', required=True, help='Instance Id')
-  parser.add_argument('--function_id', required=True, help='Function Id')
-  parser.add_argument('--function_version', required=True, help='Function Version')
-  parser.add_argument('--pulsar_serviceurl', required=True, help='Pulsar Service Url')
+  parser.add_argument('--function_details', required=False, help='Function Details Json String')
+  parser.add_argument('--py', required=False, help='Full Path of Function Code File')
+  parser.add_argument('--instance_id', required=False, help='Instance Id')
+  parser.add_argument('--function_id', required=False, help='Function Id')
+  parser.add_argument('--function_version', required=False, help='Function Version')
+  parser.add_argument('--pulsar_serviceurl', required=False, help='Pulsar Service Url')
   parser.add_argument('--client_auth_plugin', required=False, help='Client authentication plugin')
   parser.add_argument('--client_auth_params', required=False, help='Client authentication params')
   parser.add_argument('--use_tls', required=False, help='Use tls')
   parser.add_argument('--tls_allow_insecure_connection', required=False, help='Tls allow insecure connection')
   parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
   parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
-  parser.add_argument('--port', required=True, help='Instance Port', type=int)
-  parser.add_argument('--metrics_port', required=True, help="Port metrics will be exposed on", type=int)
-  parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
-  parser.add_argument('--logging_directory', required=True, help='Logging Directory')
-  parser.add_argument('--logging_file', required=True, help='Log file name')
+  parser.add_argument('--port', required=False, help='Instance Port', type=int)
+  parser.add_argument('--metrics_port', required=False, help="Port metrics will be exposed on", type=int)
+  parser.add_argument('--max_buffered_tuples', required=False, help='Maximum number of Buffered tuples')
+  parser.add_argument('--logging_directory', required=False, help='Logging Directory')
+  parser.add_argument('--logging_file', required=False, help='Log file name')
   parser.add_argument('--logging_level', required=False, help='Logging level')
-  parser.add_argument('--logging_config_file', required=True, help='Config file for logging')
-  parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
+  parser.add_argument('--logging_config_file', required=False, help='Config file for logging')
+  parser.add_argument('--expected_healthcheck_interval', required=False, help='Expected time in seconds between health checks', type=int)
   parser.add_argument('--secrets_provider', required=False, help='The classname of the secrets provider')
   parser.add_argument('--secrets_provider_config', required=False, help='The config that needs to be passed to secrets provider')
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
   parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
   parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
   parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
-  parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
+  parser.add_argument('--cluster_name', required=False, help='The name of the cluster this instance is running on')
   parser.add_argument('--config_file', required=False, default="", help='Configuration file name', type=str)
 
   args = parser.parse_args()
   merge_arguments(args, args.config_file)
+  validate_arguments(args)
   function_details = Function_pb2.FunctionDetails()
   args.function_details = str(args.function_details)
   if args.function_details[0] == '\'':
