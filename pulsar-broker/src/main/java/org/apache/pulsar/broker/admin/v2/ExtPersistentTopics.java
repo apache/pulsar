@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 @Path("/persistent")
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
-public class PersistentTopicsExt extends PersistentTopicsBase {
+public class ExtPersistentTopics extends PersistentTopicsBase {
 
     @PUT
     @Consumes(PartitionedTopicMetadata.MEDIA_TYPE)
