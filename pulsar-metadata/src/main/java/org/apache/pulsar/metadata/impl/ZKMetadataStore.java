@@ -424,13 +424,15 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     public void close() throws Exception {
-        if (isZkManaged) {
-            zkc.close();
+        if (isClosed.compareAndSet(false, true)) {
+            if (isZkManaged) {
+                zkc.close();
+            }
+            if (sessionWatcher != null) {
+                sessionWatcher.close();
+            }
+            super.close();
         }
-        if (sessionWatcher != null) {
-            sessionWatcher.close();
-        }
-        super.close();
     }
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
