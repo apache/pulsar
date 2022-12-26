@@ -122,15 +122,25 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
    ```java
+   # If you use Lombok
+
+   @Builder
+   @AllArgsConstructor
+   @NoArgsConstructor
    public static class User {
        public String name;
        public int age;
-       public User(String name, int age) {
- 	this.name = name;
-	this.age = age
-       }
-       public User() {}
    }
+
+   # If you DON'T use Lombok you will need to add the constructor like this
+   # 
+   #   public static class User {
+   #    String name;
+   #    int age;
+   #    public User() { } 
+   #    public User(String name, int age) { this.name = name; this.age = age; } }
+   #}
+
    ```
 
 2. Create a producer with a `struct` schema and send messages.
