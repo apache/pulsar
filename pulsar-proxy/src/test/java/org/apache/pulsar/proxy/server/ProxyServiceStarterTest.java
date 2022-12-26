@@ -20,6 +20,8 @@ package org.apache.pulsar.proxy.server;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
+import io.prometheus.client.CollectorRegistry;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -70,6 +72,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         serviceStarter.close();
+        CollectorRegistry.defaultRegistry.clear();
     }
 
     private String computeWsBasePath() {
