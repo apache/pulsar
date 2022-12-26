@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Base64;
