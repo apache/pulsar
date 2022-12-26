@@ -643,7 +643,7 @@ C3 connected:
 |------- C3 ------|------- C2 ------|---------------- C1 ---------------|
 
 C4 connected:
-|------- C3 ------|------- C2 ------|------- C1 ------|------- C4 ------|
+|------- C3 ------|------- C2 ------|------- C4 ------|------- C1 ------|
 ```
 
 When a consumer is disconnected its region will be merged into the region on its right. Examples:
