@@ -628,7 +628,7 @@ Suppose we have 4 consumers (C1, C2, C3 and C4), then:
  |------- C3 ------|------- C2 ------|------- C1 ------|------- C4 ------|
 ```
 
-Given a message key `Order-3459134`, its hash would be `murmur32("Order-3459134") = 3112179635`, and its index in the range would be `3112179635 mod 65536 = 6067`. That index is contained within region `[0, 16384)` thus consumer C1 will be mapped to this message key.
+Given a message key `Order-3459134`, its hash would be `murmur32("Order-3459134") = 3112179635`, and its index in the range would be `3112179635 mod 65536 = 6067`. That index is contained within region `[0, 16384)` thus consumer C3 will be mapped to this message key.
 
 When a new consumer is connected, the largest region is chosen and is then split in half - the lower half will be mapped to the newly added consumer and upper half will be mapped to the consumer owning that region. Here is how it looks like from 1 to 4 consumers:
 
