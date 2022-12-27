@@ -626,7 +626,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
                                                     Map<String, Long> properties, TransactionImpl txn) {
-        List<MessageIdImpl> messageIdListToAck = new ArrayList<>();
         for (MessageId messageId : messageIdList) {
             checkArgument(messageId instanceof MessageIdImpl);
         }
@@ -644,8 +643,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return doTransactionAcknowledgeForResponse(messageIdList, ackType, null,
                     properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         } else {
+            List<MessageIdImpl> messageIdListToAck = new ArrayList<>();
             for (MessageId messageId : messageIdList) {
-                checkArgument(messageId instanceof MessageIdImpl);
                 onAcknowledge(messageId, null);
                 if (messageId instanceof BatchMessageIdImpl) {
                     BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
