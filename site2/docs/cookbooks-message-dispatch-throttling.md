@@ -1,7 +1,7 @@
 ---
-id: message-throttling
-title: Message throttling
-sidebar_label: "Message throttling"
+id: message-dispatch-throttling
+title: Message dispatch throttling
+sidebar_label: "Message dispatch throttling"
 ---
 
 ## Message Dispatch throttling
@@ -19,14 +19,17 @@ Message dispatch throttling is a mechanism that limits the speed at which messag
   allocation of the client computer.
 
 ### Concepts of message dispatch throttling
-- `ratePeriodInSecond` The unit of the rate limiting period is second. The default is 1s.
+- `ratePeriodInSecond` Usually the rate limiter is defined as how many times per second, how many times per minute, and
+   so on. In each of these definitions, there is the concept of a time period, such as one second, one minute, and the
+   counter is reset at the end of the time period. In Pulsar, the user can customize this time period, it is
+   `ratePeriodInSecond`, default is 1s. For example: if we want limit dispatch to 10,000 numbers of messages per minute,
+   we should set `ratePeriodInSecond` to 60 and set `dispatchThrottlingRateInMsg` to 10,000.
 - `dispatchThrottlingRateInMsg` Specifies the maximum number of messages to be delivered in each rate limiting period. 
    The default is' -1 ', which means no limit.
 - `dispatchThrottlingRateInByte` The maximum number of bytes of messages delivered per rate-limiting period. The default
    is' -1 ', which means no limit.
 
-> If set ` dispatchThrottlingRateInMsg` and ` dispatchThrottlingRateInByte` both, then the message delivery is required 
-> at the same time satisfy the rules of the two, in other words the two rules are not mutually exclusive.
+> `dispatchThrottlingRateInMsg` and `dispatchThrottlingRateInByte` are these AND relations.
 
 ### How it works
 Message dispatch throttling works divided into these steps:
@@ -40,15 +43,22 @@ Message dispatch throttling works divided into these steps:
 > period is reduced. For example, if the rate-limiting rule is set to `10 /s`, `11` messages are delivered to the client
 > in the first rate-limiting period,`9` messages will be delivered to the client in the next rate-limiting period.
 
+#### Why are messages over-delivered?
+- Cause-1: After batch-send enabled, we don't known how many messages per batch, so we can only estimate the number of
+batch to read(see [Estimate the amount of data to be read from the Storage](#Estimate-the-amount-of-data-to-be-read-from-the-Storage)),
+but the sum of all the number of messages in batches may already exceed the flow threshold. 
+- Cause-2: The logic of the dispatch throttling is: `1.get remaining amount` -> `2.load data` -> `3.deduct amount`, If
+there are two process `a & b` are executed in parallel, it is possible to execute in this order: 
+`process-a: 1.get remaining amount` -> `process-a: 2.load data` -> `process-b: 1.get remaining amount` ->
+`process-b: 2.load data` -> `process-a: 3.deduct amount` -> `process-b: 3.deduct amount`, both `process-a` and
+`process-b` dispatch enough messages, and the total number exceeds the threshold.
+
 #### Estimate the amount of data to be read from the Storage
 Messages is stored in blocks. If batch-send is not enabled, each message is packaged into an independent data block.And
 if batch-send is enabled, a batch of messages are packaged into one data block, then we can not determine the true count
 of messages in one data block; We also cannot determine the true size of this data block until we have actually read the
 it from Storage.So in order to satisfy the constraints `dispatchThrottlingRateInMsg` and `dispatchThrottlingRateInByte`,
 requires a mechanism to estimate how much need to read a data block.
-
-> If enabled the feature ` dispatchThrottlingOnBatchMessageEnabled`, instead of counting by message, we're counting
-> by blocks of data.
 
 When delivering a message to the client, the Broker looks at the size and number of messages per data block, calculates
 an average and caches it in memory, using this average to estimate how many data blocks to be read. What if there is no
@@ -57,12 +67,21 @@ block to clients if it is the first delivery of a new topic. Of course, the brok
 of data blocks for a long time to process the average accurately, which would waste memory. Instead, a compromise
 algorithm 'avg = (history-avg * 0.9 + new-avg * 0.1)' is used.
 
+> If enabled the feature `dispatchThrottlingOnBatchMessageEnabled`, will support rate-limiting dispatching on the batch
+> messages rather than individual messages within batch messages. Since one batch is one data block, this is sufficient
+> to constrain the concurrency of read requests on storage. This makes the count of the number of messages inaccurate,
+> but also maximizes pulsar's throughput while keeping storage read requests stable.
+
+#### Automatically close message dispatch throttling when there is no backlog
+After we turn on `dispatchThrottlingOnNonBacklogConsumerEnabled`(default is enabled), if all consumers in one
+subscription have no backlog(it is clear that almost all read requests can hit the cache), then message dispatch
+throttling is turned off automatically(it means that even if we set `dispatchThrottlingRateInMsg` and
+`dispatchThrottlingRateInByte`, throttling won't work because there is no backlog)，and if any consumer has backlog,
+it will be turned on automatically. If we need only to prevent the excessive read requests results in Storage can not
+work well, this feature is very useful.
+
 ### Only three granularity supports
-- Throttling limit per broker: Often applied to overload protection of broker or storage. If only to prevent the
-  excessive read requests results in Storage can not work well, you can disabled the feature
-  `dispatchThrottlingOnNonBacklogConsumerEnabled` (default is enabled). After disabled this feature, if all consumers
-  in one subscription have no backlog(it is clear that almost all read requests can hit the cache), then message
-  dispatch throttling is turned off automatically，and if any consumer has backlog, it will be turned on automatically.
+- Throttling limit per broker.
 - Throttling limit per topic: The maximum number of messages that can be delivered to clients per unit of time for the
   same topic. If there are multiple partitions, this rule indicates the maximum number of messages each partition can
   deliver per unit time. Total limiting of multiple partitions on the same topic is not supported. For example, Topic
@@ -76,7 +95,7 @@ algorithm 'avg = (history-avg * 0.9 + new-avg * 0.1)' is used.
   unit time. If the subscribed topic has multiple partitions, this rule indicates the maximum number of messages the
   subscription can deliver per partition per unit time. For example, topic `t2` has two partitions, we create a
   subscription `sub1` to `t2`, and set rate limit to `10/s`. Then the speed limit for `sub1` in `t2-partition-0` is
-  `10/s`, and the speed limit for `sub1` in `t2-partition-1` is `10/s` too. So the speed limit for the whole `sub2` is
+  `10/s`, and the speed limit for `sub1` in `t2-partition-1` is `10/s` too. So the speed limit for the whole `sub1` is
   `20/s`. There are also three ways to set the rule of subscriptions(Effective priority, from low to high):
   - set by [configuration of broker](https://pulsar.apache.org/docs/reference-configuration/#broker);
   - set by [policies of namespace](https://pulsar.apache.org/docs/2.10.x/admin-api-namespaces/#configure-dispatch-throttling-for-subscription);

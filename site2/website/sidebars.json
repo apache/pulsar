@@ -365,7 +365,7 @@
         "cookbooks-retention-expiry",
         "cookbooks-message-queue",
         "cookbooks-bookkeepermetadata",
-        "cookbooks-message-throttling"
+        "cookbooks-message-dispatch-throttling"
       ]
     },
     {
