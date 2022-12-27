@@ -706,7 +706,8 @@
                     <location>org.apache.pulsar.broker.admin.v2.NonPersistentTopics</location>
                     <location>org.apache.pulsar.broker.admin.v2.PersistentTopics</location>
                     <!-- See https://github.com/apache/pulsar/issues/18947 -->
-                    <!-- <location>org.apache.pulsar.broker.admin.v2.PersistentTopicsExt</location> -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtPersistentTopics</location> -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtNonPersistentTopics</location> -->
                     <location>org.apache.pulsar.broker.admin.v2.ResourceGroups</location>
                     <location>org.apache.pulsar.broker.admin.v2.ResourceQuotas</location>
                     <location>org.apache.pulsar.broker.admin.v2.SchemasResource</location>
