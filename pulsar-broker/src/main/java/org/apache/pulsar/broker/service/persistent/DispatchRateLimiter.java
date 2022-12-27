@@ -99,10 +99,8 @@ public class DispatchRateLimiter {
      */
     public boolean tryDispatchPermit(long msgPermits, long bytePermits) {
         boolean acquiredMsgPermit = msgPermits <= 0 || dispatchRateLimiterOnMessage == null
-        // In dispatch mode, acquiring permits can be larger than configured msg-rate.
                 || dispatchRateLimiterOnMessage.tryAcquire(msgPermits);
         boolean acquiredBytePermit = bytePermits <= 0 || dispatchRateLimiterOnByte == null
-        // In dispatch mode, acquiring permits can be larger than configured msg-rate.
                 || dispatchRateLimiterOnByte.tryAcquire(bytePermits);
         return acquiredMsgPermit && acquiredBytePermit;
     }
