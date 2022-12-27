@@ -19,11 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Data;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -155,47 +158,48 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public void testAutoConsumeSchemaRetryLetter() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-letter-topic";
         final String subName = "my-subscription";
-        final int maxRedeliveryCount = 1;
+        final String retrySubName = "my-subscription" + "-RETRY";
         final int sendMessages = 10;
+        final String retryTopic = topic + "-RETRY";
 
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
-        Consumer<FooV2> deadLetterConsumer = newPulsarClient.newConsumer(Schema.AVRO(FooV2.class))
-                .topic(topic + "-" + subName + "-DLQ")
-                .subscriptionName("my-subscription")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
-
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(topic)
+                .enableBatching(false)
                 .create();
-        Set<String> messageIds = new HashSet<>();
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName(subName)
+                .isAckReceiptEnabled(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().retryLetterTopic(retryTopic)
+                        .maxRedeliverCount(Integer.MAX_VALUE).build())
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> retryTopicConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(retryTopic)
+                .subscriptionName(retrySubName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Set<MessageId> messageIds = new HashSet<>();
         for (int i = 0; i < sendMessages; i++) {
             if (i % 2 == 0) {
                 Foo foo = new Foo();
                 foo.field1 = i + "";
                 foo.field2 = i + "";
-                messageIds.add(producer.newMessage(Schema.AVRO(Foo.class)).value(foo).send().toString());
+                messageIds.add(producer.newMessage(Schema.AVRO(Foo.class)).value(foo).send());
             } else {
                 FooV2 foo = new FooV2();
                 foo.field1 = i + "";
                 foo.field2 = i + "";
                 foo.field3 = i + "";
-                messageIds.add(producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send().toString());
+                messageIds.add(producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send());
             }
         }
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
-                .topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .enableRetry(true)
-                .receiverQueueSize(100)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
         producer.close();
 
         int totalReceived = 0;
@@ -205,26 +209,49 @@ public class RetryTopicTest extends ProducerConsumerBase {
                     "consumer received message (schema={}) : {} {}",
                     message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
+            assertTrue(messageIds.contains(message.getMessageId()));
             totalReceived++;
-        } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+        } while (totalReceived < sendMessages);
 
-        int totalInDeadLetter = 0;
+        // consume receive retry message
+        Set<MessageId> retryTopicMessageIds = new HashSet<>();
+        do {
+            Message<GenericRecord> message = consumer.receive();
+            log.info(
+                    "consumer received retry message (schema={}) : {} {}",
+                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+            consumer.acknowledge(message);
+            retryTopicMessageIds.add(message.getMessageId());
+            assertFalse(messageIds.contains(message.getMessageId()));
+            totalReceived++;
+        } while (totalReceived - sendMessages < sendMessages);
 
-        for (int i = 0; i < sendMessages; i++) {
-            Message<FooV2> message = deadLetterConsumer.receive();
-            FooV2 fooV2 = message.getValue();
-            assertNotNull(fooV2.field1);
-            assertEquals(fooV2.field2, fooV2.field1);
-            assertTrue(fooV2.field3 == null || fooV2.field1.equals(fooV2.field3));
-            assertEquals(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
-            assertTrue(messageIds.contains(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID)));
-            deadLetterConsumer.acknowledge(message);
-            totalInDeadLetter++;
-        }
-        assertEquals(totalInDeadLetter, sendMessages);
-        deadLetterConsumer.close();
-        consumer.close();
-        newPulsarClient.close();
+        Message<GenericRecord> message = consumer.receive(2, TimeUnit.SECONDS);
+        assertNull(message);
+
+        totalReceived = 0;
+
+        // retryTopicConsumer receive retry messages
+        do {
+            Message<GenericRecord> retryTopicMessage = retryTopicConsumer.receive();
+            assertTrue(retryTopicMessageIds.contains(retryTopicMessage.getMessageId()));
+            assertEquals(retryTopicMessage.getValue().getField("field1"), totalReceived + "");
+            assertEquals(retryTopicMessage.getValue().getField("field2"), totalReceived + "");
+            if (totalReceived % 2 == 0) {
+                try {
+                    retryTopicMessage.getValue().getField("field3");
+                } catch (Exception e) {
+                    assertTrue(e instanceof AvroRuntimeException);
+                    assertEquals(e.getMessage(), "Not a valid schema field: field3");
+                }
+            } else {
+                assertEquals(retryTopicMessage.getValue().getField("field3"), totalReceived + "");
+            }
+            totalReceived++;
+        } while (totalReceived < sendMessages);
+
+        message = retryTopicConsumer.receive(2, TimeUnit.SECONDS);
+        assertNull(message);
     }
 
     @Test(timeOut = 60000)
