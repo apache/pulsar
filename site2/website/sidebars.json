@@ -289,8 +289,7 @@
           ]
         },
         "security-authorization",
-        "security-extending",
-        "security-policy-and-supported-versions"
+        "security-extending"
       ]
     },
     {

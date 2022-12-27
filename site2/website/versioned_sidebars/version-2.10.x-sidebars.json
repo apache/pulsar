@@ -356,10 +356,6 @@
         },
         {
           "type": "doc",
-          "id": "version-2.10.x/security-policy-and-supported-versions"
-        },
-        {
-          "type": "doc",
           "id": "version-2.10.x/security-tls-transport"
         },
         {
