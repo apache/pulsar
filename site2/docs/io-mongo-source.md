@@ -4,6 +4,12 @@ title: MongoDB source connector
 sidebar_label: "MongoDB source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The MongoDB source connector pulls documents from MongoDB and persists the messages to Pulsar topics.
 
 This guide explains how to configure and use the MongoDB source connector.

@@ -4,9 +4,13 @@ title: Redis sink connector
 sidebar_label: "Redis sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The  Redis sink connector pulls messages from Pulsar topics and persists the messages to a Redis database.
-
-
 
 ## Configuration
 
@@ -90,27 +94,27 @@ This example shows how to write records to a Redis database using the Pulsar Red
 
    * Use the **JSON** configuration file as shown previously. 
 
-       ```bash
-       bin/pulsar-admin sinks localrun \
+   ```bash
+   bin/pulsar-admin sinks localrun \
        --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
        --tenant public \
        --namespace default \
        --name my-redis-sink \
        --sink-config '{"redisHosts": "localhost:6379","redisPassword": "mypassword","redisDatabase": "0","clientMode": "Standalone","operationTimeout": "3000","batchSize": "1"}' \
        --inputs my-redis-topic
-       ```
+   ```
 
    * Use the **YAML** configuration file as shown previously.
 
-       ```bash
-       bin/pulsar-admin sinks localrun \
-       --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
-       --tenant public \
-       --namespace default \
-       --name my-redis-sink \
-       --sink-config-file redis-sink-config.yaml \
-       --inputs my-redis-topic
-       ```
+    ```bash
+    bin/pulsar-admin sinks localrun \
+        --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
+        --tenant public \
+        --namespace default \
+        --name my-redis-sink \
+        --sink-config-file redis-sink-config.yaml \
+        --inputs my-redis-topic
+    ```
 
 4. Publish records to the topic.
 

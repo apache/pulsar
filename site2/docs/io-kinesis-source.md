@@ -4,6 +4,12 @@ title: Kinesis source connector
 sidebar_label: "Kinesis source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Kinesis source connector pulls data from Amazon Kinesis and persists data into Pulsar.
 
 This connector uses the [Kinesis Consumer Library](https://github.com/awslabs/amazon-kinesis-client) (KCL) to do the actual consumption of messages. The KCL uses DynamoDB to track the state of consumers.

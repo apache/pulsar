@@ -4,6 +4,12 @@ title: Flume source connector
 sidebar_label: "Flume source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Flume source connector pulls messages from logs to Pulsar topics.
 
 ## Configuration

@@ -4,6 +4,12 @@ title: HDFS3 sink connector
 sidebar_label: "HDFS3 sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The HDFS3 sink connector pulls the messages from Pulsar topics and persists the messages to HDFS files.
 
 ## Configuration

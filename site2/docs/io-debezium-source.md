@@ -4,6 +4,12 @@ title: Debezium source connector
 sidebar_label: "Debezium source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics.
 
 ## Configuration
@@ -169,11 +175,11 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
        ```bash
        bin/pulsar-admin source localrun \
-       --archive connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar \
-       --name debezium-mysql-source \
-       --tenant public \
-       --namespace default \
-       --source-config '{"database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
+           --archive connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar \
+           --name debezium-mysql-source \
+           --tenant public \
+           --namespace default \
+           --source-config '{"database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
        ```
 
      :::note
@@ -193,7 +199,7 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
        ```bash
        bin/pulsar-admin source localrun \
-       --source-config-file debezium-mysql-source-config.yaml
+          --source-config-file debezium-mysql-source-config.yaml
        ```
 
 4. Subscribe to the topic _sub-products_ for the table _inventory.products_.
@@ -204,13 +210,13 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
 5. Start a MySQL client in docker.
 
-   ```bash
-   docker run -it --rm \
-   --name mysqlterm \
-   --link mysql \
-   --rm mysql:5.7 sh \
-   -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
-   ```
+    ```bash
+    docker run -it --rm \
+        --name mysqlterm \
+        --link mysql \
+        --rm mysql:5.7 sh \
+        -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
+    ```
 
 6. A MySQL client pops out.
 
@@ -264,7 +270,6 @@ You can use one of the following methods to create a configuration file.
   parallelism: 1
 
   configs:
-
       ## config for postgres version 10+, official docker image: postgres:<10+>
       database.hostname: "localhost"
       database.port: "5432"
@@ -291,10 +296,10 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
    ```bash
    docker run -d -it --rm \
-   --name pulsar-postgres \
-   -p 5432:5432 \
-   -e POSTGRES_PASSWORD=changeme \
-   postgres:13.3 -c wal_level=logical
+       --name pulsar-postgres \
+       -p 5432:5432 \
+       -e POSTGRES_PASSWORD=changeme \
+       postgres:13.3 -c wal_level=logical
    ```
 
 2. Start a Pulsar service locally in standalone mode.
@@ -311,11 +316,11 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
        ```bash
        bin/pulsar-admin source localrun \
-       --archive connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar \
-       --name debezium-postgres-source \
-       --tenant public \
-       --namespace default \
-       --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+           --archive connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar \
+           --name debezium-postgres-source \
+           --tenant public \
+           --namespace default \
+           --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
        ```
 
      :::note
@@ -335,7 +340,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
        ```bash
        bin/pulsar-admin source localrun  \
-       --source-config-file debezium-postgres-source-config.yaml
+          --source-config-file debezium-postgres-source-config.yaml
        ```
 
 4. Subscribe to the topic _sub-users_ for the _public.users_ table.
@@ -471,11 +476,11 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
        ```bash
        bin/pulsar-admin source localrun \
-       --archive connectors/pulsar-io-debezium-mongodb-@pulsar:version@.nar \
-       --name debezium-mongodb-source \
-       --tenant public \
-       --namespace default \
-       --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+           --archive connectors/pulsar-io-debezium-mongodb-@pulsar:version@.nar \
+           --name debezium-mongodb-source \
+           --tenant public \
+           --namespace default \
+           --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'
        ```
 
      :::note
@@ -519,7 +524,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    In the terminal window of subscribing topic, you can receive the following messages.
 
-   ```bash
+   ```text
    ----- got message -----
    {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
    ```
